@@ -1,0 +1,21 @@
+# Xcode
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.xcscmblueprint
+*.xccheckout
+
+# XcodeGen generates these from project.yml — keep them out of git
+Reffi.xcodeproj/
+Reffi-Info.plist
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# macOS
+.DS_Store
+
+# Fastlane / CocoaPods (미사용이지만 대비)
+Pods/
