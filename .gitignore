@@ -1,1 +1,17 @@
 CLAUDE.md
+
+# macOS
+.DS_Store
+
+# Xcode / build artifacts
+DerivedData/
+build/
+*.xcuserstate
+xcuserdata/
+
+# XcodeGen이 project.yml에서 생성 — 정본은 project.yml이라 커밋 제외
+Reffi.xcodeproj/
+
+# Swift Package Manager
+.swiftpm/
+Package.resolved

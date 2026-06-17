@@ -1,0 +1,54 @@
+name: Reffi
+options:
+  bundleIdPrefix: com.reffi
+  deploymentTarget:
+    iOS: "18.0"
+  createIntermediateGroups: true
+  groupSortPosition: top
+
+packages:
+  PhosphorSwift:
+    url: https://github.com/phosphor-icons/swift
+    from: 2.1.0
+
+targets:
+  Reffi:
+    type: application
+    platform: iOS
+    deploymentTarget: "18.0"
+    sources:
+      - path: Reffi
+        excludes:
+          - "Info.plist"
+    dependencies:
+      - package: PhosphorSwift
+        product: PhosphorSwift
+    info:
+      path: Reffi/Info.plist
+      properties:
+        CFBundleDisplayName: Reffi
+        CFBundleName: Reffi
+        UILaunchScreen:
+          UIColorName: LaunchBackground
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        UIApplicationSupportsIndirectInputEvents: true
+        ITSAppUsesNonExemptEncryption: false
+        UIAppFonts:
+          - Pretendard-Regular.otf
+          - Pretendard-Medium.otf
+          - Pretendard-SemiBold.otf
+          - Pretendard-Bold.otf
+          - GoogleSansFlex-Regular.ttf
+          - StoryScript-Regular.ttf
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.reffi.app
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        SWIFT_VERSION: "5.0"
+        TARGETED_DEVICE_FAMILY: "1"
+        CODE_SIGNING_REQUIRED: "NO"
+        CODE_SIGNING_ALLOWED: "NO"
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        ENABLE_USER_SCRIPT_SANDBOXING: "YES"
