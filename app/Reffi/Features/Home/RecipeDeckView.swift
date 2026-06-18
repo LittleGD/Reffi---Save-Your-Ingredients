@@ -1,4 +1,5 @@
 import SwiftUI
+import PhosphorSwift
 
 /// Tinder-style recipe deck.
 /// - Swipe right = Cook, left = Pass, up = Details
@@ -232,23 +233,22 @@ struct RecipeDeckView: View {
 
     private var actionButtons: some View {
         HStack(spacing: Space.s6) {
-            actionButton("Pass", systemImage: "xmark", fg: ReffiColor.urgentDark, bg: ReffiColor.urgentLight) {
+            actionButton("Pass", icon: ReffiIcon.close, fg: ReffiColor.urgentDark, bg: ReffiColor.urgentLight) {
                 pass()
             }
-            actionButton("Details", systemImage: "arrow.up", fg: ReffiColor.ink2, bg: ReffiColor.neutral200) {
+            actionButton("Details", icon: ReffiIcon.up, fg: ReffiColor.ink2, bg: ReffiColor.neutral200) {
                 detail = current
             }
-            actionButton("Cook", systemImage: "fork.knife", fg: .white, bg: ReffiColor.blue) {
+            actionButton("Cook", icon: ReffiIcon.cook, fg: .white, bg: ReffiColor.blue) {
                 cook()
             }
         }
     }
 
-    private func actionButton(_ label: String, systemImage: String, fg: Color, bg: Color, action: @escaping () -> Void) -> some View {
+    private func actionButton(_ label: String, icon: Ph, fg: Color, bg: Color, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             VStack(spacing: Space.s1) {
-                Image(systemName: systemImage)
-                    .font(.system(size: 22, weight: .semibold))
+                icon.reffi(24, .bold)
                     .foregroundStyle(fg)
                     .frame(width: 56, height: 56)
                     .background(bg)
@@ -340,8 +340,7 @@ private struct RecipeDetailSheet: View {
             .frame(maxWidth: .infinity, alignment: .leading)
 
             Button { dismiss() } label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: 16, weight: .semibold))
+                ReffiIcon.close.reffi(18, .bold)
                     .foregroundStyle(ReffiColor.ink2)
                     .frame(width: 44, height: 44)
             }

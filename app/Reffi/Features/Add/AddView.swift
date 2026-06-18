@@ -1,4 +1,5 @@
 import SwiftUI
+import PhosphorSwift
 
 /// 재료 추가 탭 — 자리표시자. 이후 단계에서 영수증 스캔/수동 입력으로 채운다.
 struct AddView: View {
@@ -6,8 +7,7 @@ struct AddView: View {
         ZStack {
             ReffiColor.canvas.ignoresSafeArea()
             VStack(spacing: Space.s3) {
-                Image(systemName: "doc.viewfinder")
-                    .font(.system(size: 40, weight: .regular))
+                ReffiIcon.receipt.reffi(40)
                     .foregroundStyle(ReffiColor.blue)
                 Text("Add by scanning a receipt")
                     .reffiText(ReffiType.subhead)

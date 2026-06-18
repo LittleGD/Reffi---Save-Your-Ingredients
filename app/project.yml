@@ -5,6 +5,11 @@ options:
     iOS: "26.0"
   createIntermediateGroups: true
 
+packages:
+  PhosphorSwift:
+    url: https://github.com/phosphor-icons/swift
+    from: 2.1.0
+
 settings:
   base:
     SWIFT_VERSION: "6.0"
@@ -21,6 +26,9 @@ targets:
     deploymentTarget: "26.0"
     sources:
       - path: Reffi
+    dependencies:
+      - package: PhosphorSwift
+        product: PhosphorSwift
     info:
       path: Reffi-Info.plist
       properties:
