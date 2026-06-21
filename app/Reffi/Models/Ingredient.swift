@@ -9,20 +9,26 @@ final class Ingredient {
     var category: String
     var addedDate: Date
     var expiryDate: Date
-    var storage: String   // 보관법 (예: 냉장·냉동·실온)
+    var storage: String        // 보관법 (예: 냉장·냉동·실온)
+    var purchasePlace: String  // 구매처 — 영수증 스캔이 채움 (예: "Emart"). 비면 "—" 표시.
+    var quantity: String       // 수량 — 영수증 스캔이 채움 (예: "300g", "2 ea"). 비면 "—" 표시.
 
     init(
         name: String,
         category: String,
         addedDate: Date = .now,
         expiryDate: Date,
-        storage: String = "Fridge"
+        storage: String = "Fridge",
+        purchasePlace: String = "",
+        quantity: String = ""
     ) {
         self.name = name
         self.category = category
         self.addedDate = addedDate
         self.expiryDate = expiryDate
         self.storage = storage
+        self.purchasePlace = purchasePlace
+        self.quantity = quantity
     }
 
     /// 오늘 자정 기준 유통기한까지 남은 일수. 오늘 = 0, 지남 = 음수.

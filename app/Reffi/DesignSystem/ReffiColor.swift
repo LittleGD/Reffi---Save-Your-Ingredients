@@ -40,4 +40,52 @@ enum ReffiColor {
     static let ink      = neutral900
     static let ink2     = neutral700
     static let muted    = neutral500
+
+    // MARK: 신선도 연속 램프 — 냉장고 카드 스택 전용(§8).
+    // 3단계 고정색(`Freshness.color`)은 칩·배지 등 단일 항목에 그대로 쓰고,
+    // 여러 항목이 한 스택에 쌓이는 냉장고에서만 daysLeft로 색을 보간해
+    // 임박할수록 진한 테라코타 → 주황 → 옅은 초록의 연속 그라데이션을 만든다.
+    // 앵커는 전부 DS 토큰에서 유도(0=urgent×0.7+urgentDark×0.3, 2=urgent,
+    // 3=soon, 4=soon↔fresh 중간, 7=fresh, 14=freshLight).
+    static func freshnessFill(daysLeft: Int) -> Color {
+        let c = freshnessFillRGB(daysLeft: daysLeft)
+        return Color(.sRGB, red: c.r, green: c.g, blue: c.b)
+    }
+
+    /// 카드 보조 글자(카테고리·상세 라벨)를 흰색으로 쓸지.
+    /// 빨강~노랑(urgent·soon, D-3 이하)은 흰색, 초록(fresh, D-4+)은 검정.
+    /// 휘도로는 노랑과 옅은 초록이 거의 같은 밝기(≈0.79)라 구분이 안 돼, 신선도(daysLeft)로 가른다.
+    /// 경계(3)만 바꾸면 흰색 적용 범위가 조절된다.
+    static func freshnessPrefersWhiteText(daysLeft: Int) -> Bool {
+        daysLeft <= 3
+    }
+
+    /// daysLeft → 보간된 정규화 RGB(0…1). 면색과 휘도 계산이 공유한다.
+    private static func freshnessFillRGB(daysLeft: Int) -> (r: Double, g: Double, b: Double) {
+        let stops: [(day: Double, r: Double, g: Double, b: Double)] = [
+            (0,  224, 118,  92), // deep urgent
+            (2,  246, 141, 112), // urgent
+            (3,  244, 199, 103), // soon
+            (4,  208, 213, 125), // soon↔fresh
+            (7,  173, 227, 147), // fresh
+            (14, 229, 245, 217), // freshLight
+        ]
+        func norm(_ s: (day: Double, r: Double, g: Double, b: Double)) -> (r: Double, g: Double, b: Double) {
+            (s.r / 255, s.g / 255, s.b / 255)
+        }
+        let d = Double(max(0, daysLeft))
+        if d <= stops.first!.day { return norm(stops.first!) }
+        if d >= stops.last!.day { return norm(stops.last!) }
+        for i in 0 ..< (stops.count - 1) {
+            let lo = stops[i], hi = stops[i + 1]
+            guard d >= lo.day, d <= hi.day else { continue }
+            let t = (d - lo.day) / (hi.day - lo.day)
+            return (
+                (lo.r + (hi.r - lo.r) * t) / 255,
+                (lo.g + (hi.g - lo.g) * t) / 255,
+                (lo.b + (hi.b - lo.b) * t) / 255
+            )
+        }
+        return (173 / 255, 227 / 255, 147 / 255)
+    }
 }

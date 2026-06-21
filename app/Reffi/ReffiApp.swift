@@ -8,7 +8,7 @@ struct ReffiApp: App {
 
     init() {
         do {
-            container = try ModelContainer(for: Ingredient.self)
+            container = try ModelContainer(for: Ingredient.self, RemovalLog.self)
         } catch {
             fatalError("ModelContainer 생성 실패: \(error)")
         }

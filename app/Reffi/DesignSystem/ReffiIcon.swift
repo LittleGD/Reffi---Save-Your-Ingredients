@@ -27,6 +27,20 @@ enum ReffiIcon {
     static var barcode: Ph { .barcode }
     static var manual: Ph { .pencilSimple }
     static var close: Ph { .x }
+
+    // 정렬/필터 어포던스 (냉장고 헤더)
+    static var sort: Ph { .caretDown }
+
+    // 삭제(스와이프)
+    static var trash: Ph { .trash }
+
+    // 경고 (낭비율 바)
+    static var warning: Ph { .warning }
+
+    // 편집
+    static var edit: Ph { .pencilSimple }
+
+    // 식재료 카테고리 → 아이콘 매핑은 `IngredientCategory`가 소유(에셋 우선 + Phosphor 폴백).
 }
 
 extension Ph {
