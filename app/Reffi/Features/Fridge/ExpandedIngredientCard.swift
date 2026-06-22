@@ -1,56 +1,65 @@
 import SwiftUI
 import PhosphorSwift
 
-/// 펼친(Wallet) 상태의 카드 — 신선도 색 면 한 장 안에 헤더 + 상세 정보를 함께 담는다.
-/// 헤더는 접힌 `IngredientCardView`와 같은 레이아웃이라 matchedGeometry 모핑이 매끄럽다.
-/// 기본 글자(이름·값·D-N)는 검정, 보조 글자(카테고리·라벨)는 어두운 면이면 흰색으로 적응.
+/// 펼친(Wallet) 상태의 카드 — 신선도 색 종이 한 장을 "영수증"으로.
+/// 톱니 가장자리 + 인쇄 그레인 + 점선 구분선 + 모노스페이스 라벨(점선 리더) + 바코드 + 신선도 잉크 스탬프.
+/// 헤더는 접힌 `IngredientCardView`와 같은 시작 구성이라 matchedGeometry 모핑이 매끄럽다.
 struct ExpandedIngredientCard: View {
     let ingredient: Ingredient
     var onEdit: () -> Void = {}
 
+    private let toothH: CGFloat = 6
+
+    /// 영수증 일련번호 — 이름+구매일에서 유도(장식용, 안정적).
+    private var receiptNo: String {
+        let a = ingredient.name.unicodeScalars.reduce(7) { $0 &* 31 &+ Int($1.value) }
+        let b = Int(ingredient.addedDate.timeIntervalSince1970) % 10000
+        return String(format: "No. %04d-%04d", abs(a) % 10000, abs(b))
+    }
+
     var body: some View {
         let category = IngredientCategory(raw: ingredient.category)
         let white = ReffiColor.freshnessPrefersWhiteText(daysLeft: ingredient.daysLeft)
-        let fg2 = white ? Color.white : ReffiColor.ink2         // 보조: 빨강~노랑 흰색, 초록 검정
-        let line = white ? Color.white.opacity(0.22) : ReffiColor.ink.opacity(0.10)
+        let fg2 = white ? Color.white : ReffiColor.ink2            // 보조 라벨
+        let line = white ? Color.white.opacity(0.32) : ReffiColor.ink.opacity(0.20)
+        let shape = ReceiptShape(toothHeight: toothH)
 
         return VStack(alignment: .leading, spacing: 0) {
             header(category, fg2: fg2)
 
-            Rectangle()
-                .fill(line)
-                .frame(height: 1)
-                .padding(.horizontal, Space.s5)
+            dashed(line)
 
             VStack(spacing: 0) {
-                row("Purchased", dateText(ingredient.addedDate), fg2: fg2)
-                divider(line)
-                row("Where", show(ingredient.purchasePlace), fg2: fg2)
-                divider(line)
-                row("Quantity", show(ingredient.quantity), fg2: fg2)
-                divider(line)
-                row("Expires", "\(dateText(ingredient.expiryDate)) · \(ingredient.countdownLabel)", fg2: fg2)
-                divider(line)
-                row("Storage", show(ingredient.storage), fg2: fg2)
+                row("Purchased", dateText(ingredient.addedDate), fg2: fg2, line: line)
+                row("Where", show(ingredient.purchasePlace), fg2: fg2, line: line)
+                row("Quantity", show(ingredient.quantity), fg2: fg2, line: line)
+                row("Expires", "\(dateText(ingredient.expiryDate)) · \(ingredient.countdownLabel)", fg2: fg2, line: line)
+                row("Storage", show(ingredient.storage), fg2: fg2, line: line)
             }
             .padding(.horizontal, Space.s5)
             .padding(.vertical, Space.s2)
+
+            dashed(line)
+
+            footer(fg2: fg2)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(ReffiColor.freshnessFill(daysLeft: ingredient.daysLeft))
-        .clipShape(RoundedRectangle(cornerRadius: Radius.xl, style: .continuous))
+        .padding(.top, toothH)
+        .padding(.bottom, toothH)
+        .background(ReffiColor.freshnessFill(daysLeft: ingredient.daysLeft), in: shape)
+        .paperGrain(shape)
         .reffiStackShadow()
     }
 
-    // MARK: 헤더 — IngredientCardView와 동일 구성(카테고리 · [아이콘] 이름 · D-N)
+    // MARK: 헤더 — 카테고리(가게 라벨) · [아이콘] 이름 + 편집
     private func header(_ category: IngredientCategory, fg2: Color) -> some View {
-        VStack(alignment: .leading, spacing: Space.s1) {
-            HStack(spacing: Space.s2) {
-                Text(category.label)
-                    .reffiText(ReffiType.caption)
+        VStack(alignment: .leading, spacing: Space.s2) {
+            HStack {
+                Text(category.label.uppercased())
+                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                    .tracking(1.5)
                     .foregroundStyle(fg2)
                 Spacer()
-                // 편집 — 카드 오른쪽 위 펜슬
                 Button(action: onEdit) {
                     ReffiIcon.edit.reffi(18, .bold)
                         .foregroundStyle(ReffiColor.ink)
@@ -64,21 +73,13 @@ struct ExpandedIngredientCard: View {
             HStack(alignment: .center, spacing: Space.s2) {
                 CategoryIcon(category: category)
                     .foregroundStyle(ReffiColor.ink)
-
-                HStack(alignment: .firstTextBaseline) {
-                    Text(ingredient.name)
-                        .reffiText(ReffiType.subhead)
-                        .foregroundStyle(ReffiColor.ink)
-
-                    Spacer(minLength: Space.s4)
-
-                    // D-N — subhead, 자간 0 + tabular (음수 자간 어색함 방지).
-                    Text(ingredient.countdownLabel)
-                        .font(ReffiType.font(ReffiType.subhead))
-                        .tracking(0)
-                        .monospacedDigit()
-                        .foregroundStyle(ReffiColor.ink)
-                }
+                Text(ingredient.name)
+                    .reffiText(ReffiType.heading)
+                    .foregroundStyle(ReffiColor.ink)
+                Spacer(minLength: Space.s4)
+                Text(ingredient.countdownLabel)
+                    .font(.system(size: 16, weight: .bold, design: .monospaced))
+                    .foregroundStyle(ReffiColor.ink)
             }
         }
         .padding(.horizontal, Space.s5)
@@ -86,23 +87,51 @@ struct ExpandedIngredientCard: View {
         .padding(.bottom, Space.s4)
     }
 
-    private func row(_ label: String, _ value: String, fg2: Color) -> some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text(label)
-                .reffiText(ReffiType.caption)
+    // MARK: 상세 행 — 라벨(대문자 모노) · · · · 값(모노)
+    private func row(_ label: String, _ value: String, fg2: Color, line: Color) -> some View {
+        HStack(alignment: .bottom, spacing: Space.s2) {
+            Text(label.uppercased())
+                .font(.system(size: 13, weight: .semibold, design: .monospaced))
                 .foregroundStyle(fg2)
-            Spacer(minLength: Space.s4)
+                .fixedSize()
+            ReceiptRule()
+                .stroke(line, style: StrokeStyle(lineWidth: 1, dash: [1, 3]))
+                .frame(height: 1)
+                .frame(maxWidth: .infinity)
+                .padding(.bottom, 4)
             Text(value)
-                .reffiText(ReffiType.body)
-                .num()
+                .font(.system(size: 13, weight: .bold, design: .monospaced))
                 .foregroundStyle(ReffiColor.ink)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                .layoutPriority(1)
                 .multilineTextAlignment(.trailing)
         }
-        .padding(.vertical, Space.s4)
+        .padding(.vertical, Space.s3)
     }
 
-    private func divider(_ line: Color) -> some View {
-        Rectangle().fill(line).frame(height: 1)
+    // MARK: 푸터 — 일련번호 + 태그라인
+    private func footer(fg2: Color) -> some View {
+        VStack(spacing: Space.s2) {
+            Text(receiptNo)
+                .font(.system(size: 11, weight: .regular, design: .monospaced))
+                .tracking(1)
+                .foregroundStyle(fg2)
+            Text("REFFI · KEEP IT FRESH")
+                .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                .tracking(1.5)
+                .foregroundStyle(fg2)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, Space.s3)
+        .padding(.bottom, Space.s4)
+    }
+
+    private func dashed(_ line: Color) -> some View {
+        ReceiptRule()
+            .stroke(line, style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
+            .frame(height: 1)
+            .padding(.horizontal, Space.s5)
     }
 
     private func show(_ s: String) -> String { s.isEmpty ? "—" : s }
