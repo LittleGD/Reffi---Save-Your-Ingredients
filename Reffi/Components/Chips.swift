@@ -25,9 +25,11 @@ struct FreshnessChip: View {
                 .font(ReffiTextRole.caption.font)
                 .tracking(ReffiTextRole.caption.tracking)
                 .foregroundStyle(ReffiColor.ink)
+                .lineLimit(1)
             Text(ingredient.dDayText)
                 .font(.reffiNum(13, relativeTo: .caption))
                 .foregroundStyle(f.dark)
+                .lineLimit(1)
         }
         .padding(.horizontal, ReffiSpace.s3)
         .padding(.vertical, 7)

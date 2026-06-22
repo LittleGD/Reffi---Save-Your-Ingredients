@@ -1,14 +1,14 @@
 import SwiftUI
 import PhosphorSwift
 
-/// 재료 추가 시트 — 중앙 ＋의 목적지. 영수증 스캔(주), 바코드·사진, 직접 입력(§8.5 스캐너 정합).
+/// 재료 추가 시트 — 중앙 ＋의 목적지. 영수증 스캔(주), 바코드·사진, 직접 입력.
 struct AddIngredientSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         VStack(alignment: .leading, spacing: ReffiSpace.s5) {
             HStack(alignment: .firstTextBaseline) {
-                Text("재료 추가")
+                Text("Add ingredients")
                     .reffiType(.heading)
                     .foregroundStyle(ReffiColor.ink)
                 Spacer()
@@ -19,12 +19,13 @@ struct AddIngredientSheet: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.reffiPress)
+                .accessibilityLabel("Close")
             }
 
             VStack(spacing: ReffiSpace.s3) {
-                option(ReffiIcon.receipt, "영수증 스캔", "장본 영수증을 찍으면 한 번에 등록", primary: true)
-                option(ReffiIcon.barcode, "바코드 · 사진", "제품 바코드나 사진으로 인식")
-                option(ReffiIcon.manual, "직접 입력", "이름과 유통기한을 직접 입력")
+                option(ReffiIcon.receipt, "Scan a receipt", "Add everything from one photo", primary: true)
+                option(ReffiIcon.barcode, "Barcode or photo", "Recognize by barcode or picture")
+                option(ReffiIcon.manual, "Enter manually", "Type the name and use-by date")
             }
 
             Spacer(minLength: 0)

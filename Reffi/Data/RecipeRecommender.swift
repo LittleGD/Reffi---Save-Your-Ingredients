@@ -4,10 +4,10 @@ import Foundation
 /// 임박할수록 큰 가중치(urgent3/soon2/fresh1). 스와이프 덱은 이 순서대로 위→아래.
 enum RecipeRecommender {
 
-    /// 매치 분모에서 빼는 상비 재료(거의 항상 있다고 가정).
+    /// 매치 분모에서 빼는 상비 재료(거의 항상 있다고 가정). 소문자 비교.
     static let staples: Set<String> = [
-        "소금", "물", "식용유", "기름", "간장", "국간장", "설탕", "후추",
-        "다진마늘", "마늘", "대파", "참기름", "고춧가루", "올리브유", "밥",
+        "salt", "water", "oil", "soy sauce", "sugar", "pepper",
+        "garlic", "green onion", "sesame oil", "rice", "olive oil",
     ]
 
     struct Result: Identifiable {
@@ -20,7 +20,8 @@ enum RecipeRecommender {
     }
 
     static func isStaple(_ token: String) -> Bool {
-        staples.contains { token.contains($0) }
+        let t = token.lowercased()
+        return staples.contains { t.contains($0) }
     }
 
     static func matches(_ ing: Ingredient, _ token: String) -> Bool {

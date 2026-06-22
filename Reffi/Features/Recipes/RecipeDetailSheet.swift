@@ -1,7 +1,7 @@
 import SwiftUI
 import PhosphorSwift
 
-/// 레시피 상세 — 카드 탭 시 바텀시트. 임박재료 소비/부족재료/조리시간.
+/// Recipe detail — half-sheet from a tap or a right-swipe. The single hub where you Start cooking.
 struct RecipeDetailSheet: View {
     let result: RecipeRecommender.Result
     @Environment(\.dismiss) private var dismiss
@@ -11,7 +11,7 @@ struct RecipeDetailSheet: View {
         ScrollView {
             VStack(alignment: .leading, spacing: ReffiSpace.s5) {
                 ZStack {
-                    FoodPalette.heroTint(r.glyph)
+                    (result.used.first?.freshness ?? .fresh).face(depth: 0)
                     FoodHeroMotif(glyph: r.glyph).padding(ReffiSpace.s5)
                 }
                 .frame(height: 200)
@@ -24,12 +24,12 @@ struct RecipeDetailSheet: View {
                     Spacer()
                     HStack(spacing: ReffiSpace.s1) {
                         ReffiIcon.time.reffi(15)
-                        Text("\(r.minutes)분").font(.reffiNum(15, relativeTo: .title3))
+                        Text("\(r.minutes) min").font(.reffiNum(15, relativeTo: .title3))
                     }
                     .foregroundStyle(ReffiColor.ink2)
                 }
 
-                section("이 레시피로 소비할 재료") {
+                section("Ingredients you'll use") {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: ReffiSpace.s2) {
                             ForEach(result.used) { FreshnessChip(ingredient: $0) }
@@ -38,14 +38,14 @@ struct RecipeDetailSheet: View {
                 }
 
                 if !result.missing.isEmpty {
-                    section("부족한 재료") {
+                    section("You're missing") {
                         Text(result.missing.joined(separator: "  ·  "))
                             .reffiType(.body)
                             .foregroundStyle(ReffiColor.ink2)
                     }
                 }
 
-                ReffiButton(title: "조리 시작", icon: ReffiIcon.cook, fullWidth: true) { dismiss() }
+                ReffiButton(title: "Start cooking", icon: ReffiIcon.cook, fullWidth: true) { dismiss() }
                     .padding(.top, ReffiSpace.s2)
             }
             .padding(ReffiSpace.s5)

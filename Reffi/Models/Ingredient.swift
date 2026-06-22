@@ -17,8 +17,12 @@ struct Ingredient: Identifiable {
 
     var freshness: Freshness { Freshness(daysLeft: daysLeft) }
 
-    /// D-N 표기. D-0 = 오늘, 음수 = 지남(D+N). 데이터성 숫자(§3.4).
+    /// 남은 일수 라벨(영어). 데이터성 숫자(§3.4).
     var dDayText: String {
-        daysLeft >= 0 ? "D-\(daysLeft)" : "D+\(-daysLeft)"
+        switch daysLeft {
+        case ..<0: "Overdue"
+        case 0:    "Today"
+        default:   "\(daysLeft)d"
+        }
     }
 }

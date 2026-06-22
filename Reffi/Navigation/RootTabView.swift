@@ -12,7 +12,7 @@ struct RootTabView: View {
         ZStack(alignment: .bottom) {
             Group {
                 switch tab {
-                case .home:    SwipeDeckView()
+                case .home:    FridgeBowlView()
                 case .fridge:  FridgePlaceholderView()
                 case .profile: MyPagePlaceholderView()
                 }
@@ -34,19 +34,17 @@ private struct CapsuleNav: View {
     @Binding var tab: RootTabView.Tab
     let onAdd: () -> Void
 
-    private let surface = ReffiColor.oklch(0.99, 0.006, 90)
-
     var body: some View {
         HStack(spacing: ReffiSpace.s3) {
-            navItem(.home, ReffiIcon.home, "홈")
-            navItem(.fridge, ReffiIcon.fridge, "냉장고")
-            actionItem(ReffiIcon.add, "추가")
-            navItem(.profile, ReffiIcon.profile, "프로필")
+            navItem(.home, ReffiIcon.home, "Home")
+            navItem(.fridge, ReffiIcon.fridge, "Fridge")
+            actionItem(ReffiIcon.add, "Add")
+            navItem(.profile, ReffiIcon.profile, "Profile")
         }
         .padding(.horizontal, ReffiSpace.s5)
         .frame(height: 60)
-        .background(surface, in: Capsule())
-        .reffiShadowStack()
+        .navGlass()
+        .shadow(color: ReffiColor.ink.opacity(0.06), radius: 6, x: 0, y: 2)   // 약한 드롭섀도
         .padding(.bottom, ReffiSpace.s3)
     }
 
@@ -81,5 +79,19 @@ private struct CapsuleNav: View {
         .buttonStyle(.reffiPress)
         .accessibilityLabel(label)
         .accessibilityAddTraits(selected ? [.isSelected] : [])
+    }
+}
+
+private extension View {
+    /// 네비 배경 — iOS 네이티브 리퀴드글래스(프로스트). Apple 권장대로 GlassEffectContainer로 감쌈.
+    /// iOS 26+; 이전은 ultraThinMaterial 폴백.
+    @ViewBuilder func navGlass() -> some View {
+        if #available(iOS 26.0, *) {
+            GlassEffectContainer {
+                self.glassEffect(.regular, in: Capsule())
+            }
+        } else {
+            self.background(.ultraThinMaterial, in: Capsule())
+        }
     }
 }
