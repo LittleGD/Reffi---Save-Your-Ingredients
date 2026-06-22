@@ -31,7 +31,7 @@ struct FridgeView: View {
 
     /// 카드 겹침(§8.2): 보이는 띠 ~72pt(카드 높이 120 − 48).
     private let overlap: CGFloat = -48
-    private let cardHeight: CGFloat = 120
+    private let cardHeight: CGFloat = 150
 
     /// 영수증 카드를 페이지보다 더 좁혀 가운데 정렬(§8) — 좁고 긴 영수증 비율(화면 ~82%).
     /// 페이지 마진(Space.s4) 위에 양옆으로 추가되는 인셋.

@@ -42,7 +42,7 @@ struct IngredientCardView: View {
         .padding(.horizontal, Space.s5)
         .padding(.top, Space.s4 + toothH)
         .padding(.bottom, Space.s3 + toothH)
-        .frame(maxWidth: .infinity, minHeight: 120, alignment: .topLeading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(ReffiColor.freshnessFill(daysLeft: ingredient.daysLeft), in: shape)
         .paperGrain(shape)
         .reffiStackShadow()
