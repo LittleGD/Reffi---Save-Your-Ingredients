@@ -1,0 +1,56 @@
+import SwiftUI
+import PhosphorSwift
+
+/// Phosphor(MIT) 아이콘 단일 진입점 — 원본(jmlee) 세트 이식.
+/// 모두 SVG 라인, currentColor 상속(§5). 색 채운 아이콘 박스 금지(§5).
+enum ReffiIcon {
+    // 네비
+    static var home: Ph { .house }
+    static var fridge: Ph { .snowflake }   // 냉장고 = 냉기 메타포(Phosphor에 냉장고 아이콘 없음)
+    static var add: Ph { .plus }
+    static var profile: Ph { .user }
+
+    // 콘텐츠
+    static var recipe: Ph { .cookingPot }
+    static var cook: Ph { .bowlSteam }
+    static var ai: Ph { .sparkle }
+    static var go: Ph { .arrowRight }
+    static var up: Ph { .arrowUp }
+    static var chevron: Ph { .caretRight }
+    static var time: Ph { .clock }
+    static var countdown: Ph { .clockCountdown }
+    static var undo: Ph { .arrowCounterClockwise }
+
+    // 재료 추가
+    static var receipt: Ph { .receipt }
+    static var camera: Ph { .camera }
+    static var barcode: Ph { .barcode }
+    static var manual: Ph { .pencilSimple }
+    static var close: Ph { .x }
+
+    // 정렬/필터 어포던스 (냉장고 헤더)
+    static var sort: Ph { .caretDown }
+
+    // 삭제(스와이프)
+    static var trash: Ph { .trash }
+
+    // 경고 (낭비율 바)
+    static var warning: Ph { .warning }
+
+    // 편집
+    static var edit: Ph { .pencilSimple }
+
+    // 식재료 카테고리 → 아이콘 매핑은 `IngredientCategory`가 소유(에셋 우선 + Phosphor 폴백).
+}
+
+extension Ph {
+    /// Reffi 표준 아이콘 렌더 — 템플릿 틴트(§5 currentColor) + 정사각 사이즈.
+    /// 색은 호출부에서 `.foregroundStyle(...)`로 준다(파스텔 면 위 ink / Blue 면 위 white).
+    func reffi(_ size: CGFloat, _ weight: Ph.IconWeight = .regular) -> some View {
+        self.weight(weight)
+            .renderingMode(.template)
+            .resizable()
+            .scaledToFit()
+            .frame(width: size, height: size)
+    }
+}
