@@ -23,9 +23,8 @@ struct IngredientCardView: View {
                 .tracking(1)
                 .foregroundStyle(fg2)
 
-            HStack(alignment: .center, spacing: Space.s2) {
-                CategoryIcon(category: category)
-                    .foregroundStyle(fg)
+            HStack(alignment: .center, spacing: Space.s3) {
+                CategoryStamp(category: category, size: 46)
 
                 HStack(alignment: .firstTextBaseline) {
                     Text(ingredient.name)

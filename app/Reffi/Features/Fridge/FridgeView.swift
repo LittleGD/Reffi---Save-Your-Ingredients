@@ -61,24 +61,6 @@ struct FridgeView: View {
     }
 
 
-    /// 낭비율 색(캔버스 위라 dark 변형, §2.6) — 낮을수록 fresh, 높을수록 urgent.
-    private var wasteColor: Color {
-        switch wastePercent {
-        case ...10: return ReffiColor.freshDark
-        case ...30: return ReffiColor.soonDark
-        default:    return ReffiColor.urgentDark
-        }
-    }
-
-    /// 합계 슬립 종이색 — 낭비율 위험도에 연동된 옅은 단색 종이(영수증 질감).
-    private var wasteCardPaper: Color {
-        switch wastePercent {
-        case ...10: return Color(hex: "#EAF6E0") // fresh
-        case ...30: return Color(hex: "#FBF1DA") // soon
-        default:    return Color(hex: "#FCE7DD") // urgent
-        }
-    }
-
     /// 냉장고 페이지 배경 — 위 크림 → 아래 옅은 살구빛 세로 그라데이션.
     private static let pageGradient = LinearGradient(
         colors: [Color(hex: "#F8F5EC"), Color(hex: "#FBE6DC")],
@@ -123,12 +105,15 @@ struct FridgeView: View {
                 if ingredients.isEmpty {
                     emptyState
                 } else {
-                    wasteMarker
-                    VStack(spacing: overlap) {
-                        ForEach(Array(ingredients.enumerated()), id: \.element.persistentModelID) { index, item in
-                            swipeRow(item)
-                                // 신선할수록(아래로) 위에 깔려 맨 끝 카드가 전체 노출, 임박 카드는 얇은 띠.
-                                .zIndex(Double(index))
+                    // 클램프(요약)가 영수증 더미 위에 얹힘 — 겹치지 않게 살짝 띄움.
+                    VStack(spacing: Space.s3) {
+                        wasteMarker
+                        VStack(spacing: overlap) {
+                            ForEach(Array(ingredients.enumerated()), id: \.element.persistentModelID) { index, item in
+                                swipeRow(item)
+                                    // 신선할수록(아래로) 위에 깔려 맨 끝 카드가 전체 노출, 임박 카드는 얇은 띠.
+                                    .zIndex(Double(index))
+                            }
                         }
                     }
                 }
@@ -203,6 +188,7 @@ struct FridgeView: View {
                     .onTapGesture { deselect() }
                     .padding(.horizontal, Space.s4 + receiptInset)
                     .padding(.top, Space.s2)
+                    .padding(.bottom, Space.s3)
             }
 
             // 카드 아래 — 소비/버림 선택(스크롤 밖 고정이라 안 잘림).
@@ -300,90 +286,59 @@ struct FridgeView: View {
     /// 카드 스택 맨 위 낭비율 — 더미 위에 올라간 "합계 영수증" 슬립(§8).
     /// 톱니 가장자리 + 그레인 + 모노스페이스, 낭비율을 TOTAL처럼 크게, 인쇄된 눈금 게이지.
     private var wasteMarker: some View {
-        let shape = ReceiptShape(toothHeight: 6)
+        let clamp = Color(hex: "#6E6C68")   // 금속 클립 그레이(영수증 색과 분리)
         return Button { showWasted = true } label: {
-            VStack(alignment: .leading, spacing: Space.s3) {
+            VStack(alignment: .leading, spacing: Space.s2) {
                 HStack(alignment: .firstTextBaseline) {
                     Text("WASTED — PAST 30 DAYS")
-                        .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                        .font(.system(size: 11, weight: .semibold, design: .monospaced))
                         .tracking(1)
-                        .foregroundStyle(ReffiColor.ink2)
+                        .foregroundStyle(.white.opacity(0.82))
                     Spacer()
                     ReffiIcon.chevron.reffi(11, .bold)
-                        .foregroundStyle(ReffiColor.muted)
+                        .foregroundStyle(.white.opacity(0.7))
                 }
-
-                ReceiptRule()
-                    .stroke(ReffiColor.ink.opacity(0.20), style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
-                    .frame(height: 1)
 
                 HStack(alignment: .firstTextBaseline) {
                     Text("TOTAL WASTED")
-                        .font(.system(size: 14, weight: .heavy, design: .monospaced))
+                        .font(.system(size: 13, weight: .heavy, design: .monospaced))
                         .tracking(1)
-                        .foregroundStyle(ReffiColor.ink)
+                        .foregroundStyle(.white)
                     Spacer()
                     Text("\(wastePercent)%")
-                        .font(.system(size: 28, weight: .heavy, design: .monospaced))
-                        .foregroundStyle(wasteColor)
+                        .font(.system(size: 30, weight: .heavy, design: .monospaced))
+                        .foregroundStyle(.white)
                 }
-
-                printedGauge
             }
             .padding(.horizontal, Space.s5)
-            .padding(.top, Space.s4 + 6)
-            .padding(.bottom, Space.s4 + 6)
+            .padding(.top, Space.s4)
+            .padding(.bottom, Space.s4 + 8)   // 아래 더미를 무는 입(mouth) 여유
             .frame(maxWidth: .infinity)
-            .background(wasteCardPaper, in: shape)
-            .paperGrain(shape)
-            .reffiStackShadow()
+            .background(clampBackground(clamp))
         }
         .buttonStyle(ReffiPressStyle())
         .padding(.horizontal, receiptInset)   // 아래 영수증 더미와 같은 폭
         .accessibilityLabel("Wasted \(wastePercent) percent in the past 30 days. View wasted items.")
     }
 
-    /// 인쇄된 눈금 게이지 — 자(ruler)처럼 0~100% 틱 위에 현재 낭비율을 삼각 마커로.
-    private var printedGauge: some View {
-        let frac = CGFloat(min(100, max(0, wastePercent))) / 100
-        let marker = wasteColor
-        return VStack(spacing: Space.s1) {
-            Canvas { ctx, size in
-                let w = size.width, midY = size.height - 9
-                let ink = ReffiColor.ink
-                // 기준선
-                var base = Path()
-                base.move(to: CGPoint(x: 0, y: midY))
-                base.addLine(to: CGPoint(x: w, y: midY))
-                ctx.stroke(base, with: .color(ink.opacity(0.55)), style: StrokeStyle(lineWidth: 1.5))
-                // 10%마다 틱(5·10에서 길게)
-                for i in 0...10 {
-                    let x = w * CGFloat(i) / 10
-                    let tall: CGFloat = (i % 5 == 0) ? 7 : 4
-                    var t = Path()
-                    t.move(to: CGPoint(x: x, y: midY - tall))
-                    t.addLine(to: CGPoint(x: x, y: midY + tall))
-                    ctx.stroke(t, with: .color(ink.opacity(0.45)), style: StrokeStyle(lineWidth: 1))
+    /// 클램프 배경 — 굵은 색 바 + 양끝 스프링 리벳 + 아래쪽 무는 입(lip).
+    private func clampBackground(_ c: Color) -> some View {
+        RoundedRectangle(cornerRadius: 16, style: .continuous)
+            .fill(c)
+            .overlay(alignment: .top) {
+                HStack {
+                    Capsule().fill(.white.opacity(0.28)).frame(width: 26, height: 5)
+                    Spacer()
+                    Capsule().fill(.white.opacity(0.28)).frame(width: 26, height: 5)
                 }
-                // 현재 낭비율 — 위에서 내려꽂는 삼각 마커
-                let mx = max(0, min(w, w * frac))
-                var tri = Path()
-                tri.move(to: CGPoint(x: mx - 6, y: midY - 16))
-                tri.addLine(to: CGPoint(x: mx + 6, y: midY - 16))
-                tri.addLine(to: CGPoint(x: mx, y: midY - 4))
-                tri.closeSubpath()
-                ctx.fill(tri, with: .color(marker))
+                .padding(.horizontal, Space.s4)
+                .padding(.top, Space.s2)
             }
-            .frame(height: 28)
-
-            HStack {
-                Text("0%")
-                Spacer()
-                Text("100%")
+            .overlay(alignment: .bottom) {
+                Rectangle().fill(.black.opacity(0.16)).frame(height: 8)
             }
-            .font(.system(size: 11, weight: .medium, design: .monospaced))
-            .foregroundStyle(ReffiColor.muted)
-        }
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .reffiStackShadow()
     }
 
     private var header: some View {

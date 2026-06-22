@@ -70,9 +70,8 @@ struct ExpandedIngredientCard: View {
                 .accessibilityLabel("Edit item")
             }
 
-            HStack(alignment: .center, spacing: Space.s2) {
-                CategoryIcon(category: category)
-                    .foregroundStyle(ReffiColor.ink)
+            HStack(alignment: .center, spacing: Space.s3) {
+                CategoryStamp(category: category, size: 56)
                 Text(ingredient.name)
                     .reffiText(ReffiType.heading)
                     .foregroundStyle(ReffiColor.ink)
@@ -84,14 +83,14 @@ struct ExpandedIngredientCard: View {
         }
         .padding(.horizontal, Space.s5)
         .padding(.top, Space.s4)
-        .padding(.bottom, Space.s4)
+        .padding(.bottom, Space.s3)
     }
 
     // MARK: 상세 행 — 라벨(대문자 모노) · · · · 값(모노)
     private func row(_ label: String, _ value: String, fg2: Color, line: Color) -> some View {
         HStack(alignment: .bottom, spacing: Space.s2) {
             Text(label.uppercased())
-                .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                .font(.system(size: 15, weight: .semibold, design: .monospaced))
                 .foregroundStyle(fg2)
                 .fixedSize()
             ReceiptRule()
@@ -100,14 +99,14 @@ struct ExpandedIngredientCard: View {
                 .frame(maxWidth: .infinity)
                 .padding(.bottom, 4)
             Text(value)
-                .font(.system(size: 13, weight: .bold, design: .monospaced))
+                .font(.system(size: 15, weight: .bold, design: .monospaced))
                 .foregroundStyle(ReffiColor.ink)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
                 .layoutPriority(1)
                 .multilineTextAlignment(.trailing)
         }
-        .padding(.vertical, Space.s3)
+        .padding(.vertical, Space.s2)
     }
 
     // MARK: 푸터 — 일련번호 + 태그라인
@@ -123,8 +122,8 @@ struct ExpandedIngredientCard: View {
                 .foregroundStyle(fg2)
         }
         .frame(maxWidth: .infinity)
-        .padding(.top, Space.s3)
-        .padding(.bottom, Space.s4)
+        .padding(.top, Space.s2)
+        .padding(.bottom, Space.s2)
     }
 
     private func dashed(_ line: Color) -> some View {

@@ -33,7 +33,7 @@ enum PaperGrain {
 extension View {
     /// 종이 그레인 오버레이를 주어진 도형으로 클립해 얹는다.
     /// `.overlay` 블렌드라 밝고 어두운 알갱이가 색을 거의 바꾸지 않고 질감만 더한다.
-    func paperGrain<S: Shape>(_ shape: S, opacity: Double = 0.20) -> some View {
+    func paperGrain<S: Shape>(_ shape: S, opacity: Double = 0.12) -> some View {
         overlay {
             PaperGrain.image
                 .opacity(opacity)
