@@ -2,22 +2,21 @@ import SwiftUI
 import SwiftData
 import PhosphorSwift
 
-/// History — "Past 30 days" 마커에서 진입. 소비/버림 이력 분석.
+/// History — "Past 30 days" 마커에서 진입. 소비/버림 이력을 "영수증 명세"처럼 보여준다.
 /// ① 월간 요약(소비·버림·낭비율 + 전월 추세) ② 카테고리별 낭비 ③ 자주 버리는 품목 ④ 통합 타임라인.
+/// 각 섹션은 톱니 가장자리 + 인쇄 그레인 + 점선 리더의 영수증 슬립(§8).
 struct HistoryView: View {
     @Query(sort: \RemovalLog.removedDate, order: .reverse)
     private var removals: [RemovalLog]
     @Environment(\.dismiss) private var dismiss
 
-    /// 카드 배경 그라데이션 — 팔레트 파스텔(위 진함 → 아래 옅음), 섹션마다 다른 색.
-    private static func cardGradient(_ top: String, _ bottom: String) -> LinearGradient {
-        LinearGradient(colors: [Color(hex: top), Color(hex: bottom)],
-                       startPoint: .top, endPoint: .bottom)
-    }
-    private static let gBlue        = cardGradient("#D2EBFF", "#EDF6FF") // 요약
-    private static let gTerracotta  = cardGradient("#FFDDD3", "#FFEFE9") // 버림 카테고리
-    private static let gAmber       = cardGradient("#FDEDCD", "#FEF7E8") // 버린 품목
-    private static let gGreen       = cardGradient("#E5F5D9", "#F2FAEA") // 타임라인
+    private let toothH: CGFloat = 6
+
+    // 섹션별 옅은 종이색 — 의미 구분은 유지하되 인쇄지처럼 차분하게.
+    private static let pSummary    = Color(hex: "#EDF6FF") // 요약(블루)
+    private static let pCategory   = Color(hex: "#FFEFE9") // 버림 카테고리(테라코타)
+    private static let pTop        = Color(hex: "#FEF7E8") // 버린 품목(앰버)
+    private static let pTimeline   = Color(hex: "#F2FAEA") // 타임라인(그린)
 
     // MARK: 기간 분할
     private func daysAgo(_ n: Int) -> Date {
@@ -42,18 +41,14 @@ struct HistoryView: View {
     private var byCategory: [(category: IngredientCategory, count: Int)] {
         let grouped: [IngredientCategory: [RemovalLog]] =
             Dictionary(grouping: thisMonth.filter(\.wasted)) { IngredientCategory(raw: $0.category) }
-        var rows: [(category: IngredientCategory, count: Int)] = []
-        for (cat, logs) in grouped { rows.append((cat, logs.count)) }
-        return rows.sorted { $0.count > $1.count }
+        return grouped.map { (category: $0.key, count: $0.value.count) }.sorted { $0.count > $1.count }
     }
 
     /// 자주 버린 품목 Top, 많은 순.
     private var topWasted: [(name: String, count: Int)] {
         let grouped: [String: [RemovalLog]] =
             Dictionary(grouping: thisMonth.filter(\.wasted)) { $0.name }
-        var rows: [(name: String, count: Int)] = []
-        for (name, logs) in grouped { rows.append((name, logs.count)) }
-        return Array(rows.sorted { $0.count > $1.count }.prefix(5))
+        return Array(grouped.map { (name: $0.key, count: $0.value.count) }.sorted { $0.count > $1.count }.prefix(5))
     }
 
     private var rateColor: Color {
@@ -71,7 +66,8 @@ struct HistoryView: View {
                     if !topWasted.isEmpty { topSection }
                     timeline
                 }
-                .padding(Space.s4)
+                .padding(.horizontal, Space.s5)
+                .padding(.vertical, Space.s4)
             }
             .background(ReffiColor.canvas)
             .navigationTitle("History")
@@ -84,136 +80,157 @@ struct HistoryView: View {
         }
     }
 
-    // MARK: ① 월간 요약
+    // MARK: ① 월간 요약 — 영수증 "합계" 슬립
     private var summary: some View {
-        VStack(alignment: .leading, spacing: Space.s4) {
-            HStack {
-                Text("Past 30 days")
-                    .reffiText(ReffiType.subhead)
+        receiptSlip(Self.pSummary) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("PAST 30 DAYS")
+                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                    .tracking(1.5)
+                    .foregroundStyle(ReffiColor.ink2)
+                Spacer()
+                if !prevMonth.isEmpty { trendBadge }
+            }
+            dashed
+            leaderRow("Eaten", "\(eaten)")
+            leaderRow("Tossed", "\(tossed)")
+            dashed
+            // 합계 — 낭비율 강조
+            HStack(alignment: .firstTextBaseline) {
+                Text("WASTE RATE")
+                    .font(.system(size: 14, weight: .heavy, design: .monospaced))
+                    .tracking(1)
                     .foregroundStyle(ReffiColor.ink)
                 Spacer()
-                if !prevMonth.isEmpty {
-                    trendBadge
-                }
+                Text("\(rate)%")
+                    .font(.system(size: 24, weight: .heavy, design: .monospaced))
+                    .foregroundStyle(rateColor)
             }
-            HStack(spacing: Space.s3) {
-                stat("Eaten", "\(eaten)", ReffiColor.freshDark)
-                stat("Tossed", "\(tossed)", ReffiColor.urgentDark)
-                stat("Waste rate", "\(rate)%", rateColor)
-            }
+            .padding(.top, Space.s1)
         }
-        .padding(Space.s5)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Self.gBlue, in: RoundedRectangle(cornerRadius: Radius.xl, style: .continuous))
     }
 
     private var trendBadge: some View {
         let up = delta > 0
-        return HStack(spacing: Space.s1) {
-            (up ? ReffiIcon.up : ReffiIcon.up).reffi(12, .bold)
+        return HStack(spacing: 2) {
+            ReffiIcon.up.reffi(11, .bold)
                 .rotationEffect(.degrees(up ? 0 : 180))
-            Text("\(abs(delta))% vs last month")
-                .reffiText(ReffiType.caption)
+            Text("\(abs(delta))% vs last")
+                .font(.system(size: 11, weight: .semibold, design: .monospaced))
         }
         .foregroundStyle(up ? ReffiColor.urgentDark : ReffiColor.freshDark)
     }
 
-    private func stat(_ label: String, _ value: String, _ color: Color) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(value)
-                .reffiText(ReffiType.heading)
-                .num()
-                .foregroundStyle(color)
-            Text(label)
-                .reffiText(ReffiType.caption)
-                .foregroundStyle(ReffiColor.ink2)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
     // MARK: ② 카테고리별 낭비
     private var categorySection: some View {
-        section("Most wasted categories", Self.gTerracotta) {
-            let maxCount = byCategory.first?.count ?? 1
-            VStack(spacing: Space.s3) {
-                ForEach(byCategory, id: \.category) { row in
-                    HStack(spacing: Space.s3) {
-                        CategoryIcon(category: row.category, size: 18)
-                            .foregroundStyle(ReffiColor.ink)
-                        Text(row.category.label)
-                            .reffiText(ReffiType.body)
-                            .foregroundStyle(ReffiColor.ink)
-                            .frame(width: 110, alignment: .leading)
-                        GeometryReader { geo in
-                            Capsule()
-                                .fill(ReffiColor.urgent)
-                                .frame(width: geo.size.width * CGFloat(row.count) / CGFloat(maxCount), height: 8)
-                                .frame(maxHeight: .infinity, alignment: .center)
-                        }
-                        .frame(height: 18)
-                        Text("\(row.count)")
-                            .reffiText(ReffiType.caption)
-                            .num()
-                            .foregroundStyle(ReffiColor.ink2)
-                    }
+        receiptSlip(Self.pCategory) {
+            slipTitle("Most wasted categories")
+            dashed
+            ForEach(byCategory, id: \.category) { row in
+                HStack(alignment: .bottom, spacing: Space.s2) {
+                    CategoryIcon(category: row.category, size: 16)
+                        .foregroundStyle(ReffiColor.ink)
+                    Text(row.category.label.uppercased())
+                        .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(ReffiColor.ink2)
+                        .fixedSize()
+                    leader
+                    Text("\(row.count)")
+                        .font(.system(size: 13, weight: .bold, design: .monospaced))
+                        .foregroundStyle(ReffiColor.ink)
+                        .fixedSize()
                 }
+                .padding(.vertical, Space.s2)
             }
         }
     }
 
     // MARK: ③ 자주 버리는 품목
     private var topSection: some View {
-        section("Most tossed items", Self.gAmber) {
-            VStack(spacing: Space.s2) {
-                ForEach(topWasted, id: \.name) { row in
-                    HStack {
-                        Text(row.name)
-                            .reffiText(ReffiType.body)
-                            .foregroundStyle(ReffiColor.ink)
-                        Spacer()
-                        Text(row.count > 1 ? "×\(row.count)" : "once")
-                            .reffiText(ReffiType.caption)
-                            .num()
-                            .foregroundStyle(ReffiColor.ink2)
-                    }
-                }
+        receiptSlip(Self.pTop) {
+            slipTitle("Most tossed items")
+            dashed
+            ForEach(topWasted, id: \.name) { row in
+                leaderRow(row.name, row.count > 1 ? "x\(row.count)" : "once")
             }
         }
     }
 
     // MARK: ④ 통합 타임라인
     private var timeline: some View {
-        section("Timeline", Self.gGreen) {
-            VStack(spacing: Space.s2) {
-                ForEach(thisMonth) { log in
-                    HStack(spacing: Space.s3) {
-                        (log.wasted ? ReffiIcon.trash : ReffiIcon.cook).reffi(16, .bold)
-                            .foregroundStyle(log.wasted ? ReffiColor.urgentDark : ReffiColor.freshDark)
-                        Text(log.name)
-                            .reffiText(ReffiType.body)
-                            .foregroundStyle(ReffiColor.ink)
-                        Spacer(minLength: Space.s4)
-                        Text(log.removedDate.formatted(date: .abbreviated, time: .omitted))
-                            .reffiText(ReffiType.caption)
-                            .num()
-                            .foregroundStyle(ReffiColor.ink2)
-                    }
-                    .padding(.vertical, 2)
+        receiptSlip(Self.pTimeline) {
+            slipTitle("Timeline")
+            dashed
+            ForEach(thisMonth) { log in
+                HStack(alignment: .bottom, spacing: Space.s2) {
+                    (log.wasted ? ReffiIcon.trash : ReffiIcon.cook).reffi(15, .bold)
+                        .foregroundStyle(log.wasted ? ReffiColor.urgentDark : ReffiColor.freshDark)
+                    Text(log.name)
+                        .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(ReffiColor.ink)
+                        .fixedSize()
+                    leader
+                    Text(log.removedDate.formatted(date: .abbreviated, time: .omitted))
+                        .font(.system(size: 12, weight: .regular, design: .monospaced))
+                        .foregroundStyle(ReffiColor.ink2)
+                        .fixedSize()
                 }
+                .padding(.vertical, Space.s2)
             }
         }
     }
 
-    // MARK: 섹션 래퍼
-    private func section<Content: View>(_ title: String, _ gradient: LinearGradient, @ViewBuilder _ content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: Space.s3) {
-            Text(title)
-                .reffiText(ReffiType.subhead)
-                .foregroundStyle(ReffiColor.ink)
+    // MARK: 영수증 슬립 래퍼 + 조각들
+    private func receiptSlip<Content: View>(_ paper: Color, @ViewBuilder _ content: () -> Content) -> some View {
+        let shape = ReceiptShape(toothHeight: toothH)
+        return VStack(alignment: .leading, spacing: Space.s2) {
             content()
         }
-        .padding(Space.s5)
+        .padding(.horizontal, Space.s5)
+        .padding(.top, Space.s4 + toothH)
+        .padding(.bottom, Space.s4 + toothH)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(gradient, in: RoundedRectangle(cornerRadius: Radius.xl, style: .continuous))
+        .background(paper, in: shape)
+        .paperGrain(shape)
+        .reffiStackShadow()
+    }
+
+    private func slipTitle(_ s: String) -> some View {
+        Text(s.uppercased())
+            .font(.system(size: 12, weight: .semibold, design: .monospaced))
+            .tracking(1.5)
+            .foregroundStyle(ReffiColor.ink2)
+    }
+
+    /// 라벨 ···· 값 한 줄.
+    private func leaderRow(_ label: String, _ value: String) -> some View {
+        HStack(alignment: .bottom, spacing: Space.s2) {
+            Text(label.uppercased())
+                .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                .foregroundStyle(ReffiColor.ink2)
+                .fixedSize()
+            leader
+            Text(value)
+                .font(.system(size: 13, weight: .bold, design: .monospaced))
+                .foregroundStyle(ReffiColor.ink)
+                .fixedSize()
+        }
+        .padding(.vertical, Space.s2)
+    }
+
+    /// 가변 점선 리더(라벨과 값 사이를 채움).
+    private var leader: some View {
+        ReceiptRule()
+            .stroke(ReffiColor.ink.opacity(0.18), style: StrokeStyle(lineWidth: 1, dash: [1, 3]))
+            .frame(height: 1)
+            .frame(maxWidth: .infinity)
+            .padding(.bottom, 4)
+    }
+
+    /// 가로 대시 구분선.
+    private var dashed: some View {
+        ReceiptRule()
+            .stroke(ReffiColor.ink.opacity(0.20), style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
+            .frame(height: 1)
     }
 }

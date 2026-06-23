@@ -62,13 +62,14 @@ enum ReffiColor {
 
     /// daysLeft → 보간된 정규화 RGB(0…1). 면색과 휘도 계산이 공유한다.
     private static func freshnessFillRGB(daysLeft: Int) -> (r: Double, g: Double, b: Double) {
+        // 무드보드 톤 — 살짝 밝되 채도는 톤다운한 신선도 램프(과하지 않게).
         let stops: [(day: Double, r: Double, g: Double, b: Double)] = [
-            (0,  224, 118,  92), // deep urgent
-            (2,  246, 141, 112), // urgent
-            (3,  244, 199, 103), // soon
-            (4,  208, 213, 125), // soon↔fresh
-            (7,  173, 227, 147), // fresh
-            (14, 229, 245, 217), // freshLight
+            (0,  226, 128, 106), // deep urgent — 부드러운 테라코타
+            (2,  240, 154, 124), // urgent — 코랄
+            (3,  244, 200, 118), // soon — 마리골드
+            (4,  206, 216, 138), // soon↔fresh
+            (7,  176, 222, 152), // fresh — 그래스 그린
+            (14, 224, 242, 210), // freshLight
         ]
         func norm(_ s: (day: Double, r: Double, g: Double, b: Double)) -> (r: Double, g: Double, b: Double) {
             (s.r / 255, s.g / 255, s.b / 255)

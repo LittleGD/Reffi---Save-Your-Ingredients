@@ -31,7 +31,11 @@ struct FridgeView: View {
 
     /// 카드 겹침(§8.2): 보이는 띠 ~72pt(카드 높이 120 − 48).
     private let overlap: CGFloat = -48
-    private let cardHeight: CGFloat = 120
+    private let cardHeight: CGFloat = 150
+
+    /// 영수증 카드를 페이지보다 더 좁혀 가운데 정렬(§8) — 좁고 긴 영수증 비율(화면 ~82%).
+    /// 페이지 마진(Space.s4) 위에 양옆으로 추가되는 인셋.
+    private let receiptInset: CGFloat = 20
 
     private var selected: Ingredient? {
         guard let id = selectedID else { return nil }
@@ -56,27 +60,6 @@ struct FridgeView: View {
         return Int((Double(wasted) / Double(total) * 100).rounded())
     }
 
-
-    /// 낭비율 색(캔버스 위라 dark 변형, §2.6) — 낮을수록 fresh, 높을수록 urgent.
-    private var wasteColor: Color {
-        switch wastePercent {
-        case ...10: return ReffiColor.freshDark
-        case ...30: return ReffiColor.soonDark
-        default:    return ReffiColor.urgentDark
-        }
-    }
-
-    /// 마커 카드 배경 — 낭비율 위험도에 연동된 옅은 세로 그라데이션(위 진함 → 아래 옅음).
-    private var wasteCardGradient: LinearGradient {
-        let pair: (String, String)
-        switch wastePercent {
-        case ...10: pair = ("#E5F5D9", "#F2FAEA") // fresh
-        case ...30: pair = ("#FDEDCD", "#FEF7E8") // soon
-        default:    pair = ("#FFDDD3", "#FFEFE9") // urgent
-        }
-        return LinearGradient(colors: [Color(hex: pair.0), Color(hex: pair.1)],
-                              startPoint: .top, endPoint: .bottom)
-    }
 
     /// 냉장고 페이지 배경 — 위 크림 → 아래 옅은 살구빛 세로 그라데이션.
     private static let pageGradient = LinearGradient(
@@ -122,28 +105,32 @@ struct FridgeView: View {
                 if ingredients.isEmpty {
                     emptyState
                 } else {
-                    wasteMarker
-                    VStack(spacing: overlap) {
-                        ForEach(Array(ingredients.enumerated()), id: \.element.persistentModelID) { index, item in
-                            swipeRow(item)
-                                // 신선할수록(아래로) 위에 깔려 맨 끝 카드가 전체 노출, 임박 카드는 얇은 띠.
-                                .zIndex(Double(index))
+                    // 클램프(요약)가 영수증 더미 위에 얹힘 — 겹치지 않게 살짝 띄움.
+                    VStack(spacing: Space.s3) {
+                        wasteMarker
+                        VStack(spacing: overlap) {
+                            ForEach(Array(ingredients.enumerated()), id: \.element.persistentModelID) { index, item in
+                                swipeRow(item)
+                                    // 신선할수록(아래로) 위에 깔려 맨 끝 카드가 전체 노출, 임박 카드는 얇은 띠.
+                                    .zIndex(Double(index))
+                            }
                         }
                     }
                 }
             }
             .padding(.horizontal, Space.s4)
             .padding(.top, Space.s5)
-            .padding(.bottom, Space.s7)
+            .padding(.bottom, 120)   // 떠 있는 네비 바 아래로 마지막 카드까지 스크롤되도록 넉넉히.
         }
     }
 
     /// 한 장의 카드 + 왼쪽 스와이프 삭제 reveal. 가로 드래그=삭제, 세로=스크롤(simultaneous), 탭=선택.
     private func swipeRow(_ item: Ingredient) -> some View {
         let x = swipedID == item.persistentModelID ? swipeX : 0
+        let jit = jitter(item)
         return ZStack(alignment: .trailing) {
             // 카드 뒤 삭제 면(붉은 dark) + 휴지통 — 왼쪽으로 끌면 trailing이 드러난다.
-            RoundedRectangle(cornerRadius: Radius.xl, style: .continuous)
+            ReceiptShape(toothHeight: 6)
                 .fill(ReffiColor.urgentDark)
                 .overlay(alignment: .trailing) {
                     ReffiIcon.trash.reffi(22, .bold)
@@ -160,9 +147,10 @@ struct FridgeView: View {
         .contentShape(Rectangle())
         .onTapGesture { if x == 0 { select(item) } }
         .simultaneousGesture(
-            DragGesture(minimumDistance: 12)
+            DragGesture(minimumDistance: 12, coordinateSpace: .global)
                 .onChanged { v in
                     // 가로 우세일 때만 스와이프로 처리 — 세로는 ScrollView가 가져간다.
+                    // .global 좌표계라 카드가 기울어도 화면 기준 가로/세로를 정확히 판별.
                     guard abs(v.translation.width) > abs(v.translation.height) else { return }
                     swipedID = item.persistentModelID
                     swipeX = max(-140, min(0, v.translation.width))
@@ -173,6 +161,18 @@ struct FridgeView: View {
                     if triggered { pendingDelete = item }
                 }
         )
+        .padding(.horizontal, receiptInset)
+        // 영수증 더미 — 아이템마다 고정된 미세 회전/오프셋으로 삐뚤빼뚤 쌓인 느낌(§8).
+        .rotationEffect(.degrees(jit.angle))
+        .offset(x: jit.dx)
+    }
+
+    /// 아이템 고유의 안정적 지터(회전°·가로 오프셋) — 영수증 더미용. 런치마다 동일.
+    private func jitter(_ item: Ingredient) -> (angle: Double, dx: CGFloat) {
+        let s = abs(item.name.unicodeScalars.reduce(7) { $0 &* 31 &+ Int($1.value) })
+        let angle = Double(s % 11) - 5      // -5 … +5°
+        let dx = CGFloat(s / 11 % 25) - 12  // -12 … +12pt
+        return (angle, dx)
     }
 
     // MARK: 펼친(Wallet) 레이아웃 — 선택 카드 위로, 나머지 하단 collapse, 카드 아래 상세
@@ -186,8 +186,9 @@ struct FridgeView: View {
                     .matchedGeometryEffect(id: sel.persistentModelID, in: ns)
                     .contentShape(Rectangle())
                     .onTapGesture { deselect() }
-                    .padding(.horizontal, Space.s4)
+                    .padding(.horizontal, Space.s4 + receiptInset)
                     .padding(.top, Space.s2)
+                    .padding(.bottom, Space.s3)
             }
 
             // 카드 아래 — 소비/버림 선택(스크롤 밖 고정이라 안 잘림).
@@ -256,17 +257,20 @@ struct FridgeView: View {
         let visible = CGFloat(count - 1) * peek + 46
         return VStack(spacing: -(cardHeight - peek)) {
             ForEach(Array(others.enumerated()), id: \.element.persistentModelID) { i, item in
+                let jit = jitter(item)
                 IngredientCardView(ingredient: item)
                     .frame(height: cardHeight)
                     .matchedGeometryEffect(id: item.persistentModelID, in: ns)
+                    .rotationEffect(.degrees(jit.angle))
+                    .offset(x: jit.dx)
                     .zIndex(Double(i))
                     .contentShape(Rectangle())
                     .onTapGesture { select(item) }
             }
         }
         .frame(height: visible, alignment: .top)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.xl, style: .continuous))
-        .padding(.horizontal, Space.s4)
+        .clipShape(Rectangle())
+        .padding(.horizontal, Space.s4 + receiptInset)
         .padding(.bottom, Space.s4)
         // 위로 드래그(또는 탭)하면 전체 스택 화면으로 복귀.
         .gesture(
@@ -279,95 +283,62 @@ struct FridgeView: View {
 
     // MARK: 공통 조각
 
-    /// 카드 스택 맨 위 낭비율 마커 — "지금까지 버린 음식 %"를 프로그레스 바로.
+    /// 카드 스택 맨 위 낭비율 — 더미 위에 올라간 "합계 영수증" 슬립(§8).
+    /// 톱니 가장자리 + 그레인 + 모노스페이스, 낭비율을 TOTAL처럼 크게, 인쇄된 눈금 게이지.
     private var wasteMarker: some View {
-        Button { showWasted = true } label: {
-            VStack(alignment: .leading, spacing: Space.s3) {
-                HStack(alignment: .top) {
-                    // 강조된 버림 % (큰 숫자)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Wasted so far")
-                            .reffiText(ReffiType.caption)
-                            .foregroundStyle(ReffiColor.ink2)
-                        HStack(alignment: .center, spacing: Space.s2) {
-                            ReffiIcon.trash.reffi(18, .bold)
-                                .foregroundStyle(wasteColor)
-                            Text("\(wastePercent)%")
-                                .reffiText(ReffiType.heading)
-                                .num()
-                                .foregroundStyle(wasteColor)
-                        }
-                    }
+        let clamp = Color(hex: "#6E6C68")   // 금속 클립 그레이(영수증 색과 분리)
+        return Button { showWasted = true } label: {
+            VStack(alignment: .leading, spacing: Space.s2) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text("WASTED — PAST 30 DAYS")
+                        .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                        .tracking(1)
+                        .foregroundStyle(.white.opacity(0.82))
                     Spacer()
-                    // 한달치 기준 명시 + 목록 진입 affordance
-                    HStack(spacing: Space.s1) {
-                        Text("Past 30 days")
-                            .reffiText(ReffiType.caption)
-                            .foregroundStyle(ReffiColor.muted)
-                        ReffiIcon.chevron.reffi(11, .bold)
-                            .foregroundStyle(ReffiColor.muted)
-                    }
+                    ReffiIcon.chevron.reffi(11, .bold)
+                        .foregroundStyle(.white.opacity(0.7))
                 }
-                wasteBar
+
+                HStack(alignment: .firstTextBaseline) {
+                    Text("TOTAL WASTED")
+                        .font(.system(size: 13, weight: .heavy, design: .monospaced))
+                        .tracking(1)
+                        .foregroundStyle(.white)
+                    Spacer()
+                    Text("\(wastePercent)%")
+                        .font(.system(size: 30, weight: .heavy, design: .monospaced))
+                        .foregroundStyle(.white)
+                }
             }
-            .padding(Space.s4)
-            .background(wasteCardGradient, in: RoundedRectangle(cornerRadius: Radius.xl, style: .continuous))
+            .padding(.horizontal, Space.s5)
+            .padding(.top, Space.s4)
+            .padding(.bottom, Space.s4 + 8)   // 아래 더미를 무는 입(mouth) 여유
+            .frame(maxWidth: .infinity)
+            .background(clampBackground(clamp))
         }
         .buttonStyle(ReffiPressStyle())
+        .padding(.horizontal, receiptInset)   // 아래 영수증 더미와 같은 폭
         .accessibilityLabel("Wasted \(wastePercent) percent in the past 30 days. View wasted items.")
     }
 
-    /// 존 게이지 — 초록→앰버→빨강(좋음→나쁨) 스케일 트랙 위에 현재 버림%로 노브.
-    /// 노브 위치 = "얼마나 버렸나", 노브가 놓인 색 = "좋은지/나쁜지". 끝 경고 뱃지 = 위험(빨강) 끝.
-    private var wasteBar: some View {
-        let trackH: CGFloat = 10
-        let knob: CGFloat = 22
-        let badge: CGFloat = 30
-        let gap: CGFloat = 8
-        let frac = CGFloat(min(100, max(0, wastePercent))) / 100
-        return VStack(spacing: Space.s1) {
-            GeometryReader { geo in
-                let trackW = max(0, geo.size.width - badge - gap)
-                let knobX = frac * max(0, trackW - knob)
-                HStack(spacing: gap) {
-                    ZStack(alignment: .leading) {
-                        Capsule()
-                            .fill(LinearGradient(
-                                colors: [ReffiColor.fresh, ReffiColor.soon, ReffiColor.urgent],
-                                startPoint: .leading, endPoint: .trailing))
-                            .frame(height: trackH)
-
-                        Circle()
-                            .fill(.white)
-                            .frame(width: knob, height: knob)
-                            .overlay(Circle().strokeBorder(ReffiColor.ink.opacity(0.14), lineWidth: 1))
-                            .reffiFloatingShadow()
-                            .offset(x: knobX)
-                    }
-                    .frame(width: trackW, height: knob)
-
-                    ZStack {
-                        ScallopedCircle().fill(.white)
-                        ReffiIcon.warning.reffi(15, .bold)
-                            .foregroundStyle(ReffiColor.urgentDark)
-                    }
-                    .frame(width: badge, height: badge)
-                    .reffiFloatingShadow()
+    /// 클램프 배경 — 굵은 색 바 + 양끝 스프링 리벳 + 아래쪽 무는 입(lip).
+    private func clampBackground(_ c: Color) -> some View {
+        RoundedRectangle(cornerRadius: 16, style: .continuous)
+            .fill(c)
+            .overlay(alignment: .top) {
+                HStack {
+                    Capsule().fill(.white.opacity(0.28)).frame(width: 26, height: 5)
+                    Spacer()
+                    Capsule().fill(.white.opacity(0.28)).frame(width: 26, height: 5)
                 }
-                .frame(height: knob)
+                .padding(.horizontal, Space.s4)
+                .padding(.top, Space.s2)
             }
-            .frame(height: knob)
-
-            // 0~100% 척도
-            HStack {
-                Text("0%")
-                Spacer()
-                Text("100%")
+            .overlay(alignment: .bottom) {
+                Rectangle().fill(.black.opacity(0.16)).frame(height: 8)
             }
-            .reffiText(ReffiType.caption)
-            .foregroundStyle(ReffiColor.muted)
-            .padding(.trailing, badge + gap)
-        }
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .reffiStackShadow()
     }
 
     private var header: some View {

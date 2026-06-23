@@ -15,22 +15,23 @@ enum SampleData {
 
         // 구매처·수량은 영수증 스캔이 채울 값 — 여기선 영수증에서 읽었다고 가정한 샘플.
         let seeds: [Ingredient] = [
-            Ingredient(name: "Tofu",           category: "other",      addedDate: day(-2), expiryDate: day(0),  storage: "Fridge", purchasePlace: "Emart",       quantity: "300 g"),
-            Ingredient(name: "Chicken breast", category: "meat",       addedDate: day(-1), expiryDate: day(1),  storage: "Fridge", purchasePlace: "Costco",      quantity: "500 g"),
-            Ingredient(name: "Greek yogurt",   category: "dairy",      addedDate: day(-1), expiryDate: day(1),  storage: "Fridge", purchasePlace: "Emart",       quantity: "4 cups"),
-            Ingredient(name: "Spinach",        category: "vegetables", addedDate: day(-2), expiryDate: day(2),  storage: "Fridge", purchasePlace: "Emart",       quantity: "1 bunch"),
-            Ingredient(name: "Salmon fillet",  category: "seafood",    addedDate: day(-1), expiryDate: day(2),  storage: "Fridge", purchasePlace: "Costco",      quantity: "2 ea"),
-            Ingredient(name: "Milk",           category: "dairy",      addedDate: day(-3), expiryDate: day(3),  storage: "Fridge", purchasePlace: "GS25",        quantity: "900 ml"),
-            Ingredient(name: "Sliced bread",   category: "grains",     addedDate: day(-2), expiryDate: day(3),  storage: "Pantry", purchasePlace: "Paris Baguette", quantity: "1 loaf"),
-            Ingredient(name: "Eggs",           category: "dairy",      addedDate: day(-3), expiryDate: day(4),  storage: "Fridge", purchasePlace: "Emart",       quantity: "10 ea"),
-            Ingredient(name: "Bananas",        category: "fruit",      addedDate: day(-2), expiryDate: day(5),  storage: "Room",   purchasePlace: "Hanaro Mart", quantity: "1 bunch"),
-            Ingredient(name: "Carrot",         category: "vegetables", addedDate: day(-2), expiryDate: day(6),  storage: "Fridge", purchasePlace: "Emart",       quantity: "3 ea"),
-            Ingredient(name: "Bell pepper",    category: "vegetables", addedDate: day(-2), expiryDate: day(7),  storage: "Fridge", purchasePlace: "Emart",       quantity: "2 ea"),
-            Ingredient(name: "Apple",          category: "fruit",      addedDate: day(-4), expiryDate: day(9),  storage: "Fridge", purchasePlace: "Hanaro Mart", quantity: "5 ea"),
-            Ingredient(name: "Cheddar",        category: "dairy",      addedDate: day(-5), expiryDate: day(11), storage: "Fridge", purchasePlace: "Costco",      quantity: "200 g"),
-            Ingredient(name: "Potato",         category: "vegetables", addedDate: day(-4), expiryDate: day(14), storage: "Pantry", purchasePlace: "Costco",      quantity: "1 kg"),
-            Ingredient(name: "Onion",          category: "vegetables", addedDate: day(-4), expiryDate: day(16), storage: "Pantry", purchasePlace: "Emart",       quantity: "5 ea"),
-            Ingredient(name: "Rice",           category: "grains",     addedDate: day(-6), expiryDate: day(20), storage: "Pantry", purchasePlace: "Costco",      quantity: "5 kg"),
+            // 만료일을 -2~45일로 고르게 펴 스택 위쪽부터 빨강→주황→노랑→초록 그라데이션이 보이게.
+            Ingredient(name: "Tofu",           category: "other",      addedDate: day(-4), expiryDate: day(-2), storage: "Fridge", purchasePlace: "Emart",       quantity: "300 g"),
+            Ingredient(name: "Chicken breast", category: "meat",       addedDate: day(-2), expiryDate: day(0),  storage: "Fridge", purchasePlace: "Costco",      quantity: "500 g"),
+            Ingredient(name: "Greek yogurt",   category: "dairy",      addedDate: day(-2), expiryDate: day(2),  storage: "Fridge", purchasePlace: "Emart",       quantity: "4 cups"),
+            Ingredient(name: "Salmon fillet",  category: "seafood",    addedDate: day(-2), expiryDate: day(4),  storage: "Fridge", purchasePlace: "Costco",      quantity: "2 ea"),
+            Ingredient(name: "Spinach",        category: "vegetables", addedDate: day(-3), expiryDate: day(6),  storage: "Fridge", purchasePlace: "Emart",       quantity: "1 bunch"),
+            Ingredient(name: "Milk",           category: "dairy",      addedDate: day(-3), expiryDate: day(8),  storage: "Fridge", purchasePlace: "GS25",        quantity: "900 ml"),
+            Ingredient(name: "Sliced bread",   category: "grains",     addedDate: day(-3), expiryDate: day(11), storage: "Pantry", purchasePlace: "Paris Baguette", quantity: "1 loaf"),
+            Ingredient(name: "Eggs",           category: "dairy",      addedDate: day(-3), expiryDate: day(14), storage: "Fridge", purchasePlace: "Emart",       quantity: "10 ea"),
+            Ingredient(name: "Bananas",        category: "fruit",      addedDate: day(-3), expiryDate: day(17), storage: "Room",   purchasePlace: "Hanaro Mart", quantity: "1 bunch"),
+            Ingredient(name: "Carrot",         category: "vegetables", addedDate: day(-4), expiryDate: day(20), storage: "Fridge", purchasePlace: "Emart",       quantity: "3 ea"),
+            Ingredient(name: "Bell pepper",    category: "vegetables", addedDate: day(-4), expiryDate: day(24), storage: "Fridge", purchasePlace: "Emart",       quantity: "2 ea"),
+            Ingredient(name: "Apple",          category: "fruit",      addedDate: day(-4), expiryDate: day(28), storage: "Fridge", purchasePlace: "Hanaro Mart", quantity: "5 ea"),
+            Ingredient(name: "Cheddar",        category: "dairy",      addedDate: day(-5), expiryDate: day(32), storage: "Fridge", purchasePlace: "Costco",      quantity: "200 g"),
+            Ingredient(name: "Potato",         category: "vegetables", addedDate: day(-5), expiryDate: day(36), storage: "Pantry", purchasePlace: "Costco",      quantity: "1 kg"),
+            Ingredient(name: "Onion",          category: "vegetables", addedDate: day(-6), expiryDate: day(40), storage: "Pantry", purchasePlace: "Emart",       quantity: "5 ea"),
+            Ingredient(name: "Rice",           category: "grains",     addedDate: day(-6), expiryDate: day(45), storage: "Pantry", purchasePlace: "Costco",      quantity: "5 kg"),
         ]
         for item in seeds { context.insert(item) }
 
