@@ -12,9 +12,23 @@ struct ReffiApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootTabView()
+            rootContent
                 .environment(store)
                 .tint(ReffiColor.blue)
         }
+    }
+
+    @ViewBuilder private var rootContent: some View {
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("-glyphGallery") {
+            GlyphGalleryView()
+        } else if ProcessInfo.processInfo.arguments.contains("-buttonGallery") {
+            ButtonGalleryView()
+        } else {
+            RootTabView()
+        }
+        #else
+        RootTabView()
+        #endif
     }
 }

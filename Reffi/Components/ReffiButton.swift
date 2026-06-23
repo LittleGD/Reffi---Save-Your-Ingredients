@@ -13,19 +13,21 @@ struct ReffiButton: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: ReffiSpace.s2) {
-                Text(title)
-                    .font(ReffiTextRole.subhead.font)
-                    .tracking(ReffiTextRole.subhead.tracking)
-                if let icon { icon.reffi(18, .bold) }
-            }
-            .foregroundStyle(foreground)
-            .frame(maxWidth: fullWidth ? .infinity : nil)
-            .padding(.horizontal, ReffiSpace.s5)
-            .padding(.vertical, ReffiSpace.s3 + 2)
-            .background(fill, in: RoundedRectangle(cornerRadius: ReffiRadius.md, style: .continuous))
+            Text(title)
+                .font(ReffiTextRole.subhead.font)
+                .tracking(ReffiTextRole.subhead.tracking)
+                .foregroundStyle(foreground)
+                .frame(maxWidth: fullWidth ? .infinity : nil)
+                .padding(.horizontal, ReffiSpace.s5)
+                .padding(.vertical, ReffiSpace.s3 + 2)
+                .background {
+                    let shape = PaperCutRect()   // 종이컷 8각형(솔리드 + 종이 질감, §13)
+                    shape.fill(fill)
+                        .overlay(PaperGrain(seed: 5).clipShape(shape))
+                        .paperEdge(shape, tint: .white.opacity(0.14))
+                }
         }
-        .buttonStyle(.reffiPress)
+        .buttonStyle(.paperPress)
     }
 }
 

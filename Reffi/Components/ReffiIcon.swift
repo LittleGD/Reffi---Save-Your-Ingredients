@@ -13,6 +13,8 @@ enum ReffiIcon {
     // 콘텐츠
     static var recipe: Ph { .cookingPot }
     static var cook: Ph { .bowlSteam }
+    static var ate: Ph { .bowlSteam }
+    static var toss: Ph { .trash }
     static var ai: Ph { .sparkle }
     static var go: Ph { .arrowRight }
     static var chevron: Ph { .caretRight }

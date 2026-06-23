@@ -12,7 +12,7 @@ struct RootTabView: View {
         ZStack(alignment: .bottom) {
             Group {
                 switch tab {
-                case .home:    FridgeBowlView()
+                case .home:    MainView()
                 case .fridge:  FridgePlaceholderView()
                 case .profile: MyPagePlaceholderView()
                 }
@@ -42,10 +42,10 @@ private struct CapsuleNav: View {
             navItem(.profile, ReffiIcon.profile, "Profile")
         }
         .padding(.horizontal, ReffiSpace.s5)
-        .frame(height: 60)
+        .frame(height: 58)
         .navGlass()
         .shadow(color: ReffiColor.ink.opacity(0.06), radius: 6, x: 0, y: 2)   // 약한 드롭섀도
-        .padding(.bottom, ReffiSpace.s3)
+        .padding(.bottom, 2)   // 더 아래로 — 홈 인디케이터 근처
     }
 
     /// 탭(홈·냉장고·프로필) — 활성 Blue+fill / 비활성 muted+regular.

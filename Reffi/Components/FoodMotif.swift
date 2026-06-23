@@ -32,7 +32,7 @@ enum FoodPalette {
         case .egg:     ReffiColor.oklch(0.96, 0.035, 96)
         case .citrus:  ReffiColor.oklch(0.96, 0.055, 104)
         case .tofu:    ReffiColor.oklch(0.96, 0.030, 250)
-        case .generic: ReffiColor.oklch(0.95, 0.020, 90)
+        default:       ReffiColor.oklch(0.95, 0.020, 90)
         }
     }
 }
@@ -59,7 +59,7 @@ struct FoodMotif: View {
         case .root:    drawCarrot(r, &ctx)
         case .apple:   drawApple(r, &ctx)
         case .citrus:  drawCitrus(r, &ctx)
-        case .generic: drawBowl(r, &ctx)
+        default:       drawBowl(r, &ctx)
         }
     }
 

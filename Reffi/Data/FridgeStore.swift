@@ -30,4 +30,14 @@ final class FridgeStore {
     func remove(_ ingredient: Ingredient) {
         ingredients.removeAll { $0.id == ingredient.id }
     }
+
+    // MARK: - 음식 낭비 추적(Ate / Tossed)
+
+    private(set) var ateCount = 0
+    private(set) var tossedCount = 0
+
+    /// 다 먹음 — 보유에서 빼고 "먹음" 카운트.
+    func eat(_ ingredient: Ingredient) { ateCount += 1; remove(ingredient) }
+    /// 버림 — 보유에서 빼고 "버림" 카운트.
+    func toss(_ ingredient: Ingredient) { tossedCount += 1; remove(ingredient) }
 }
