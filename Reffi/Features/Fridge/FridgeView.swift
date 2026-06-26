@@ -13,12 +13,18 @@ struct FridgeView: View {
     @State private var showShopping = false
     @State private var editing: Ingredient?
     @State private var carouselID: Int? = 0
+    @State private var filterExpiring = false
 
     private let cardHeight: CGFloat = 128
     private let overlap: CGFloat = -46
     private let cardInset: CGFloat = 18   // 페이지 마진 위 추가 인셋 — 영수증 폭 좁힘(가운데)
 
-    private var items: [Ingredient] { store.sorted }
+    private var items: [Ingredient] {
+        filterExpiring ? store.sorted.filter { $0.daysLeft <= 2 } : store.sorted
+    }
+    private var expiringCount: Int { store.sorted.filter { $0.daysLeft <= 2 }.count }
+    /// 마지막으로 버린 지 며칠 — No-waste streak.
+    private var daysSinceToss: Int? { store.history.filter(\.wasted).map(\.daysAgo).min() }
     private var accent: Color { items.first?.freshness.main ?? ReffiColor.fresh }
     private var selected: Ingredient? { items.first { $0.id == selectedID } }
     private var motion: Animation? { ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion) }
@@ -43,6 +49,7 @@ struct FridgeView: View {
             VStack(alignment: .leading, spacing: ReffiSpace.s5) {
                 header
                 historyCarousel
+                if filterExpiring { filterChip }
                 if items.isEmpty {
                     emptyState
                 } else {
@@ -171,10 +178,20 @@ struct FridgeView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: ReffiSpace.s3) {
                     toBuyCard(id: 0)   // 사야 할 식재료 — 첫 카드
-                    summaryCard(id: 1, title: "Wasted · past 30 days",
-                                value: "\(store.wasteRate)%", tint: ReffiColor.urgent)
-                    summaryCard(id: 2, title: "Most tossed",
-                                value: mostTossed, valueSize: 26, tint: ReffiColor.soon)
+                    summaryCard(id: 1, title: "Expiring soon",
+                                value: "\(expiringCount) item\(expiringCount == 1 ? "" : "s")",
+                                valueSize: 26, tint: ReffiColor.urgentLight,
+                                action: { withAnimation(motion) { filterExpiring = true } })
+                    summaryCard(id: 2, title: "Wasted · past 30 days",
+                                value: "\(store.wasteRate)%", tint: ReffiColor.soonLight,
+                                action: { showHistory = true })
+                    summaryCard(id: 3, title: "Most tossed",
+                                value: mostTossed, valueSize: 26, tint: ReffiColor.freshLight,
+                                action: { showHistory = true })
+                    summaryCard(id: 4, title: "Since last toss",
+                                value: daysSinceToss.map { "\($0)d" } ?? "—",
+                                tint: ReffiColor.blueLight,
+                                action: { showHistory = true })
                 }
                 .scrollTargetLayout()
             }
@@ -182,13 +199,30 @@ struct FridgeView: View {
             .scrollPosition(id: $carouselID)
 
             HStack(spacing: 6) {
-                ForEach(0..<3, id: \.self) { i in
+                ForEach(0..<5, id: \.self) { i in
                     Circle()
                         .fill(i == (carouselID ?? 0) ? ReffiColor.ink2 : ReffiColor.muted.opacity(0.3))
                         .frame(width: 7, height: 7)
                 }
             }
         }
+    }
+
+    /// Expiring soon 필터 활성 시 해제 칩.
+    private var filterChip: some View {
+        Button { withAnimation(motion) { filterExpiring = false } } label: {
+            HStack(spacing: ReffiSpace.s1) {
+                Text("Expiring soon only").reffiType(.caption).foregroundStyle(ReffiColor.ink)
+                ReffiIcon.close.reffi(11, .bold).foregroundStyle(ReffiColor.ink2)
+            }
+            .padding(.horizontal, ReffiSpace.s3)
+            .padding(.vertical, ReffiSpace.s1 + 2)
+            .background {
+                let s = PaperRect(cornerRadius: ReffiRadius.pill, seed: 5)
+                s.fill(ReffiColor.urgentLight).paperEdge(s, tint: ReffiColor.ink.opacity(0.06))
+            }
+        }
+        .buttonStyle(.paperPress)
     }
 
     /// 자주 버린 품목 1위 — 동점 시 이름순으로 결정적(넘길 때마다 안 바뀌게).
@@ -227,9 +261,10 @@ struct FridgeView: View {
     }
 
     private func summaryCard(id: Int, title: String, value: String,
-                             valueSize: CGFloat = 32, tint: Color) -> some View {
+                             valueSize: CGFloat = 32, tint: Color,
+                             action: @escaping () -> Void) -> some View {
         let shape = PaperRect(cornerRadius: ReffiRadius.lg, seed: id)
-        return Button { showHistory = true } label: {
+        return Button(action: action) {
             VStack(alignment: .leading, spacing: ReffiSpace.s2) {
                 HStack {
                     Text(title).reffiType(.caption).foregroundStyle(ReffiColor.ink2)
@@ -243,7 +278,7 @@ struct FridgeView: View {
             .padding(ReffiSpace.s4)
             .frame(height: 104, alignment: .leading)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(tint.opacity(0.5), in: shape)
+            .background(tint, in: shape)
             .paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
         }
         .buttonStyle(.paperPress)

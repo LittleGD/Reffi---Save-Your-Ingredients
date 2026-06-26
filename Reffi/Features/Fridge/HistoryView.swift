@@ -160,15 +160,16 @@ struct HistoryView: View {
         case .generic: "Other"
         }
     }
+    /// 카테고리 색 — DS 토큰만. 흔한 3종(Veg·Fruit·Dairy)은 명도 일관 파스텔(fresh·urgent·soon).
     private static func catColor(_ c: String) -> Color {
         switch c {
         case "Veg":     ReffiColor.fresh
         case "Fruit":   ReffiColor.urgent
-        case "Dairy":   ReffiColor.blue
+        case "Dairy":   ReffiColor.soon
         case "Meat":    ReffiColor.urgentDark
-        case "Seafood": ReffiColor.blueDark
-        case "Bakery":  ReffiColor.soon
-        case "Protein": ReffiColor.soonDark
+        case "Seafood": ReffiColor.blue
+        case "Bakery":  ReffiColor.blueDark
+        case "Protein": ReffiColor.freshDark
         default:        ReffiColor.muted
         }
     }
