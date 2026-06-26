@@ -27,36 +27,46 @@ struct HistoryView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: ReffiSpace.s4) {
-                    summaryCard
-                    if !topTossed.isEmpty { tossedCard }
-                    timelineCard
-                }
-                .padding(.horizontal, ReffiGrid.margin)
-                .padding(.vertical, ReffiSpace.s4)
-            }
-            .background(LiquidGlassBackground(accent: rateColor.opacity(0.6)))
-            .navigationTitle("History")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button { dismiss() } label: {
-                        ReffiIcon.close.reffi(14, .bold)
-                            .foregroundStyle(ReffiColor.ink)
-                            .frame(width: 34, height: 34)
-                            .background {
-                                let s = PaperRect(cornerRadius: ReffiRadius.md, seed: 4)
-                                s.fill(ReffiColor.oklch(0.99, 0.006, 90)).paperEdge(s)
-                            }
-                            .reffiShadow1()
+        ZStack {
+            LiquidGlassBackground(accent: rateColor.opacity(0.6))
+            VStack(spacing: 0) {
+                header
+                ScrollView {
+                    VStack(spacing: ReffiSpace.s4) {
+                        summaryCard
+                        if !topTossed.isEmpty { tossedCard }
+                        timelineCard
                     }
-                    .buttonStyle(.paperPress)
-                    .accessibilityLabel("Close")
+                    .padding(.horizontal, ReffiGrid.margin)
+                    .padding(.bottom, ReffiSpace.s6)
                 }
             }
         }
+    }
+
+    /// 커스텀 헤더 — 가운데 타이틀 + 오른쪽 X(툴바 미사용 → 자동 원형 배경 없음).
+    private var header: some View {
+        ZStack {
+            Text("History").reffiType(.subhead).foregroundStyle(ReffiColor.ink)
+            HStack {
+                Spacer()
+                Button { dismiss() } label: {
+                    ReffiIcon.close.reffi(14, .bold)
+                        .foregroundStyle(ReffiColor.ink)
+                        .frame(width: 34, height: 34)
+                        .background {
+                            let s = PaperRect(cornerRadius: ReffiRadius.md, seed: 4)
+                            s.fill(ReffiColor.oklch(0.99, 0.006, 90)).paperEdge(s)
+                        }
+                        .reffiShadow1()
+                }
+                .buttonStyle(.paperPress)
+                .accessibilityLabel("Close")
+            }
+        }
+        .padding(.horizontal, ReffiGrid.margin)
+        .padding(.top, ReffiSpace.s4)
+        .padding(.bottom, ReffiSpace.s3)
     }
 
     // MARK: ① 요약
