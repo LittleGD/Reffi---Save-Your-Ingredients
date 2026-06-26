@@ -40,7 +40,7 @@ struct PaperIconButton: View {
                 ZStack {
                     let shape = PaperBlob(sides: 9, seed: seed)
                     shape.fill(fill)                                              // 솔리드(그라데이션 없음)
-                    PaperGrain(seed: UInt64(seed) &+ 3).clipShape(shape)          // 종이 질감
+                    PaperGrain(seed: UInt64(seed) &+ 3, strength: 0.5).clipShape(shape)  // 종이 질감(옅게)
                     icon.reffi(size * 0.42, .fill).foregroundStyle(iconColor)
                 }
                 .frame(width: size, height: size)
