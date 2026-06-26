@@ -185,10 +185,12 @@ struct FridgeView: View {
         }
     }
 
-    /// 자주 버린 품목 1위(없으면 "—").
+    /// 자주 버린 품목 1위 — 동점 시 이름순으로 결정적(넘길 때마다 안 바뀌게).
     private var mostTossed: String {
         let g = Dictionary(grouping: store.history.filter(\.wasted)) { $0.name }
-        return g.max { $0.value.count < $1.value.count }?.key ?? "—"
+        return g.map { (name: $0.key, count: $0.value.count) }
+            .sorted { $0.count != $1.count ? $0.count > $1.count : $0.name < $1.name }
+            .first?.name ?? "—"
     }
 
     private func summaryCard(id: Int, title: String, value: String,

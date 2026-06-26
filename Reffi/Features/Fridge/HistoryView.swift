@@ -69,26 +69,108 @@ struct HistoryView: View {
         .padding(.bottom, ReffiSpace.s3)
     }
 
-    // MARK: ① 요약
+    // MARK: ① 요약 — 도넛 차트(버린 품목 카테고리 구성) + 가운데 낭비율 + 범례
     private var summaryCard: some View {
         card(seed: 0) {
             VStack(alignment: .leading, spacing: ReffiSpace.s4) {
-                Text("Past 30 days").reffiType(.subhead).foregroundStyle(ReffiColor.ink)
-                HStack(spacing: ReffiSpace.s3) {
-                    stat("Eaten", "\(eaten)", ReffiColor.freshDark)
-                    stat("Tossed", "\(tossed)", ReffiColor.urgentDark)
-                    stat("Waste rate", "\(rate)%", rateColor)
+                HStack(alignment: .firstTextBaseline) {
+                    Text("Past 30 days").reffiType(.subhead).foregroundStyle(ReffiColor.ink)
+                    Spacer()
+                    Text("\(eaten) ate · \(tossed) tossed")
+                        .font(.reffiNum(12, relativeTo: .caption2)).foregroundStyle(ReffiColor.ink2)
+                }
+
+                if wasteSegments.isEmpty {
+                    Text("No waste yet — nicely done.")
+                        .reffiType(.body).foregroundStyle(ReffiColor.ink2)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.vertical, ReffiSpace.s5)
+                } else {
+                    ZStack {
+                        donut.frame(width: 180, height: 180)
+                        VStack(spacing: 0) {
+                            Text("\(rate)%").font(.reffiNum(32, relativeTo: .largeTitle)).foregroundStyle(rateColor)
+                            Text("Wasted").reffiType(.caption).foregroundStyle(ReffiColor.ink2)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    legend
                 }
             }
         }
     }
 
-    private func stat(_ label: String, _ value: String, _ color: Color) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(value).font(.reffiNum(24, relativeTo: .title)).foregroundStyle(color)
-            Text(label).reffiType(.caption).foregroundStyle(ReffiColor.ink2)
+    /// 버린 품목을 카테고리(글리프 기반)로 묶은 도넛 세그먼트.
+    private var wasteSegments: [(name: String, count: Int, color: Color)] {
+        let tossed = logs.filter(\.wasted)
+        let grouped = Dictionary(grouping: tossed) { Self.category($0.glyph) }
+        return grouped
+            .map { (name: $0.key, count: $0.value.count, color: Self.catColor($0.key)) }
+            .sorted { $0.count > $1.count }
+    }
+
+    private var donut: some View {
+        let segs = wasteSegments
+        let total = max(1, segs.reduce(0) { $0 + $1.count })
+        return Canvas { ctx, size in
+            let c = CGPoint(x: size.width / 2, y: size.height / 2)
+            let r = min(size.width, size.height) / 2
+            let ir = r * 0.62
+            let gap = 0.04
+            var start = -Double.pi / 2
+            for seg in segs {
+                let sweep = Double(seg.count) / Double(total) * 2 * .pi
+                let s = start + gap / 2, e = start + sweep - gap / 2
+                var p = Path()
+                p.addArc(center: c, radius: r, startAngle: .radians(s), endAngle: .radians(e), clockwise: false)
+                p.addArc(center: c, radius: ir, startAngle: .radians(e), endAngle: .radians(s), clockwise: true)
+                p.closeSubpath()
+                ctx.fill(p, with: .color(seg.color))
+                start += sweep
+            }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var legend: some View {
+        let segs = wasteSegments
+        let total = max(1, segs.reduce(0) { $0 + $1.count })
+        return VStack(spacing: ReffiSpace.s2) {
+            ForEach(segs, id: \.name) { seg in
+                HStack(spacing: ReffiSpace.s2) {
+                    Circle().fill(seg.color).frame(width: 9, height: 9)
+                    Text(seg.name).reffiType(.body).foregroundStyle(ReffiColor.ink)
+                    Spacer()
+                    Text("\(Int((Double(seg.count) / Double(total) * 100).rounded()))%")
+                        .font(.reffiNum(13, relativeTo: .caption)).foregroundStyle(ReffiColor.ink2)
+                }
+            }
+        }
+    }
+
+    /// 글리프 → 거친 카테고리.
+    private static func category(_ g: FoodGlyph) -> String {
+        switch g {
+        case .leaf, .broccoli, .onion, .garlic, .potato, .root, .squash, .mushroom, .pepper, .tomato: "Veg"
+        case .apple, .citrus, .berry: "Fruit"
+        case .egg, .milk, .cheese: "Dairy"
+        case .meat, .poultry: "Meat"
+        case .fish, .shrimp: "Seafood"
+        case .tofu: "Protein"
+        case .bread: "Bakery"
+        case .generic: "Other"
+        }
+    }
+    private static func catColor(_ c: String) -> Color {
+        switch c {
+        case "Veg":     ReffiColor.fresh
+        case "Fruit":   ReffiColor.urgent
+        case "Dairy":   ReffiColor.blue
+        case "Meat":    ReffiColor.urgentDark
+        case "Seafood": ReffiColor.blueDark
+        case "Bakery":  ReffiColor.soon
+        case "Protein": ReffiColor.soonDark
+        default:        ReffiColor.muted
+        }
     }
 
     // MARK: ② 자주 버린 품목
