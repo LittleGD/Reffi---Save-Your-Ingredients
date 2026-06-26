@@ -15,22 +15,13 @@ struct FridgeView: View {
     @State private var carouselID: Int? = 0
 
     private let cardHeight: CGFloat = 128
-    private let overlap: CGFloat = -32   // 노출 띠를 넓혀 D-day 스탬프가 다음(기울어진) 카드에 안 가리게
+    private let overlap: CGFloat = -40   // 영수증을 질서있게 촘촘히 쌓음(노출 띠 = D-day 스탬프 줄)
     private let cardInset: CGFloat = 18   // 페이지 마진 위 추가 인셋 — 영수증 폭 좁힘(가운데)
 
     private var items: [Ingredient] { store.sorted }
     private var accent: Color { items.first?.freshness.main ?? ReffiColor.fresh }
     private var selected: Ingredient? { items.first { $0.id == selectedID } }
     private var motion: Animation? { ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion) }
-
-    /// 아이템 고유의 안정적 지터(회전°·가로 오프셋) — 영수증이 무질서하게 쌓인 느낌. 런치마다 동일.
-    private func jitter(_ ing: Ingredient) -> (angle: Double, dx: CGFloat) {
-        let s = abs(ing.name.unicodeScalars.reduce(7) { $0 &* 31 &+ Int($1.value) })
-        // 회전 위주(살짝씩 기운 정돈된 흐트러짐) + 가로 오프셋은 작게(튀지 않게).
-        let angle = Double(s % 11) - 5      // -5 … +5°
-        let dx = CGFloat(s / 11 % 9) - 4    // -4 … +4pt
-        return (angle, dx)
-    }
 
     var body: some View {
         ZStack {
@@ -40,18 +31,18 @@ struct FridgeView: View {
             } else {
                 collapsed
             }
-        }
-        .overlay(alignment: .bottom) {
-            // 하단 스크림 — 카드가 떠 있는 네비 바 전에 배경으로 사라져 Main처럼 깨끗하게.
+            // 하단 마스크 — 화면 끝(홈 인디케이터 포함)까지 크림으로 덮어, 떠 있는 네비 밑으로
+            // 카드가 새지 않게. VStack이 화면을 꽉 채우고 safe area를 무시 → 바닥 정렬이 물리적 끝에 닿음.
             if selected == nil {
-                LinearGradient(stops: [
-                    .init(color: ReffiColor.canvas, location: 0.0),   // 바닥: 솔리드(네비 + 그 아래까지 카드 완전히 덮음)
-                    .init(color: ReffiColor.canvas, location: 0.8),
-                    .init(color: ReffiColor.canvas.opacity(0), location: 1.0)
-                ], startPoint: .bottom, endPoint: .top)
-                    .frame(height: 195)
-                    .allowsHitTesting(false)
-                    .ignoresSafeArea(edges: .bottom)
+                VStack(spacing: 0) {
+                    Spacer(minLength: 0)
+                    LinearGradient(colors: [ReffiColor.canvas.opacity(0), ReffiColor.canvas],
+                                   startPoint: .top, endPoint: .bottom)
+                        .frame(height: 72)             // 위쪽: 카드가 부드럽게 사라짐
+                    ReffiColor.canvas.frame(height: 70) // 아래쪽: 네비 밑은 완전한 크림(잔상 제거)
+                }
+                .ignoresSafeArea()
+                .allowsHitTesting(false)
             }
         }
         .sheet(isPresented: $showHistory) { HistoryView() }
@@ -70,22 +61,19 @@ struct FridgeView: View {
                 } else {
                     VStack(spacing: overlap) {
                         ForEach(Array(items.enumerated()), id: \.element.id) { i, ing in
-                            let jit = jitter(ing)
                             FridgeCard(ingredient: ing, depth: i, seed: i, height: cardHeight)
                                 .matchedGeometryEffect(id: ing.id, in: ns)
                                 .zIndex(Double(i))
                                 .contentShape(Rectangle())
                                 .onTapGesture { select(ing) }
                                 .padding(.horizontal, cardInset)
-                                .rotationEffect(.degrees(jit.angle))
-                                .offset(x: jit.dx)
                         }
                     }
                 }
             }
             .padding(.horizontal, ReffiGrid.margin)
             .padding(.top, ReffiSpace.s5)
-            .padding(.bottom, 140)   // 떠 있는 네비 바를 카드가 침범하지 않도록 넉넉히
+            .padding(.bottom, 120)   // 끝까지 스크롤해도 마지막 카드가 네비 위로 올라오게
         }
     }
 
@@ -152,14 +140,11 @@ struct FridgeView: View {
         let visible = CGFloat(count - 1) * peek + 48
         return VStack(spacing: -(cardHeight - peek)) {
             ForEach(Array(others.enumerated()), id: \.element.id) { i, ing in
-                let jit = jitter(ing)
                 FridgeCard(ingredient: ing, depth: i, seed: ing.daysLeft, height: cardHeight)
                     .matchedGeometryEffect(id: ing.id, in: ns)
                     .zIndex(Double(i))
                     .contentShape(Rectangle())
                     .onTapGesture { select(ing) }
-                    .rotationEffect(.degrees(jit.angle))
-                    .offset(x: jit.dx)
             }
         }
         .frame(height: visible, alignment: .top)
@@ -198,13 +183,17 @@ struct FridgeView: View {
         VStack(spacing: ReffiSpace.s3) {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: ReffiSpace.s3) {
-                    toBuyCard(id: 0)   // 사야 할 식재료 — 첫 카드
-                    summaryCard(id: 1, title: "Wasted · past 30 days",
-                                value: "\(store.wasteRate)%", tint: ReffiColor.soonLight,
-                                action: { showHistory = true })
-                    summaryCard(id: 2, title: "Most tossed",
-                                value: mostTossed, valueSize: 26, tint: ReffiColor.freshLight,
-                                action: { showHistory = true })
+                    stampCard(id: 0, title: "To buy",
+                              value: store.toBuy.count == 0 ? "All set"
+                                  : "\(store.toBuy.count) item\(store.toBuy.count == 1 ? "" : "s")",
+                              valueSize: 26, ink: ReffiColor.blueDark,
+                              action: { showShopping = true })
+                    stampCard(id: 1, title: "Wasted · 30d",
+                              value: "\(store.wasteRate)%", ink: ReffiColor.soonDark,
+                              action: { showHistory = true })
+                    stampCard(id: 2, title: "Most tossed",
+                              value: mostTossed, valueSize: 24, ink: ReffiColor.freshDark,
+                              action: { showHistory = true })
                 }
                 .scrollTargetLayout()
             }
@@ -229,53 +218,36 @@ struct FridgeView: View {
             .first?.name ?? "—"
     }
 
-    /// 사야 할 식재료 카드(블루) — 탭하면 자동 쇼핑 리스트.
-    private func toBuyCard(id: Int) -> some View {
-        let count = store.toBuy.count
-        let shape = PaperRect(cornerRadius: ReffiRadius.lg, seed: id)
-        return Button { showShopping = true } label: {
+    /// 캐러셀 요약 — 고무 도장(스탬프) 룩: 종이 위 이중 외곽선 프레임 + 단색 잉크 + 대문자 트래킹 타이틀 + 살짝 기울임.
+    private func stampCard(id: Int, title: String, value: String,
+                           valueSize: CGFloat = 30, ink: Color,
+                           action: @escaping () -> Void) -> some View {
+        Button(action: action) {
             VStack(alignment: .leading, spacing: ReffiSpace.s2) {
                 HStack {
-                    Text("To buy").reffiType(.caption).foregroundStyle(ReffiColor.ink2)
+                    Text(title.uppercased())
+                        .font(.custom("Pretendard-Bold", size: 11, relativeTo: .caption2))
+                        .tracking(1.2)
+                        .foregroundStyle(ink).lineLimit(1)
                     Spacer()
-                    ReffiIcon.chevron.reffi(12, .bold).foregroundStyle(ReffiColor.ink2)
-                }
-                Spacer(minLength: 0)
-                Text(count == 0 ? "All set" : "\(count) item\(count == 1 ? "" : "s")")
-                    .font(.reffiNum(28, relativeTo: .largeTitle))
-                    .foregroundStyle(ReffiColor.ink).lineLimit(1).minimumScaleFactor(0.6)
-            }
-            .padding(ReffiSpace.s4)
-            .frame(height: 104, alignment: .leading)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(ReffiColor.blueLight, in: shape)
-            .paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
-        }
-        .buttonStyle(.paperPress)
-        .containerRelativeFrame(.horizontal, count: 20, span: 18, spacing: ReffiSpace.s3)
-        .id(id)
-    }
-
-    private func summaryCard(id: Int, title: String, value: String,
-                             valueSize: CGFloat = 32, tint: Color,
-                             action: @escaping () -> Void) -> some View {
-        let shape = PaperRect(cornerRadius: ReffiRadius.lg, seed: id)
-        return Button(action: action) {
-            VStack(alignment: .leading, spacing: ReffiSpace.s2) {
-                HStack {
-                    Text(title).reffiType(.caption).foregroundStyle(ReffiColor.ink2)
-                    Spacer()
-                    ReffiIcon.chevron.reffi(12, .bold).foregroundStyle(ReffiColor.ink2)
+                    ReffiIcon.chevron.reffi(11, .bold).foregroundStyle(ink.opacity(0.55))
                 }
                 Spacer(minLength: 0)
                 Text(value).font(.reffiNum(valueSize, relativeTo: .largeTitle))
-                    .foregroundStyle(ReffiColor.ink).lineLimit(1).minimumScaleFactor(0.6)
+                    .foregroundStyle(ink).lineLimit(1).minimumScaleFactor(0.6)
             }
-            .padding(ReffiSpace.s4)
+            .padding(.horizontal, ReffiSpace.s4)
+            .padding(.vertical, ReffiSpace.s4)
             .frame(height: 104, alignment: .leading)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(tint, in: shape)
-            .paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
+            .contentShape(Rectangle())
+            .background {
+                let s = RoundedRectangle(cornerRadius: ReffiRadius.lg, style: .continuous)
+                ZStack {
+                    s.strokeBorder(ink.opacity(0.9), lineWidth: 2.2)              // 외곽선(굵게) — 배경 없이 라인만
+                    s.inset(by: 4).strokeBorder(ink.opacity(0.5), lineWidth: 1.0)  // 내곽선(가늘게) — 도장 이중선
+                }
+            }
         }
         .buttonStyle(.paperPress)
         .containerRelativeFrame(.horizontal, count: 20, span: 18, spacing: ReffiSpace.s3)
