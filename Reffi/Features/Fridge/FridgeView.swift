@@ -273,6 +273,12 @@ struct ExpandedFridgeCard: View {
     var onEdit: () -> Void = {}
     private let toothH: CGFloat = 7
 
+    /// 영수증 번호 — 이름에서 유도(장식, 안정적).
+    private var receiptNo: String {
+        let s = abs(ingredient.name.unicodeScalars.reduce(7) { $0 &* 31 &+ Int($1.value) })
+        return String(format: "No. %04d", s % 10000)
+    }
+
     var body: some View {
         let f = ingredient.freshness
         let shape = ReceiptShape(tooth: toothH)
@@ -317,6 +323,19 @@ struct ExpandedFridgeCard: View {
             }
             .padding(.horizontal, ReffiSpace.s5)
             .padding(.vertical, ReffiSpace.s2)
+
+            dashRule
+            HStack {
+                Text("REFFI · KEEP IT FRESH")
+                    .font(.custom("Pretendard-Bold", size: 10, relativeTo: .caption2)).tracking(1.2)
+                    .foregroundStyle(ReffiColor.muted)
+                Spacer()
+                Text(receiptNo)
+                    .font(.reffiNum(11, relativeTo: .caption2)).foregroundStyle(ReffiColor.muted)
+            }
+            .padding(.horizontal, ReffiSpace.s5)
+            .padding(.top, ReffiSpace.s3)
+            .padding(.bottom, ReffiSpace.s2)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.bottom, toothH)
@@ -340,7 +359,18 @@ struct ExpandedFridgeCard: View {
     }
 
     private var dashRule: some View {
-        Rectangle().fill(ReffiColor.ink.opacity(0.08)).frame(height: 1)
+        HLine().stroke(ReffiColor.ink.opacity(0.16), style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
+            .frame(height: 1)
             .padding(.horizontal, ReffiSpace.s5)
+    }
+}
+
+/// 가로 점선/구분선용 1px 라인.
+struct HLine: Shape {
+    func path(in rect: CGRect) -> Path {
+        var p = Path()
+        p.move(to: CGPoint(x: rect.minX, y: rect.midY))
+        p.addLine(to: CGPoint(x: rect.maxX, y: rect.midY))
+        return p
     }
 }
