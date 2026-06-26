@@ -15,7 +15,7 @@ struct FridgeView: View {
     @State private var carouselID: Int? = 0
 
     private let cardHeight: CGFloat = 128
-    private let overlap: CGFloat = -46
+    private let overlap: CGFloat = -32   // 노출 띠를 넓혀 D-day 스탬프가 다음(기울어진) 카드에 안 가리게
     private let cardInset: CGFloat = 18   // 페이지 마진 위 추가 인셋 — 영수증 폭 좁힘(가운데)
 
     private var items: [Ingredient] { store.sorted }
@@ -39,6 +39,19 @@ struct FridgeView: View {
                 expanded(sel)
             } else {
                 collapsed
+            }
+        }
+        .overlay(alignment: .bottom) {
+            // 하단 스크림 — 카드가 떠 있는 네비 바 전에 배경으로 사라져 Main처럼 깨끗하게.
+            if selected == nil {
+                LinearGradient(stops: [
+                    .init(color: ReffiColor.canvas, location: 0.0),   // 바닥: 솔리드(네비 + 그 아래까지 카드 완전히 덮음)
+                    .init(color: ReffiColor.canvas, location: 0.8),
+                    .init(color: ReffiColor.canvas.opacity(0), location: 1.0)
+                ], startPoint: .bottom, endPoint: .top)
+                    .frame(height: 195)
+                    .allowsHitTesting(false)
+                    .ignoresSafeArea(edges: .bottom)
             }
         }
         .sheet(isPresented: $showHistory) { HistoryView() }
