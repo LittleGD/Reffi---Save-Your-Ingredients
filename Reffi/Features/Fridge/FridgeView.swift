@@ -10,6 +10,7 @@ struct FridgeView: View {
     @Namespace private var ns
     @State private var selectedID: Ingredient.ID?
     @State private var showHistory = false
+    @State private var showShopping = false
     @State private var editing: Ingredient?
     @State private var carouselID: Int? = 0
 
@@ -32,6 +33,7 @@ struct FridgeView: View {
             }
         }
         .sheet(isPresented: $showHistory) { HistoryView() }
+        .sheet(isPresented: $showShopping) { ShoppingListView() }
         .sheet(item: $editing) { IngredientEditView(ingredient: $0) }
     }
 
@@ -134,8 +136,14 @@ struct FridgeView: View {
         }
         .frame(height: visible, alignment: .top)
         .clipShape(Rectangle())
+        .contentShape(Rectangle())
         .padding(.horizontal, ReffiGrid.margin + cardInset)
         .padding(.bottom, 96)
+        // 위로 스와이프(또는 탭) → 냉장고 스택으로 촤라락 복귀.
+        .gesture(
+            DragGesture(minimumDistance: 16)
+                .onEnded { v in if v.translation.height < -36 { deselect() } }
+        )
     }
 
     // MARK: 헤더
@@ -162,13 +170,11 @@ struct FridgeView: View {
         VStack(spacing: ReffiSpace.s3) {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: ReffiSpace.s3) {
-                    summaryCard(id: 0, title: "Wasted · past 30 days",
+                    toBuyCard(id: 0)   // 사야 할 식재료 — 첫 카드
+                    summaryCard(id: 1, title: "Wasted · past 30 days",
                                 value: "\(store.wasteRate)%", tint: ReffiColor.urgent)
-                    summaryCard(id: 1, title: "Most tossed",
+                    summaryCard(id: 2, title: "Most tossed",
                                 value: mostTossed, valueSize: 26, tint: ReffiColor.soon)
-                    summaryCard(id: 2, title: "This month",
-                                value: "\(store.ateCount) ate · \(store.tossedCount) tossed",
-                                valueSize: 20, tint: ReffiColor.fresh)
                 }
                 .scrollTargetLayout()
             }
@@ -191,6 +197,33 @@ struct FridgeView: View {
         return g.map { (name: $0.key, count: $0.value.count) }
             .sorted { $0.count != $1.count ? $0.count > $1.count : $0.name < $1.name }
             .first?.name ?? "—"
+    }
+
+    /// 사야 할 식재료 카드(블루) — 탭하면 자동 쇼핑 리스트.
+    private func toBuyCard(id: Int) -> some View {
+        let count = store.toBuy.count
+        let shape = PaperRect(cornerRadius: ReffiRadius.lg, seed: id)
+        return Button { showShopping = true } label: {
+            VStack(alignment: .leading, spacing: ReffiSpace.s2) {
+                HStack {
+                    Text("To buy").reffiType(.caption).foregroundStyle(ReffiColor.ink2)
+                    Spacer()
+                    ReffiIcon.chevron.reffi(12, .bold).foregroundStyle(ReffiColor.ink2)
+                }
+                Spacer(minLength: 0)
+                Text(count == 0 ? "All set" : "\(count) item\(count == 1 ? "" : "s")")
+                    .font(.reffiNum(28, relativeTo: .largeTitle))
+                    .foregroundStyle(ReffiColor.ink).lineLimit(1).minimumScaleFactor(0.6)
+            }
+            .padding(ReffiSpace.s4)
+            .frame(height: 104, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(ReffiColor.blueLight, in: shape)
+            .paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
+        }
+        .buttonStyle(.paperPress)
+        .containerRelativeFrame(.horizontal, count: 20, span: 18, spacing: ReffiSpace.s3)
+        .id(id)
     }
 
     private func summaryCard(id: Int, title: String, value: String,

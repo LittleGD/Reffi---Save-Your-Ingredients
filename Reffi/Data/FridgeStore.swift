@@ -68,4 +68,23 @@ final class FridgeStore {
         guard total > 0 else { return 0 }
         return Int((Double(tossedCount) / Double(total) * 100).rounded())
     }
+
+    // MARK: - 사야 할 식재료(쇼핑 리스트)
+
+    /// "이번엔 안 살" 항목 — toBuy에서 제외.
+    var dismissedToBuy: Set<String> = []
+
+    /// 자주 쓰는데(이력에 있는데) 지금 냉장고엔 없는 = 사야 할 식재료. 빈도 많은 순.
+    var toBuy: [(name: String, glyph: FoodGlyph)] {
+        let inStock = Set(ingredients.map { $0.name })
+        let grouped = Dictionary(grouping: history) { $0.name }
+        return grouped
+            .filter { !inStock.contains($0.key) && !dismissedToBuy.contains($0.key) }
+            .map { (name: $0.key, glyph: $0.value.first!.glyph, count: $0.value.count) }
+            .sorted { $0.count != $1.count ? $0.count > $1.count : $0.name < $1.name }
+            .map { (name: $0.name, glyph: $0.glyph) }
+    }
+
+    /// 이번엔 안 사기 — 쇼핑 리스트에서 제외.
+    func skipBuy(_ name: String) { dismissedToBuy.insert(name) }
 }
