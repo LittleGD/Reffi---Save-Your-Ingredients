@@ -354,7 +354,7 @@ struct ExpandedFridgeCard: View {
                     .foregroundStyle(valueColor)
                     .multilineTextAlignment(.trailing)
             }
-            .padding(.vertical, ReffiSpace.s3)
+            .padding(.vertical, ReffiSpace.s2 + 2)
         }
     }
 

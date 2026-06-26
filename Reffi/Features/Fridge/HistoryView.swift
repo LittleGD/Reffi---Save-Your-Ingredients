@@ -120,12 +120,10 @@ struct HistoryView: View {
         }
     }
 
-    /// 작은 일러스트 — 옅은 배경 원 + 키운 실루엣으로 작은 크기에서도 또렷하게.
+    /// 작은 일러스트 — 키운 실루엣(테두리 없음).
     private func miniGlyph(_ glyph: FoodGlyph) -> some View {
         PaperSilhouette(glyph: glyph, fresh: .fresh)
-            .frame(width: 34, height: 34)
-            .padding(5)
-            .background(ReffiColor.sub.opacity(0.7), in: Circle())
+            .frame(width: 36, height: 36)
     }
 
     // MARK: 영수증 카드 래퍼 — Fridge 스택과 같은 흰 영수증(톱니)
