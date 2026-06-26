@@ -14,14 +14,23 @@ struct FridgeView: View {
     @State private var editing: Ingredient?
     @State private var carouselID: Int? = 0
 
-    private let cardHeight: CGFloat = 128
-    private let overlap: CGFloat = -40   // 영수증을 질서있게 촘촘히 쌓음(노출 띠 = D-day 스탬프 줄)
+    private let cardHeight: CGFloat = 170   // 길게 늘려 슬립·틸트로 생기는 측면 빈틈을 덮음
+    private let overlap: CGFloat = -60   // advance(=높이+겹침)=110 유지 → 이름 안전 구간 불변
     private let cardInset: CGFloat = 18   // 페이지 마진 위 추가 인셋 — 영수증 폭 좁힘(가운데)
 
     private var items: [Ingredient] { store.sorted }
     private var accent: Color { items.first?.freshness.main ?? ReffiColor.fresh }
     private var selected: Ingredient? { items.first { $0.id == selectedID } }
     private var motion: Animation? { ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion) }
+
+    /// 영수증 틸트 — 평면(Z) 회전 ±4° 랜덤(결정적 의사난수). 위아래로 제각각 기울어 더미 느낌.
+    private func tilt(_ i: Int) -> Double {
+        [4, -3, 2, -4, 3, -2, 1][i % 7]
+    }
+    /// 가로 삐져나옴 — 좌우로 제각각 비져나옴(틸트와 위상 달라 상관 없음).
+    private func slip(_ i: Int) -> CGFloat {
+        [14, -12, 16, -10, 12, -16, 10][i % 7]
+    }
 
     var body: some View {
         ZStack {
@@ -67,6 +76,8 @@ struct FridgeView: View {
                                 .contentShape(Rectangle())
                                 .onTapGesture { select(ing) }
                                 .padding(.horizontal, cardInset)
+                                .rotationEffect(.degrees(tilt(i)))
+                                .offset(x: slip(i))
                         }
                     }
                 }
@@ -199,6 +210,7 @@ struct FridgeView: View {
             }
             .scrollTargetBehavior(.viewAligned)
             .scrollPosition(id: $carouselID)
+            .padding(.horizontal, -ReffiGrid.margin)   // 부모 마진 상쇄 → 화면 끝까지 스크롤
 
             HStack(spacing: 6) {
                 ForEach(0..<3, id: \.self) { i in
@@ -250,7 +262,8 @@ struct FridgeView: View {
             }
         }
         .buttonStyle(.paperPress)
-        .containerRelativeFrame(.horizontal, count: 20, span: 18, spacing: ReffiSpace.s3)
+        .padding(.horizontal, ReffiGrid.margin + cardInset)  // 화면폭 스냅 프레임 안에서 도장만 영수증과 정렬
+        .containerRelativeFrame(.horizontal)    // 스냅 프레임 = 화면 폭(한 페이지 = 한 도장, 엣지-투-엣지)
         .id(id)
     }
 
@@ -288,13 +301,13 @@ struct DDayStamp: View {
     var body: some View {
         Text(text.uppercased())
             .font(.custom("Pretendard-Bold", size: size, relativeTo: .subheadline))
-            .tracking(0.8)
+            .tracking(size * 0.06)
             .foregroundStyle(color)
-            .padding(.horizontal, 9)
-            .padding(.vertical, 4)
+            .padding(.horizontal, size * 0.7)
+            .padding(.vertical, size * 0.32)
             .overlay {
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .stroke(color, lineWidth: 1.8)
+                RoundedRectangle(cornerRadius: size * 0.46, style: .continuous)
+                    .stroke(color, lineWidth: max(1.6, size * 0.12))
             }
             .rotationEffect(.degrees(-7))
             .accessibilityLabel(text)
@@ -316,16 +329,19 @@ struct FridgeCard: View {
         let paper = ReffiColor.oklch(0.985, 0.004, 90)   // 흰 영수증
 
         return VStack(alignment: .leading, spacing: ReffiSpace.s1) {
-            Text(ingredient.category)
-                .reffiType(.caption).foregroundStyle(ReffiColor.ink2).lineLimit(1)
+            // 상단 행 — 카테고리(좌) / D-day 도장(우 상단 코너).
+            HStack(alignment: .top) {
+                Text(ingredient.category)
+                    .reffiType(.caption).foregroundStyle(ReffiColor.ink2).lineLimit(1)
+                Spacer(minLength: ReffiSpace.s3)
+                DDayStamp(text: ingredient.dDayText, color: f.dark, size: 17)
+            }
             HStack(spacing: ReffiSpace.s3) {
                 PaperSilhouette(glyph: ingredient.glyph, fresh: f)
                     .frame(width: 46, height: 46)
                 Text(ingredient.name)
                     .reffiType(.subhead).foregroundStyle(ReffiColor.ink).lineLimit(1)
-                Spacer(minLength: ReffiSpace.s3)
-                // D-day — 영수증 도장 스타일(신선도색).
-                DDayStamp(text: ingredient.dDayText, color: f.dark)
+                Spacer(minLength: 0)
             }
         }
         .padding(.horizontal, ReffiSpace.s5)
