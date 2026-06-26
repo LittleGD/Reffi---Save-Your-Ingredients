@@ -42,7 +42,18 @@ struct HistoryView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }.tint(ReffiColor.blue)
+                    Button { dismiss() } label: {
+                        ReffiIcon.close.reffi(14, .bold)
+                            .foregroundStyle(ReffiColor.ink)
+                            .frame(width: 34, height: 34)
+                            .background {
+                                let s = PaperRect(cornerRadius: ReffiRadius.md, seed: 4)
+                                s.fill(ReffiColor.oklch(0.99, 0.006, 90)).paperEdge(s)
+                            }
+                            .reffiShadow1()
+                    }
+                    .buttonStyle(.paperPress)
+                    .accessibilityLabel("Close")
                 }
             }
         }
