@@ -11,6 +11,7 @@ struct FridgeView: View {
     @State private var selectedID: Ingredient.ID?
     @State private var showHistory = false
     @State private var editing: Ingredient?
+    @State private var carouselID: Int? = 0
 
     private let cardHeight: CGFloat = 128
     private let overlap: CGFloat = -46
@@ -39,7 +40,7 @@ struct FridgeView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: ReffiSpace.s5) {
                 header
-                wastedCard
+                historyCarousel
                 if items.isEmpty {
                     emptyState
                 } else {
@@ -156,30 +157,63 @@ struct FridgeView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// Wasted 요약 — 낭비율 + Ate/Tossed, 탭하면 History.
-    private var wastedCard: some View {
-        let rate = store.wasteRate
-        let rateColor: Color = rate <= 10 ? ReffiColor.freshDark
-                             : rate <= 30 ? ReffiColor.soonDark : ReffiColor.urgentDark
-        let shape = PaperRect(cornerRadius: ReffiRadius.lg, seed: 7)
+    // MARK: History 요약 캐러셀 — 옆으로 넘기는 카드 + 페이지 점, 탭하면 상세(History).
+    private var historyCarousel: some View {
+        VStack(spacing: ReffiSpace.s3) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: ReffiSpace.s3) {
+                    summaryCard(id: 0, title: "Wasted · past 30 days",
+                                value: "\(store.wasteRate)%", tint: ReffiColor.urgent)
+                    summaryCard(id: 1, title: "Most tossed",
+                                value: mostTossed, valueSize: 26, tint: ReffiColor.soon)
+                    summaryCard(id: 2, title: "This month",
+                                value: "\(store.ateCount) ate · \(store.tossedCount) tossed",
+                                valueSize: 20, tint: ReffiColor.fresh)
+                }
+                .scrollTargetLayout()
+            }
+            .scrollTargetBehavior(.viewAligned)
+            .scrollPosition(id: $carouselID)
+
+            HStack(spacing: 6) {
+                ForEach(0..<3, id: \.self) { i in
+                    Circle()
+                        .fill(i == (carouselID ?? 0) ? ReffiColor.ink2 : ReffiColor.muted.opacity(0.3))
+                        .frame(width: 7, height: 7)
+                }
+            }
+        }
+    }
+
+    /// 자주 버린 품목 1위(없으면 "—").
+    private var mostTossed: String {
+        let g = Dictionary(grouping: store.history.filter(\.wasted)) { $0.name }
+        return g.max { $0.value.count < $1.value.count }?.key ?? "—"
+    }
+
+    private func summaryCard(id: Int, title: String, value: String,
+                             valueSize: CGFloat = 32, tint: Color) -> some View {
+        let shape = PaperRect(cornerRadius: ReffiRadius.lg, seed: id)
         return Button { showHistory = true } label: {
             VStack(alignment: .leading, spacing: ReffiSpace.s2) {
-                // 1단: 라벨 + 진입 affordance
                 HStack {
-                    Text("Wasted · past 30 days").reffiType(.caption).foregroundStyle(ReffiColor.ink2)
+                    Text(title).reffiType(.caption).foregroundStyle(ReffiColor.ink2)
                     Spacer()
-                    ReffiIcon.chevron.reffi(12, .bold).foregroundStyle(ReffiColor.muted)
+                    ReffiIcon.chevron.reffi(12, .bold).foregroundStyle(ReffiColor.ink2)
                 }
-                // 2단: 큰 낭비율(히어로)
-                Text("\(rate)%").font(.reffiNum(32, relativeTo: .largeTitle)).foregroundStyle(rateColor)
+                Spacer(minLength: 0)
+                Text(value).font(.reffiNum(valueSize, relativeTo: .largeTitle))
+                    .foregroundStyle(ReffiColor.ink).lineLimit(1).minimumScaleFactor(0.6)
             }
             .padding(ReffiSpace.s4)
-            .frame(maxWidth: .infinity)
-            .background(ReffiColor.oklch(0.99, 0.006, 90), in: shape)
+            .frame(height: 104, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(tint.opacity(0.5), in: shape)
             .paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
-            .shadow(color: ReffiColor.ink.opacity(0.06), radius: 5, x: 0, y: 2)
         }
         .buttonStyle(.paperPress)
+        .containerRelativeFrame(.horizontal, count: 20, span: 18, spacing: ReffiSpace.s3)
+        .id(id)
     }
 
     private var emptyState: some View {
