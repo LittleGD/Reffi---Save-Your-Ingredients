@@ -26,8 +26,9 @@ struct FridgeView: View {
     /// 아이템 고유의 안정적 지터(회전°·가로 오프셋) — 영수증이 무질서하게 쌓인 느낌. 런치마다 동일.
     private func jitter(_ ing: Ingredient) -> (angle: Double, dx: CGFloat) {
         let s = abs(ing.name.unicodeScalars.reduce(7) { $0 &* 31 &+ Int($1.value) })
-        let angle = Double(s % 9) - 4      // -4 … +4°
-        let dx = CGFloat(s / 9 % 17) - 8   // -8 … +8pt
+        // 회전 위주(살짝씩 기운 정돈된 흐트러짐) + 가로 오프셋은 작게(튀지 않게).
+        let angle = Double(s % 11) - 5      // -5 … +5°
+        let dx = CGFloat(s / 11 % 9) - 4    // -4 … +4pt
         return (angle, dx)
     }
 
@@ -71,7 +72,7 @@ struct FridgeView: View {
             }
             .padding(.horizontal, ReffiGrid.margin)
             .padding(.top, ReffiSpace.s5)
-            .padding(.bottom, 110)
+            .padding(.bottom, 140)   // 떠 있는 네비 바를 카드가 침범하지 않도록 넉넉히
         }
     }
 
