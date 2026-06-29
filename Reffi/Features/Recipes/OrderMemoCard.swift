@@ -1,46 +1,52 @@
 import SwiftUI
 import PhosphorSwift
 
-/// 오더 메모 카드(§13) — 업장 주방 오더 티켓 미감: 크림 종이 + 상/하 톱니 찢김 엣지, 모노 헤더,
-/// 점선 룰, 레시피명 + 시간, 재료 체크리스트(신선도), 옅은 START 스탬프. 캐러셀에서 둘러보기만(액션 없음).
+/// 오더 메모 카드(§13) — 주방 오더 티켓: 크림 종이 + 톱니 엣지 + 모노 헤더 + 판정문 + 메뉴/시간 +
+/// 재료 체크리스트 + **"이걸로 요리" 발주 CTA**. 발주하면 START 스탬프가 쾅 찍히고 사용 재료가 비워진다
+/// (Fire the Ticket). affordance(탭할 스탬프)와 payoff(비우기 증명)가 같은 오브젝트.
 struct OrderMemoCard: View {
     let result: RecipeRecommender.Result
     let number: Int
+    var onFire: () -> Void = {}
 
-    private var f: Freshness { result.used.first?.freshness ?? .fresh }
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var fired = false
+
+    /// 임박(urgent+soon) 재료 수 — 안티-웨이스트 증명.
+    private var rescuedCount: Int { result.used.filter { $0.freshness != .fresh }.count }
+
+    /// 카드 1순위 판정문 — 왜 이 티켓이 추천됐나(랭킹 근거를 사람 말로).
+    private var verdictKicker: String {
+        if result.urgentUsedCount > 0 { return "Saves \(result.urgentUsedCount) expiring today" }
+        if rescuedCount > 0 { return "Clears \(rescuedCount) before they spoil" }
+        return "Use these while fresh"
+    }
+    private var verdictColor: Color {
+        result.urgentUsedCount > 0 ? ReffiColor.urgentDark
+            : rescuedCount > 0 ? ReffiColor.soonDark : ReffiColor.freshDark
+    }
 
     var body: some View {
         let r = result.recipe
         VStack(alignment: .leading, spacing: ReffiSpace.s3) {
-            // 티켓 헤더
-            HStack(alignment: .firstTextBaseline) {
-                Text("ORDER")
-                    .font(.custom("Pretendard-Bold", size: 13, relativeTo: .caption))
-                    .tracking(2.5).foregroundStyle(ReffiColor.ink)
-                Spacer()
-                Text(String(format: "#%02d", number))
-                    .font(.reffiNum(14, relativeTo: .caption)).foregroundStyle(ReffiColor.ink2)
-            }
-            Text("TABLE · REFFI KITCHEN")
-                .font(.custom("Pretendard-Medium", size: 10, relativeTo: .caption2))
-                .tracking(1.6).foregroundStyle(ReffiColor.muted)
+            header
 
             DashedRule()
 
+            // 판정문 키커 — 이 티켓이 비우는 임박 재료(미션 페이로드).
+            Text(verdictKicker)
+                .font(.custom("Pretendard-Bold", size: 12, relativeTo: .caption2))
+                .tracking(0.2).foregroundStyle(verdictColor)
+
             // 메뉴명 + 시간
             Text(r.name)
-                .font(.custom("Pretendard-Bold", size: 26, relativeTo: .title2))
+                .font(.custom("Pretendard-Bold", size: 24, relativeTo: .title2))
                 .tracking(-0.3).foregroundStyle(ReffiColor.ink)
                 .lineLimit(2).minimumScaleFactor(0.8).fixedSize(horizontal: false, vertical: true)
-            HStack(spacing: ReffiSpace.s2) {
-                HStack(spacing: 4) {
-                    ReffiIcon.time.reffi(14).foregroundStyle(ReffiColor.ink2)
-                    Text("\(r.minutes) min").font(.reffiNum(14, relativeTo: .caption)).foregroundStyle(ReffiColor.ink2)
-                }
-                Text("·").foregroundStyle(ReffiColor.muted)
-                Text(result.urgentUsedCount > 0 ? "\(result.urgentUsedCount) expiring today" : "\(result.used.count) to use")
-                    .font(.custom("Pretendard-Medium", size: 14, relativeTo: .caption))
-                    .foregroundStyle(result.urgentUsedCount > 0 ? ReffiColor.urgentDark : ReffiColor.ink2)
+            HStack(spacing: 4) {
+                ReffiIcon.time.reffi(13).foregroundStyle(ReffiColor.ink2)
+                Text("\(r.minutes) min · \(result.used.count) to use")
+                    .font(.reffiNum(13, relativeTo: .caption)).foregroundStyle(ReffiColor.ink2)
             }
 
             DashedRule()
@@ -50,57 +56,114 @@ struct OrderMemoCard: View {
                 .tracking(1.4).foregroundStyle(ReffiColor.ink.opacity(0.5))
 
             VStack(alignment: .leading, spacing: ReffiSpace.s2) {
-                ForEach(result.used) { ing in ticketLine(ing) }
+                ForEach(result.used) { ing in ticketLine(ing, done: fired) }
             }
 
             if !result.missing.isEmpty {
                 Text("Short: " + result.missing.joined(separator: ", "))
                     .font(.custom("Pretendard-Medium", size: 12, relativeTo: .caption))
-                    .foregroundStyle(ReffiColor.muted)
-                    .lineLimit(2)
-                    .padding(.top, 2)
+                    .foregroundStyle(ReffiColor.muted).lineLimit(2).padding(.top, 1)
             }
 
-            Spacer(minLength: 0)
+            Spacer(minLength: ReffiSpace.s3)
+            fireBand
         }
         .padding(.horizontal, ReffiSpace.s5)
-        .padding(.top, ReffiSpace.s6)
-        .padding(.bottom, ReffiSpace.s6)
+        .padding(.top, ReffiSpace.s5 + 2)
+        .padding(.bottom, ReffiSpace.s5)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(ReceiptShape(tooth: 9).fill(ReffiColor.oklch(0.99, 0.008, 92)))
+        .background(ReceiptShape(tooth: 9).fill(ReffiColor.paper))
         .overlay(ReceiptShape(tooth: 9).stroke(ReffiColor.ink.opacity(0.07), lineWidth: 1))
-        .overlay(alignment: .bottomTrailing) { startStamp.padding(ReffiSpace.s5) }
+        .overlay { if fired { slamStamp } }
         .reffiShadow1()
     }
 
-    /// 티켓 한 줄 — 체크 박스 + 이름 + D-N(신선도색).
-    private func ticketLine(_ ing: Ingredient) -> some View {
+    private var header: some View {
+        VStack(alignment: .leading, spacing: ReffiSpace.s2) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("ORDER").font(.custom("Pretendard-Bold", size: 13, relativeTo: .caption))
+                    .tracking(2.5).foregroundStyle(ReffiColor.ink)
+                Spacer()
+                Text(String(format: "#%02d", number))
+                    .font(.reffiNum(14, relativeTo: .caption)).foregroundStyle(ReffiColor.ink2)
+            }
+            Text("TABLE · REFFI KITCHEN")
+                .font(.custom("Pretendard-Medium", size: 10, relativeTo: .caption2))
+                .tracking(1.6).foregroundStyle(ReffiColor.muted)
+        }
+    }
+
+    /// 발주 밴드 — 미발주: "이걸로 요리" CTA / 발주 후: 비우기 판정문.
+    @ViewBuilder private var fireBand: some View {
+        if fired {
+            HStack(spacing: 6) {
+                ReffiIcon.ate.reffi(15, .fill).foregroundStyle(ReffiColor.freshDark)
+                Text("Saved \(result.used.count)" + (result.urgentUsedCount > 0 ? " · \(result.urgentUsedCount) today" : ""))
+                    .font(.custom("Pretendard-SemiBold", size: 14, relativeTo: .caption))
+                    .foregroundStyle(ReffiColor.ink)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, ReffiSpace.s2)
+        } else {
+            Button { fire() } label: {
+                Text("Cook this")
+                    .font(ReffiTextRole.subhead.font).tracking(ReffiTextRole.subhead.tracking)
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, ReffiSpace.s3 + 1)
+                    .background {
+                        let shape = PaperCutRect(seed: number)
+                        shape.fill(ReffiColor.blue)
+                            .overlay(PaperGrain(seed: UInt64(number) &+ 4).clipShape(shape))
+                            .paperEdge(shape, tint: ReffiColor.paperEdgeOnFill)
+                    }
+            }
+            .buttonStyle(.paperPress)
+            .accessibilityLabel("이걸로 요리")
+        }
+    }
+
+    private func fire() {
+        guard !fired else { return }
+        withAnimation(ReffiMotion.gated(ReffiMotion.pop, reduce: reduceMotion)) { fired = true }
+        onFire()
+    }
+
+    /// 발주 도장 — "START"가 쾅(scale 1.5→1, pop) 찍힌다. 빨강 잉크(키친 fired).
+    private var slamStamp: some View {
+        Text("START")
+            .font(.custom("Pretendard-Bold", size: 34, relativeTo: .largeTitle))
+            .tracking(3).foregroundStyle(ReffiColor.urgentDark.opacity(0.88))
+            .padding(.horizontal, ReffiSpace.s4).padding(.vertical, ReffiSpace.s2)
+            .overlay(PaperRect(cornerRadius: ReffiRadius.sm, seed: 2)
+                .stroke(ReffiColor.urgentDark.opacity(0.7), lineWidth: 3.5))
+            .rotationEffect(.degrees(-11))
+            .transition(.scale(scale: 1.5).combined(with: .opacity))
+            .accessibilityHidden(true)
+    }
+
+    /// 티켓 한 줄 — 체크 박스 + 이름 + D-N. 발주하면 체크가 채워지고 줄이 그어진다.
+    private func ticketLine(_ ing: Ingredient, done: Bool) -> some View {
         HStack(spacing: ReffiSpace.s2) {
-            RoundedRectangle(cornerRadius: 3, style: .continuous)
-                .stroke(ing.freshness.dark.opacity(0.7), lineWidth: 1.5)
-                .frame(width: 14, height: 14)
+            ZStack {
+                RoundedRectangle(cornerRadius: 3, style: .continuous)
+                    .stroke(ing.freshness.dark.opacity(0.7), lineWidth: 1.5)
+                    .frame(width: 14, height: 14)
+                if done {
+                    RoundedRectangle(cornerRadius: 3, style: .continuous)
+                        .fill(ing.freshness.dark).frame(width: 14, height: 14)
+                    Image(systemName: "checkmark").font(.system(size: 8, weight: .heavy)).foregroundStyle(.white)
+                }
+            }
             Text(ing.name)
                 .font(.custom("Pretendard-SemiBold", size: 16, relativeTo: .body))
-                .foregroundStyle(ReffiColor.ink)
+                .foregroundStyle(done ? ReffiColor.muted : ReffiColor.ink)
+                .strikethrough(done, color: ReffiColor.muted)
             Spacer(minLength: ReffiSpace.s2)
             Text(ing.dDayText)
                 .font(.reffiNum(13, relativeTo: .caption))
                 .foregroundStyle(ing.freshness.dark)
         }
-    }
-
-    /// 고무 스탬프 — 둘러보기 전용 장식(액션 아님).
-    private var startStamp: some View {
-        Text("START")
-            .font(.custom("Pretendard-Bold", size: 15, relativeTo: .subheadline))
-            .tracking(2).foregroundStyle(ReffiColor.blue.opacity(0.8))
-            .padding(.horizontal, ReffiSpace.s3)
-            .padding(.vertical, ReffiSpace.s1)
-            .overlay(PaperRect(cornerRadius: ReffiRadius.sm, seed: 2)
-                .stroke(ReffiColor.blue.opacity(0.55), lineWidth: 2))
-            .rotationEffect(.degrees(-8))
-            .opacity(0.9)
-            .accessibilityHidden(true)
     }
 }
 

@@ -57,6 +57,7 @@
     0 -2px 6px       oklch(25% 0.012 80 / 0.10),
     0 -8px 20px -4px oklch(25% 0.012 80 / 0.05);
   --focus-ring: 0 0 0 3px oklch(51.4% 0.134 249.8 / 0.45);
+  --scrim:      oklch(25% 0.012 80 / 0.22);   /* 모달·결정 오버레이 딤(ink 틴트) */
   --z-base: 0; --z-sticky: 100; --z-dropdown: 1000; --z-modal: 2000; --z-toast: 3000;
 
   /* ---- Motion ---- */
@@ -69,12 +70,15 @@
   --spring-pop:    0.34 / 0.56;
   --spring-settle: 0.50 / 0.74;
   --spring-press:  0.25 / 0.55;
-  --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);   /* pop/settle 웹 근사(오버슈트). 재료 낙하는 물리 엔진 */
+  --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);   /* 웹 쇼케이스용 스프링 근사(오버슈트) */
 
   /* ---- Paper / Glass (§13) ---- */
-  --paper-edge:  oklch(25% 0.012 80 / 0.07);   /* 종이 단면 헤어라인(분리 보더 아님) */
-  --paper-sheen: oklch(100% 0 0 / 0.22);        /* 리퀴드글래스 상단 시노(버튼) */
-  --glass-tint:  oklch(85% 0.04 242 / 0.30);    /* 네이티브 글래스 틴트(네비) */
+  --paper-surface:     oklch(99% 0.006 90);          /* 밝은 종이 면 — 뱃지·티켓·글리프 타일 */
+  --paper-pass:        oklch(95% 0.016 90);          /* 따뜻한 주방 패스 종이 — 캐러셀 배경 */
+  --paper-edge:        oklch(25% 0.012 80 / 0.07);   /* 종이 단면 헤어라인(캔버스 위 면, 분리 보더 아님) */
+  --paper-edge-onfill: oklch(100% 0 0 / 0.14);       /* 채도 면(버튼) 위 흰 종이 헤어라인 */
+  --bg-sheen:          oklch(100% 0 0 / 0.22);        /* 메인 배경(리퀴드글래스) 상단 흰 시노 */
+  --glass-tint:        oklch(85% 0.04 242 / 0.30);    /* 네이티브 글래스 틴트(네비) */
 
   /* ---- Interaction ---- */
   --tap-min: 44px;
@@ -413,8 +417,8 @@ h1, h2, h3 { text-wrap: balance; }
    ========================================================= */
 .stack { max-width: 380px; padding-top: var(--space-2); }
 .stack-card {
-  min-height: 104px;
-  margin-top: -56px;
+  min-height: 98px;
+  margin-top: -54px;
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-stack);
   padding: var(--space-4) var(--space-5);
@@ -480,7 +484,7 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
   letter-spacing: -0.01em; padding: 16px 28px; color: #fff; position: relative; isolation: isolate;
   clip-path: polygon(16px 0, calc(100% - 16px) 0, 100% 16px, 100% calc(100% - 16px),
                      calc(100% - 16px) 100%, 16px 100%, 0 calc(100% - 16px), 0 16px);
-  filter: drop-shadow(0 1px 3px oklch(25% 0.012 80 / 0.1)) drop-shadow(0 9px 20px oklch(25% 0.012 80 / 0.06));
+  filter: drop-shadow(0 1px 3px oklch(25% 0.012 80 / 0.1)) drop-shadow(0 10px 24px oklch(25% 0.012 80 / 0.05));
   background: var(--color-blue); transition: transform var(--dur-2) var(--ease-bounce); }
 .paper-btn::after { content: ""; position: absolute; inset: 0; pointer-events: none;
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='90' height='90'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
@@ -489,12 +493,12 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
 .paper-btn:active { transform: scale(0.96); }
 .paper-btn:focus-visible { outline: none; filter: drop-shadow(0 0 0 3px oklch(51.4% 0.134 249.8 / 0.45)); }
 
-/* 종이컷 아이콘 버튼 — 9각형(불규칙 octagon) + 아이콘 + 아래 라벨 (Tossed/Ate) */
+/* 종이컷 아이콘 버튼 — 손으로 자른 9각형(nonagon) + 아이콘 + 아래 라벨 (Tossed/Ate) */
 .icon-btn { display: inline-flex; flex-direction: column; align-items: center; gap: var(--space-2);
   background: none; border: 0; cursor: pointer; }
-.icon-btn .shape { width: 86px; height: 86px; display: grid; place-items: center;
-  clip-path: polygon(31% 4%, 69% 6%, 95% 31%, 96% 69%, 69% 95%, 31% 94%, 5% 69%, 4% 31%);
-  filter: drop-shadow(0 1px 3px oklch(25% 0.012 80 / 0.1)) drop-shadow(0 9px 20px oklch(25% 0.012 80 / 0.06));
+.icon-btn .shape { width: 88px; height: 88px; display: grid; place-items: center;
+  clip-path: polygon(50% 3%, 79% 11%, 96% 37%, 92% 68%, 73% 92%, 44% 97%, 17% 85%, 5% 57%, 11% 26%);
+  filter: drop-shadow(0 1px 3px oklch(25% 0.012 80 / 0.1)) drop-shadow(0 10px 24px oklch(25% 0.012 80 / 0.05));
   transition: transform var(--dur-2) var(--ease-bounce); position: relative; }
 .icon-btn .shape::after { content: ""; position: absolute; inset: 0; pointer-events: none;
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='90' height='90'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
@@ -505,12 +509,14 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
 .icon-btn.primary .shape { background: var(--color-blue); color: #fff; }
 .icon-btn.soft    .shape { background: var(--color-urgent-light); color: var(--color-urgent-dark); }
 .icon-btn.fresh   .shape { background: var(--color-fresh); color: var(--color-fresh-dark); }
+.icon-btn.soon    .shape { background: var(--color-soon); color: var(--color-soon-dark); }
+.icon-btn.urgent  .shape { background: var(--color-urgent); color: var(--color-ink); }
 .icon-btn.neutral .shape { background: var(--neutral-200); color: var(--color-ink-2); }
 
 /* 재료 뱃지 — 캡슐 아님(변동 radius) + 좌측 인디케이터 바 + 이름 */
 .badge-row { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .paper-badge { display: inline-flex; align-items: center; gap: var(--space-2);
-  background: oklch(99% 0.006 90); color: var(--color-ink); padding: 8px 12px 8px 10px;
+  background: var(--paper-surface); color: var(--color-ink); padding: 8px 12px 8px 10px;
   border-radius: 13px 11px 14px 12px / 12px 14px 11px 13px; box-shadow: var(--shadow-1);
   font-weight: 600; font-size: 15px; cursor: pointer; transition: transform var(--dur-2) var(--ease-bounce); }
 .paper-badge:active { transform: scale(0.96); }
@@ -530,19 +536,19 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
 .glass-stage { border-radius: var(--radius-lg); padding: var(--space-5);
   background: linear-gradient(120deg, var(--color-fresh) 0%, var(--color-soon) 45%, var(--color-urgent) 100%); }
 .glass-nav { display: flex; gap: var(--space-5); justify-content: center; padding: 12px 22px;
-  border-radius: var(--radius-pill); background: oklch(100% 0 0 / 0.45);
+  border-radius: var(--radius-pill); background: var(--glass-tint);
   -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
   box-shadow: 0 2px 8px oklch(25% 0.012 80 / 0.10); }
 .glass-nav span { width: 22px; height: 22px; border-radius: 7px; background: oklch(25% 0.012 80 / 0.55); }
 .glass-nav span:first-child { background: var(--color-blue); }
 
-/* 종이컷 실루엣(유기적 블롭, 신선도색) */
+/* 종이컷 실루엣(유기적 블롭) — 일러스트는 자연색(FoodGlyph), 신선도색 아님(§13.3) */
 .silo-row { display: flex; gap: var(--space-3); align-items: center; }
 .silo { width: 54px; height: 54px; box-shadow: var(--shadow-1);
   border-radius: 46% 54% 58% 42% / 55% 44% 56% 45%; }
-.silo.f-urgent { background: var(--color-urgent); }
-.silo.f-soon   { background: var(--color-soon); border-radius: 58% 42% 50% 50% / 60% 46% 54% 40%; }
-.silo.f-fresh  { background: var(--color-fresh); border-radius: 50% 50% 44% 56% / 42% 58% 42% 58%; }
+.silo.f-urgent { background: oklch(62% 0.18 32); }   /* 토마토 */
+.silo.f-soon   { background: oklch(70% 0.16 56); border-radius: 58% 42% 50% 50% / 60% 46% 54% 40%; }   /* 당근 */
+.silo.f-fresh  { background: oklch(55% 0.13 148); border-radius: 50% 50% 44% 56% / 42% 58% 42% 58%; }   /* 잎채소 */
 
 /* 통통 낙하 데모 */
 .bounce-stage { position: relative; height: 92px; overflow: hidden; border-radius: var(--radius-md);
@@ -555,19 +561,19 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
 @keyframes drop { 0% { top: -60px; } 60% { top: 48px; } 75% { top: 28px; } 100% { top: 48px; } }
 
 /* 오더 메모 티켓 — 상·하 톱니 절취 + 점선 룰 + START 스탬프 */
-.memo { position: relative; background: oklch(99% 0.008 92); padding: 22px 20px;
+.memo { position: relative; background: var(--paper-surface); padding: 28px 24px;
   box-shadow: var(--shadow-1); }
 .memo::before, .memo::after { content: ""; position: absolute; left: 0; right: 0; height: 9px;
   background:
-    linear-gradient(-45deg, oklch(99% 0.008 92) 50%, transparent 50%) 0 0/14px 14px repeat-x,
-    linear-gradient( 45deg, oklch(99% 0.008 92) 50%, transparent 50%) 0 0/14px 14px repeat-x; }
+    linear-gradient(-45deg, var(--paper-surface) 50%, transparent 50%) 0 0/14px 14px repeat-x,
+    linear-gradient( 45deg, var(--paper-surface) 50%, transparent 50%) 0 0/14px 14px repeat-x; }
 .memo::before { top: -9px; transform: scaleY(-1); }
 .memo::after  { bottom: -9px; }
 .memo .ticket-head { display: flex; justify-content: space-between; align-items: baseline;
-  font-weight: 700; letter-spacing: 2px; font-size: 12px; }
+  font-weight: 700; letter-spacing: 2.5px; font-size: 13px; }
 .memo .rule { height: 1px; margin: 12px 0; background: repeating-linear-gradient(90deg,
   oklch(25% 0.012 80 / 0.22) 0 4px, transparent 4px 8px); }
-.memo .menu { font-weight: 700; font-size: 22px; letter-spacing: -0.3px; }
+.memo .menu { font-weight: 700; font-size: 26px; letter-spacing: -0.3px; }
 .memo .line { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
 .memo .line .box { width: 14px; height: 14px; border-radius: 3px; box-shadow: inset 0 0 0 1.5px var(--color-soon-dark); }
 .memo .line .dn { margin-left: auto; font-feature-settings:"tnum" 1,"lnum" 1; font-size: 13px; color: var(--color-soon-dark); }
@@ -982,11 +988,11 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
         </div>
 
         <p class="subhead text">통통 튀는 스프링 (§7.5) — 종이컷 표면 전용</p>
-        <p class="t-caption text" style="color:var(--color-ink-2);margin-bottom:var(--space-3)">뱃지·종이 버튼에만 가벼운 오버슈트 스프링. <strong>재료 낙하·바운스는 스프링이 아니라 진짜 물리 엔진</strong>(SpriteKit restitution≈0.45, 끌어서 던지기). 그 외 일반 UI는 위 듀레이션·이징 유지(남용 금지). reduced-motion이면 제거.</p>
+        <p class="t-caption text" style="color:var(--color-ink-2);margin-bottom:var(--space-3)">뱃지·종이 버튼에만 가벼운 오버슈트 스프링. <strong>재료 낙하·바운스는 스프링이 아니라 진짜 물리 엔진</strong>(SpriteKit gravity≈-26 · restitution≈0.12 — 묵직하게 거의 안 튐, 끌어서 던지기). 그 외 일반 UI는 위 듀레이션·이징 유지(남용 금지). reduced-motion이면 제거.</p>
         <div class="motion-tokens">
           <div class="motion-card"><div class="dur num">0.34 / 0.56</div><div class="lbl">spring-pop — 뱃지 pop-in</div></div>
           <div class="motion-card"><div class="dur num">0.50 / 0.74</div><div class="lbl">spring-settle — dim·reflow·인디케이터</div></div>
-          <div class="motion-card"><div class="dur num">0.25 / 0.55</div><div class="lbl">spring-press — 종이 버튼·뱃지 누름</div></div>
+          <div class="motion-card"><div class="dur num">0.25 / 0.55</div><div class="lbl">spring-press — 종이 버튼·뱃지 누름 (Swift: bouncyPress)</div></div>
         </div>
 
         <p class="subhead text">시스템 적용 예시 — 재료 리스트</p>
@@ -1148,6 +1154,15 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
                 <span class="shape"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 11h18a9 9 0 0 1-18 0zM2 21h20v1.5H2V21zM8 3c-1 1.2-1 2.3 0 3.5M12 2.5c-1 1.3-1 2.5 0 3.8M16 3c-1 1.2-1 2.3 0 3.5" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg></span>
                 <span class="lbl2">Ate</span>
               </button>
+            </div>
+            <p class="lbl" style="margin-top:var(--space-3)">인텐트 6종 — primary · soft · fresh · soon · urgent · neutral</p>
+            <div class="demo-bar" style="gap:var(--space-2)">
+              <span class="icon-btn primary"><span class="shape" style="width:40px;height:40px"></span></span>
+              <span class="icon-btn soft"><span class="shape" style="width:40px;height:40px"></span></span>
+              <span class="icon-btn fresh"><span class="shape" style="width:40px;height:40px"></span></span>
+              <span class="icon-btn soon"><span class="shape" style="width:40px;height:40px"></span></span>
+              <span class="icon-btn urgent"><span class="shape" style="width:40px;height:40px"></span></span>
+              <span class="icon-btn neutral"><span class="shape" style="width:40px;height:40px"></span></span>
             </div>
           </div>
 

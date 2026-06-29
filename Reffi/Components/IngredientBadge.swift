@@ -12,19 +12,21 @@ struct IngredientBadge: View {
     var body: some View {
         let f = ingredient.freshness
         Button(action: onTap) {
-            HStack(spacing: ReffiSpace.s2) {
-                // 좌측 인디케이터 바 — 둥근 직사각, 신선도색.
-                RoundedRectangle(cornerRadius: 2.5, style: .continuous)
-                    .fill(isDisabled ? ReffiColor.muted : f.dark)
-                    .frame(width: 5, height: 17)
+            HStack(spacing: ReffiSpace.s2 + 2) {
+                // 신선도 그룹(좌측) — 인디케이터 바 + 남은 기간(D-N)을 하나로 묶는다.
+                HStack(spacing: 5) {
+                    RoundedRectangle(cornerRadius: 2, style: .continuous)
+                        .fill(isDisabled ? ReffiColor.muted : f.dark)
+                        .frame(width: 4, height: 14)
+                    Text(ingredient.dDayText)
+                        .font(.reffiNum(12, relativeTo: .caption2))
+                        .foregroundStyle(isDisabled ? ReffiColor.muted : f.dark)
+                }
                 Text(ingredient.name)
                     .font(.custom("Pretendard-SemiBold", size: 15, relativeTo: .subheadline))
                     .tracking(-0.15)
                     .foregroundStyle(isDisabled ? ReffiColor.muted : ReffiColor.ink)
                     .lineLimit(1)
-                Text(ingredient.dDayText)
-                    .font(.reffiNum(12, relativeTo: .caption2))
-                    .foregroundStyle(isDisabled ? ReffiColor.muted : f.dark)
             }
             .padding(.leading, ReffiSpace.s3)
             .padding(.trailing, ReffiSpace.s3 + 2)
@@ -41,7 +43,7 @@ struct IngredientBadge: View {
     private func surface(disabled: Bool) -> some View {
         let shape = PaperRect(cornerRadius: ReffiRadius.md, seed: seed)
         return shape
-            .fill(disabled ? ReffiColor.sub.opacity(0.7) : ReffiColor.oklch(0.99, 0.006, 90))
+            .fill(disabled ? ReffiColor.sub.opacity(0.7) : ReffiColor.paper)
             .paperEdge(shape, tint: ReffiColor.ink.opacity(disabled ? 0.05 : 0.08))
             .reffiShadow1()
     }

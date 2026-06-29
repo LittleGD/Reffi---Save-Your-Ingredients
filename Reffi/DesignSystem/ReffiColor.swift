@@ -34,6 +34,14 @@ enum ReffiColor {
     static let sub    = oklch(0.935, 0.008, 85)   // neutral-200 · 서브 면
     static let canvas = oklch(0.97,  0.012, 90)   // neutral-50  · 캔버스(크림)
 
+    // MARK: - Paper / Glass 표면 (§13)
+
+    static let paper           = oklch(0.99, 0.006, 90)       // 밝은 종이 면 — 뱃지·티켓·글리프 타일
+    static let paperPass       = oklch(0.95, 0.016, 90)       // 따뜻한 주방 패스 종이 — 캐러셀 배경
+    static let paperEdgeOnFill = Color.white.opacity(0.14)    // 채도 면(버튼) 위 흰 종이 헤어라인
+    static let bgSheen         = Color.white.opacity(0.22)    // 메인 배경(리퀴드글래스) 상단 흰 시노
+    static let scrim           = oklch(0.25, 0.012, 80, 0.22) // 모달·결정 오버레이 딤(ink 틴트)
+
     // MARK: - Semantic aliases (§12)
 
     static let primary = blue

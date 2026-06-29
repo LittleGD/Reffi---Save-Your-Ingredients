@@ -5,49 +5,30 @@ import SwiftUI
 /// 떨어져 충돌·바운스하며 **쌓여서 그대로 남는다**(사라지지 않음). 끌어서 던질 수 있고, 짧게 탭하면 끄기/켜기.
 /// 비활성은 깔끔한 알파 페이드. 바닥은 씬 하단보다 위(요리시작 버튼 충돌 마진).
 final class IngredientDropScene: SKScene {
-    /// 이름 라벨 하나의 레이아웃(뷰 좌표 y-down).
-    struct LabelInfo: Identifiable { let id: UUID; let name: String; let fresh: Freshness; let pos: CGPoint; let alpha: CGFloat }
-
     private var nodes: [UUID: SKSpriteNode] = [:]
-    private var names: [UUID: String] = [:]
-    private var freshes: [UUID: Freshness] = [:]
     private var textureCache: [String: SKTexture] = [:]
     private var pending: [Ingredient] = []
 
     private var dragged: SKNode?
+    private var dragTarget: CGPoint = .zero
     private var dragMoved = false
     private var lastTouch: CGPoint = .zero
-    private var lastTime: TimeInterval = 0
-    private var throwV: CGVector = .zero
 
     /// 짧은 탭 = 제거(뿅 사라짐).
     var onRemove: ((UUID) -> Void)?
-    var onLayout: (([LabelInfo]) -> Void)?
     var reduceMotion = false
 
     private var chipSide: CGFloat { min(max(124, size.width * 0.42), 188) }
     private var floorY: CGFloat { max(6, size.height * 0.03) }
+    private var boxInset: CGFloat { 2 }
+    private var boxTop: CGFloat { size.height + 700 }   // 최상단 스폰(≈height+564)보다 위 → 닫힌 천장
 
     override func didMove(to view: SKView) {
         backgroundColor = .clear
         scaleMode = .resizeFill
-        physicsWorld.gravity = CGVector(dx: 0, dy: -26)   // 묵직하게(빠르게 떨어져 쿵)
+        physicsWorld.gravity = CGVector(dx: 0, dy: -42)   // 적당히 — 가볍게 떨어지되 둥둥 뜨진 않게
         buildWalls()
         sync(pending)
-    }
-
-    /// 매 프레임 라벨 위치를 뷰 좌표로 변환해 SwiftUI 오버레이로 보낸다(재료 위에 작은 이름).
-    override func update(_ currentTime: TimeInterval) {
-        guard let onLayout else { return }
-        let off = chipSide * 0.42 + 8
-        var out: [LabelInfo] = []
-        for (id, node) in nodes {
-            guard let name = names[id] else { continue }
-            let vy = size.height - (node.position.y + off)
-            out.append(LabelInfo(id: id, name: name, fresh: freshes[id] ?? .fresh,
-                                 pos: CGPoint(x: node.position.x, y: vy), alpha: node.alpha))
-        }
-        onLayout(out)
     }
 
     override func didChangeSize(_ oldSize: CGSize) {
@@ -56,18 +37,33 @@ final class IngredientDropScene: SKScene {
         buildWalls()
     }
 
+    /// 드래그 중인 재료를 손가락 쪽으로 **스프링처럼 끌어당긴다**(텔레포트 아님).
+    /// 거리 비례 목표 속도 + 가속 제한 → 약간의 딜레이·관성(실감, §13.4). 동적 바디라 이웃을
+    /// 부드럽게 밀 뿐 튕겨내지 않는다. 속도 상한으로 과격한 밀침을 막는다.
+    override func update(_ currentTime: TimeInterval) {
+        guard let node = dragged, let body = node.physicsBody else { return }
+        let to = CGVector(dx: dragTarget.x - node.position.x, dy: dragTarget.y - node.position.y)
+        let follow: CGFloat = 9          // 추종 민첩도(클수록 빠르게 따라옴)
+        let maxSpeed: CGFloat = 820      // 추종 속도 상한 → 이웃을 과격하게 안 밀침
+        var vx = to.dx * follow, vy = to.dy * follow
+        let m = hypot(vx, vy)
+        if m > maxSpeed { vx *= maxSpeed / m; vy *= maxSpeed / m }
+        let inertia: CGFloat = 0.24      // 0~1, 클수록 가볍게(덜 묵직) 따라옴
+        let v = body.velocity
+        body.velocity = CGVector(dx: v.dx + (vx - v.dx) * inertia,
+                                 dy: v.dy + (vy - v.dy) * inertia)
+    }
+
+    /// 바닥(요리시작 버튼 마진) + 좌·우 벽 + 천장으로 **완전히 닫힌 상자**.
+    /// 닫혀 있으므로 끌거나 던져도 재료가 화면 밖으로 새지 않는다.
     private func buildWalls() {
         guard size.width > 1, size.height > 1 else { return }
         childNode(withName: "walls")?.removeFromParent()
-        let inset: CGFloat = 2
-        let p = CGMutablePath()
-        p.move(to: CGPoint(x: inset, y: size.height + 320))            // 좌 벽(위로 연장)
-        p.addLine(to: CGPoint(x: inset, y: floorY))
-        p.addLine(to: CGPoint(x: size.width - inset, y: floorY))       // 바닥
-        p.addLine(to: CGPoint(x: size.width - inset, y: size.height + 320)) // 우 벽
+        let rect = CGRect(x: boxInset, y: floorY,
+                          width: size.width - boxInset * 2, height: boxTop - floorY)
         let walls = SKNode()
         walls.name = "walls"
-        walls.physicsBody = SKPhysicsBody(edgeChainFrom: p)
+        walls.physicsBody = SKPhysicsBody(edgeLoopFrom: rect)   // 닫힌 루프(상자)
         walls.physicsBody?.friction = 0.7
         addChild(walls)
     }
@@ -90,7 +86,7 @@ final class IngredientDropScene: SKScene {
         let ids = Set(ingredients.map(\.id))
         // 빠진 재료는 뿅 사라짐(스프링 팝). 새 재료는 추가.
         for (id, node) in nodes where !ids.contains(id) {
-            nodes[id] = nil; names[id] = nil; freshes[id] = nil
+            nodes[id] = nil
             popOut(node)
         }
         for (i, ing) in ingredients.enumerated() where nodes[ing.id] == nil {
@@ -111,37 +107,67 @@ final class IngredientDropScene: SKScene {
     private func addChip(_ ing: Ingredient, order: Int, count: Int) {
         let s = chipSide
         let node: SKSpriteNode
+        let body: SKPhysicsBody
         if let tex = texture(for: ing, side: s) {
             node = SKSpriteNode(texture: tex, size: CGSize(width: s, height: s))
-            node.physicsBody = SKPhysicsBody(texture: tex, alphaThreshold: 0.5,
-                                             size: CGSize(width: s, height: s))
+            // 충돌체 = 실루엣 **실제 모양**(텍스처 알파, 그림자 0.2는 임계값 0.5로 제외).
+            // 재료 사이 빈틈 없이 맞물려 자연스럽게 쌓인다.
+            body = SKPhysicsBody(texture: tex, alphaThreshold: 0.5, size: CGSize(width: s, height: s))
         } else {
             node = SKSpriteNode(color: UIColor(ing.freshness.main), size: CGSize(width: s, height: s))
-            node.physicsBody = SKPhysicsBody(rectangleOf: CGSize(width: s * 0.7, height: s * 0.7))
+            body = makeBody(for: ing.glyph, side: s)
         }
+        node.physicsBody = body
         node.name = "chip:\(ing.id.uuidString)"
-        names[ing.id] = ing.name
-        freshes[ing.id] = ing.freshness
-        let body = node.physicsBody!
-        body.restitution = 0.12          // 거의 안 튐 — 묵직하게
-        body.friction = 0.85
-        body.linearDamping = 0.5
-        body.angularDamping = 0.85
-        body.allowsRotation = true
-        body.mass = 1.0                  // 무겁게
+        body.restitution = 0.12          // 살짝 통통 — 가벼운 느낌
+        body.friction = 0.55
+        body.linearDamping = 0.2         // 둥둥 뜨진 않게, 빨리 안착
+        body.angularDamping = 0.85       // 자연스럽게 기울며 안착하되 무한 회전은 억제
+        body.allowsRotation = true       // 자연스러운 물리 — 기울고 굴러 빈틈에 안착
+        body.mass = 0.7                  // 가볍게
+        body.usesPreciseCollisionDetection = true
 
-        let margin = s * 0.6
-        let usable = max(1, size.width - margin * 2)
-        let frac = count <= 1 ? 0.5 : CGFloat(order) / CGFloat(count - 1)
-        let x = margin + usable * frac + CGFloat((order % 3) - 1) * s * 0.08
-        node.zRotation = (order % 2 == 0) ? 0.18 : -0.22
+        // 가운데 좁은 밴드로 모아 떨어뜨려 **한 더미로 쌓이게** 한다(좌우로 흩지 않음).
+        let n = max(1, count)
+        let frac = n == 1 ? 0.5 : CGFloat(order) / CGFloat(n - 1)        // 0..1
+        let band = min(size.width * 0.66, s * 1.7)                      // 더미 밑변 폭(가운데로 모으되 탑처럼 쌓지 않게)
+        let x = size.width / 2 + (frac - 0.5) * band
+        node.zRotation = (order % 2 == 0) ? 0.16 : -0.18
         if reduceMotion {
-            node.position = CGPoint(x: x, y: floorY + s * 0.5 + CGFloat(order % 3) * s * 0.4)
+            node.position = CGPoint(x: x, y: floorY + s * (0.45 + CGFloat(order % 3) * 0.5))
         } else {
-            node.position = CGPoint(x: x, y: size.height + s * (0.5 + CGFloat(order) * 0.5))  // 위에서 스태거 낙하
+            node.position = CGPoint(x: x, y: size.height + s * (0.4 + CGFloat(order) * 0.5))  // 위에서 스태거 낙하 → 더미
         }
         addChild(node)
         nodes[ing.id] = node
+    }
+
+    /// 글리프별 근사 충돌체(볼록 타원) — 원 대신 재료 비율에 맞춰 자연스럽고 안정적으로 쌓이게.
+    private func makeBody(for glyph: FoodGlyph, side s: CGFloat) -> SKPhysicsBody {
+        let wf: CGFloat, hf: CGFloat
+        switch glyph {
+        case .root, .squash:                (wf, hf) = (0.46, 0.80)   // 길쭉 세로(당근·애호박)
+        case .milk:                         (wf, hf) = (0.52, 0.80)   // 우유팩
+        case .leaf:                         (wf, hf) = (0.54, 0.78)   // 잎
+        case .fish:                         (wf, hf) = (0.84, 0.52)   // 길쭉 가로(생선)
+        case .meat, .tofu, .cheese, .bread: (wf, hf) = (0.80, 0.60)   // 넓적(고기·두부·치즈·빵)
+        case .egg, .mushroom, .pepper, .poultry, .shrimp, .citrus:
+                                            (wf, hf) = (0.66, 0.74)   // 타원(달걀·버섯 등)
+        default:                            (wf, hf) = (0.74, 0.74)   // 둥근(토마토·양파·사과 등)
+        }
+        return Self.ovalBody(s * wf, s * hf)
+    }
+
+    /// 볼록 N각형 타원 바디 — SpriteKit `polygonFrom`은 볼록만 허용해 끼임·진동이 없다.
+    private static func ovalBody(_ w: CGFloat, _ h: CGFloat, sides: Int = 14) -> SKPhysicsBody {
+        let path = CGMutablePath()
+        for i in 0..<sides {
+            let a = CGFloat(i) / CGFloat(sides) * 2 * .pi
+            let p = CGPoint(x: cos(a) * w / 2, y: sin(a) * h / 2)
+            if i == 0 { path.move(to: p) } else { path.addLine(to: p) }
+        }
+        path.closeSubpath()
+        return SKPhysicsBody(polygonFrom: path)
     }
 
     // MARK: - Drag / throw / tap
@@ -150,38 +176,46 @@ final class IngredientDropScene: SKScene {
         guard let t = touches.first else { return }
         let loc = t.location(in: self)
         for node in nodes(at: loc) where node.name?.hasPrefix("chip:") == true {
-            dragged = node; dragMoved = false; throwV = .zero
-            lastTouch = loc; lastTime = t.timestamp
-            node.physicsBody?.isDynamic = false   // 끄는 동안 손가락 따라오게
+            dragged = node; dragMoved = false
+            dragTarget = clampToBox(loc); lastTouch = loc
+            if let body = node.physicsBody {
+                body.affectedByGravity = false   // 잡는 동안 중력 off → 손가락 추종(동적 유지)
+                body.angularVelocity = 0
+            }
             return
         }
     }
 
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
-        guard let t = touches.first, let node = dragged else { return }
-        let loc = t.location(in: self)
-        let dt = t.timestamp - lastTime
+        guard let t = touches.first, dragged != nil else { return }
+        let loc = clampToBox(t.location(in: self))   // 상자 밖으론 못 끌게 → 새지 않음
         if hypot(loc.x - lastTouch.x, loc.y - lastTouch.y) > 3 { dragMoved = true }
-        if dt > 0 { throwV = CGVector(dx: (loc.x - lastTouch.x) / CGFloat(dt),
-                                      dy: (loc.y - lastTouch.y) / CGFloat(dt)) }
-        node.position = loc
-        lastTouch = loc; lastTime = t.timestamp
+        dragTarget = loc; lastTouch = loc            // 실제 추종은 update()의 스프링이 처리
+    }
+
+    /// 끌고 있는 재료의 중심을 상자 내부(반지름 마진)로 제한. 화면 위로도 못 끈다.
+    private func clampToBox(_ p: CGPoint) -> CGPoint {
+        let r = chipSide * 0.42
+        let minX = boxInset + r, maxX = max(boxInset + r, size.width - boxInset - r)
+        let minY = floorY + r,   maxY = max(floorY + r, size.height - r)
+        return CGPoint(x: min(max(p.x, minX), maxX), y: min(max(p.y, minY), maxY))
     }
 
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
-        guard let node = dragged else { return }
-        node.physicsBody?.isDynamic = true
-        if dragMoved {
-            node.physicsBody?.velocity = CGVector(dx: max(-1400, min(1400, throwV.dx)),
-                                                  dy: max(-1400, min(1400, throwV.dy)))   // 던지기
-        } else if let name = node.name, let id = UUID(uuidString: String(name.dropFirst(5))) {
+        guard let node = dragged, let body = node.physicsBody else { return }
+        body.affectedByGravity = true   // 놓으면 중력 복귀 — 현재 속도 그대로 자연스럽게 던져짐
+        let cap: CGFloat = 1000
+        let m = hypot(body.velocity.dx, body.velocity.dy)
+        if m > cap { body.velocity = CGVector(dx: body.velocity.dx * cap / m,
+                                              dy: body.velocity.dy * cap / m) }
+        if !dragMoved, let name = node.name, let id = UUID(uuidString: String(name.dropFirst(5))) {
             onRemove?(id)   // 짧은 탭 = 제거
         }
         dragged = nil
     }
 
     override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
-        dragged?.physicsBody?.isDynamic = true
+        dragged?.physicsBody?.affectedByGravity = true
         dragged = nil
     }
 }

@@ -32,7 +32,7 @@ struct PaperButton: View {
         let shape = PaperCutRect(seed: seed)   // 아이콘 버튼(9각형)과 같은 종이컷 8각형 계열
         return shape.fill(fill)                // 솔리드(그라데이션 없음)
             .overlay(PaperGrain(seed: UInt64(seed) &+ 11).clipShape(shape))   // 종이 질감
-            .paperEdge(shape, tint: .white.opacity(0.14), width: 1)
+            .paperEdge(shape, tint: ReffiColor.paperEdgeOnFill, width: 1)
             .compositingGroup()
             .reffiShadow1()
     }

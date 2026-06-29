@@ -9,7 +9,14 @@ struct PaperSilhouette: View {
     var body: some View {
         Canvas { ctx, size in
             let r = CGRect(origin: .zero, size: size).insetBy(dx: size.width * 0.1, dy: size.height * 0.1)
-            Self.draw(glyph, in: r, ctx: &ctx)
+            // 배경 분리 — 실루엣 전체를 한 겹으로 합성해 **단일 외곽 그림자**를 준다.
+            // 흰색 계열(달걀·버섯 기둥·우유)이 크림 배경에 묻히지 않게 가장자리에 옅은 헤일로.
+            var shaded = ctx
+            shaded.addFilter(.shadow(color: .black.opacity(0.20),
+                                     radius: size.width * 0.04, x: 0, y: size.height * 0.015))
+            shaded.drawLayer { layer in
+                Self.draw(glyph, in: r, ctx: &layer)
+            }
         }
         .accessibilityHidden(true)
     }

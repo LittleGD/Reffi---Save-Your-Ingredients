@@ -12,7 +12,7 @@ struct GlyphGalleryView: View {
                     VStack(spacing: 4) {
                         PaperSilhouette(glyph: glyph, fresh: freshes[i % freshes.count])
                             .frame(width: 88, height: 88)
-                            .background(ReffiColor.oklch(0.99, 0.006, 90),
+                            .background(ReffiColor.paper,
                                         in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                         Text("\(glyph)")
                             .font(.custom("Pretendard-Medium", size: 11, relativeTo: .caption2))

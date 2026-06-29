@@ -40,4 +40,12 @@ final class FridgeStore {
     func eat(_ ingredient: Ingredient) { ateCount += 1; remove(ingredient) }
     /// 버림 — 보유에서 빼고 "버림" 카운트.
     func toss(_ ingredient: Ingredient) { tossedCount += 1; remove(ingredient) }
+
+    /// 되돌리기(Fire the Ticket undo) — 방금 먹은 재료를 보유로 되돌리고 카운트 복구.
+    func uneat(_ ings: [Ingredient]) {
+        let have = Set(ingredients.map(\.id))
+        let restore = ings.filter { !have.contains($0.id) }
+        ingredients.append(contentsOf: restore)
+        ateCount = max(0, ateCount - restore.count)
+    }
 }

@@ -14,17 +14,25 @@ struct MainView: View {
     @State private var deciding: Ingredient?       // Ate/Tossed 결정 중인 재료
     @State private var showCarousel = false
     @State private var showAdd = false
-    @State private var showProfile = false
+    @State private var shownIDs: [UUID] = []        // 표시 중인 재료(고정 — 없애면 줄기만)
+    @State private var knownIDs: Set<UUID> = []     // 지금까지 등장한 모든 재료(추가분 판별용)
+    @State private var carouselSnapshot: [RecipeRecommender.Result] = []   // 커버 입력 동결(발주 중 재랭크 방지)
+    @State private var undoFired: [Ingredient] = []  // 되돌리기용
+    @State private var showUndo = false
 
     private let margin = ReffiGrid.margin
     private let navClearance: CGFloat = 86
 
-    private var dropIngredients: [Ingredient] { Array(store.sorted.prefix(6)) }
-    private var activeIngredients: [Ingredient] { dropIngredients }   // Ate/Tossed는 store에서 직접 제거
+    /// 표시 중인 재료 — 스냅샷(`shownIDs`) 순서대로 store에 아직 있는 것. 없애면 줄기만 하고
+    /// **자동 보충하지 않는다**(+Add로 추가된 것만 `absorbAdded`로 들어온다).
+    private var activeIngredients: [Ingredient] {
+        let byID = Dictionary(store.ingredients.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        return shownIDs.compactMap { byID[$0] }
+    }
     private var carouselResults: [RecipeRecommender.Result] {
         Array(RecipeRecommender.rank(for: activeIngredients, from: store.recipes).prefix(3))
     }
-    private var topF: Freshness { dropIngredients.first?.freshness ?? .fresh }
+    private var topF: Freshness { activeIngredients.first?.freshness ?? .fresh }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -36,8 +44,7 @@ struct MainView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             if !activeIngredients.isEmpty {
-                badgeRow
-                    .padding(.horizontal, margin)
+                badgeSection
                     .padding(.bottom, ReffiSpace.s2)
             }
 
@@ -50,18 +57,37 @@ struct MainView: View {
         }
         .background(liquidGlassBackground)
         .overlay { if let ing = deciding { decisionOverlay(ing) } }
-        .fullScreenCover(isPresented: $showCarousel) {
-            RecipeMemoCarousel(results: carouselResults) { showCarousel = false }
+        .overlay(alignment: .bottom) {
+            if showUndo {
+                undoToast
+                    .padding(.bottom, navClearance + 6)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
-        .sheet(isPresented: $showAdd) {
+        .fullScreenCover(isPresented: $showCarousel) {
+            RecipeMemoCarousel(results: carouselSnapshot,
+                               onClose: { showCarousel = false },
+                               onFire: fire)
+        }
+        .sheet(isPresented: $showAdd, onDismiss: absorbAdded) {
             AddIngredientSheet().presentationDetents([.medium, .large])
         }
-        .sheet(isPresented: $showProfile) {
-            MyPagePlaceholderView().presentationDetents([.large]).presentationDragIndicator(.visible)
+        .onAppear {
+            if shownIDs.isEmpty {   // 최초 1회 — 표시할 임박 재료 스냅샷(이후 자동 보충 없음)
+                shownIDs = Array(store.sorted.prefix(6).map(\.id))
+                knownIDs = Set(store.ingredients.map(\.id))
+            }
         }
         #if DEBUG
         .onAppear {   // 미리보기/검증용: `-previewCarousel 1`로 캐러셀 바로 열기.
-            if ProcessInfo.processInfo.arguments.contains("-previewCarousel") { showCarousel = true }
+            if ProcessInfo.processInfo.arguments.contains("-previewCarousel") {
+                if shownIDs.isEmpty {
+                    shownIDs = Array(store.sorted.prefix(6).map(\.id))
+                    knownIDs = Set(store.ingredients.map(\.id))
+                }
+                carouselSnapshot = carouselResults
+                showCarousel = true
+            }
         }
         #endif
     }
@@ -80,7 +106,7 @@ struct MainView: View {
                 .offset(x: 70, y: 300)
             // 글래스 프로스트(뒤 블롭을 흐려 리퀴드글래스) + 상단 시노
             glassFrost
-            LinearGradient(colors: [.white.opacity(0.22), .clear, .white.opacity(0.06)],
+            LinearGradient(colors: [ReffiColor.bgSheen, .clear, .white.opacity(0.06)],
                            startPoint: .top, endPoint: .bottom)
         }
         .ignoresSafeArea()
@@ -104,16 +130,6 @@ struct MainView: View {
                 Spacer()
                 Text(Self.today)
                     .font(.reffiNum(13, relativeTo: .caption)).foregroundStyle(ReffiColor.ink2)
-                Button { showProfile = true } label: {
-                    ReffiIcon.profile.reffi(19, .regular)
-                        .foregroundStyle(ReffiColor.ink2)
-                        .frame(width: 36, height: 36)
-                        .background(ReffiColor.sub, in: Circle())
-                        .frame(width: 44, height: 44)
-                        .contentShape(Circle())
-                }
-                .buttonStyle(.paperPress)
-                .accessibilityLabel("내 프로필")
             }
             HStack(spacing: ReffiSpace.s2) {
                 Text("Tap one — did you eat it, or toss it?")
@@ -133,7 +149,6 @@ struct MainView: View {
         GeometryReader { geo in
             ZStack {
                 SpriteView(scene: scene, options: [.allowsTransparency])
-                    .overlay { IngredientLabelsOverlay(scene: scene) }
                     .onAppear { configureScene(size: geo.size) }
                     .onChange(of: geo.size) { _, s in scene.size = s }
                     .onChange(of: activeIngredients.map(\.id)) { _, _ in scene.sync(activeIngredients) }
@@ -160,15 +175,42 @@ struct MainView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    // MARK: - Badge row (persistent)
+    // MARK: - Freshness gauge + badge scroll (persistent)
 
-    private var badgeRow: some View {
-        FlowLayout(spacing: ReffiSpace.s2, lineSpacing: ReffiSpace.s2) {
-            ForEach(Array(activeIngredients.enumerated()), id: \.element.id) { i, ing in
-                IngredientBadge(ingredient: ing, seed: i) { decide(ing.id) }
-                    .transition(.scale(scale: 1.3, anchor: .center).combined(with: .opacity))   // 뿅 사라짐
+    private var badgeSection: some View {
+        VStack(spacing: ReffiSpace.s2 + 2) {
+            badgeScroll
+            freshnessDots
+        }
+    }
+
+    /// 신선도 점 인디케이터 — 재료당 점 1개(색=신선도, 임박순), 뱃지 행 아래 중앙.
+    private var freshnessDots: some View {
+        HStack(spacing: 6) {
+            ForEach(Array(activeIngredients.enumerated()), id: \.element.id) { _, ing in
+                Circle()
+                    .fill(ing.freshness.dark)
+                    .frame(width: 6, height: 6)
             }
-            AddBadge(seed: activeIngredients.count) { showAdd = true }
+        }
+        .frame(maxWidth: .infinity)
+        .animation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion), value: activeIngredients.map(\.id))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("임박 재료 \(activeIngredients.count)개")
+    }
+
+    /// 뱃지 행 — 긴급도순 가로 스크롤(가장 임박이 맨 앞). 끝에 ＋추가.
+    private var badgeScroll: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: ReffiSpace.s2) {
+                ForEach(Array(activeIngredients.enumerated()), id: \.element.id) { i, ing in
+                    IngredientBadge(ingredient: ing, seed: i) { decide(ing.id) }
+                        .transition(.scale(scale: 1.3, anchor: .center).combined(with: .opacity))   // 뿅 사라짐
+                }
+                AddBadge(seed: activeIngredients.count) { showAdd = true }
+            }
+            .padding(.horizontal, margin)
+            .padding(.vertical, ReffiSpace.s1)   // 그림자 여유
         }
         .animation(ReffiMotion.gated(ReffiMotion.pop, reduce: reduceMotion), value: activeIngredients.map(\.id))
     }
@@ -192,7 +234,7 @@ struct MainView: View {
     /// Ate/Tossed 결정 오버레이 — 딤 배경 + 종이 카드 + 종이컷 아이콘 버튼 쌍.
     private func decisionOverlay(_ ing: Ingredient) -> some View {
         ZStack {
-            Color.black.opacity(0.22).ignoresSafeArea()
+            ReffiColor.scrim.ignoresSafeArea()
                 .onTapGesture { withAnimation(ReffiMotion.gated(ReffiMotion.pop, reduce: reduceMotion)) { deciding = nil } }
             VStack(spacing: ReffiSpace.s5) {
                 VStack(spacing: 2) {
@@ -219,7 +261,60 @@ struct MainView: View {
 
     private func cook() {
         guard !activeIngredients.isEmpty else { return }
+        carouselSnapshot = carouselResults   // 발주로 store가 바뀌어도 커버 입력은 고정(재랭크 방지)
         showCarousel = true
+    }
+
+    /// 티켓 발주(Fire the Ticket) — used 재료를 전부 Ate 처리(비우기) → 슬램 본 뒤 커버 닫고 undo 토스트.
+    private func fire(_ result: RecipeRecommender.Result) {
+        let used = result.used   // 스냅샷(이후 store 변경과 무관)
+        guard !used.isEmpty else { return }
+        withAnimation(ReffiMotion.gated(ReffiMotion.pop, reduce: reduceMotion)) {
+            for ing in used { store.eat(ing) }
+        }
+        undoFired = used
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.25) {
+            showCarousel = false
+            withAnimation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion)) { showUndo = true }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+                if showUndo { withAnimation { showUndo = false }; undoFired = [] }
+            }
+        }
+    }
+
+    private func undoFire() {
+        store.uneat(undoFired)
+        undoFired = []
+        withAnimation(ReffiMotion.gated(ReffiMotion.pop, reduce: reduceMotion)) { showUndo = false }
+    }
+
+    private var undoToast: some View {
+        HStack(spacing: ReffiSpace.s3) {
+            ReffiIcon.ate.reffi(15, .fill).foregroundStyle(ReffiColor.fresh)
+            Text("Saved \(undoFired.count) from the bin")
+                .reffiType(.caption).foregroundStyle(.white)
+            Spacer(minLength: ReffiSpace.s2)
+            Button { undoFire() } label: {
+                Text("Undo")
+                    .font(.custom("Pretendard-SemiBold", size: 14, relativeTo: .caption))
+                    .foregroundStyle(ReffiColor.blueLight)
+            }
+            .buttonStyle(.paperPress)
+        }
+        .padding(.horizontal, ReffiSpace.s4).padding(.vertical, ReffiSpace.s3)
+        .background(ReffiColor.ink, in: Capsule())
+        .reffiShadow1()
+        .padding(.horizontal, margin)
+    }
+
+    /// +Add로 새로 추가된 재료만 더미에 흡수(기존 미표시분은 보충하지 않음).
+    private func absorbAdded() {
+        let added = store.ingredients.filter { !knownIDs.contains($0.id) }
+        guard !added.isEmpty else { return }
+        knownIDs.formUnion(added.map(\.id))
+        withAnimation(ReffiMotion.gated(ReffiMotion.pop, reduce: reduceMotion)) {
+            shownIDs.append(contentsOf: added.map(\.id))
+        }
     }
 
     private static let today: String = {
@@ -279,28 +374,3 @@ struct FlowLayout: Layout {
     }
 }
 
-/// 재료 위 작은 이름 라벨 — 물리 씬이 매 프레임 위치를 알려준다(SpriteView 위 최상단, 안 흐려짐).
-private struct IngredientLabelsOverlay: View {
-    let scene: IngredientDropScene
-    @State private var labels: [IngredientDropScene.LabelInfo] = []
-
-    var body: some View {
-        ZStack(alignment: .topLeading) {
-            ForEach(labels) { l in
-                HStack(spacing: 4) {
-                    Circle().fill(l.fresh.dark).frame(width: 5, height: 5)   // 신선도 점
-                    Text(l.name)
-                        .font(.custom("Pretendard-SemiBold", size: 11, relativeTo: .caption2))
-                        .foregroundStyle(ReffiColor.ink)
-                }
-                .padding(.horizontal, 7)
-                .padding(.vertical, 3)
-                .background(.white.opacity(0.85), in: Capsule())
-                .opacity(Double(max(0.25, l.alpha)))
-                .position(l.pos)
-            }
-        }
-        .allowsHitTesting(false)
-        .onAppear { scene.onLayout = { labels = $0 } }
-    }
-}

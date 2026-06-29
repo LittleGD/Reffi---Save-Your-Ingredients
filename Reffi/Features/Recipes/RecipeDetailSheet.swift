@@ -45,7 +45,7 @@ struct RecipeDetailSheet: View {
                     }
                 }
 
-                ReffiButton(title: "Start cooking", icon: ReffiIcon.cook, fullWidth: true) { dismiss() }
+                PaperButton(title: "Start cooking", fullWidth: true) { dismiss() }
                     .padding(.top, ReffiSpace.s2)
             }
             .padding(ReffiSpace.s5)
