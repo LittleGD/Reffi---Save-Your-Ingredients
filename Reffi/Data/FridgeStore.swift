@@ -5,11 +5,17 @@ import Observation
 final class FridgeStore {
     var ingredients: [Ingredient]
     var recipes: [Recipe]
+    /// 소비/버림 이력 — History·낭비율의 소스(최신이 앞).
+    var history: [RemovalLog]
 
     init(ingredients: [Ingredient] = SampleData.ingredients,
-         recipes: [Recipe] = SampleData.recipes) {
+         recipes: [Recipe] = SampleData.recipes,
+         history: [RemovalLog] = SampleData.history) {
         self.ingredients = ingredients
         self.recipes = recipes
+        self.history = history
+        self.ateCount = history.filter { !$0.wasted }.count
+        self.tossedCount = history.filter(\.wasted).count
     }
 
     /// 마감 임박 오름차순(§8.1) — 위에서부터 "먹어야 할 순서".
@@ -31,21 +37,68 @@ final class FridgeStore {
         ingredients.removeAll { $0.id == ingredient.id }
     }
 
+    /// 편집 저장 — 같은 id를 찾아 교체.
+    func update(_ ingredient: Ingredient) {
+        if let i = ingredients.firstIndex(where: { $0.id == ingredient.id }) {
+            ingredients[i] = ingredient
+        }
+    }
+
     // MARK: - 음식 낭비 추적(Ate / Tossed)
 
     private(set) var ateCount = 0
     private(set) var tossedCount = 0
 
-    /// 다 먹음 — 보유에서 빼고 "먹음" 카운트.
-    func eat(_ ingredient: Ingredient) { ateCount += 1; remove(ingredient) }
-    /// 버림 — 보유에서 빼고 "버림" 카운트.
-    func toss(_ ingredient: Ingredient) { tossedCount += 1; remove(ingredient) }
+    /// 다 먹음 — 보유에서 빼고 이력 기록 + "먹음" 카운트.
+    func eat(_ ingredient: Ingredient) {
+        ateCount += 1
+        history.insert(RemovalLog(name: ingredient.name, glyph: ingredient.glyph, daysAgo: 0, wasted: false), at: 0)
+        remove(ingredient)
+    }
+    /// 버림 — 보유에서 빼고 이력 기록 + "버림" 카운트.
+    func toss(_ ingredient: Ingredient) {
+        tossedCount += 1
+        history.insert(RemovalLog(name: ingredient.name, glyph: ingredient.glyph, daysAgo: 0, wasted: true), at: 0)
+        remove(ingredient)
+    }
 
-    /// 되돌리기(Fire the Ticket undo) — 방금 먹은 재료를 보유로 되돌리고 카운트 복구.
+    /// 되돌리기(Fire the Ticket undo) — 방금 먹은 재료를 보유로 되돌리고 카운트·이력 복구.
     func uneat(_ ings: [Ingredient]) {
         let have = Set(ingredients.map(\.id))
         let restore = ings.filter { !have.contains($0.id) }
         ingredients.append(contentsOf: restore)
         ateCount = max(0, ateCount - restore.count)
+        // PR #3 병합: eat()이 남긴 비낭비 이력도 함께 되돌린다(이름 매칭, 최근 1건씩 제거).
+        for ing in restore {
+            if let i = history.firstIndex(where: { !$0.wasted && $0.name == ing.name }) {
+                history.remove(at: i)
+            }
+        }
     }
+
+    /// 낭비율(%) — 버림 / (먹음 + 버림).
+    var wasteRate: Int {
+        let total = ateCount + tossedCount
+        guard total > 0 else { return 0 }
+        return Int((Double(tossedCount) / Double(total) * 100).rounded())
+    }
+
+    // MARK: - 사야 할 식재료(쇼핑 리스트)
+
+    /// "이번엔 안 살" 항목 — toBuy에서 제외.
+    var dismissedToBuy: Set<String> = []
+
+    /// 자주 쓰는데(이력에 있는데) 지금 냉장고엔 없는 = 사야 할 식재료. 빈도 많은 순.
+    var toBuy: [(name: String, glyph: FoodGlyph)] {
+        let inStock = Set(ingredients.map { $0.name })
+        let grouped = Dictionary(grouping: history) { $0.name }
+        return grouped
+            .filter { !inStock.contains($0.key) && !dismissedToBuy.contains($0.key) }
+            .map { (name: $0.key, glyph: $0.value.first!.glyph, count: $0.value.count) }
+            .sorted { $0.count != $1.count ? $0.count > $1.count : $0.name < $1.name }
+            .map { (name: $0.name, glyph: $0.glyph) }
+    }
+
+    /// 이번엔 안 사기 — 쇼핑 리스트에서 제외.
+    func skipBuy(_ name: String) { dismissedToBuy.insert(name) }
 }

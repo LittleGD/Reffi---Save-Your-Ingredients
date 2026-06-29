@@ -13,7 +13,7 @@ struct RootTabView: View {
             Group {
                 switch tab {
                 case .home:    MainView()
-                case .fridge:  FridgePlaceholderView()
+                case .fridge:  FridgeView()
                 case .profile: MyPagePlaceholderView()
                 }
             }
