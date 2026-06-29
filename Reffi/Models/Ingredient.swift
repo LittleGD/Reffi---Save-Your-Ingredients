@@ -44,6 +44,7 @@ enum FoodGlyph: CaseIterable {
 }
 
 /// 재료 카드의 데이터 — 재료 · 소비량 · 대안액션(사용자 스펙).
+/// 상세(영수증) 표시용 필드(구매처·보관·구매일)는 기본값을 둬 기존 생성자와 호환.
 struct Ingredient: Identifiable {
     let id = UUID()
     var name: String              // "연두부"
@@ -52,6 +53,9 @@ struct Ingredient: Identifiable {
     var amount: String            // 소비량 "½모 남음"
     var alternative: AlternativeAction
     var glyph: FoodGlyph
+    var place: String = ""        // 구매처(영수증 스캔이 채움). 비면 "—"
+    var storage: String = "Fridge" // 보관(냉장/냉동/실온)
+    var boughtDaysAgo: Int = 3    // 구매 시점(오늘 - n일)
 
     var freshness: Freshness { Freshness(daysLeft: daysLeft) }
 
@@ -63,4 +67,14 @@ struct Ingredient: Identifiable {
         default:   "\(daysLeft)d"
         }
     }
+
+    private static func dayText(_ offset: Int) -> String {
+        let d = Calendar.current.date(byAdding: .day, value: offset, to: Date()) ?? Date()
+        return d.formatted(date: .abbreviated, time: .omitted)
+    }
+    /// 구매일(오늘 - boughtDaysAgo).
+    var purchasedText: String { Self.dayText(-boughtDaysAgo) }
+    /// 유통기한(오늘 + daysLeft).
+    var expiresText: String { Self.dayText(daysLeft) }
+    var placeText: String { place.isEmpty ? "—" : place }
 }

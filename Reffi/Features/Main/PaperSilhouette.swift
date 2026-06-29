@@ -362,19 +362,17 @@ struct PaperSilhouette: View {
 
     // MARK: - Protein
 
-    /// 계란 — 크림 알.
+    /// 계란 — 반 잘린 삶은 달걀(흰자 타원 + 가운데 노른자). 흰 면 위에서도 노른자로 식별.
     private static func egg(_ r: CGRect, _ ctx: inout GraphicsContext) {
-        let w = r.width * 0.6, h = r.height * 0.84, cx = r.midX, top = r.midY - h / 2, bot = r.midY + h / 2, hb = w / 2
-        var p = Path()
-        p.move(to: CGPoint(x: cx, y: top))
-        p.addCurve(to: CGPoint(x: cx + hb, y: top + h * 0.62), control1: CGPoint(x: cx + w * 0.34, y: top + h * 0.05), control2: CGPoint(x: cx + hb, y: top + h * 0.32))
-        p.addCurve(to: CGPoint(x: cx, y: bot), control1: CGPoint(x: cx + hb, y: top + h * 0.9), control2: CGPoint(x: cx + w * 0.34, y: bot))
-        p.addCurve(to: CGPoint(x: cx - hb, y: top + h * 0.62), control1: CGPoint(x: cx - w * 0.34, y: bot), control2: CGPoint(x: cx - hb, y: top + h * 0.9))
-        p.addCurve(to: CGPoint(x: cx, y: top), control1: CGPoint(x: cx - hb, y: top + h * 0.32), control2: CGPoint(x: cx - w * 0.34, y: top + h * 0.05))
-        p.closeSubpath()
-        shadow(&ctx, p, r)
-        fill(&ctx, p, C.cream)
-        fill(&ctx, ellipse(cx - w * 0.12, r.midY - h * 0.06, w * 0.34, w * 0.34), ReffiColor.oklch(0.99, 0.006, 90))
+        let w = r.width * 0.74, h = r.height * 0.82, c = CGPoint(x: r.midX, y: r.midY)
+        let white = ellipse(c.x, c.y, w, h)
+        shadow(&ctx, white, r)
+        fill(&ctx, white, C.cream)
+        // 노른자
+        let yr = w * 0.46
+        fill(&ctx, ellipse(c.x, c.y, yr, yr), ReffiColor.oklch(0.82, 0.155, 82))
+        // 노른자 하이라이트(살짝)
+        fill(&ctx, ellipse(c.x - yr * 0.22, c.y - yr * 0.22, yr * 0.34, yr * 0.34), ReffiColor.oklch(0.90, 0.10, 92))
     }
 
     /// 두부 — 크림 블록 + 윗면.
