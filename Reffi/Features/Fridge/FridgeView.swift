@@ -57,6 +57,12 @@ struct FridgeView: View {
         .sheet(isPresented: $showHistory) { HistoryView() }
         .sheet(isPresented: $showShopping) { ShoppingListView() }
         .sheet(item: $editing) { IngredientEditView(ingredient: $0) }
+        #if DEBUG
+        // 스크린샷·QA용 — `-showHistory` 런치 인자로 History 시트 바로 열기(-previewCarousel 선례).
+        .onAppear {
+            if ProcessInfo.processInfo.arguments.contains("-showHistory") { showHistory = true }
+        }
+        #endif
     }
 
     // MARK: 접힌 스택
@@ -199,7 +205,7 @@ struct FridgeView: View {
                                   : "\(store.toBuy.count) item\(store.toBuy.count == 1 ? "" : "s")",
                               valueSize: 26, ink: ReffiColor.blueDark,
                               action: { showShopping = true })
-                    stampCard(id: 1, title: "Wasted · 30d",
+                    stampCard(id: 1, title: "No-waste report",
                               value: "\(store.wasteRate)%", ink: ReffiColor.soonDark,
                               action: { showHistory = true })
                     stampCard(id: 2, title: "Most tossed",

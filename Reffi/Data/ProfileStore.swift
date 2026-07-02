@@ -8,8 +8,10 @@ import Foundation
 final class ProfileStore {
     var nickname: String            { didSet { save() } }
     var cuisines: Set<CuisineStyle> { didSet { save() } }
+    var favorites: [String]         { didSet { save() } }   // 좋아하는 재료(§5.2 선호)
     var disliked: [String]          { didSet { save() } }
     var allergies: [String]         { didSet { save() } }
+    var household: HouseholdSize    { didSet { save() } }   // 가구 인원 — 레시피 양 근거
 
     // 알림(§2.1) — 임박 기준일·알림 시간.
     var notifyEnabled: Bool { didSet { save() } }
@@ -25,8 +27,10 @@ final class ProfileStore {
         nickname   = defaults.string(forKey: Key.nickname) ?? "Reffi"
         let rawCui = defaults.stringArray(forKey: Key.cuisines) ?? [CuisineStyle.korean.rawValue]
         cuisines   = Set(rawCui.compactMap(CuisineStyle.init(rawValue:)))
+        favorites  = defaults.stringArray(forKey: Key.favorites) ?? []
         disliked   = defaults.stringArray(forKey: Key.disliked) ?? []
         allergies  = defaults.stringArray(forKey: Key.allergies) ?? []
+        household  = HouseholdSize(rawValue: defaults.string(forKey: Key.household) ?? "") ?? .one
         notifyEnabled = defaults.object(forKey: Key.notifyEnabled) as? Bool ?? true
         leadDays   = defaults.object(forKey: Key.leadDays) as? Int ?? 3
         notifyHour = defaults.object(forKey: Key.notifyHour) as? Int ?? 8
@@ -51,8 +55,10 @@ final class ProfileStore {
     func resetAll() {
         nickname = "Reffi"
         cuisines = [.korean]
+        favorites = []
         disliked = []
         allergies = []
+        household = .one
         notifyEnabled = true
         leadDays = 3
         notifyHour = 8
@@ -62,8 +68,10 @@ final class ProfileStore {
     private func save() {
         defaults.set(nickname, forKey: Key.nickname)
         defaults.set(cuisines.map(\.rawValue), forKey: Key.cuisines)
+        defaults.set(favorites, forKey: Key.favorites)
         defaults.set(disliked, forKey: Key.disliked)
         defaults.set(allergies, forKey: Key.allergies)
+        defaults.set(household.rawValue, forKey: Key.household)
         defaults.set(notifyEnabled, forKey: Key.notifyEnabled)
         defaults.set(leadDays, forKey: Key.leadDays)
         defaults.set(notifyHour, forKey: Key.notifyHour)
@@ -73,8 +81,10 @@ final class ProfileStore {
     private enum Key {
         static let nickname = "profile.nickname"
         static let cuisines = "profile.cuisines"
+        static let favorites = "profile.favorites"
         static let disliked = "profile.disliked"
         static let allergies = "profile.allergies"
+        static let household = "profile.household"
         static let notifyEnabled = "profile.notifyEnabled"
         static let leadDays = "profile.leadDays"
         static let notifyHour = "profile.notifyHour"

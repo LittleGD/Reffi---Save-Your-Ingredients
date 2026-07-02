@@ -12,7 +12,7 @@ struct ProfileView: View {
     @State private var showDelete = false
 
     private enum Sheet: String, Identifiable {
-        case nickname, cuisines, disliked, allergies, time
+        case nickname, cuisines, favorites, disliked, allergies, time
         var id: String { rawValue }
     }
 
@@ -25,8 +25,9 @@ struct ProfileView: View {
             VStack(alignment: .leading, spacing: ReffiSpace.s5) {
                 header
                 // 영수증 스택 — 설정 화면이라 기울임 없이 정돈된 정렬(질서 있는 영수증 문법).
-                reportReceipt
+                // 무낭비 리포트는 냉장고 페이지 History(No-waste report)로 이동.
                 tasteReceipt
+                householdReceipt
                 notifyReceipt($profile)
                 accountReceipt
             }
@@ -40,6 +41,8 @@ struct ProfileView: View {
             switch which {
             case .nickname:  NicknameEditSheet().presentationDetents([.height(260)])
             case .cuisines:  CuisinePickerSheet().presentationDetents([.medium, .large])
+            case .favorites: TagEditorSheet(title: "Favorites", placeholder: "예: 두부",
+                                            tags: $profile.favorites).presentationDetents([.medium, .large])
             case .disliked:  TagEditorSheet(title: "Disliked", placeholder: "예: 오이",
                                             tags: $profile.disliked).presentationDetents([.medium, .large])
             case .allergies: TagEditorSheet(title: "Allergies", placeholder: "예: 땅콩",
@@ -64,13 +67,23 @@ struct ProfileView: View {
     private var header: some View {
         Button { sheet = .nickname } label: {
             HStack(spacing: ReffiSpace.s4) {
-                ReffiIcon.profile.reffi(30)
-                    .foregroundStyle(ReffiColor.blue)
-                    .frame(width: 64, height: 64)
-                    .background {
-                        let s = PaperBlob(sides: 9, seed: 2)
-                        s.fill(ReffiColor.blueLight).paperEdge(s, tint: ReffiColor.ink.opacity(0.06))
+                // 아바타 — 닉네임 이니셜(워드마크 서체, 한글은 Pretendard). 빈 닉네임은 아이콘 폴백.
+                Group {
+                    if avatarInitial.isEmpty {
+                        ReffiIcon.profile.reffi(30).foregroundStyle(ReffiColor.blue)
+                    } else {
+                        Text(avatarInitial)
+                            .font(avatarInitial.hasHangul
+                                  ? .custom("Pretendard-Bold", size: 28, relativeTo: .title)
+                                  : .custom("StoryScript-Regular", size: 30, relativeTo: .title))
+                            .foregroundStyle(ReffiColor.blue)
                     }
+                }
+                .frame(width: 64, height: 64)
+                .background {
+                    let s = PaperBlob(sides: 9, seed: 2)
+                    s.fill(ReffiColor.blueLight).paperEdge(s, tint: ReffiColor.ink.opacity(0.06))
+                }
                 VStack(alignment: .leading, spacing: 2) {
                     // 한글 닉네임은 Story Script(한글 미지원) 대신 Pretendard Bold 폴백(§3.1).
                     Text(profile.nickname)
@@ -91,59 +104,14 @@ struct ProfileView: View {
         .accessibilityValue(profile.nickname)
     }
 
-    /// 부제 — 무낭비 스트릭(마지막 버림 이후 일수). 데이터 없으면 담백한 문구.
+    /// 아바타 이니셜 — 닉네임 첫 글자(대문자).
+    private var avatarInitial: String {
+        String(profile.nickname.trimmingCharacters(in: .whitespaces).prefix(1)).uppercased()
+    }
+
+    /// 부제 — 요리 취향 요약(스트릭은 리포트 도장으로 이동해 중복 제거). 취향 없으면 담백한 문구.
     private var subtitle: String {
-        let streak = store.history.filter(\.wasted).map(\.daysAgo).min()
-        if let d = streak, d > 0 { return "무낭비 \(d)일째" }
-        return "Reffi와 함께 절약 중"
-    }
-
-    // MARK: - 무낭비 리포트 영수증 — 유일하게 풀 영수증 명세(날짜 + 푸터 + No.)
-    private var reportReceipt: some View {
-        ReceiptCard(title: "No-waste report",
-                    trailing: Date().formatted(date: .abbreviated, time: .omitted)) {
-            HStack(spacing: 0) {
-                stat("Ate", "\(store.ateCount)", ReffiColor.freshDark)
-                statDivider
-                stat("Tossed", "\(store.tossedCount)", ReffiColor.urgentDark)
-                statDivider
-                stat("Waste", "\(store.wasteRate)%", ReffiColor.soonDark)
-            }
-            .padding(.horizontal, ReffiSpace.s5)
-            .padding(.vertical, ReffiSpace.s4)
-
-            ReceiptRule()
-            HStack {
-                Text("REFFI · KEEP IT FRESH")
-                    .font(.custom("Pretendard-Bold", size: 10, relativeTo: .caption2)).tracking(1.2)
-                    .foregroundStyle(ReffiColor.muted)
-                Spacer()
-                Text(receiptNo)
-                    .font(.reffiNum(11, relativeTo: .caption2)).foregroundStyle(ReffiColor.muted)
-            }
-            .padding(.horizontal, ReffiSpace.s5)
-            .padding(.top, ReffiSpace.s3)
-            .padding(.bottom, ReffiSpace.s2)
-        }
-    }
-
-    /// 영수증 번호 — 닉네임에서 유도(장식, 안정적. ExpandedFridgeCard와 같은 기법).
-    private var receiptNo: String {
-        let s = abs(profile.nickname.unicodeScalars.reduce(7) { $0 &* 31 &+ Int($1.value) })
-        return String(format: "No. %04d", s % 10000)
-    }
-
-    private func stat(_ label: String, _ value: String, _ ink: Color) -> some View {
-        VStack(spacing: ReffiSpace.s1) {
-            Text(value).font(.reffiNum(26, relativeTo: .title)).foregroundStyle(ink)
-                .lineLimit(1).minimumScaleFactor(0.6)
-            Text(label).reffiType(.caption).foregroundStyle(ReffiColor.ink2)
-        }
-        .frame(maxWidth: .infinity)
-    }
-
-    private var statDivider: some View {
-        Rectangle().fill(ReffiColor.ink.opacity(0.08)).frame(width: 1, height: 32)
+        profile.cuisines.isEmpty ? "Reffi와 함께 절약 중" : profile.cuisines.summaryText
     }
 
     // MARK: - 요리 취향 영수증
@@ -154,9 +122,30 @@ struct ProfileView: View {
                 sheet = .cuisines
             }
             ReceiptRule()
+            SettingsRow(label: "Favorites", value: tagSummary(profile.favorites)) { sheet = .favorites }
+            ReceiptRule()
             SettingsRow(label: "Disliked", value: tagSummary(profile.disliked)) { sheet = .disliked }
             ReceiptRule()
             SettingsRow(label: "Allergies", value: tagSummary(profile.allergies)) { sheet = .allergies }
+        }
+    }
+
+    // MARK: - 가구 인원 영수증 — 레시피 양·쇼핑 수량의 근거. 인라인 칩 단일 선택(Remind me 문법).
+    private var householdReceipt: some View {
+        ReceiptCard(title: "Household") {
+            VStack(alignment: .leading, spacing: ReffiSpace.s3) {
+                Text("몇 인분 기준으로 추천할까요?")
+                    .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
+                HStack(spacing: ReffiSpace.s2) {
+                    ForEach(HouseholdSize.allCases) { h in
+                        SelectableChip(text: h.label, selected: profile.household == h) {
+                            profile.household = h
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, ReffiSpace.s5)
+            .padding(.vertical, ReffiSpace.s4)
         }
     }
 
@@ -226,6 +215,7 @@ struct ProfileView: View {
 /// 톱니(절취) 엣지 + 대문자 트래킹 헤더 + 점선 룰, 면은 그레인 없는 깨끗한 흰 종이.
 struct ReceiptCard<Content: View>: View {
     let title: String
+    var stamp: String? = nil        // 제목 옆 고무 도장(DDayStamp) — 스트릭 등
     var trailing: String? = nil     // 헤더 우측 보조(날짜 등)
     @ViewBuilder var content: Content
 
@@ -240,6 +230,10 @@ struct ReceiptCard<Content: View>: View {
                 Text(title.uppercased())
                     .font(.custom("Pretendard-Bold", size: 11, relativeTo: .caption2)).tracking(1.2)
                     .foregroundStyle(ReffiColor.ink2)
+                if let stamp {
+                    DDayStamp(text: stamp, color: ReffiColor.freshDark, size: 10)
+                        .padding(.leading, ReffiSpace.s2)
+                }
                 Spacer()
                 if let trailing {
                     Text(trailing)

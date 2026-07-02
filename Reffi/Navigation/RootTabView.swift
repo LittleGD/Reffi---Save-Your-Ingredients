@@ -7,8 +7,9 @@ struct RootTabView: View {
 
     @State private var tab: Tab = {
         #if DEBUG
-        // 스크린샷·QA용 — `-profileTab` 런치 인자로 프로필 탭 직행(-glyphGallery 선례).
+        // 스크린샷·QA용 — 런치 인자로 특정 탭 직행(-glyphGallery 선례).
         if ProcessInfo.processInfo.arguments.contains("-profileTab") { return .profile }
+        if ProcessInfo.processInfo.arguments.contains("-fridgeTab") { return .fridge }
         #endif
         return .home
     }()
