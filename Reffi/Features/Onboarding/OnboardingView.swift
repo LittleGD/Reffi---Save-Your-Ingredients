@@ -118,47 +118,36 @@ struct OnboardingView: View {
         }
     }
 
-    /// ② "임박 재료 → 오늘의 레시피" — Today 재료 아래 레시피 제안이 찍힌 티켓.
+    /// ② "임박 재료 → 오늘의 레시피" — 큰 재료 일러스트(Today 도장) + 레시피 추천 예시 칩.
     private var recipeHero: some View {
-        miniReceipt(seed: 1) {
-            VStack(spacing: ReffiSpace.s3) {
-                heroHeader("REFFI · TODAY")
-                heroRow(.egg, "계란", "Today", ReffiColor.urgentDark)
-                heroRow(.tomato, "토마토", "D-2", ReffiColor.soonDark)
-                heroDash
-                HStack(spacing: ReffiSpace.s2) {
-                    ReffiIcon.ai.reffi(15, .bold)
-                    Text("오늘의 레시피 · 토마토 프리타타")
-                        .font(.custom("Pretendard-SemiBold", size: 14, relativeTo: .caption))
-                        .lineLimit(1)
-                    Spacer(minLength: 0)
-                }
-                .foregroundStyle(ReffiColor.blueDark)
+        VStack(spacing: ReffiSpace.s4) {
+            ZStack(alignment: .topTrailing) {
+                PaperSilhouette(glyph: .egg, fresh: .fresh)
+                    .frame(width: 150, height: 150)
+                DDayStamp(text: "Today", color: ReffiColor.urgentDark, size: 15)
+                    .offset(x: 14, y: -6)
             }
+            // 레시피 추천 예시 — AI(§2.4 Blue) 칩. 틴트 면 위 ink(§2.6 AAA).
+            HStack(spacing: ReffiSpace.s2) {
+                ReffiIcon.ai.reffi(15, .bold).foregroundStyle(ReffiColor.blueDark)
+                Text("오늘의 레시피 · 토마토 프리타타")
+                    .font(.custom("Pretendard-SemiBold", size: 14, relativeTo: .caption))
+                    .foregroundStyle(ReffiColor.ink)
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, ReffiSpace.s4)
+            .padding(.vertical, ReffiSpace.s2 + 2)
+            .background(ReffiColor.blueLight, in: Capsule())
         }
     }
 
-    /// ③ "리포트로 쌓여요" — 스트릭 도장 + 낭비율이 찍힌 무낭비 리포트.
+    /// ③ "리포트로 쌓여요" — 큰 일러스트 + 무낭비 스트릭 도장(이전 버전 문법).
     private var reportHero: some View {
-        miniReceipt(seed: 2) {
-            VStack(alignment: .leading, spacing: ReffiSpace.s3) {
-                HStack(spacing: ReffiSpace.s2) {
-                    Text("NO-WASTE REPORT")
-                        .font(.custom("Pretendard-Bold", size: 10, relativeTo: .caption2)).tracking(1.2)
-                        .foregroundStyle(ReffiColor.muted)
-                    DDayStamp(text: "DAY 12", color: ReffiColor.freshDark, size: 9)
-                    Spacer(minLength: 0)
-                }
-                HStack(alignment: .firstTextBaseline, spacing: ReffiSpace.s2) {
-                    Text("8%").font(.reffiNum(36, relativeTo: .largeTitle))
-                        .foregroundStyle(ReffiColor.freshDark)
-                    Text("낭비율").reffiType(.caption).foregroundStyle(ReffiColor.ink2)
-                    Spacer(minLength: 0)
-                }
-                heroDash
-                Text("Ate 12 · Tossed 1")
-                    .font(.reffiNum(13, relativeTo: .caption)).foregroundStyle(ReffiColor.ink2)
-            }
+        ZStack(alignment: .topTrailing) {
+            PaperSilhouette(glyph: .leaf, fresh: .fresh)
+                .frame(width: 168, height: 168)
+            DDayStamp(text: "DAY 12", color: ReffiColor.freshDark, size: 15)
+                .offset(x: 14, y: -6)
         }
     }
 
