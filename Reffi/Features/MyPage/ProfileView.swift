@@ -1,0 +1,315 @@
+import SwiftUI
+
+/// 프로필/마이(§5) — 무낭비 리포트 + 요리 취향(스타일·비선호·알레르기) + 알림 + 계정.
+/// 구성은 Main의 리퀴드글래스 배경 + Fridge의 "흰 영수증 더미" 문법(톱니+점선+틸트·슬립)을 그대로 따른다.
+/// 흰 종이 면은 그레인 없이 깨끗하게 — 그레인은 채도 버튼 면 전용(PaperButton 문법).
+struct ProfileView: View {
+    @Environment(FridgeStore.self) private var store
+    @Environment(ProfileStore.self) private var profile
+
+    @State private var sheet: Sheet?
+    @State private var showLogout = false
+    @State private var showDelete = false
+
+    private enum Sheet: String, Identifiable {
+        case nickname, cuisines, disliked, allergies, time
+        var id: String { rawValue }
+    }
+
+    /// 영수증 인셋 — Fridge cardInset처럼 페이지 마진 위에 추가로 좁혀 영수증 폭을 만든다.
+    private let receiptInset: CGFloat = 6
+
+    var body: some View {
+        @Bindable var profile = profile
+        ScrollView {
+            VStack(alignment: .leading, spacing: ReffiSpace.s5) {
+                header
+                // 영수증 스택 — 설정 화면이라 기울임 없이 정돈된 정렬(질서 있는 영수증 문법).
+                reportReceipt
+                tasteReceipt
+                notifyReceipt($profile)
+                accountReceipt
+            }
+            .padding(.horizontal, ReffiGrid.margin + receiptInset)
+            .padding(.top, ReffiSpace.s5)
+            .padding(.bottom, 120)   // 떠 있는 캡슐 네비 위로 스크롤 여유
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(LiquidGlassBackground(accent: accent))
+        .sheet(item: $sheet) { which in
+            switch which {
+            case .nickname:  NicknameEditSheet().presentationDetents([.height(260)])
+            case .cuisines:  CuisinePickerSheet().presentationDetents([.medium, .large])
+            case .disliked:  TagEditorSheet(title: "Disliked", placeholder: "예: 오이",
+                                            tags: $profile.disliked).presentationDetents([.medium, .large])
+            case .allergies: TagEditorSheet(title: "Allergies", placeholder: "예: 땅콩",
+                                            tags: $profile.allergies).presentationDetents([.medium, .large])
+            case .time:      NotifyTimeSheet().presentationDetents([.height(300)])
+            }
+        }
+        .alert("로그아웃", isPresented: $showLogout) {
+            Button("로그아웃", role: .destructive) { /* 백엔드 연결 시 세션 종료 */ }
+            Button("취소", role: .cancel) {}
+        } message: { Text("정말 로그아웃할까요?") }
+        .alert("회원 탈퇴", isPresented: $showDelete) {
+            Button("탈퇴", role: .destructive) { profile.resetAll() }
+            Button("취소", role: .cancel) {}
+        } message: { Text("프로필과 선호 설정이 초기화됩니다.") }
+    }
+
+    /// 배경 액센트 — 가장 임박한 재료의 신선도색(Fridge와 동일, 세 탭이 한 몸).
+    private var accent: Color { store.sorted.first?.freshness.main ?? ReffiColor.fresh }
+
+    // MARK: - 헤더 (아바타 + 닉네임 — Main·Fridge 디스플레이 헤더 문법)
+    private var header: some View {
+        Button { sheet = .nickname } label: {
+            HStack(spacing: ReffiSpace.s4) {
+                ReffiIcon.profile.reffi(30)
+                    .foregroundStyle(ReffiColor.blue)
+                    .frame(width: 64, height: 64)
+                    .background {
+                        let s = PaperBlob(sides: 9, seed: 2)
+                        s.fill(ReffiColor.blueLight).paperEdge(s, tint: ReffiColor.ink.opacity(0.06))
+                    }
+                VStack(alignment: .leading, spacing: 2) {
+                    // 한글 닉네임은 Story Script(한글 미지원) 대신 Pretendard Bold 폴백(§3.1).
+                    Text(profile.nickname)
+                        .font(profile.nickname.hasHangul
+                              ? ReffiTextRole.display.koreanDisplayFont
+                              : ReffiTextRole.display.font)
+                        .foregroundStyle(ReffiColor.ink)
+                        .lineLimit(1)
+                    Text(subtitle).reffiType(.caption).foregroundStyle(ReffiColor.ink2)
+                }
+                Spacer(minLength: 0)
+                ReffiIcon.manual.reffi(16, .bold).foregroundStyle(ReffiColor.muted)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.reffiPress)
+        .accessibilityLabel("Edit nickname")
+        .accessibilityValue(profile.nickname)
+    }
+
+    /// 부제 — 무낭비 스트릭(마지막 버림 이후 일수). 데이터 없으면 담백한 문구.
+    private var subtitle: String {
+        let streak = store.history.filter(\.wasted).map(\.daysAgo).min()
+        if let d = streak, d > 0 { return "무낭비 \(d)일째" }
+        return "Reffi와 함께 절약 중"
+    }
+
+    // MARK: - 무낭비 리포트 영수증 — 유일하게 풀 영수증 명세(날짜 + 푸터 + No.)
+    private var reportReceipt: some View {
+        ReceiptCard(title: "No-waste report",
+                    trailing: Date().formatted(date: .abbreviated, time: .omitted)) {
+            HStack(spacing: 0) {
+                stat("Ate", "\(store.ateCount)", ReffiColor.freshDark)
+                statDivider
+                stat("Tossed", "\(store.tossedCount)", ReffiColor.urgentDark)
+                statDivider
+                stat("Waste", "\(store.wasteRate)%", ReffiColor.soonDark)
+            }
+            .padding(.horizontal, ReffiSpace.s5)
+            .padding(.vertical, ReffiSpace.s4)
+
+            ReceiptRule()
+            HStack {
+                Text("REFFI · KEEP IT FRESH")
+                    .font(.custom("Pretendard-Bold", size: 10, relativeTo: .caption2)).tracking(1.2)
+                    .foregroundStyle(ReffiColor.muted)
+                Spacer()
+                Text(receiptNo)
+                    .font(.reffiNum(11, relativeTo: .caption2)).foregroundStyle(ReffiColor.muted)
+            }
+            .padding(.horizontal, ReffiSpace.s5)
+            .padding(.top, ReffiSpace.s3)
+            .padding(.bottom, ReffiSpace.s2)
+        }
+    }
+
+    /// 영수증 번호 — 닉네임에서 유도(장식, 안정적. ExpandedFridgeCard와 같은 기법).
+    private var receiptNo: String {
+        let s = abs(profile.nickname.unicodeScalars.reduce(7) { $0 &* 31 &+ Int($1.value) })
+        return String(format: "No. %04d", s % 10000)
+    }
+
+    private func stat(_ label: String, _ value: String, _ ink: Color) -> some View {
+        VStack(spacing: ReffiSpace.s1) {
+            Text(value).font(.reffiNum(26, relativeTo: .title)).foregroundStyle(ink)
+                .lineLimit(1).minimumScaleFactor(0.6)
+            Text(label).reffiType(.caption).foregroundStyle(ReffiColor.ink2)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var statDivider: some View {
+        Rectangle().fill(ReffiColor.ink.opacity(0.08)).frame(width: 1, height: 32)
+    }
+
+    // MARK: - 요리 취향 영수증
+    private var tasteReceipt: some View {
+        ReceiptCard(title: "Taste") {
+            SettingsRow(label: "Cuisines", value: profile.cuisines.summaryText,
+                        valueColor: profile.cuisines.isEmpty ? ReffiColor.muted : ReffiColor.blueDark) {
+                sheet = .cuisines
+            }
+            ReceiptRule()
+            SettingsRow(label: "Disliked", value: tagSummary(profile.disliked)) { sheet = .disliked }
+            ReceiptRule()
+            SettingsRow(label: "Allergies", value: tagSummary(profile.allergies)) { sheet = .allergies }
+        }
+    }
+
+    private func tagSummary(_ tags: [String]) -> String {
+        guard !tags.isEmpty else { return "아직 없음" }   // 빈 상태 카피 통일(Cuisines·시트와 동일)
+        let head = tags.prefix(2).joined(separator: ", ")
+        let extra = tags.count - Swift.min(2, tags.count)
+        return extra > 0 ? "\(head) +\(extra)" : head
+    }
+
+    // MARK: - 알림 영수증
+    private func notifyReceipt(_ profile: Bindable<ProfileStore>) -> some View {
+        ReceiptCard(title: "Notifications") {
+            HStack {
+                Text("Expiry alerts").reffiType(.body).foregroundStyle(ReffiColor.ink)
+                Spacer()
+                Toggle("", isOn: profile.notifyEnabled).labelsHidden().tint(ReffiColor.blue)
+                    .accessibilityLabel("Expiry alerts")
+            }
+            .padding(.horizontal, ReffiSpace.s5)
+            .padding(.vertical, ReffiSpace.s4)
+
+            if profile.wrappedValue.notifyEnabled {
+                ReceiptRule()
+                VStack(alignment: .leading, spacing: ReffiSpace.s3) {
+                    Text("Remind me").reffiType(.caption).foregroundStyle(ReffiColor.ink2)
+                    HStack(spacing: ReffiSpace.s2) {
+                        ForEach(ProfileStore.leadDayOptions, id: \.self) { d in
+                            SelectableChip(text: "D-\(d)", selected: profile.wrappedValue.leadDays == d) {
+                                profile.wrappedValue.leadDays = d
+                            }
+                        }
+                    }
+                }
+                .padding(.horizontal, ReffiSpace.s5)
+                .padding(.vertical, ReffiSpace.s4)
+
+                ReceiptRule()
+                SettingsRow(label: "Time", value: profile.wrappedValue.notifyTimeText,
+                            numeric: true) { sheet = .time }
+            }
+        }
+    }
+
+    // MARK: - 계정 영수증
+    private var accountReceipt: some View {
+        ReceiptCard(title: "Account") {
+            QuietButton(title: "로그아웃", icon: ReffiIcon.go, tint: ReffiColor.blueDark) {
+                showLogout = true
+            }
+            .padding(.horizontal, ReffiSpace.s3)
+            .padding(.vertical, ReffiSpace.s1)
+            ReceiptRule()
+            // toss(재료 버림)와 의미 충돌 방지 — 탈퇴는 별도 아이콘(x).
+            QuietButton(title: "회원 탈퇴", icon: ReffiIcon.close, tint: ReffiColor.urgentDark) {
+                showDelete = true
+            }
+            .padding(.horizontal, ReffiSpace.s3)
+            .padding(.vertical, ReffiSpace.s1)
+        }
+    }
+}
+
+// MARK: - 재사용 컴포넌트
+
+/// 흰 영수증 카드 — Fridge 영수증(FridgeCard·ExpandedFridgeCard)과 같은 문법.
+/// 톱니(절취) 엣지 + 대문자 트래킹 헤더 + 점선 룰, 면은 그레인 없는 깨끗한 흰 종이.
+struct ReceiptCard<Content: View>: View {
+    let title: String
+    var trailing: String? = nil     // 헤더 우측 보조(날짜 등)
+    @ViewBuilder var content: Content
+
+    private let toothH: CGFloat = 7
+
+    var body: some View {
+        let shape = ReceiptShape(tooth: toothH)
+        let paper = ReffiColor.oklch(0.985, 0.004, 90)   // 흰 영수증(Fridge와 동일)
+
+        return VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .center) {
+                Text(title.uppercased())
+                    .font(.custom("Pretendard-Bold", size: 11, relativeTo: .caption2)).tracking(1.2)
+                    .foregroundStyle(ReffiColor.ink2)
+                Spacer()
+                if let trailing {
+                    Text(trailing)
+                        .font(.reffiNum(11, relativeTo: .caption2)).foregroundStyle(ReffiColor.muted)
+                }
+            }
+            .padding(.horizontal, ReffiSpace.s5)
+            .padding(.top, ReffiSpace.s4 + toothH)
+            .padding(.bottom, ReffiSpace.s3)
+
+            ReceiptRule()
+            content
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.bottom, ReffiSpace.s2 + toothH)
+        .background(paper, in: shape)
+        .paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
+        .shadow(color: ReffiColor.ink.opacity(0.06), radius: 4, x: 0, y: 2)   // 약한 드롭섀도(Fridge와 동일)
+    }
+}
+
+/// 영수증 점선 룰 — Fridge 상세의 dashRule과 동일.
+struct ReceiptRule: View {
+    var body: some View {
+        HLine().stroke(ReffiColor.ink.opacity(0.14), style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
+            .frame(height: 1)
+            .padding(.horizontal, ReffiSpace.s5)
+    }
+}
+
+/// 설정 행 — 라벨 + 값 + 셰브런. 탭하면 편집 시트로.
+struct SettingsRow: View {
+    let label: String
+    var value: String? = nil
+    var valueColor: Color = ReffiColor.ink2
+    var showChevron: Bool = true
+    var numeric: Bool = false   // 시간·수량 등 데이터성 숫자 값 → reffiNum 의무(§3.4)
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: ReffiSpace.s3) {
+                Text(label).reffiType(.body).foregroundStyle(ReffiColor.ink)
+                Spacer(minLength: ReffiSpace.s4)
+                if let value {
+                    Text(value)
+                        .font(numeric ? .reffiNum(14, relativeTo: .caption) : ReffiTextRole.caption.font)
+                        .tracking(numeric ? 0 : ReffiTextRole.caption.tracking)
+                        .foregroundStyle(valueColor)
+                        .lineLimit(1)
+                }
+                if showChevron {
+                    ReffiIcon.chevron.reffi(13, .bold).foregroundStyle(ReffiColor.muted)
+                }
+            }
+            .padding(.horizontal, ReffiSpace.s5)
+            .padding(.vertical, ReffiSpace.s4)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.reffiPress)
+    }
+}
+
+private extension String {
+    /// 한글 포함 여부 — Story Script는 한글 미지원(§3.1) → Display 폴백(Pretendard Bold) 판별.
+    var hasHangul: Bool {
+        unicodeScalars.contains {
+            (0xAC00...0xD7A3).contains($0.value)      // 완성형
+            || (0x1100...0x11FF).contains($0.value)   // 자모
+            || (0x3130...0x318F).contains($0.value)   // 호환 자모
+        }
+    }
+}

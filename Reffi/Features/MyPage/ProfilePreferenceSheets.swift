@@ -1,0 +1,215 @@
+import SwiftUI
+
+/// 선택 가능한 캡슐 칩 — 선택 시 Blue 면+화이트, 미선택은 sub 면+ink(§2.6). 칩 패턴은 Chips.swift 계열.
+/// 캡슐 비주얼은 작게 유지하되 히트 영역은 44pt 확보(§7.3).
+struct SelectableChip: View {
+    let text: String
+    let selected: Bool
+    var fullWidth: Bool = true   // 행 균등 분배(D-N 행)용. 그리드/플로우에선 false로 자연 폭.
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(text)
+                .font(ReffiTextRole.caption.font)
+                .tracking(ReffiTextRole.caption.tracking)
+                .foregroundStyle(selected ? .white : ReffiColor.ink)
+                .lineLimit(1)
+                .padding(.horizontal, ReffiSpace.s3)
+                .padding(.vertical, ReffiSpace.s2)
+                .frame(maxWidth: fullWidth ? .infinity : nil)
+                .background(selected ? ReffiColor.blue : ReffiColor.sub, in: Capsule())
+                .frame(minHeight: 44)          // §7.3 터치 타깃 — 비주얼은 캡슐, 히트는 44
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.reffiPress)
+        .accessibilityAddTraits(selected ? [.isSelected] : [])
+    }
+}
+
+/// 시트 공통 셸 — 크림 캔버스 + 타이틀 헤더 + 우상단 닫기. 편집 시트를 통일한다.
+private struct SheetShell<Content: View>: View {
+    let title: String
+    let onClose: () -> Void
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: ReffiSpace.s5) {
+            HStack {
+                Text(title).reffiType(.heading).foregroundStyle(ReffiColor.ink)
+                Spacer()
+                Button(action: onClose) {
+                    ReffiIcon.close.reffi(15, .bold)
+                        .foregroundStyle(ReffiColor.ink)
+                        .frame(width: 44, height: 44)   // §7.3 터치 타깃
+                        .background {
+                            let s = PaperRect(cornerRadius: ReffiRadius.md, seed: 4)
+                            s.fill(ReffiColor.paper).paperEdge(s)
+                        }
+                }
+                .buttonStyle(.paperPress)
+                .accessibilityLabel("Close")
+            }
+            content
+            Spacer(minLength: 0)
+        }
+        .padding(ReffiSpace.s5)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(ReffiColor.canvas.ignoresSafeArea())
+    }
+}
+
+/// 닉네임 편집(§5.1.1).
+struct NicknameEditSheet: View {
+    @Environment(ProfileStore.self) private var profile
+    @Environment(\.dismiss) private var dismiss
+    @State private var draft: String = ""
+
+    var body: some View {
+        SheetShell(title: "Nickname", onClose: { dismiss() }) {
+            VStack(alignment: .leading, spacing: ReffiSpace.s4) {
+                TextField("닉네임", text: $draft)
+                    .reffiType(.body)
+                    .foregroundStyle(ReffiColor.ink)
+                    .padding(.horizontal, ReffiSpace.s4)
+                    .padding(.vertical, ReffiSpace.s3)
+                    .background {
+                        let s = PaperRect(cornerRadius: ReffiRadius.md, seed: 2)
+                        s.fill(ReffiColor.paper).paperEdge(s, tint: ReffiColor.ink.opacity(0.1))
+                    }
+                    .submitLabel(.done)
+                    .onSubmit(commit)
+
+                PaperButton(title: "Save", seed: 1, action: commit)
+            }
+        }
+        .onAppear { draft = profile.nickname }
+    }
+
+    private func commit() {
+        let trimmed = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty { profile.nickname = trimmed }
+        dismiss()
+    }
+}
+
+/// 요리 스타일 멀티 선택(§5.2) — 사용자 요청 핵심. 여러 스타일 동시 선택/해제.
+struct CuisinePickerSheet: View {
+    @Environment(ProfileStore.self) private var profile
+    @Environment(\.dismiss) private var dismiss
+
+    private let columns = [GridItem(.adaptive(minimum: 92), spacing: ReffiSpace.s2)]
+
+    var body: some View {
+        SheetShell(title: "Cuisines", onClose: { dismiss() }) {
+            VStack(alignment: .leading, spacing: ReffiSpace.s4) {
+                Text("좋아하는 요리 스타일을 골라주세요 · 여러 개 선택 가능")
+                    .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
+
+                LazyVGrid(columns: columns, alignment: .leading, spacing: ReffiSpace.s2) {
+                    ForEach(CuisineStyle.allCases) { c in
+                        SelectableChip(text: c.label, selected: profile.cuisines.contains(c),
+                                       fullWidth: false) {
+                            profile.toggleCuisine(c)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// 문자열 태그 편집 시트 — 비선호 재료·알레르기(§5.2)에 공용. 추가/삭제.
+struct TagEditorSheet: View {
+    let title: String
+    let placeholder: String
+    @Binding var tags: [String]
+    @Environment(\.dismiss) private var dismiss
+    @State private var draft: String = ""
+
+    var body: some View {
+        SheetShell(title: title, onClose: { dismiss() }) {
+            VStack(alignment: .leading, spacing: ReffiSpace.s4) {
+                HStack(spacing: ReffiSpace.s2) {
+                    TextField(placeholder, text: $draft)
+                        .reffiType(.body)
+                        .foregroundStyle(ReffiColor.ink)
+                        .padding(.horizontal, ReffiSpace.s4)
+                        .padding(.vertical, ReffiSpace.s3)
+                        .background {
+                            let s = PaperRect(cornerRadius: ReffiRadius.md, seed: 2)
+                            s.fill(ReffiColor.paper).paperEdge(s, tint: ReffiColor.ink.opacity(0.1))
+                        }
+                        .submitLabel(.done)
+                        .onSubmit(add)
+                    QuietButton(title: "추가", icon: ReffiIcon.add, action: add)
+                }
+
+                if tags.isEmpty {
+                    Text("아직 없음")
+                        .reffiType(.caption).foregroundStyle(ReffiColor.muted)
+                        .padding(.top, ReffiSpace.s1)
+                } else {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 92), spacing: ReffiSpace.s2)],
+                              alignment: .leading, spacing: ReffiSpace.s2) {
+                        ForEach(tags, id: \.self) { tag in
+                            Button { remove(tag) } label: {
+                                HStack(spacing: ReffiSpace.s1) {
+                                    Text(tag)
+                                        .font(ReffiTextRole.caption.font)
+                                        .tracking(ReffiTextRole.caption.tracking)
+                                        .foregroundStyle(ReffiColor.ink).lineLimit(1)
+                                    ReffiIcon.close.reffi(11, .bold).foregroundStyle(ReffiColor.ink2)
+                                }
+                                .padding(.horizontal, ReffiSpace.s3)
+                                .padding(.vertical, ReffiSpace.s2)
+                                .background(ReffiColor.sub, in: Capsule())
+                                .frame(minHeight: 44)          // §7.3 터치 타깃
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.reffiPress)
+                            .accessibilityLabel("Remove \(tag)")
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func add() {
+        let trimmed = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, !tags.contains(trimmed) else { draft = ""; return }
+        tags.append(trimmed)
+        draft = ""
+    }
+    private func remove(_ tag: String) { tags.removeAll { $0 == tag } }
+}
+
+/// 알림 시간 선택(§2.1.2) — 시/분 휠.
+struct NotifyTimeSheet: View {
+    @Environment(ProfileStore.self) private var profile
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        SheetShell(title: "Alert time", onClose: { dismiss() }) {
+            DatePicker("", selection: timeBinding, displayedComponents: .hourAndMinute)
+                .datePickerStyle(.wheel)
+                .labelsHidden()
+                .frame(maxWidth: .infinity)
+        }
+    }
+
+    private var timeBinding: Binding<Date> {
+        Binding(
+            get: {
+                var c = DateComponents(); c.hour = profile.notifyHour; c.minute = profile.notifyMinute
+                return Calendar.current.date(from: c) ?? Date()
+            },
+            set: { newValue in
+                let c = Calendar.current.dateComponents([.hour, .minute], from: newValue)
+                profile.notifyHour = c.hour ?? profile.notifyHour
+                profile.notifyMinute = c.minute ?? profile.notifyMinute
+            }
+        )
+    }
+}

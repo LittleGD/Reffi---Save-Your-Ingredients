@@ -5,7 +5,13 @@ import PhosphorSwift
 struct RootTabView: View {
     enum Tab { case home, fridge, profile }
 
-    @State private var tab: Tab = .home
+    @State private var tab: Tab = {
+        #if DEBUG
+        // 스크린샷·QA용 — `-profileTab` 런치 인자로 프로필 탭 직행(-glyphGallery 선례).
+        if ProcessInfo.processInfo.arguments.contains("-profileTab") { return .profile }
+        #endif
+        return .home
+    }()
     @State private var showAdd = false
 
     var body: some View {
@@ -14,7 +20,7 @@ struct RootTabView: View {
                 switch tab {
                 case .home:    MainView()
                 case .fridge:  FridgeView()
-                case .profile: MyPagePlaceholderView()
+                case .profile: ProfileView()
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)

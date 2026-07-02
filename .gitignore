@@ -15,3 +15,8 @@ Reffi.xcodeproj/
 # Swift Package Manager
 .swiftpm/
 Package.resolved
+
+# 로컬 아티팩트
+.omc/
+build*.log
+build/

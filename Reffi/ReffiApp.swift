@@ -3,6 +3,7 @@ import SwiftUI
 @main
 struct ReffiApp: App {
     @State private var store = FridgeStore()
+    @State private var profile = ProfileStore()
 
     init() {
         #if DEBUG
@@ -14,6 +15,7 @@ struct ReffiApp: App {
         WindowGroup {
             rootContent
                 .environment(store)
+                .environment(profile)
                 .tint(ReffiColor.blue)
         }
     }
