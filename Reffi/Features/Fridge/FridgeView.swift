@@ -229,42 +229,30 @@ struct FridgeView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    // MARK: 무낭비 리포트 배너 — 화면에서 유일한 도장 밴드(폰 레스토프 격리 효과).
-    // 캐러셀 속 숨은 카드 대신 전폭 상시 노출 + 명시적 CTA("See report") + 셰브론으로 탭 가능성을 드러낸다.
+    // MARK: 무낭비 리포트 배너 — 한 줄·숫자 하나(글랜서블: 위젯 원칙 "one idea").
+    // 도장 이중선은 페이지에서 유일한 외곽선(폰 레스토프 격리). 스트릭·기간·구성은 리포트 안에서.
     private var reportBand: some View {
         Button { showHistory = true } label: {
             HStack(spacing: ReffiSpace.s3) {
-                ReffiIcon.report.reffi(24, .bold).foregroundStyle(ReffiColor.soonDark)
-                VStack(alignment: .leading, spacing: 3) {
-                    HStack(spacing: ReffiSpace.s2) {
-                        Text("NO-WASTE REPORT")
-                            .font(.custom("Pretendard-Bold", size: 12, relativeTo: .caption))
-                            .tracking(1.2)
-                            .foregroundStyle(ReffiColor.soonDark)
-                        if streakDays > 0 {
-                            DDayStamp(text: "DAY \(streakDays)", color: ReffiColor.freshDark, size: 9)
-                        }
-                    }
-                    Text("낭비율 \(store.wasteRate)% · 지난 30일")
-                        .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
-                }
+                ReffiIcon.report.reffi(20, .bold).foregroundStyle(rateColor)
+                Text("무낭비 리포트")
+                    .font(.custom("Pretendard-SemiBold", size: 16, relativeTo: .body))
+                    .foregroundStyle(ReffiColor.ink)
                 Spacer(minLength: ReffiSpace.s2)
-                HStack(spacing: 3) {
-                    Text("See report")
-                        .font(.custom("Pretendard-SemiBold", size: 13, relativeTo: .caption))
-                        .foregroundStyle(ReffiColor.soonDark)
-                    ReffiIcon.chevron.reffi(12, .bold).foregroundStyle(ReffiColor.soonDark)
-                }
+                Text("\(store.wasteRate)%")
+                    .font(.reffiNum(18, relativeTo: .body))
+                    .foregroundStyle(rateColor)
+                ReffiIcon.chevron.reffi(12, .bold).foregroundStyle(ReffiColor.muted)
             }
             .padding(.horizontal, ReffiSpace.s4)
-            .padding(.vertical, ReffiSpace.s3 + 2)
+            .frame(minHeight: 54)
             .frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(Rectangle())
             .background {
                 let s = RoundedRectangle(cornerRadius: ReffiRadius.lg, style: .continuous)
                 ZStack {
-                    s.strokeBorder(ReffiColor.soonDark.opacity(0.9), lineWidth: 2.2)  // 도장 이중선
-                    s.inset(by: 4).strokeBorder(ReffiColor.soonDark.opacity(0.5), lineWidth: 1.0)
+                    s.strokeBorder(rateColor.opacity(0.9), lineWidth: 2.2)          // 도장 이중선
+                    s.inset(by: 4).strokeBorder(rateColor.opacity(0.5), lineWidth: 1.0)
                 }
             }
         }
@@ -274,10 +262,13 @@ struct FridgeView: View {
         .accessibilityAddTraits(.isButton)
     }
 
-    /// 무낭비 스트릭 — 마지막 버림 이후 경과일(HistoryView와 동일 정의).
-    private var streakDays: Int {
-        if let last = store.history.filter(\.wasted).map(\.daysAgo).min() { return last }
-        return store.history.map(\.daysAgo).max() ?? 0
+    /// 낭비율 색 — HistoryView와 동일 임계값(색=정보, §1). 캔버스 위라 dark 변형(§2.6).
+    private var rateColor: Color {
+        switch store.wasteRate {
+        case ...10: ReffiColor.freshDark
+        case ...30: ReffiColor.soonDark
+        default:    ReffiColor.urgentDark
+        }
     }
 
     // MARK: 사야 할 것 — 리포트보다 한 단계 낮은 슬림 행(종이 면, 도장 없음).
