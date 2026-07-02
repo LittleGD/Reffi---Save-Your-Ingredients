@@ -29,15 +29,15 @@ struct OnboardingView: View {
             VStack(spacing: 0) {
                 topBar
                 TabView(selection: $page) {
-                    valuePage(glyph: .tomato, dDay: "D-2",
+                    valuePage(hero: { recordHero },
                               title: "냉장고 속 재료를\n영수증처럼 기록해요",
                               body: "사 온 재료를 등록하면 유통기한을 대신 세어드려요.")
                         .tag(0)
-                    valuePage(glyph: .egg, dDay: "Today",
+                    valuePage(hero: { recipeHero },
                               title: "임박한 재료로\n오늘의 레시피를 추천해요",
                               body: "가장 급한 재료부터 먹을 수 있게, 위에서부터 순서대로.")
                         .tag(1)
-                    valuePage(glyph: .leaf, dDay: "DAY 12",
+                    valuePage(hero: { reportHero },
                               title: "버리지 않은 날들이\n리포트로 쌓여요",
                               body: "무낭비 스트릭과 절약 리포트로 변화를 확인하세요.")
                         .tag(2)
@@ -81,19 +81,15 @@ struct OnboardingView: View {
         .padding(.top, ReffiSpace.s3)
     }
 
-    // MARK: 가치 페이지 — 큰 종이컷 일러스트 + 한글 디스플레이(Pretendard Bold 폴백, §3.1)
+    // MARK: 가치 페이지 — 히어로(텍스트를 그대로 시각화한 미니 영수증) + 한글 디스플레이(§3.1)
 
-    private func valuePage(glyph: FoodGlyph, dDay: String, title: String, body copy: String) -> some View {
+    private func valuePage<H: View>(@ViewBuilder hero: () -> H,
+                                    title: String, body copy: String) -> some View {
         VStack(alignment: .leading, spacing: ReffiSpace.s5) {
             Spacer(minLength: 0)
-            ZStack(alignment: .topTrailing) {
-                PaperSilhouette(glyph: glyph, fresh: .fresh)
-                    .frame(width: 168, height: 168)
-                DDayStamp(text: dDay, color: ReffiColor.urgentDark, size: 15)
-                    .offset(x: 14, y: -6)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.bottom, ReffiSpace.s4)
+            hero()
+                .frame(maxWidth: .infinity)
+                .padding(.bottom, ReffiSpace.s4)
 
             Text(title)
                 .font(ReffiTextRole.display.koreanDisplayFont)
@@ -104,6 +100,107 @@ struct OnboardingView: View {
             Spacer(minLength: 0)
         }
         .padding(.horizontal, ReffiGrid.margin + ReffiSpace.s2)
+    }
+
+    // MARK: 히어로 3종 — 각 페이지 카피를 시각적으로 재연(설명 일치)
+
+    /// ① "영수증처럼 기록" — 재료·D-day가 줄줄이 적힌 냉장고 영수증.
+    private var recordHero: some View {
+        miniReceipt(seed: 0) {
+            VStack(spacing: ReffiSpace.s3) {
+                heroHeader("REFFI · FRIDGE")
+                heroRow(.tomato, "토마토", "D-2", ReffiColor.soonDark)
+                heroDash
+                heroRow(.leaf, "시금치", "D-1", ReffiColor.soonDark)
+                heroDash
+                heroRow(.milk, "우유", "D-5", ReffiColor.freshDark)
+            }
+        }
+    }
+
+    /// ② "임박 재료 → 오늘의 레시피" — Today 재료 아래 레시피 제안이 찍힌 티켓.
+    private var recipeHero: some View {
+        miniReceipt(seed: 1) {
+            VStack(spacing: ReffiSpace.s3) {
+                heroHeader("REFFI · TODAY")
+                heroRow(.egg, "계란", "Today", ReffiColor.urgentDark)
+                heroRow(.tomato, "토마토", "D-2", ReffiColor.soonDark)
+                heroDash
+                HStack(spacing: ReffiSpace.s2) {
+                    ReffiIcon.ai.reffi(15, .bold)
+                    Text("오늘의 레시피 · 토마토 프리타타")
+                        .font(.custom("Pretendard-SemiBold", size: 14, relativeTo: .caption))
+                        .lineLimit(1)
+                    Spacer(minLength: 0)
+                }
+                .foregroundStyle(ReffiColor.blueDark)
+            }
+        }
+    }
+
+    /// ③ "리포트로 쌓여요" — 스트릭 도장 + 낭비율이 찍힌 무낭비 리포트.
+    private var reportHero: some View {
+        miniReceipt(seed: 2) {
+            VStack(alignment: .leading, spacing: ReffiSpace.s3) {
+                HStack(spacing: ReffiSpace.s2) {
+                    Text("NO-WASTE REPORT")
+                        .font(.custom("Pretendard-Bold", size: 10, relativeTo: .caption2)).tracking(1.2)
+                        .foregroundStyle(ReffiColor.muted)
+                    DDayStamp(text: "DAY 12", color: ReffiColor.freshDark, size: 9)
+                    Spacer(minLength: 0)
+                }
+                HStack(alignment: .firstTextBaseline, spacing: ReffiSpace.s2) {
+                    Text("8%").font(.reffiNum(36, relativeTo: .largeTitle))
+                        .foregroundStyle(ReffiColor.freshDark)
+                    Text("낭비율").reffiType(.caption).foregroundStyle(ReffiColor.ink2)
+                    Spacer(minLength: 0)
+                }
+                heroDash
+                Text("Ate 12 · Tossed 1")
+                    .font(.reffiNum(13, relativeTo: .caption)).foregroundStyle(ReffiColor.ink2)
+            }
+        }
+    }
+
+    /// 미니 영수증 셸 — Fridge 카드와 같은 흰 영수증(톱니), 살짝 틸트로 종이 무드.
+    private func miniReceipt<C: View>(seed: Int, @ViewBuilder _ content: () -> C) -> some View {
+        let shape = ReceiptShape(tooth: 6)
+        return content()
+            .padding(.horizontal, ReffiSpace.s5)
+            .padding(.vertical, ReffiSpace.s4 + 6)
+            .frame(width: 272)
+            .background(ReffiColor.oklch(0.985, 0.004, 90), in: shape)
+            .paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
+            .reffiShadow1()
+            .rotationEffect(.degrees(seed % 2 == 0 ? -2 : 2))
+    }
+
+    private func heroHeader(_ text: String) -> some View {
+        HStack {
+            Text(text)
+                .font(.custom("Pretendard-Bold", size: 10, relativeTo: .caption2)).tracking(1.2)
+                .foregroundStyle(ReffiColor.muted)
+            Spacer(minLength: 0)
+        }
+    }
+
+    private var heroDash: some View {
+        HLine().stroke(ReffiColor.ink.opacity(0.16), style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
+            .frame(height: 1)
+    }
+
+    private func heroRow(_ glyph: FoodGlyph, _ name: String, _ dDay: String, _ color: Color) -> some View {
+        HStack(spacing: ReffiSpace.s3) {
+            PaperSilhouette(glyph: glyph, fresh: .fresh)
+                .frame(width: 28, height: 28)
+            Text(name)
+                .font(.custom("Pretendard-SemiBold", size: 15, relativeTo: .subheadline))
+                .foregroundStyle(ReffiColor.ink)
+            Spacer(minLength: 0)
+            Text(dDay)
+                .font(.reffiNum(14, relativeTo: .subheadline))
+                .foregroundStyle(color)
+        }
     }
 
     // MARK: 개인화 ① 가구 인원 — 레시피 양의 근거(프로필 Household와 동일 문법)

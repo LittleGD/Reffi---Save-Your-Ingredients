@@ -6,14 +6,13 @@ struct ReffiApp: App {
     @State private var profile = ProfileStore()
     @State private var auth = AuthStore()
 
-    /// 온보딩 1회 완료 플래그 — 계정과 무관한 기기 로컬 상태.
-    @AppStorage("onboarding.done") private var onboardingDone = false
-
     init() {
         #if DEBUG
         ReffiFontCheck.dump()
-        // 스크린샷·QA용 — 온보딩 처음부터 다시.
-        if ProcessInfo.processInfo.arguments.contains("-resetOnboarding") {
+        // 스크린샷·QA용 — 온보딩 처음부터 다시(-onboarding은 초기화 + 정상 게이트 진입.
+        // 화면을 강제 고정하지 않으므로 완료 시 로그인→메인으로 자연히 흐른다).
+        let args = ProcessInfo.processInfo.arguments
+        if args.contains("-resetOnboarding") || args.contains("-onboarding") {
             UserDefaults.standard.removeObject(forKey: "onboarding.done")
         }
         #endif
@@ -37,18 +36,22 @@ struct ReffiApp: App {
             ButtonGalleryView()
         } else if ProcessInfo.processInfo.arguments.contains("-authView") {
             AuthView()
-        } else if ProcessInfo.processInfo.arguments.contains("-onboarding") {
-            OnboardingView(onFinish: { onboardingDone = true })
         } else {
-            gated
+            RootGateView()
         }
         #else
-        gated
+        RootGateView()
         #endif
     }
+}
 
-    /// 진입 게이트 — 온보딩(1회) → 로그인(세션/게스트 없으면) → 메인.
-    @ViewBuilder private var gated: some View {
+/// 진입 게이트 — 온보딩(기기당 1회) → 로그인(세션/게스트 없으면) → 메인.
+/// App이 아닌 View에 두어 @AppStorage 변경이 확실히 리렌더를 트리거하게 한다.
+private struct RootGateView: View {
+    @Environment(AuthStore.self) private var auth
+    @AppStorage("onboarding.done") private var onboardingDone = false
+
+    var body: some View {
         if auth.restoring {
             splash
         } else if !onboardingDone {

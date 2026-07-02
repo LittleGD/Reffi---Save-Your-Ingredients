@@ -61,3 +61,22 @@ targets:
         CODE_SIGNING_ALLOWED: "NO"
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         ENABLE_USER_SCRIPT_SANDBOXING: "YES"
+    scheme:
+      testTargets:
+        - ReffiUITests
+
+  ReffiUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    deploymentTarget: "18.0"
+    sources:
+      - path: ReffiUITests
+    dependencies:
+      - target: Reffi
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.reffi.app.uitests
+        SWIFT_VERSION: "5.0"
+        TEST_TARGET_NAME: Reffi
+        CODE_SIGNING_REQUIRED: "NO"
+        CODE_SIGNING_ALLOWED: "NO"
