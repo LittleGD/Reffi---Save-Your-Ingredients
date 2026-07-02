@@ -13,6 +13,17 @@ Apple/Google 로그인은 아래 콘솔 설정(개발자 계정 필요)을 마�
 - 기본값으로 **가입 확인 메일**이 켜져 있다. 가입 → 메일 링크 클릭 → 로그인 순서.
 - 확인 절차 없이 즉시 로그인시키려면: Dashboard → Authentication → Sign In / Up → Email → **Confirm email 끄기**.
 
+## 1.5. 게스트 = 익명 로그인 + 데이터 승계 (대시보드 토글 1개 필요)
+"계정 없이 둘러보기"는 Supabase **익명 세션**을 발급받아 서버 user id를 확보한다.
+이후 가입하면 `updateUser(email·password)`로 **같은 user id를 유지한 채** 정식 계정으로
+전환되므로, 그 id에 묶인 서버 데이터가 그대로 이어진다(향후 냉장고 동기화의 기반).
+
+- 활성화: Dashboard → Authentication → Sign In / Up → **Allow anonymous sign-ins 켜기**
+  (2026-07 현재 **꺼져 있음** — 켜기 전까지 앱은 로컬 게스트 플래그로 자동 폴백하며 정상 동작).
+- 익명 유저가 소셜(Apple/Google) 버튼을 누르면 별도 계정으로 로그인된다(승계는 이메일 가입 경로만).
+  소셜 승계까지 원하면 Dashboard에서 **manual linking** 활성화 후 `linkIdentity` 적용 필요.
+- 익명 유저 정리: 대시보드 SQL로 오래된 `is_anonymous = true` 유저를 주기 삭제 권장.
+
 ## 2. Apple 로그인 (콘솔 설정 필요)
 앱은 네이티브 Sign in with Apple 시트(ID 토큰 + nonce)를 띄워 Supabase로 교환한다.
 1. Apple Developer(유료 계정) → Identifiers → App ID `com.reffi.app`에 **Sign in with Apple** capability 추가.

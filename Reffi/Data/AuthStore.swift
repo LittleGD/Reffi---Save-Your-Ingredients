@@ -23,8 +23,8 @@ final class AuthStore {
     // MARK: - 상태
 
     private(set) var session: Session?
-    /// 계정 없이 둘러보기 — 로컬 전용. 로그인하면 자동 해제.
-    private(set) var isGuest: Bool
+    /// 익명 로그인 실패(대시보드 비활성·오프라인) 시 폴백 — 로컬 전용 게스트 플래그.
+    private(set) var localGuest: Bool
     /// 저장된 세션 복원 중(첫 프레임 스플래시 판단용).
     private(set) var restoring = true
     /// 네트워크 요청 진행 중(버튼 비활성).
@@ -34,8 +34,10 @@ final class AuthStore {
     /// 성공 안내(예: 가입 후 이메일 확인).
     var notice: String?
 
-    /// 앱 진입 가능 여부 — 세션이 있거나 게스트.
-    var isSignedIn: Bool { session != nil || isGuest }
+    /// 게스트 = 익명 세션(서버 user id 보유, 가입 시 승계) 또는 로컬 폴백.
+    var isGuest: Bool { session?.user.isAnonymous == true || localGuest }
+    /// 앱 진입 가능 여부 — 세션(익명 포함)이 있거나 로컬 게스트.
+    var isSignedIn: Bool { session != nil || localGuest }
     var userEmail: String? { session?.user.email }
 
     init() {
@@ -45,7 +47,7 @@ final class AuthStore {
         if ProcessInfo.processInfo.arguments.contains("-skipAuth") { guest = true }
         if ProcessInfo.processInfo.arguments.contains("-authGate") { guest = false }
         #endif
-        isGuest = guest
+        localGuest = guest
         Task { await listen() }
     }
 
@@ -53,19 +55,27 @@ final class AuthStore {
     private func listen() async {
         for await (event, session) in Self.client.auth.authStateChanges {
             self.session = session
-            if session != nil { setGuest(false) }
+            if session != nil { setLocalGuest(false) }
             if event == .initialSession { restoring = false }
         }
     }
 
     // MARK: - 이메일
 
-    /// 가입 — 프로젝트에 이메일 확인이 켜져 있으면 세션 없이 유저만 생성된다.
+    /// 가입 — 익명 세션이면 같은 user id를 유지한 채 정식 계정으로 전환(데이터 승계).
+    /// 이메일 확인이 켜져 있으면 인증 완료 시점에 전환이 확정된다.
     func signUp(email: String, password: String) async {
         await run {
-            let res = try await Self.client.auth.signUp(email: email, password: password)
-            if res.session == nil {
-                self.notice = "확인 메일을 보냈어요. 메일함에서 인증 후 로그인해주세요."
+            if let user = session?.user, user.isAnonymous {
+                try await Self.client.auth.update(
+                    user: UserAttributes(email: email, password: password)
+                )
+                self.notice = "확인 메일을 보냈어요. 인증하면 게스트 기록이 이 계정으로 이어져요."
+            } else {
+                let res = try await Self.client.auth.signUp(email: email, password: password)
+                if res.session == nil {
+                    self.notice = "확인 메일을 보냈어요. 메일함에서 인증 후 로그인해주세요."
+                }
             }
         }
     }
@@ -111,17 +121,25 @@ final class AuthStore {
 
     // MARK: - 게스트 · 로그아웃
 
-    func continueAsGuest() { setGuest(true) }
+    /// 둘러보기 — 익명 세션 발급(서버 user id 확보 → 가입 시 기록 승계).
+    /// 익명 로그인이 꺼져 있거나 오프라인이면 로컬 게스트로 조용히 폴백.
+    func continueAsGuest() async {
+        errorMessage = nil
+        busy = true
+        defer { busy = false }
+        do { try await Self.client.auth.signInAnonymously() }
+        catch { setLocalGuest(true) }
+    }
 
     func signOut() async {
-        setGuest(false)
+        setLocalGuest(false)
         await run { try await Self.client.auth.signOut() }
         session = nil
     }
 
-    private func setGuest(_ v: Bool) {
-        guard isGuest != v else { return }
-        isGuest = v
+    private func setLocalGuest(_ v: Bool) {
+        guard localGuest != v else { return }
+        localGuest = v
         UserDefaults.standard.set(v, forKey: Key.guest)
     }
 

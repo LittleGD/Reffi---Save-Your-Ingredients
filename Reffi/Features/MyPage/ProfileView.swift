@@ -11,6 +11,7 @@ struct ProfileView: View {
     @State private var sheet: Sheet?
     @State private var showLogout = false
     @State private var showDelete = false
+    @State private var showAuth = false
 
     private enum Sheet: String, Identifiable {
         case nickname, cuisines, favorites, disliked, allergies, time
@@ -51,6 +52,7 @@ struct ProfileView: View {
             case .time:      NotifyTimeSheet().presentationDetents([.height(300)])
             }
         }
+        .sheet(isPresented: $showAuth) { AuthView() }
         .alert("로그아웃", isPresented: $showLogout) {
             Button("로그아웃", role: .destructive) { Task { await auth.signOut() } }
             Button("취소", role: .cancel) {}
@@ -199,7 +201,7 @@ struct ProfileView: View {
                 Text(auth.isGuest ? "게스트 모드" : "로그인됨")
                     .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
                 Spacer()
-                Text(auth.userEmail ?? "계정 없이 둘러보는 중")
+                Text(auth.userEmail ?? "가입하면 지금 기록이 계정으로 이어져요")
                     .reffiType(.caption).foregroundStyle(ReffiColor.ink)
                     .lineLimit(1).truncationMode(.middle)
             }
@@ -208,7 +210,8 @@ struct ProfileView: View {
             ReceiptRule()
             QuietButton(title: auth.isGuest ? "로그인 / 가입하기" : "로그아웃",
                         icon: ReffiIcon.go, tint: ReffiColor.blueDark) {
-                if auth.isGuest { Task { await auth.signOut() } }   // 게스트 해제 → 로그인 화면으로
+                // 게스트는 익명 세션을 유지한 채 시트에서 전환/로그인(승계 보장).
+                if auth.isGuest { showAuth = true }
                 else { showLogout = true }
             }
             .padding(.horizontal, ReffiSpace.s3)

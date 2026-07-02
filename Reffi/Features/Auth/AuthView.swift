@@ -6,6 +6,7 @@ import PhosphorSwift
 /// 이메일 로그인/가입 토글 + Apple/Google 소셜 + 게스트 둘러보기.
 struct AuthView: View {
     @Environment(AuthStore.self) private var auth
+    @Environment(\.dismiss) private var dismiss
 
     private enum Mode { case signIn, signUp }
     @State private var mode: Mode = .signIn
@@ -39,6 +40,11 @@ struct AuthView: View {
             .scrollDismissesKeyboard(.interactively)
         }
         .onOpenURL { auth.handleOpenURL($0) }
+        // 프로필에서 시트로 띄운 경우 — 정식(비익명) 세션이 생기면 자동 닫힘.
+        // 게이트(루트)에서는 dismiss가 no-op이라 무해하다.
+        .onChange(of: auth.session?.user.isAnonymous) { _, isAnon in
+            if isAnon == false { dismiss() }
+        }
     }
 
     // MARK: 워드마크
@@ -239,7 +245,7 @@ struct AuthView: View {
 
     private var guestButton: some View {
         QuietButton(title: "계정 없이 둘러보기", icon: ReffiIcon.go, tint: ReffiColor.ink2) {
-            auth.continueAsGuest()
+            Task { await auth.continueAsGuest() }
         }
         .frame(maxWidth: .infinity)
     }
