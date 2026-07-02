@@ -6,6 +6,7 @@ import SwiftUI
 struct ProfileView: View {
     @Environment(FridgeStore.self) private var store
     @Environment(ProfileStore.self) private var profile
+    @Environment(AuthStore.self) private var auth
 
     @State private var sheet: Sheet?
     @State private var showLogout = false
@@ -51,7 +52,7 @@ struct ProfileView: View {
             }
         }
         .alert("로그아웃", isPresented: $showLogout) {
-            Button("로그아웃", role: .destructive) { /* 백엔드 연결 시 세션 종료 */ }
+            Button("로그아웃", role: .destructive) { Task { await auth.signOut() } }
             Button("취소", role: .cancel) {}
         } message: { Text("정말 로그아웃할까요?") }
         .alert("회원 탈퇴", isPresented: $showDelete) {
@@ -193,8 +194,22 @@ struct ProfileView: View {
     // MARK: - 계정 영수증
     private var accountReceipt: some View {
         ReceiptCard(title: "Account") {
-            QuietButton(title: "로그아웃", icon: ReffiIcon.go, tint: ReffiColor.blueDark) {
-                showLogout = true
+            // 로그인 상태 행 — 이메일(로그인) 또는 게스트 안내.
+            HStack {
+                Text(auth.isGuest ? "게스트 모드" : "로그인됨")
+                    .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
+                Spacer()
+                Text(auth.userEmail ?? "계정 없이 둘러보는 중")
+                    .reffiType(.caption).foregroundStyle(ReffiColor.ink)
+                    .lineLimit(1).truncationMode(.middle)
+            }
+            .padding(.horizontal, ReffiSpace.s5)
+            .padding(.vertical, ReffiSpace.s3)
+            ReceiptRule()
+            QuietButton(title: auth.isGuest ? "로그인 / 가입하기" : "로그아웃",
+                        icon: ReffiIcon.go, tint: ReffiColor.blueDark) {
+                if auth.isGuest { Task { await auth.signOut() } }   // 게스트 해제 → 로그인 화면으로
+                else { showLogout = true }
             }
             .padding(.horizontal, ReffiSpace.s3)
             .padding(.vertical, ReffiSpace.s1)

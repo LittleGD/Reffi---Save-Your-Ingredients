@@ -10,6 +10,9 @@ packages:
   PhosphorSwift:
     url: https://github.com/phosphor-icons/swift
     from: 2.1.0
+  Supabase:
+    url: https://github.com/supabase/supabase-swift
+    from: 2.0.0
 
 targets:
   Reffi:
@@ -23,6 +26,8 @@ targets:
     dependencies:
       - package: PhosphorSwift
         product: PhosphorSwift
+      - package: Supabase
+        product: Supabase
     info:
       path: Reffi/Info.plist
       properties:
@@ -34,6 +39,10 @@ targets:
           - UIInterfaceOrientationPortrait
         UIApplicationSupportsIndirectInputEvents: true
         ITSAppUsesNonExemptEncryption: false
+        CFBundleURLTypes:
+          - CFBundleURLName: com.reffi.app.auth
+            CFBundleURLSchemes:
+              - reffi
         UIAppFonts:
           - Pretendard-Regular.otf
           - Pretendard-Medium.otf

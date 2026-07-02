@@ -21,6 +21,9 @@ open Reffi.xcodeproj      # Xcode에서 Run(⌘R)
 
 ## CLI 빌드 · 실행 · 스크린샷 (런타임 설치 후)
 ```sh
+# xcode-select가 CommandLineTools를 가리키면 DEVELOPER_DIR로 우회(sudo 불필요)
+export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+
 # 빌드
 xcodebuild -project Reffi.xcodeproj -scheme Reffi \
   -destination 'platform=iOS Simulator,name=iPhone 17' build
@@ -35,6 +38,13 @@ xcrun simctl launch booted com.reffi.app
 # 스크린샷
 xcrun simctl io booted screenshot reffi-home.png
 ```
+
+### QA 런치 인자 (DEBUG)
+`-glyphGallery` `-buttonGallery` 갤러리 · `-profileTab` `-fridgeTab` 탭 직행 ·
+`-showHistory` History 시트 · `-authView` 로그인 화면 · `-onboarding` 온보딩(+`-onboardingPage N`) ·
+`-resetOnboarding` 온보딩 초기화 · `-skipAuth` 게스트로 게이트 통과 · `-authGate` 게스트 해제 ·
+`-fridge.compact YES` 간편보기 · `-fridge.sort recent|freshest|expiry` 정렬
+(인증 콘솔 설정은 `docs/AUTH_SETUP.md`)
 
 ## 기술 스택
 - **SwiftUI / Swift 6.3** · 배포 타깃 **iOS 18+** · 데이터는 `@Observable` + 샘플(SwiftData는 다음 단계)

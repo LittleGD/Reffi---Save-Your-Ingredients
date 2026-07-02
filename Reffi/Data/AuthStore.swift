@@ -1,0 +1,190 @@
+import Foundation
+import Observation
+import Supabase
+import AuthenticationServices
+import CryptoKit
+
+/// 인증 상태 — Supabase Auth 세션의 단일 소스.
+/// 이메일 가입/로그인 + Apple(네이티브 ID 토큰) + Google(OAuth 브라우저) + 게스트(둘러보기).
+/// 세션은 supabase-swift가 Keychain에 영속화하고, `authStateChanges`로 복원·구독한다.
+@Observable
+@MainActor
+final class AuthStore {
+
+    /// Supabase 클라이언트 — publishable key는 클라이언트 임베드용 공개 키(RLS로 보호).
+    static let client = SupabaseClient(
+        supabaseURL: URL(string: "https://itianwvwbeixfarblqzy.supabase.co")!,
+        supabaseKey: "sb_publishable_G0kaRfSEKwS-qW4hAOscKA_x5DXA_bV"
+    )
+
+    /// OAuth 콜백 — Info.plist의 `reffi` URL 스킴과 일치해야 한다.
+    static let redirectURL = URL(string: "reffi://auth-callback")!
+
+    // MARK: - 상태
+
+    private(set) var session: Session?
+    /// 계정 없이 둘러보기 — 로컬 전용. 로그인하면 자동 해제.
+    private(set) var isGuest: Bool
+    /// 저장된 세션 복원 중(첫 프레임 스플래시 판단용).
+    private(set) var restoring = true
+    /// 네트워크 요청 진행 중(버튼 비활성).
+    private(set) var busy = false
+
+    var errorMessage: String?
+    /// 성공 안내(예: 가입 후 이메일 확인).
+    var notice: String?
+
+    /// 앱 진입 가능 여부 — 세션이 있거나 게스트.
+    var isSignedIn: Bool { session != nil || isGuest }
+    var userEmail: String? { session?.user.email }
+
+    init() {
+        var guest = UserDefaults.standard.bool(forKey: Key.guest)
+        #if DEBUG
+        // 스크린샷·QA용 — 인증 게이트 건너뛰기(-fridgeTab 선례).
+        if ProcessInfo.processInfo.arguments.contains("-skipAuth") { guest = true }
+        if ProcessInfo.processInfo.arguments.contains("-authGate") { guest = false }
+        #endif
+        isGuest = guest
+        Task { await listen() }
+    }
+
+    /// Keychain의 세션을 복원하고 이후 변경(로그인·로그아웃·갱신)을 구독.
+    private func listen() async {
+        for await (event, session) in Self.client.auth.authStateChanges {
+            self.session = session
+            if session != nil { setGuest(false) }
+            if event == .initialSession { restoring = false }
+        }
+    }
+
+    // MARK: - 이메일
+
+    /// 가입 — 프로젝트에 이메일 확인이 켜져 있으면 세션 없이 유저만 생성된다.
+    func signUp(email: String, password: String) async {
+        await run {
+            let res = try await Self.client.auth.signUp(email: email, password: password)
+            if res.session == nil {
+                self.notice = "확인 메일을 보냈어요. 메일함에서 인증 후 로그인해주세요."
+            }
+        }
+    }
+
+    func signIn(email: String, password: String) async {
+        await run { try await Self.client.auth.signIn(email: email, password: password) }
+    }
+
+    // MARK: - 소셜
+
+    /// Apple — 네이티브 시트의 ID 토큰을 Supabase로 교환. `nonce`는 요청에 넣은 원본(raw) 값.
+    func signInWithApple(_ result: Result<ASAuthorization, Error>, nonce: String) async {
+        await run {
+            switch result {
+            case .failure(let e):
+                if (e as? ASAuthorizationError)?.code == .canceled { return }
+                throw e
+            case .success(let auth):
+                guard let cred = auth.credential as? ASAuthorizationAppleIDCredential,
+                      let data = cred.identityToken,
+                      let idToken = String(data: data, encoding: .utf8) else {
+                    throw AuthLocalError.appleToken
+                }
+                try await Self.client.auth.signInWithIdToken(
+                    credentials: OpenIDConnectCredentials(provider: .apple, idToken: idToken, nonce: nonce)
+                )
+            }
+        }
+    }
+
+    /// Google — 시스템 브라우저(ASWebAuthenticationSession) OAuth. 완료 시 reffi:// 콜백으로 세션 수립.
+    func signInWithGoogle() async {
+        await run {
+            try await Self.client.auth.signInWithOAuth(provider: .google, redirectTo: Self.redirectURL)
+        }
+    }
+
+    /// OAuth 콜백 URL 처리(onOpenURL) — 외부 브라우저로 돌아온 경우의 안전망.
+    func handleOpenURL(_ url: URL) {
+        guard url.scheme == "reffi" else { return }
+        Task { try? await Self.client.auth.session(from: url) }
+    }
+
+    // MARK: - 게스트 · 로그아웃
+
+    func continueAsGuest() { setGuest(true) }
+
+    func signOut() async {
+        setGuest(false)
+        await run { try await Self.client.auth.signOut() }
+        session = nil
+    }
+
+    private func setGuest(_ v: Bool) {
+        guard isGuest != v else { return }
+        isGuest = v
+        UserDefaults.standard.set(v, forKey: Key.guest)
+    }
+
+    // MARK: - 공통 실행 래퍼
+
+    private func run(_ work: () async throws -> Void) async {
+        errorMessage = nil
+        notice = nil
+        busy = true
+        defer { busy = false }
+        do { try await work() }
+        catch { errorMessage = Self.friendly(error) }
+    }
+
+    /// 서버 에러 → 사용자 문구(과도한 기술 노출 방지).
+    private static func friendly(_ error: Error) -> String {
+        let raw = error.localizedDescription
+        let lower = raw.lowercased()
+        if lower.contains("invalid login credentials") { return "이메일 또는 비밀번호가 올바르지 않아요." }
+        if lower.contains("email not confirmed") { return "가입 확인 메일의 링크를 먼저 눌러주세요." }
+        if lower.contains("already registered") { return "이미 가입된 이메일이에요. 로그인해주세요." }
+        if lower.contains("at least 6 characters") || lower.contains("password should")
+            { return "비밀번호는 6자 이상이어야 해요." }
+        if lower.contains("invalid format") || lower.contains("validate email")
+            { return "이메일 주소 형식을 확인해주세요." }
+        if lower.contains("network") || lower.contains("offline") || lower.contains("internet")
+            { return "네트워크 연결을 확인해주세요." }
+        if lower.contains("provider is not enabled") { return "이 로그인 방식은 아직 준비 중이에요." }
+        if (error as? ASAuthorizationError) != nil { return "Apple 로그인을 완료하지 못했어요." }
+        return raw
+    }
+
+    enum AuthLocalError: LocalizedError {
+        case appleToken
+        var errorDescription: String? { "Apple 로그인을 완료하지 못했어요." }
+    }
+
+    private enum Key {
+        static let guest = "auth.guest"
+    }
+
+    // MARK: - Apple nonce 헬퍼 (replay 방지)
+
+    /// 요청용 랜덤 nonce — 원본은 Supabase에, SHA256은 Apple 요청에 넣는다.
+    static func randomNonce(length: Int = 32) -> String {
+        let charset = Array("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-._")
+        var result = ""
+        var remaining = length
+        while remaining > 0 {
+            var random: UInt8 = 0
+            let status = SecRandomCopyBytes(kSecRandomDefault, 1, &random)
+            guard status == errSecSuccess else { continue }
+            if random < charset.count {
+                result.append(charset[Int(random)])
+                remaining -= 1
+            }
+        }
+        return result
+    }
+
+    static func sha256(_ input: String) -> String {
+        SHA256.hash(data: Data(input.utf8))
+            .map { String(format: "%02x", $0) }
+            .joined()
+    }
+}

@@ -22,6 +22,13 @@ enum ReffiIcon {
     static var countdown: Ph { .clockCountdown }
     static var undo: Ph { .arrowCounterClockwise }
 
+    // 냉장고 툴바 · 리포트
+    static var sort: Ph { .arrowsDownUp }
+    static var compactView: Ph { .rows }
+    static var stackView: Ph { .cards }
+    static var report: Ph { .chartDonut }
+    static var check: Ph { .check }
+
     // 재료 추가 시트
     static var receipt: Ph { .receipt }
     static var camera: Ph { .camera }
