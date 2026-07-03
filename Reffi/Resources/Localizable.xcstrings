@@ -1,0 +1,2038 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "%@ — eaten": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ — 먹었어요"
+          }
+        }
+      }
+    },
+    "%@ — open Reffi and fire a ticket.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ — Reffi를 열고 티켓을 발주하세요."
+          }
+        }
+      }
+    },
+    "%@ — plan a dish before they turn.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ — 상하기 전에 요리를 계획해보세요."
+          }
+        }
+      }
+    },
+    "%@ — thaw and cook them today.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ — 오늘 해동해서 요리하세요."
+          }
+        }
+      }
+    },
+    "%@ — tossed": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ — 버렸어요"
+          }
+        }
+      }
+    },
+    "%lld at risk today — cook one?": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "오늘 %lld개가 위험해요 — 하나 구해볼까요?"
+          }
+        }
+      }
+    },
+    "%lld ate · %lld tossed": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "먹음 %1$lld · 버림 %2$lld"
+          }
+        }
+      }
+    },
+    "%lld handled": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld개 처리"
+          }
+        }
+      }
+    },
+    "%lld in stock": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "재고 %lld개"
+          }
+        }
+      }
+    },
+    "%lld ingredients to use soon": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "1 ingredient to use soon"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld ingredients to use soon"
+                }
+              }
+            }
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "임박 재료 %lld개"
+          }
+        }
+      }
+    },
+    "%lld items": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "1 item"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld items"
+                }
+              }
+            }
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld개"
+          }
+        }
+      }
+    },
+    "%lld min": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld분"
+          }
+        }
+      }
+    },
+    "%lld min · %lld to use": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld분 · 재료 %2$lld개"
+          }
+        }
+      }
+    },
+    "%lld recipes": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "1 recipe"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld recipes"
+                }
+              }
+            }
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "레시피 %lld개"
+          }
+        }
+      }
+    },
+    "%lld to eat soon — plan tonight?": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "곧 먹어야 할 %lld개 — 오늘 저녁에 쓸까요?"
+          }
+        }
+      }
+    },
+    "%lld used": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "재료 %lld개 사용"
+          }
+        }
+      }
+    },
+    "%lldd": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld일"
+          }
+        }
+      }
+    },
+    "Add": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "추가"
+          }
+        }
+      }
+    },
+    "Add %lld items": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Add 1 item"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Add %lld items"
+                }
+              }
+            }
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld개 추가"
+          }
+        }
+      }
+    },
+    "Add a few ingredients — Reffi tells you\nwhat to cook before they turn.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "재료 몇 개만 넣어보세요 — 상하기 전에\n뭘 요리할지 Reffi가 알려드려요."
+          }
+        }
+      }
+    },
+    "Add a whole grocery run at once": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "장보기 한 번을 통째로 추가해요"
+          }
+        }
+      }
+    },
+    "Add ingredient": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "재료 추가"
+          }
+        }
+      }
+    },
+    "Add ingredients": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "재료 추가"
+          }
+        }
+      }
+    },
+    "Add ingredients and they’ll stack up here.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "재료를 추가하면 여기에 쌓여요."
+          }
+        }
+      }
+    },
+    "Add recipe": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "레시피 추가"
+          }
+        }
+      }
+    },
+    "Add your own recipe": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "나만의 레시피 추가"
+          }
+        }
+      }
+    },
+    "Alert time": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "알림 시각"
+          }
+        }
+      }
+    },
+    "All fresh — get ahead of it.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "전부 신선해요 — 미리 하나 해치워요."
+          }
+        }
+      }
+    },
+    "All set": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "다 있어요"
+          }
+        }
+      }
+    },
+    "All stocked up": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "다 채워져 있어요"
+          }
+        }
+      }
+    },
+    "Allow notifications for Reffi in Settings to get expiry alerts.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "설정에서 Reffi 알림을 허용하면 임박 알림을 받을 수 있어요."
+          }
+        }
+      }
+    },
+    "Anything left over?": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "남은 재료가 있나요?"
+          }
+        }
+      }
+    },
+    "Ate": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "먹음"
+          }
+        }
+      }
+    },
+    "Ate %lld": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "먹음 %lld"
+          }
+        }
+      }
+    },
+    "Ate · all time": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "먹음 · 전체"
+          }
+        }
+      }
+    },
+    "Bakery": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "베이커리"
+          }
+        }
+      }
+    },
+    "Barcode or photo": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "바코드/사진 인식"
+          }
+        }
+      }
+    },
+    "Cancel": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "취소"
+          }
+        }
+      }
+    },
+    "Cancel cooking": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "조리 취소"
+          }
+        }
+      }
+    },
+    "Cancel cooking — put ingredients back": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "조리 취소 — 재료 되돌리기"
+          }
+        }
+      }
+    },
+    "Category": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "카테고리"
+          }
+        }
+      }
+    },
+    "Choose photos": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "사진에서 선택"
+          }
+        }
+      }
+    },
+    "Chop, stir-fry, season…": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "썰고, 볶고, 간하기…"
+          }
+        }
+      }
+    },
+    "Clears %lld before they spoil": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "상하기 전 %lld개 소진"
+          }
+        }
+      }
+    },
+    "Close": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "닫기"
+          }
+        }
+      }
+    },
+    "Coming soon": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "준비 중"
+          }
+        }
+      }
+    },
+    "Confirm & finish": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "확인하고 완료"
+          }
+        }
+      }
+    },
+    "Continue cooking %@": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 이어서 요리하기"
+          }
+        }
+      }
+    },
+    "Cook this": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이걸로 요리"
+          }
+        }
+      }
+    },
+    "Cooked · %@": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "요리함 · %@"
+          }
+        }
+      }
+    },
+    "Cooking now": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "요리 중"
+          }
+        }
+      }
+    },
+    "Dairy": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "유제품"
+          }
+        }
+      }
+    },
+    "Data": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "데이터"
+          }
+        }
+      }
+    },
+    "Decide: eaten or tossed?": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "판정하기: 먹었나요, 버렸나요?"
+          }
+        }
+      }
+    },
+    "Default quantity": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기본 수량"
+          }
+        }
+      }
+    },
+    "Defaults": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기본값"
+          }
+        }
+      }
+    },
+    "Delete": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "삭제"
+          }
+        }
+      }
+    },
+    "Delete ingredient": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "재료 삭제"
+          }
+        }
+      }
+    },
+    "Delete this ingredient?": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 재료를 삭제할까요?"
+          }
+        }
+      }
+    },
+    "Details": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "상세"
+          }
+        }
+      }
+    },
+    "Details (optional)": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "상세 (선택)"
+          }
+        }
+      }
+    },
+    "Did you eat it, or toss it?": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "먹었나요, 버렸나요?"
+          }
+        }
+      }
+    },
+    "Done": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "완료"
+          }
+        }
+      }
+    },
+    "Edit": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "편집"
+          }
+        }
+      }
+    },
+    "Edit %@": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 편집"
+          }
+        }
+      }
+    },
+    "Edit recipe": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "레시피 수정"
+          }
+        }
+      }
+    },
+    "Enter manually": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "직접 입력"
+          }
+        }
+      }
+    },
+    "Everything is read on this device — nothing is uploaded.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "모든 인식은 이 기기 안에서 — 어디에도 업로드되지 않아요."
+          }
+        }
+      }
+    },
+    "Expires": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "소비기한"
+          }
+        }
+      }
+    },
+    "Expiring tomorrow": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "내일 만료돼요"
+          }
+        }
+      }
+    },
+    "Expiry alerts": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "임박 알림"
+          }
+        }
+      }
+    },
+    "FROZEN": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "냉동"
+          }
+        }
+      }
+    },
+    "Fill the counter, then cook": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "작업대를 채우고 요리를 시작하세요"
+          }
+        }
+      }
+    },
+    "Finish cooking": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "요리 완료"
+          }
+        }
+      }
+    },
+    "Finished %@ · %lld logged": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ 완료 · %2$lld개 기록"
+          }
+        }
+      }
+    },
+    "Flick a ticket for the next — ranked by what spoils first": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "티켓을 튕기면 다음 주문 — 먼저 상할 순서예요"
+          }
+        }
+      }
+    },
+    "Freeze": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "얼리기"
+          }
+        }
+      }
+    },
+    "Freezer": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "냉동"
+          }
+        }
+      }
+    },
+    "Freezer time's up": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "냉동 유예 만료"
+          }
+        }
+      }
+    },
+    "Fridge": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "냉장고"
+          }
+        }
+      }
+    },
+    "Fruit": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "과일"
+          }
+        }
+      }
+    },
+    "History": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "히스토리"
+          }
+        }
+      }
+    },
+    "Home": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "홈"
+          }
+        }
+      }
+    },
+    "Ingredients (comma separated)": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "재료 (쉼표로 구분)"
+          }
+        }
+      }
+    },
+    "Ingredients and history will be deleted. This can't be undone.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "재료와 기록이 삭제돼요. 되돌릴 수 없어요."
+          }
+        }
+      }
+    },
+    "Item": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "재료"
+          }
+        }
+      }
+    },
+    "Keep a few ingredients on, then start cooking.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "재료를 몇 개 올려두고 요리를 시작하세요."
+          }
+        }
+      }
+    },
+    "Keep cooking": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "계속 조리하기"
+          }
+        }
+      }
+    },
+    "Keep it": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "그냥 둘게요"
+          }
+        }
+      }
+    },
+    "Keeps cooking in progress": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "요리는 계속 진행돼요"
+          }
+        }
+      }
+    },
+    "Know before food turns": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "상하기 전에 알려드려요"
+          }
+        }
+      }
+    },
+    "Later": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "나중에"
+          }
+        }
+      }
+    },
+    "Leftovers stay in the fridge at half the amount.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "남은 재료는 수량이 절반으로 줄어 냉장고에 남아요."
+          }
+        }
+      }
+    },
+    "Load the sample fridge": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "샘플 냉장고 불러오기"
+          }
+        }
+      }
+    },
+    "Load the sample fridge?": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "샘플 냉장고를 불러올까요?"
+          }
+        }
+      }
+    },
+    "Meat": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "고기"
+          }
+        }
+      }
+    },
+    "Morning reminder": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "아침 리마인더"
+          }
+        }
+      }
+    },
+    "Most tossed": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "자주 버림"
+          }
+        }
+      }
+    },
+    "My recipes": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "내 레시피"
+          }
+        }
+      }
+    },
+    "Name": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이름"
+          }
+        }
+      }
+    },
+    "Next ticket": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "다음 티켓"
+          }
+        }
+      }
+    },
+    "No recipes match these ingredients yet.\nCheck their names, or add your own recipe in Profile.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 재료로 만들 수 있는 레시피가 아직 없어요.\n재료 이름을 확인하거나 프로필에서 나만의 레시피를 추가해 보세요."
+          }
+        }
+      }
+    },
+    "No steps on this ticket — cook it your way.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 티켓엔 단계 메모가 없어요 — 자유롭게 요리하세요."
+          }
+        }
+      }
+    },
+    "No tickets yet": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "아직 티켓이 없어요"
+          }
+        }
+      }
+    },
+    "No waste yet — nicely done.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "아직 버린 게 없어요 — 잘하고 있어요."
+          }
+        }
+      }
+    },
+    "Nothing here yet": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "아직 비어 있어요"
+          }
+        }
+      }
+    },
+    "Nothing is logged — reserved ingredients return to the fridge.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기록 없이 예약된 재료가 냉장고로 돌아가요."
+          }
+        }
+      }
+    },
+    "Nothing recognized": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "인식된 항목이 없어요"
+          }
+        }
+      }
+    },
+    "Nothing to use yet": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "지금 쓸 재료가 없어요"
+          }
+        }
+      }
+    },
+    "Nothing you regularly use has run out.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "자주 쓰는 재료 중 떨어진 게 없어요."
+          }
+        }
+      }
+    },
+    "Notifications are off": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "알림이 꺼져 있어요"
+          }
+        }
+      }
+    },
+    "OK": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "확인"
+          }
+        }
+      }
+    },
+    "Onion, Egg, Rice…": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "양파, 계란, 밥…"
+          }
+        }
+      }
+    },
+    "Or try a sample fridge": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "또는 샘플 냉장고 둘러보기"
+          }
+        }
+      }
+    },
+    "Other": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기타"
+          }
+        }
+      }
+    },
+    "Overdue": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기한 지남"
+          }
+        }
+      }
+    },
+    "Pantry": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "팬트리"
+          }
+        }
+      }
+    },
+    "Past 30 days": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "최근 30일"
+          }
+        }
+      }
+    },
+    "Pre-filled when you add an ingredient": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "재료 추가 시 미리 채워져요"
+          }
+        }
+      }
+    },
+    "Profile": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "프로필"
+          }
+        }
+      }
+    },
+    "Protein": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "단백질"
+          }
+        }
+      }
+    },
+    "Purchased": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "구매일"
+          }
+        }
+      }
+    },
+    "Put ingredients back?": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "재료를 되돌릴까요?"
+          }
+        }
+      }
+    },
+    "Quantity": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "수량"
+          }
+        }
+      }
+    },
+    "Quantity — e.g. 300 g, 2 ea": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "수량 — 예: 300 g, 2개"
+          }
+        }
+      }
+    },
+    "Ran out — based on what you use often": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "자주 쓰는데 떨어진 것들이에요"
+          }
+        }
+      }
+    },
+    "Ranked by what spoils first": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "먼저 상할 순서대로"
+          }
+        }
+      }
+    },
+    "Reading receipt…": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "영수증을 읽는 중…"
+          }
+        }
+      }
+    },
+    "Recipe": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "레시피"
+          }
+        }
+      }
+    },
+    "Recipe name": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "레시피 이름"
+          }
+        }
+      }
+    },
+    "Recipes you add appear in the ticket deck alongside the built-in ones.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "추가한 레시피는 기본 레시피와 함께 티켓 덱에 나타나요."
+          }
+        }
+      }
+    },
+    "Removes it without history — stats and the shopping list won't count it.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기록 없이 삭제돼요 — 통계와 쇼핑리스트에 반영되지 않아요."
+          }
+        }
+      }
+    },
+    "Replace with sample data": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "샘플 데이터로 교체"
+          }
+        }
+      }
+    },
+    "Reset all data": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "모든 데이터 초기화"
+          }
+        }
+      }
+    },
+    "Reset all data?": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "모든 데이터를 초기화할까요?"
+          }
+        }
+      }
+    },
+    "Reset everything": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "전부 초기화"
+          }
+        }
+      }
+    },
+    "Restock %@": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 재입고"
+          }
+        }
+      }
+    },
+    "Room": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "실온"
+          }
+        }
+      }
+    },
+    "Save": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "저장"
+          }
+        }
+      }
+    },
+    "Save & add another": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "저장하고 계속 추가"
+          }
+        }
+      }
+    },
+    "Saved %lld": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld개 구출"
+          }
+        }
+      }
+    },
+    "Saved %lld · %@": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%2$@ · %1$lld개 구했어요"
+          }
+        }
+      }
+    },
+    "Saved %lld · %lld today": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld개 구출 · 오늘 %2$lld개"
+          }
+        }
+      }
+    },
+    "Saves %lld expiring today": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "오늘 만료 %lld개 구출"
+          }
+        }
+      }
+    },
+    "Scan a receipt": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "영수증 스캔"
+          }
+        }
+      }
+    },
+    "Scan with camera": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "카메라로 스캔"
+          }
+        }
+      }
+    },
+    "Seafood": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "해산물"
+          }
+        }
+      }
+    },
+    "Selected": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "선택됨"
+          }
+        }
+      }
+    },
+    "Short: %@": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "부족: %@"
+          }
+        }
+      }
+    },
+    "Skip": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "건너뛰기"
+          }
+        }
+      }
+    },
+    "Skip %@ this time": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 이번엔 안 사기"
+          }
+        }
+      }
+    },
+    "Snap the receipt — groceries land in your fridge.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "영수증을 찍으면 — 산 것들이 냉장고로 들어와요."
+          }
+        }
+      }
+    },
+    "Some left": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "조금 남음"
+          }
+        }
+      }
+    },
+    "Start cooking": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "요리 시작"
+          }
+        }
+      }
+    },
+    "Started": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "시작"
+          }
+        }
+      }
+    },
+    "Started %@ · %lld reserved": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 조리 시작 · %lld개 예약"
+          }
+        }
+      }
+    },
+    "Steps (one per line)": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "조리 단계 (한 줄에 하나)"
+          }
+        }
+      }
+    },
+    "Storage": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "보관"
+          }
+        }
+      }
+    },
+    "Tap one — did you eat it, or toss it?": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "하나를 탭하세요 — 먹었나요, 버렸나요?"
+          }
+        }
+      }
+    },
+    "Time": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "시간"
+          }
+        }
+      }
+    },
+    "Timeline": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "타임라인"
+          }
+        }
+      }
+    },
+    "To buy": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "살 것"
+          }
+        }
+      }
+    },
+    "Today": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "오늘"
+          }
+        }
+      }
+    },
+    "Today's tickets": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "오늘의 티켓"
+          }
+        }
+      }
+    },
+    "Toggles whether some is left over": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "남았는지 여부를 전환해요"
+          }
+        }
+      }
+    },
+    "Tomorrow: %@": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "내일: %@"
+          }
+        }
+      }
+    },
+    "Tossed": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "버림"
+          }
+        }
+      }
+    },
+    "Tossed %lld": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "버림 %lld"
+          }
+        }
+      }
+    },
+    "Tossed · all time": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "버림 · 전체"
+          }
+        }
+      }
+    },
+    "Try a clearer photo, or add items manually.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "더 선명한 사진으로 다시 시도하거나 직접 입력해 보세요."
+          }
+        }
+      }
+    },
+    "Try again": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "다시 시도"
+          }
+        }
+      }
+    },
+    "Turn on": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "켜기"
+          }
+        }
+      }
+    },
+    "Type the name and use-by date": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이름과 소비기한을 입력해요"
+          }
+        }
+      }
+    },
+    "Undo": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "되돌리기"
+          }
+        }
+      }
+    },
+    "Unit": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "단위"
+          }
+        }
+      }
+    },
+    "Use %lld today": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "오늘 %lld개를 쓰세요"
+          }
+        }
+      }
+    },
+    "Use by": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "소비기한"
+          }
+        }
+      }
+    },
+    "Use these while fresh": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "신선할 때 쓰세요"
+          }
+        }
+      }
+    },
+    "Use-by dates are filled from the ingredient dictionary — adjust anytime in Fridge.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "소비기한은 재료 사전 기본값으로 채워져요 — 냉장고에서 언제든 수정할 수 있어요."
+          }
+        }
+      }
+    },
+    "Used it all": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "다 썼어요"
+          }
+        }
+      }
+    },
+    "Veg": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "채소"
+          }
+        }
+      }
+    },
+    "Wasted": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "버림"
+          }
+        }
+      }
+    },
+    "Wasted · 30d": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "버림 · 30일"
+          }
+        }
+      }
+    },
+    "What expires today and tomorrow": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "오늘·내일 만료 재료를 알려드려요"
+          }
+        }
+      }
+    },
+    "What's in your fridge?": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "냉장고에 뭐가 있나요?"
+          }
+        }
+      }
+    },
+    "Where": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "구매처"
+          }
+        }
+      }
+    },
+    "Where you bought it": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "구매처"
+          }
+        }
+      }
+    },
+    "Your current ingredients and history will be replaced.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "현재 재료와 기록이 샘플로 대체돼요."
+          }
+        }
+      }
+    },
+    "Your no-waste record and settings": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "낭비 없는 기록과 설정"
+          }
+        }
+      }
+    },
+    "block": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "모"
+          }
+        }
+      }
+    },
+    "bottle": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "병"
+          }
+        }
+      }
+    },
+    "bunch": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "단"
+          }
+        }
+      }
+    },
+    "ea": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "개"
+          }
+        }
+      }
+    },
+    "once": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1회"
+          }
+        }
+      }
+    },
+    "pack": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "팩"
+          }
+        }
+      }
+    },
+    "slice": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "장"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

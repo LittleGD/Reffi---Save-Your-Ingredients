@@ -57,12 +57,19 @@ struct FridgeView: View {
         .sheet(isPresented: $showHistory) { HistoryView() }
         .sheet(isPresented: $showShopping) { ShoppingListView() }
         .sheet(item: $editing) { IngredientEditView(ingredient: $0) }
+        // 자정 경과 — 탭을 띄워둔 채 날이 바뀌어도 D-day 도장·정렬이 갱신되게(메인과 동일 패턴).
+        .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged)) { _ in
+            dayTick += 1
+        }
     }
+
+    @State private var dayTick = 0   // 자정 리렌더 트리거
 
     // MARK: 접힌 스택
     private var collapsed: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: ReffiSpace.s5) {
+                let _ = dayTick   // 자정 틱 의존 — 날이 바뀌면 이 서브트리를 재계산
                 header
                 historyCarousel
                 if items.isEmpty {
@@ -121,6 +128,8 @@ struct FridgeView: View {
                         s.fill(ReffiColor.oklch(0.99, 0.006, 90)).paperEdge(s)
                     }
                     .reffiShadow1()
+                    .frame(minWidth: 44, minHeight: 44)   // §7.3 — 시각은 40, 히트는 44
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.paperPress)
             .accessibilityLabel("Close")
@@ -178,11 +187,14 @@ struct FridgeView: View {
                 Text("\(items.count) in stock")
                     .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
                 if store.ateCount + store.tossedCount > 0 {
-                    Text("·").foregroundStyle(ReffiColor.muted)
+                    Text(verbatim: "·").foregroundStyle(ReffiColor.muted)
+                    // 한글 로케일 대응 — reffiNum(GSF)은 한글 미지원이라 혼합 문자열엔 Pretendard.
                     Text("Ate \(store.ateCount)")
-                        .font(.reffiNum(12, relativeTo: .caption2)).foregroundStyle(ReffiColor.freshDark)
+                        .font(.custom("Pretendard-Medium", size: 12, relativeTo: .caption2))
+                        .foregroundStyle(ReffiColor.freshDark)
                     Text("Tossed \(store.tossedCount)")
-                        .font(.reffiNum(12, relativeTo: .caption2)).foregroundStyle(ReffiColor.urgentDark)
+                        .font(.custom("Pretendard-Medium", size: 12, relativeTo: .caption2))
+                        .foregroundStyle(ReffiColor.urgentDark)
                 }
             }
         }
@@ -194,15 +206,15 @@ struct FridgeView: View {
         VStack(spacing: ReffiSpace.s3) {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: ReffiSpace.s3) {
-                    stampCard(id: 0, title: "To buy",
-                              value: store.toBuy.count == 0 ? "All set"
-                                  : "\(store.toBuy.count) item\(store.toBuy.count == 1 ? "" : "s")",
+                    stampCard(id: 0, title: String(localized: "To buy"),
+                              value: store.toBuy.count == 0 ? String(localized: "All set")
+                                  : String(localized: "\(store.toBuy.count) items"),
                               valueSize: 26, ink: ReffiColor.blueDark,
                               action: { showShopping = true })
-                    stampCard(id: 1, title: "Wasted · 30d",
+                    stampCard(id: 1, title: String(localized: "Wasted · 30d"),
                               value: "\(store.wasteRate)%", ink: ReffiColor.soonDark,
                               action: { showHistory = true })
-                    stampCard(id: 2, title: "Most tossed",
+                    stampCard(id: 2, title: String(localized: "Most tossed"),
                               value: mostTossed, valueSize: 24, ink: ReffiColor.freshDark,
                               action: { showHistory = true })
                 }
@@ -245,7 +257,9 @@ struct FridgeView: View {
                     ReffiIcon.chevron.reffi(11, .bold).foregroundStyle(ink.opacity(0.55))
                 }
                 Spacer(minLength: 0)
-                Text(value).font(.reffiNum(valueSize, relativeTo: .largeTitle))
+                // 값에 한글("다 있어요"·"3개")이 섞일 수 있어 Pretendard — 순수 숫자 전용인 GSF는 배제.
+                Text(verbatim: value)
+                    .font(.custom("Pretendard-Bold", size: valueSize, relativeTo: .largeTitle))
                     .foregroundStyle(ink).lineLimit(1).minimumScaleFactor(0.6)
             }
             .padding(.horizontal, ReffiSpace.s4)
@@ -329,11 +343,15 @@ struct FridgeCard: View {
         let paper = ReffiColor.oklch(0.985, 0.004, 90)   // 흰 영수증
 
         return VStack(alignment: .leading, spacing: ReffiSpace.s1) {
-            // 상단 행 — 카테고리(좌) / D-day 도장(우 상단 코너).
-            HStack(alignment: .top) {
-                Text(ingredient.category)
+            // 상단 행 — 카테고리(좌) / [FROZEN] + D-day 도장(우 상단 코너).
+            // 냉동은 스택을 쪼개지 않고(영수증 더미 메타포 유지) 도장 하나로 구분한다(§13).
+            HStack(alignment: .top, spacing: ReffiSpace.s2) {
+                Text(LocalizedStringKey(ingredient.category))   // 카테고리는 영문 캐논 저장 — 표시만 로컬라이즈
                     .reffiType(.caption).foregroundStyle(ReffiColor.ink2).lineLimit(1)
                 Spacer(minLength: ReffiSpace.s3)
+                if ingredient.isFrozen {
+                    DDayStamp(text: String(localized: "FROZEN"), color: ReffiColor.blueDark, size: 12)
+                }
                 DDayStamp(text: ingredient.dDayText, color: f.dark, size: 17)
             }
             HStack(spacing: ReffiSpace.s3) {
@@ -379,20 +397,24 @@ struct ExpandedFridgeCard: View {
                     .frame(width: 64, height: 64)
                 VStack(alignment: .leading, spacing: 2) {
                     HStack {
-                        Text(ingredient.category).reffiType(.caption).foregroundStyle(ReffiColor.ink2)
+                        Text(LocalizedStringKey(ingredient.category))
+                            .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
                         Spacer()
                         Button(action: onEdit) {
                             ReffiIcon.manual.reffi(16, .bold)
                                 .foregroundStyle(ReffiColor.ink2)
-                                .frame(width: 30, height: 30)
+                                .frame(minWidth: 44, minHeight: 44)   // §7.3 최소 터치 타깃
                                 .contentShape(Rectangle())
                         }
                         .buttonStyle(.paperPress)
                         .accessibilityLabel("Edit")
                     }
-                    HStack(alignment: .center) {
+                    HStack(alignment: .center, spacing: ReffiSpace.s2) {
                         Text(ingredient.name).reffiType(.heading).foregroundStyle(ReffiColor.ink)
                         Spacer()
+                        if ingredient.isFrozen {
+                            DDayStamp(text: String(localized: "FROZEN"), color: ReffiColor.blueDark, size: 11)
+                        }
                         DDayStamp(text: ingredient.dDayText, color: f.dark, size: 14)
                     }
                 }
@@ -405,9 +427,9 @@ struct ExpandedFridgeCard: View {
             VStack(spacing: 0) {
                 row("Purchased", ingredient.purchasedText)
                 row("Where", ingredient.placeText)
-                row("Quantity", ingredient.amount)
+                row("Quantity", ingredient.quantityText)
                 row("Expires", "\(ingredient.expiresText) · \(ingredient.dDayText)", valueColor: f.dark)
-                row("Storage", ingredient.storage)
+                row("Storage", ingredient.storage.label)
             }
             .padding(.horizontal, ReffiSpace.s5)
             .padding(.vertical, ReffiSpace.s2)
@@ -432,7 +454,7 @@ struct ExpandedFridgeCard: View {
         .shadow(color: ReffiColor.ink.opacity(0.06), radius: 5, x: 0, y: 2)
     }
 
-    private func row(_ label: String, _ value: String, valueColor: Color = ReffiColor.ink) -> some View {
+    private func row(_ label: LocalizedStringKey, _ value: String, valueColor: Color = ReffiColor.ink) -> some View {
         VStack(spacing: 0) {
             HStack(alignment: .firstTextBaseline) {
                 Text(label).reffiType(.caption).foregroundStyle(ReffiColor.ink2)

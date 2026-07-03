@@ -1,0 +1,23 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "NSCameraUsageDescription": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reffi uses the camera to scan grocery receipts so items are added automatically."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reffi가 장보기 영수증을 스캔해 재료를 자동으로 추가할 수 있도록 카메라를 사용해요."
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

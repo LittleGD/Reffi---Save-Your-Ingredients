@@ -1,0 +1,5617 @@
+{
+  "version": 1,
+  "recipes": [
+    {
+      "id": "kimchi-jjigae",
+      "name": {
+        "en": "Kimchi Stew",
+        "ko": "김치찌개"
+      },
+      "cuisine": "korean",
+      "minutes": 25,
+      "ingredients": [
+        {
+          "ref": "kimchi",
+          "en": "ripe kimchi",
+          "ko": "잘 익은 김치"
+        },
+        {
+          "ref": "pork",
+          "en": "pork (shoulder or belly)",
+          "ko": "돼지고기 (앞다리살 또는 삼겹살)"
+        },
+        {
+          "ref": "tofu",
+          "en": "tofu",
+          "ko": "두부"
+        },
+        {
+          "ref": "onion",
+          "en": "onion",
+          "ko": "양파"
+        },
+        {
+          "ref": "green-onion",
+          "en": "green onion",
+          "ko": "대파"
+        },
+        {
+          "ref": "garlic",
+          "en": "minced garlic",
+          "ko": "다진 마늘"
+        },
+        {
+          "ref": "gochugaru",
+          "en": "gochugaru",
+          "ko": "고춧가루"
+        },
+        {
+          "ref": "sugar",
+          "en": "sugar",
+          "ko": "설탕"
+        },
+        {
+          "ref": "cooking-oil",
+          "en": "cooking oil",
+          "ko": "식용유"
+        },
+        {
+          "ref": null,
+          "en": "water",
+          "ko": "물"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Cut the kimchi, pork, tofu, and onion into bite-size pieces.",
+          "Heat oil in a pot and stir-fry the pork and kimchi over medium heat until the pork is no longer pink.",
+          "Pour in water, add the garlic, gochugaru, and a pinch of sugar, and bring everything to a boil.",
+          "Lower the heat and simmer for about 10 minutes, then add the tofu and onion and cook 5 minutes more.",
+          "Scatter the green onion on top and serve hot with rice."
+        ],
+        "ko": [
+          "김치, 돼지고기, 두부, 양파를 먹기 좋은 크기로 썬다.",
+          "냄비에 기름을 두르고 돼지고기와 김치를 중불에서 고기 색이 변할 때까지 볶는다.",
+          "물을 붓고 마늘, 고춧가루, 설탕 한 꼬집을 넣어 끓어오르게 한다.",
+          "불을 줄여 10분 정도 끓인 뒤 두부와 양파를 넣고 5분 더 익힌다.",
+          "대파를 올려 밥과 함께 뜨겁게 낸다."
+        ]
+      }
+    },
+    {
+      "id": "doenjang-jjigae",
+      "name": {
+        "en": "Soybean Paste Stew",
+        "ko": "된장찌개"
+      },
+      "cuisine": "korean",
+      "minutes": 20,
+      "ingredients": [
+        {
+          "ref": "doenjang",
+          "en": "doenjang",
+          "ko": "된장"
+        },
+        {
+          "ref": "tofu",
+          "en": "tofu",
+          "ko": "두부"
+        },
+        {
+          "ref": "zucchini",
+          "en": "zucchini",
+          "ko": "애호박"
+        },
+        {
+          "ref": "potato",
+          "en": "potato",
+          "ko": "감자"
+        },
+        {
+          "ref": "onion",
+          "en": "onion",
+          "ko": "양파"
+        },
+        {
+          "ref": "mushroom",
+          "en": "mushrooms",
+          "ko": "버섯"
+        },
+        {
+          "ref": "chili-pepper",
+          "en": "green chili pepper",
+          "ko": "청양고추"
+        },
+        {
+          "ref": "green-onion",
+          "en": "green onion",
+          "ko": "대파"
+        },
+        {
+          "ref": "garlic",
+          "en": "minced garlic",
+          "ko": "다진 마늘"
+        },
+        {
+          "ref": null,
+          "en": "water (or anchovy stock)",
+          "ko": "물 (또는 멸치 육수)"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Dice the potato, zucchini, onion, tofu, and mushrooms into similar-size pieces.",
+          "Bring the water to a boil and whisk in the doenjang until it dissolves.",
+          "Add the potato first and cook for 5 minutes, since it takes the longest.",
+          "Add the zucchini, onion, mushrooms, and garlic and simmer until the vegetables soften.",
+          "Finish with the tofu, chili pepper, and green onion, and boil for 2 more minutes before serving."
+        ],
+        "ko": [
+          "감자, 애호박, 양파, 두부, 버섯을 비슷한 크기로 깍둑썰기한다.",
+          "물을 끓인 뒤 된장을 풀어 잘 녹인다.",
+          "가장 오래 걸리는 감자를 먼저 넣고 5분간 끓인다.",
+          "애호박, 양파, 버섯, 마늘을 넣고 채소가 부드러워질 때까지 끓인다.",
+          "마지막에 두부, 고추, 대파를 넣고 2분 더 끓여 낸다."
+        ]
+      }
+    },
+    {
+      "id": "beef-bulgogi",
+      "name": {
+        "en": "Beef Bulgogi",
+        "ko": "소불고기"
+      },
+      "cuisine": "korean",
+      "minutes": 30,
+      "ingredients": [
+        {
+          "ref": "beef",
+          "en": "beef (thinly sliced)",
+          "ko": "소고기 (얇게 썬 것)"
+        },
+        {
+          "ref": "onion",
+          "en": "onion",
+          "ko": "양파"
+        },
+        {
+          "ref": "green-onion",
+          "en": "green onion",
+          "ko": "대파"
+        },
+        {
+          "ref": "garlic",
+          "en": "minced garlic",
+          "ko": "다진 마늘"
+        },
+        {
+          "ref": "pear",
+          "en": "grated pear",
+          "ko": "간 배"
+        },
+        {
+          "ref": "soy-sauce",
+          "en": "soy sauce",
+          "ko": "간장"
+        },
+        {
+          "ref": "sugar",
+          "en": "sugar",
+          "ko": "설탕"
+        },
+        {
+          "ref": "sesame-oil",
+          "en": "sesame oil",
+          "ko": "참기름"
+        },
+        {
+          "ref": "black-pepper",
+          "en": "black pepper",
+          "ko": "후추"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Mix soy sauce, sugar, grated pear, garlic, sesame oil, and black pepper to make the marinade.",
+          "Coat the sliced beef in the marinade and let it rest for at least 15 minutes.",
+          "Slice the onion and cut the green onion into long pieces.",
+          "Stir-fry the beef and onion in a hot pan until the meat is cooked through and the sauce thickens slightly.",
+          "Add the green onion at the end, toss briefly, and serve over rice."
+        ],
+        "ko": [
+          "간장, 설탕, 간 배, 마늘, 참기름, 후추를 섞어 양념장을 만든다.",
+          "얇게 썬 소고기에 양념장을 버무려 최소 15분간 재운다.",
+          "양파는 채 썰고 대파는 길쭉하게 썬다.",
+          "달군 팬에 고기와 양파를 넣고 고기가 익고 양념이 살짝 졸아들 때까지 볶는다.",
+          "마지막에 대파를 넣고 가볍게 섞은 뒤 밥 위에 올려 낸다."
+        ]
+      }
+    },
+    {
+      "id": "jeyuk-bokkeum",
+      "name": {
+        "en": "Spicy Stir-Fried Pork",
+        "ko": "제육볶음"
+      },
+      "cuisine": "korean",
+      "minutes": 25,
+      "ingredients": [
+        {
+          "ref": "pork",
+          "en": "pork (thinly sliced)",
+          "ko": "돼지고기 (얇게 썬 것)"
+        },
+        {
+          "ref": "onion",
+          "en": "onion",
+          "ko": "양파"
+        },
+        {
+          "ref": "green-onion",
+          "en": "green onion",
+          "ko": "대파"
+        },
+        {
+          "ref": "garlic",
+          "en": "minced garlic",
+          "ko": "다진 마늘"
+        },
+        {
+          "ref": "ginger",
+          "en": "minced ginger",
+          "ko": "다진 생강"
+        },
+        {
+          "ref": "gochujang",
+          "en": "gochujang",
+          "ko": "고추장"
+        },
+        {
+          "ref": "gochugaru",
+          "en": "gochugaru",
+          "ko": "고춧가루"
+        },
+        {
+          "ref": "soy-sauce",
+          "en": "soy sauce",
+          "ko": "간장"
+        },
+        {
+          "ref": "sugar",
+          "en": "sugar",
+          "ko": "설탕"
+        },
+        {
+          "ref": "cooking-oil",
+          "en": "cooking oil",
+          "ko": "식용유"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Stir together gochujang, gochugaru, soy sauce, sugar, garlic, and ginger to make a spicy sauce.",
+          "Massage the sauce into the sliced pork and let it sit for 10 minutes.",
+          "Slice the onion and cut the green onion diagonally.",
+          "Heat oil in a wide pan and stir-fry the pork over high heat until nearly cooked.",
+          "Add the onion and green onion and keep stir-frying until the vegetables are tender and the sauce glazes the meat."
+        ],
+        "ko": [
+          "고추장, 고춧가루, 간장, 설탕, 마늘, 생강을 섞어 매콤한 양념장을 만든다.",
+          "얇게 썬 돼지고기에 양념장을 골고루 버무려 10분간 재운다.",
+          "양파는 채 썰고 대파는 어슷하게 썬다.",
+          "넓은 팬에 기름을 두르고 센 불에서 고기를 거의 익을 때까지 볶는다.",
+          "양파와 대파를 넣고 채소가 부드러워지고 양념이 고기에 배도록 볶아 마무리한다."
+        ]
+      }
+    },
+    {
+      "id": "gyeran-mari",
+      "name": {
+        "en": "Rolled Omelette",
+        "ko": "계란말이"
+      },
+      "cuisine": "korean",
+      "minutes": 15,
+      "ingredients": [
+        {
+          "ref": "egg",
+          "en": "eggs",
+          "ko": "계란"
+        },
+        {
+          "ref": "carrot",
+          "en": "carrot (finely diced)",
+          "ko": "당근 (잘게 다진 것)"
+        },
+        {
+          "ref": "green-onion",
+          "en": "green onion (finely chopped)",
+          "ko": "쪽파 또는 대파 (잘게 썬 것)"
+        },
+        {
+          "ref": "salt",
+          "en": "salt",
+          "ko": "소금"
+        },
+        {
+          "ref": "cooking-oil",
+          "en": "cooking oil",
+          "ko": "식용유"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Beat the eggs with salt, then stir in the diced carrot and green onion.",
+          "Lightly oil a nonstick pan and set it over medium-low heat.",
+          "Pour in a thin layer of the egg mixture and cook until the surface is just set.",
+          "Roll the egg toward one side, push it back, pour in more mixture, and repeat until it is all used.",
+          "Rest the roll briefly, then slice it into thick pieces and serve."
+        ],
+        "ko": [
+          "계란에 소금을 넣어 풀고 다진 당근과 파를 섞는다.",
+          "코팅 팬에 기름을 얇게 두르고 중약불로 달군다.",
+          "계란물을 얇게 부어 표면이 살짝 익을 때까지 기다린다.",
+          "계란을 한쪽으로 말고 다시 밀어낸 뒤 남은 계란물을 부어가며 반복해서 만다.",
+          "잠시 식힌 뒤 도톰하게 썰어 낸다."
+        ]
+      }
+    },
+    {
+      "id": "japchae",
+      "name": {
+        "en": "Glass Noodle Stir-Fry",
+        "ko": "잡채"
+      },
+      "cuisine": "korean",
+      "minutes": 40,
+      "ingredients": [
+        {
+          "ref": null,
+          "en": "sweet potato glass noodles (dangmyeon)",
+          "ko": "당면"
+        },
+        {
+          "ref": "beef",
+          "en": "beef (thin strips)",
+          "ko": "소고기 (채 썬 것)"
+        },
+        {
+          "ref": "spinach",
+          "en": "spinach",
+          "ko": "시금치"
+        },
+        {
+          "ref": "carrot",
+          "en": "carrot",
+          "ko": "당근"
+        },
+        {
+          "ref": "onion",
+          "en": "onion",
+          "ko": "양파"
+        },
+        {
+          "ref": "shiitake",
+          "en": "shiitake mushrooms",
+          "ko": "표고버섯"
+        },
+        {
+          "ref": "garlic",
+          "en": "minced garlic",
+          "ko": "다진 마늘"
+        },
+        {
+          "ref": "soy-sauce",
+          "en": "soy sauce",
+          "ko": "간장"
+        },
+        {
+          "ref": "sugar",
+          "en": "sugar",
+          "ko": "설탕"
+        },
+        {
+          "ref": "sesame-oil",
+          "en": "sesame oil",
+          "ko": "참기름"
+        },
+        {
+          "ref": "cooking-oil",
+          "en": "cooking oil",
+          "ko": "식용유"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Boil the glass noodles until chewy, drain them, and toss with a little soy sauce and sesame oil.",
+          "Blanch the spinach briefly, squeeze out the water, and season it lightly.",
+          "Stir-fry the carrot, onion, and shiitake separately with a pinch of salt until just tender.",
+          "Stir-fry the beef with garlic, soy sauce, and sugar until cooked through.",
+          "Combine the noodles, vegetables, and beef in a large bowl.",
+          "Season the whole bowl with soy sauce, sugar, and sesame oil, tossing until everything is evenly coated."
+        ],
+        "ko": [
+          "당면을 쫄깃하게 삶아 물기를 빼고 간장과 참기름을 약간 넣어 버무린다.",
+          "시금치는 살짝 데쳐 물기를 짜고 가볍게 간한다.",
+          "당근, 양파, 표고버섯은 소금을 약간 넣고 각각 살캉하게 볶는다.",
+          "소고기는 마늘, 간장, 설탕을 넣고 완전히 익도록 볶는다.",
+          "큰 볼에 당면, 채소, 고기를 모두 담는다.",
+          "간장, 설탕, 참기름으로 전체 간을 맞추며 골고루 버무려 완성한다."
+        ]
+      }
+    },
+    {
+      "id": "bibimbap",
+      "name": {
+        "en": "Bibimbap",
+        "ko": "비빔밥"
+      },
+      "cuisine": "korean",
+      "minutes": 35,
+      "ingredients": [
+        {
+          "ref": "rice",
+          "en": "cooked rice",
+          "ko": "밥"
+        },
+        {
+          "ref": "spinach",
+          "en": "spinach",
+          "ko": "시금치"
+        },
+        {
+          "ref": "bean-sprout",
+          "en": "bean sprouts",
+          "ko": "콩나물"
+        },
+        {
+          "ref": "carrot",
+          "en": "carrot",
+          "ko": "당근"
+        },
+        {
+          "ref": "zucchini",
+          "en": "zucchini",
+          "ko": "애호박"
+        },
+        {
+          "ref": "beef",
+          "en": "ground beef",
+          "ko": "다진 소고기"
+        },
+        {
+          "ref": "egg",
+          "en": "egg",
+          "ko": "계란"
+        },
+        {
+          "ref": "garlic",
+          "en": "minced garlic",
+          "ko": "다진 마늘"
+        },
+        {
+          "ref": "gochujang",
+          "en": "gochujang",
+          "ko": "고추장"
+        },
+        {
+          "ref": "sesame-oil",
+          "en": "sesame oil",
+          "ko": "참기름"
+        },
+        {
+          "ref": "cooking-oil",
+          "en": "cooking oil",
+          "ko": "식용유"
+        },
+        {
+          "ref": "salt",
+          "en": "salt",
+          "ko": "소금"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Blanch the spinach and bean sprouts separately, then season each with salt and a little sesame oil.",
+          "Cut the carrot and zucchini into thin strips and stir-fry each with a pinch of salt.",
+          "Cook the ground beef with garlic and a splash of soy-style seasoning until browned.",
+          "Fry the egg sunny-side up so the yolk stays soft.",
+          "Arrange the vegetables and beef over a bowl of warm rice and top with the egg.",
+          "Add gochujang and sesame oil, then mix everything together just before eating."
+        ],
+        "ko": [
+          "시금치와 콩나물을 각각 데친 뒤 소금과 참기름으로 간한다.",
+          "당근과 애호박은 채 썰어 소금을 약간 넣고 각각 볶는다.",
+          "다진 소고기는 마늘과 간장 양념을 넣고 갈색이 나도록 볶는다.",
+          "계란은 노른자가 부드럽게 남도록 반숙 프라이로 부친다.",
+          "따뜻한 밥 위에 채소와 고기를 돌려 담고 계란을 올린다.",
+          "고추장과 참기름을 넣고 먹기 직전에 골고루 비빈다."
+        ]
+      }
+    },
+    {
+      "id": "kimchi-fried-rice",
+      "name": {
+        "en": "Kimchi Fried Rice",
+        "ko": "김치볶음밥"
+      },
+      "cuisine": "korean",
+      "minutes": 15,
+      "ingredients": [
+        {
+          "ref": "rice",
+          "en": "cooked rice (day-old is best)",
+          "ko": "밥 (찬밥이 좋음)"
+        },
+        {
+          "ref": "kimchi",
+          "en": "ripe kimchi",
+          "ko": "잘 익은 김치"
+        },
+        {
+          "ref": "spam",
+          "en": "spam (diced)",
+          "ko": "스팸 (깍둑썬 것)"
+        },
+        {
+          "ref": "egg",
+          "en": "egg",
+          "ko": "계란"
+        },
+        {
+          "ref": "green-onion",
+          "en": "green onion",
+          "ko": "대파"
+        },
+        {
+          "ref": "cooking-oil",
+          "en": "cooking oil",
+          "ko": "식용유"
+        },
+        {
+          "ref": "sesame-oil",
+          "en": "sesame oil",
+          "ko": "참기름"
+        },
+        {
+          "ref": "seaweed",
+          "en": "crumbled roasted seaweed",
+          "ko": "부순 구운 김"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Chop the kimchi and dice the spam into small cubes.",
+          "Heat oil in a pan and fry the green onion until fragrant, then add the spam and kimchi.",
+          "Stir-fry until the kimchi softens, then add the rice and break up any clumps while mixing.",
+          "Drizzle sesame oil around the edge of the pan and toss once more.",
+          "Top with a fried egg and crumbled seaweed before serving."
+        ],
+        "ko": [
+          "김치는 잘게 썰고 스팸은 작게 깍둑썬다.",
+          "팬에 기름을 두르고 대파를 볶아 향을 낸 뒤 스팸과 김치를 넣는다.",
+          "김치가 부드러워지면 밥을 넣고 덩어리를 풀어가며 볶는다.",
+          "팬 가장자리에 참기름을 두르고 한 번 더 섞는다.",
+          "계란 프라이와 부순 김을 올려 낸다."
+        ]
+      }
+    },
+    {
+      "id": "kongnamul-guk",
+      "name": {
+        "en": "Bean Sprout Soup",
+        "ko": "콩나물국"
+      },
+      "cuisine": "korean",
+      "minutes": 20,
+      "ingredients": [
+        {
+          "ref": "bean-sprout",
+          "en": "bean sprouts",
+          "ko": "콩나물"
+        },
+        {
+          "ref": "anchovy",
+          "en": "dried anchovies (for stock)",
+          "ko": "국물용 멸치"
+        },
+        {
+          "ref": "garlic",
+          "en": "minced garlic",
+          "ko": "다진 마늘"
+        },
+        {
+          "ref": "green-onion",
+          "en": "green onion",
+          "ko": "대파"
+        },
+        {
+          "ref": "salt",
+          "en": "salt",
+          "ko": "소금"
+        },
+        {
+          "ref": "gochugaru",
+          "en": "gochugaru (optional)",
+          "ko": "고춧가루 (선택)"
+        },
+        {
+          "ref": null,
+          "en": "water",
+          "ko": "물"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Simmer the dried anchovies in water for 10 minutes, then remove them to make a light stock.",
+          "Rinse the bean sprouts and add them to the boiling stock with the garlic.",
+          "Keep the lid either fully on or fully off while cooking to avoid a raw bean smell.",
+          "Boil for 5 to 6 minutes until the sprouts are tender but still crisp.",
+          "Season with salt, add the green onion and a pinch of gochugaru if you like, and serve."
+        ],
+        "ko": [
+          "물에 멸치를 넣고 10분간 끓인 뒤 건져내어 담백한 육수를 만든다.",
+          "콩나물을 씻어 마늘과 함께 끓는 육수에 넣는다.",
+          "비린내가 나지 않도록 뚜껑은 처음부터 끝까지 열거나 닫은 채로 끓인다.",
+          "콩나물이 아삭하게 익도록 5~6분간 끓인다.",
+          "소금으로 간하고 대파와 취향껏 고춧가루를 넣어 낸다."
+        ]
+      }
+    },
+    {
+      "id": "miyeok-guk",
+      "name": {
+        "en": "Seaweed Soup",
+        "ko": "미역국"
+      },
+      "cuisine": "korean",
+      "minutes": 30,
+      "ingredients": [
+        {
+          "ref": "dried-seaweed",
+          "en": "dried seaweed (miyeok)",
+          "ko": "건미역"
+        },
+        {
+          "ref": "beef",
+          "en": "beef (brisket or stew cut)",
+          "ko": "소고기 (양지 또는 국거리)"
+        },
+        {
+          "ref": "garlic",
+          "en": "minced garlic",
+          "ko": "다진 마늘"
+        },
+        {
+          "ref": "soy-sauce",
+          "en": "soy sauce (soup soy sauce if available)",
+          "ko": "간장 (가능하면 국간장)"
+        },
+        {
+          "ref": "sesame-oil",
+          "en": "sesame oil",
+          "ko": "참기름"
+        },
+        {
+          "ref": "salt",
+          "en": "salt",
+          "ko": "소금"
+        },
+        {
+          "ref": null,
+          "en": "water",
+          "ko": "물"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Soak the dried seaweed in water until it expands, then rinse and cut it into short lengths.",
+          "In a pot, saute the beef in sesame oil until the outside changes color.",
+          "Add the seaweed and garlic and stir-fry for another 2 minutes.",
+          "Pour in water and simmer over medium-low heat for at least 20 minutes so the broth turns milky and rich.",
+          "Season with soy sauce and salt to taste before serving."
+        ],
+        "ko": [
+          "건미역을 물에 불린 뒤 헹궈서 짧게 자른다.",
+          "냄비에 참기름을 두르고 소고기 겉면 색이 변할 때까지 볶는다.",
+          "미역과 마늘을 넣고 2분 더 볶는다.",
+          "물을 붓고 국물이 뽀얗고 진해지도록 중약불에서 20분 이상 끓인다.",
+          "간장과 소금으로 간을 맞춰 낸다."
+        ]
+      }
+    },
+    {
+      "id": "galbi-jjim",
+      "name": {
+        "en": "Braised Beef Short Ribs",
+        "ko": "갈비찜"
+      },
+      "cuisine": "korean",
+      "minutes": 90,
+      "ingredients": [
+        {
+          "ref": "beef",
+          "en": "beef short ribs",
+          "ko": "소갈비"
+        },
+        {
+          "ref": "radish",
+          "en": "Korean radish",
+          "ko": "무"
+        },
+        {
+          "ref": "carrot",
+          "en": "carrot",
+          "ko": "당근"
+        },
+        {
+          "ref": "onion",
+          "en": "onion",
+          "ko": "양파"
+        },
+        {
+          "ref": "garlic",
+          "en": "minced garlic",
+          "ko": "다진 마늘"
+        },
+        {
+          "ref": "pear",
+          "en": "grated pear",
+          "ko": "간 배"
+        },
+        {
+          "ref": "soy-sauce",
+          "en": "soy sauce",
+          "ko": "간장"
+        },
+        {
+          "ref": "sugar",
+          "en": "sugar",
+          "ko": "설탕"
+        },
+        {
+          "ref": "sesame-oil",
+          "en": "sesame oil",
+          "ko": "참기름"
+        },
+        {
+          "ref": "black-pepper",
+          "en": "black pepper",
+          "ko": "후추"
+        },
+        {
+          "ref": null,
+          "en": "water",
+          "ko": "물"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Soak the ribs in cold water for 30 minutes to draw out the blood, changing the water once.",
+          "Blanch the ribs in boiling water for 5 minutes, then rinse them clean.",
+          "Mix soy sauce, sugar, grated pear, garlic, sesame oil, and black pepper with water to make a braising sauce.",
+          "Combine the ribs and sauce in a heavy pot and simmer covered for 40 minutes.",
+          "Add large chunks of radish, carrot, and onion and braise until the meat is fork-tender.",
+          "Reduce the sauce uncovered at the end until it lightly coats the ribs, then serve."
+        ],
+        "ko": [
+          "갈비를 찬물에 30분간 담가 핏물을 빼고 중간에 물을 한 번 갈아준다.",
+          "끓는 물에 갈비를 5분간 데친 뒤 깨끗이 헹군다.",
+          "간장, 설탕, 간 배, 마늘, 참기름, 후추를 물과 섞어 조림장을 만든다.",
+          "두꺼운 냄비에 갈비와 조림장을 넣고 뚜껑을 덮어 40분간 끓인다.",
+          "무, 당근, 양파를 큼직하게 썰어 넣고 고기가 부드러워질 때까지 졸인다.",
+          "마지막에 뚜껑을 열고 양념이 갈비에 살짝 배도록 졸여 낸다."
+        ]
+      }
+    },
+    {
+      "id": "dak-bokkeum-tang",
+      "name": {
+        "en": "Spicy Braised Chicken",
+        "ko": "닭볶음탕"
+      },
+      "cuisine": "korean",
+      "minutes": 45,
+      "ingredients": [
+        {
+          "ref": "chicken",
+          "en": "chicken (cut into pieces)",
+          "ko": "닭 (토막 낸 것)"
+        },
+        {
+          "ref": "potato",
+          "en": "potato",
+          "ko": "감자"
+        },
+        {
+          "ref": "carrot",
+          "en": "carrot",
+          "ko": "당근"
+        },
+        {
+          "ref": "onion",
+          "en": "onion",
+          "ko": "양파"
+        },
+        {
+          "ref": "green-onion",
+          "en": "green onion",
+          "ko": "대파"
+        },
+        {
+          "ref": "garlic",
+          "en": "minced garlic",
+          "ko": "다진 마늘"
+        },
+        {
+          "ref": "gochujang",
+          "en": "gochujang",
+          "ko": "고추장"
+        },
+        {
+          "ref": "gochugaru",
+          "en": "gochugaru",
+          "ko": "고춧가루"
+        },
+        {
+          "ref": "soy-sauce",
+          "en": "soy sauce",
+          "ko": "간장"
+        },
+        {
+          "ref": "sugar",
+          "en": "sugar",
+          "ko": "설탕"
+        },
+        {
+          "ref": null,
+          "en": "water",
+          "ko": "물"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Rinse the chicken pieces and blanch them briefly in boiling water to remove impurities.",
+          "Whisk gochujang, gochugaru, soy sauce, sugar, and garlic into water to make the braising liquid.",
+          "Put the chicken and sauce in a pot and simmer covered for 15 minutes.",
+          "Add large chunks of potato, carrot, and onion and cook until the potato is tender.",
+          "Add the green onion, reduce the sauce until it thickens, and serve with rice."
+        ],
+        "ko": [
+          "닭을 씻어 끓는 물에 살짝 데쳐 불순물을 제거한다.",
+          "고추장, 고춧가루, 간장, 설탕, 마늘을 물에 풀어 양념 국물을 만든다.",
+          "냄비에 닭과 양념 국물을 넣고 뚜껑을 덮어 15분간 끓인다.",
+          "감자, 당근, 양파를 큼직하게 썰어 넣고 감자가 익을 때까지 끓인다.",
+          "대파를 넣고 국물이 걸쭉해지도록 졸여 밥과 함께 낸다."
+        ]
+      }
+    },
+    {
+      "id": "tteokbokki",
+      "name": {
+        "en": "Spicy Rice Cakes",
+        "ko": "떡볶이"
+      },
+      "cuisine": "korean",
+      "minutes": 20,
+      "ingredients": [
+        {
+          "ref": "rice-cake",
+          "en": "cylindrical rice cakes",
+          "ko": "떡볶이 떡"
+        },
+        {
+          "ref": "fish-cake",
+          "en": "fish cakes",
+          "ko": "어묵"
+        },
+        {
+          "ref": "green-onion",
+          "en": "green onion",
+          "ko": "대파"
+        },
+        {
+          "ref": "egg",
+          "en": "boiled eggs (optional)",
+          "ko": "삶은 계란 (선택)"
+        },
+        {
+          "ref": "gochujang",
+          "en": "gochujang",
+          "ko": "고추장"
+        },
+        {
+          "ref": "gochugaru",
+          "en": "gochugaru",
+          "ko": "고춧가루"
+        },
+        {
+          "ref": "sugar",
+          "en": "sugar",
+          "ko": "설탕"
+        },
+        {
+          "ref": "soy-sauce",
+          "en": "soy sauce",
+          "ko": "간장"
+        },
+        {
+          "ref": null,
+          "en": "water (or anchovy stock)",
+          "ko": "물 (또는 멸치 육수)"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Soak the rice cakes in water if they are hard, and cut the fish cakes into triangles.",
+          "Bring the water to a boil and stir in gochujang, gochugaru, sugar, and soy sauce.",
+          "Add the rice cakes and simmer, stirring so they do not stick to the bottom.",
+          "When the sauce starts to thicken, add the fish cakes and boiled eggs.",
+          "Finish with green onion once the rice cakes are soft and glossy."
+        ],
+        "ko": [
+          "떡이 딱딱하면 물에 불리고 어묵은 삼각형으로 썬다.",
+          "물을 끓이고 고추장, 고춧가루, 설탕, 간장을 풀어 넣는다.",
+          "떡을 넣고 바닥에 눌어붙지 않게 저어가며 끓인다.",
+          "국물이 걸쭉해지기 시작하면 어묵과 삶은 계란을 넣는다.",
+          "떡이 말랑하고 윤기가 나면 대파를 넣어 마무리한다."
+        ]
+      }
+    },
+    {
+      "id": "kimchi-jeon",
+      "name": {
+        "en": "Kimchi Pancake",
+        "ko": "김치전"
+      },
+      "cuisine": "korean",
+      "minutes": 20,
+      "ingredients": [
+        {
+          "ref": "kimchi",
+          "en": "ripe kimchi (chopped)",
+          "ko": "잘 익은 김치 (다진 것)"
+        },
+        {
+          "ref": "flour",
+          "en": "flour",
+          "ko": "밀가루"
+        },
+        {
+          "ref": "green-onion",
+          "en": "green onion",
+          "ko": "대파"
+        },
+        {
+          "ref": "sugar",
+          "en": "sugar",
+          "ko": "설탕"
+        },
+        {
+          "ref": "cooking-oil",
+          "en": "cooking oil",
+          "ko": "식용유"
+        },
+        {
+          "ref": null,
+          "en": "cold water",
+          "ko": "차가운 물"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Chop the kimchi finely and mix it with flour, cold water, chopped green onion, and a pinch of sugar into a pourable batter.",
+          "Heat a generous amount of oil in a wide pan over medium-high heat.",
+          "Ladle in the batter and spread it into a thin, even circle.",
+          "Fry until the bottom is golden and crisp, then flip and press gently.",
+          "Cook the second side until crisp and serve cut into wedges."
+        ],
+        "ko": [
+          "김치를 잘게 썰어 밀가루, 차가운 물, 썬 대파, 설탕 한 꼬집과 섞어 흐르는 농도의 반죽을 만든다.",
+          "넓은 팬에 기름을 넉넉히 두르고 중강불로 달군다.",
+          "반죽을 붓고 얇고 고르게 원형으로 편다.",
+          "바닥이 노릇하고 바삭해지면 뒤집어 가볍게 눌러준다.",
+          "반대쪽도 바삭하게 익힌 뒤 먹기 좋게 잘라 낸다."
+        ]
+      }
+    },
+    {
+      "id": "oi-muchim",
+      "name": {
+        "en": "Spicy Cucumber Salad",
+        "ko": "오이무침"
+      },
+      "cuisine": "korean",
+      "minutes": 10,
+      "ingredients": [
+        {
+          "ref": "cucumber",
+          "en": "cucumber",
+          "ko": "오이"
+        },
+        {
+          "ref": "green-onion",
+          "en": "green onion",
+          "ko": "쪽파 또는 대파"
+        },
+        {
+          "ref": "garlic",
+          "en": "minced garlic",
+          "ko": "다진 마늘"
+        },
+        {
+          "ref": "gochugaru",
+          "en": "gochugaru",
+          "ko": "고춧가루"
+        },
+        {
+          "ref": "vinegar",
+          "en": "vinegar",
+          "ko": "식초"
+        },
+        {
+          "ref": "sugar",
+          "en": "sugar",
+          "ko": "설탕"
+        },
+        {
+          "ref": "salt",
+          "en": "salt",
+          "ko": "소금"
+        },
+        {
+          "ref": "sesame-oil",
+          "en": "sesame oil",
+          "ko": "참기름"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Slice the cucumber thinly and toss it with salt for 5 minutes, then drain the released water.",
+          "Mix gochugaru, vinegar, sugar, and garlic into a tangy dressing.",
+          "Toss the cucumber with the dressing and chopped green onion.",
+          "Finish with a drizzle of sesame oil and serve chilled."
+        ],
+        "ko": [
+          "오이를 얇게 썰어 소금에 5분간 절인 뒤 생긴 물기를 따라 버린다.",
+          "고춧가루, 식초, 설탕, 마늘을 섞어 새콤한 양념을 만든다.",
+          "오이에 양념과 썬 파를 넣고 버무린다.",
+          "참기름을 둘러 마무리하고 차갑게 낸다."
+        ]
+      }
+    },
+    {
+      "id": "sigeumchi-namul",
+      "name": {
+        "en": "Seasoned Spinach",
+        "ko": "시금치나물"
+      },
+      "cuisine": "korean",
+      "minutes": 10,
+      "ingredients": [
+        {
+          "ref": "spinach",
+          "en": "spinach",
+          "ko": "시금치"
+        },
+        {
+          "ref": "garlic",
+          "en": "minced garlic",
+          "ko": "다진 마늘"
+        },
+        {
+          "ref": "green-onion",
+          "en": "green onion (finely chopped)",
+          "ko": "다진 파"
+        },
+        {
+          "ref": "soy-sauce",
+          "en": "soy sauce",
+          "ko": "간장"
+        },
+        {
+          "ref": "sesame-oil",
+          "en": "sesame oil",
+          "ko": "참기름"
+        },
+        {
+          "ref": "salt",
+          "en": "salt",
+          "ko": "소금"
+        },
+        {
+          "ref": null,
+          "en": "toasted sesame seeds",
+          "ko": "볶은 통깨"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Blanch the spinach in salted boiling water for about 30 seconds.",
+          "Rinse it immediately in cold water and squeeze out as much moisture as you can.",
+          "Loosen the spinach and add garlic, green onion, soy sauce, and sesame oil.",
+          "Toss gently by hand, adjust the salt, and finish with sesame seeds."
+        ],
+        "ko": [
+          "소금을 넣은 끓는 물에 시금치를 30초 정도 데친다.",
+          "바로 찬물에 헹구고 물기를 최대한 꼭 짠다.",
+          "시금치를 풀어 마늘, 다진 파, 간장, 참기름을 넣는다.",
+          "손으로 조물조물 무치고 소금으로 간을 맞춘 뒤 통깨를 뿌려 마무리한다."
+        ]
+      }
+    },
+    {
+      "id": "gamja-jorim",
+      "name": {
+        "en": "Soy-Braised Potatoes",
+        "ko": "감자조림"
+      },
+      "cuisine": "korean",
+      "minutes": 25,
+      "ingredients": [
+        {
+          "ref": "potato",
+          "en": "potatoes",
+          "ko": "감자"
+        },
+        {
+          "ref": "garlic",
+          "en": "minced garlic",
+          "ko": "다진 마늘"
+        },
+        {
+          "ref": "soy-sauce",
+          "en": "soy sauce",
+          "ko": "간장"
+        },
+        {
+          "ref": "sugar",
+          "en": "sugar",
+          "ko": "설탕"
+        },
+        {
+          "ref": "honey",
+          "en": "honey (or corn syrup)",
+          "ko": "꿀 (또는 올리고당)"
+        },
+        {
+          "ref": "cooking-oil",
+          "en": "cooking oil",
+          "ko": "식용유"
+        },
+        {
+          "ref": null,
+          "en": "water",
+          "ko": "물"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Cut the potatoes into bite-size cubes and rinse off the surface starch.",
+          "Saute the potatoes in oil for 3 minutes so the edges turn slightly translucent.",
+          "Add water, soy sauce, sugar, and garlic and simmer over medium heat.",
+          "When the potatoes are nearly tender, stir in the honey and reduce the sauce.",
+          "Braise until the liquid is almost gone and the potatoes are glossy, then serve."
+        ],
+        "ko": [
+          "감자를 한입 크기로 깍둑썰어 표면의 전분을 씻어낸다.",
+          "기름에 감자를 3분간 볶아 가장자리가 살짝 투명해지게 한다.",
+          "물, 간장, 설탕, 마늘을 넣고 중불에서 조린다.",
+          "감자가 거의 익으면 꿀을 넣고 국물을 졸인다.",
+          "국물이 거의 없어지고 감자에 윤기가 돌면 완성이다."
+        ]
+      }
+    },
+    {
+      "id": "eomuk-bokkeum",
+      "name": {
+        "en": "Stir-Fried Fish Cakes",
+        "ko": "어묵볶음"
+      },
+      "cuisine": "korean",
+      "minutes": 15,
+      "ingredients": [
+        {
+          "ref": "fish-cake",
+          "en": "fish cakes",
+          "ko": "어묵"
+        },
+        {
+          "ref": "onion",
+          "en": "onion",
+          "ko": "양파"
+        },
+        {
+          "ref": "carrot",
+          "en": "carrot",
+          "ko": "당근"
+        },
+        {
+          "ref": "green-onion",
+          "en": "green onion",
+          "ko": "대파"
+        },
+        {
+          "ref": "garlic",
+          "en": "minced garlic",
+          "ko": "다진 마늘"
+        },
+        {
+          "ref": "soy-sauce",
+          "en": "soy sauce",
+          "ko": "간장"
+        },
+        {
+          "ref": "sugar",
+          "en": "sugar",
+          "ko": "설탕"
+        },
+        {
+          "ref": "cooking-oil",
+          "en": "cooking oil",
+          "ko": "식용유"
+        },
+        {
+          "ref": "sesame-oil",
+          "en": "sesame oil",
+          "ko": "참기름"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Cut the fish cakes into strips and slice the onion, carrot, and green onion.",
+          "Heat oil in a pan and stir-fry the garlic, onion, and carrot until fragrant.",
+          "Add the fish cakes with soy sauce and sugar and stir-fry over medium-high heat.",
+          "When everything is glossy, add the green onion and a drizzle of sesame oil.",
+          "Toss once more and serve as a side dish."
+        ],
+        "ko": [
+          "어묵은 길게 썰고 양파, 당근, 대파도 채 썬다.",
+          "팬에 기름을 두르고 마늘, 양파, 당근을 향이 나게 볶는다.",
+          "어묵과 간장, 설탕을 넣고 중강불에서 볶는다.",
+          "전체에 윤기가 돌면 대파와 참기름을 넣는다.",
+          "한 번 더 섞어 밑반찬으로 낸다."
+        ]
+      }
+    },
+    {
+      "id": "sundubu-jjigae",
+      "name": {
+        "en": "Soft Tofu Stew",
+        "ko": "순두부찌개"
+      },
+      "cuisine": "korean",
+      "minutes": 25,
+      "ingredients": [
+        {
+          "ref": "tofu",
+          "en": "silken (soft) tofu",
+          "ko": "순두부"
+        },
+        {
+          "ref": "pork",
+          "en": "ground pork",
+          "ko": "다진 돼지고기"
+        },
+        {
+          "ref": "egg",
+          "en": "egg",
+          "ko": "계란"
+        },
+        {
+          "ref": "onion",
+          "en": "onion",
+          "ko": "양파"
+        },
+        {
+          "ref": "green-onion",
+          "en": "green onion",
+          "ko": "대파"
+        },
+        {
+          "ref": "garlic",
+          "en": "minced garlic",
+          "ko": "다진 마늘"
+        },
+        {
+          "ref": "gochugaru",
+          "en": "gochugaru",
+          "ko": "고춧가루"
+        },
+        {
+          "ref": "soy-sauce",
+          "en": "soy sauce",
+          "ko": "간장"
+        },
+        {
+          "ref": "cooking-oil",
+          "en": "cooking oil",
+          "ko": "식용유"
+        },
+        {
+          "ref": "salt",
+          "en": "salt",
+          "ko": "소금"
+        },
+        {
+          "ref": null,
+          "en": "water",
+          "ko": "물"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Heat oil in a small pot and slowly fry the gochugaru and garlic over low heat to make chili oil.",
+          "Add the ground pork and diced onion and stir-fry until the pork is cooked.",
+          "Pour in water, season with soy sauce and salt, and bring to a boil.",
+          "Slide in the silken tofu in large spoonfuls and simmer for 5 minutes.",
+          "Crack an egg into the bubbling stew, top with green onion, and serve immediately."
+        ],
+        "ko": [
+          "작은 냄비에 기름을 두르고 약불에서 고춧가루와 마늘을 천천히 볶아 고추기름을 낸다.",
+          "다진 돼지고기와 양파를 넣고 고기가 익을 때까지 볶는다.",
+          "물을 붓고 간장과 소금으로 간해 끓인다.",
+          "순두부를 큼직하게 떠 넣고 5분간 끓인다.",
+          "보글보글 끓는 찌개에 계란을 깨 넣고 대파를 올려 바로 낸다."
+        ]
+      }
+    },
+    {
+      "id": "gimbap",
+      "name": {
+        "en": "Gimbap (Seaweed Rice Rolls)",
+        "ko": "김밥"
+      },
+      "cuisine": "korean",
+      "minutes": 40,
+      "ingredients": [
+        {
+          "ref": "rice",
+          "en": "cooked rice",
+          "ko": "밥"
+        },
+        {
+          "ref": "seaweed",
+          "en": "gim (seaweed sheets)",
+          "ko": "김밥용 김"
+        },
+        {
+          "ref": "egg",
+          "en": "eggs",
+          "ko": "계란"
+        },
+        {
+          "ref": "carrot",
+          "en": "carrot",
+          "ko": "당근"
+        },
+        {
+          "ref": "spinach",
+          "en": "spinach",
+          "ko": "시금치"
+        },
+        {
+          "ref": "ham",
+          "en": "ham",
+          "ko": "햄"
+        },
+        {
+          "ref": null,
+          "en": "pickled radish (danmuji)",
+          "ko": "단무지"
+        },
+        {
+          "ref": "sesame-oil",
+          "en": "sesame oil",
+          "ko": "참기름"
+        },
+        {
+          "ref": "salt",
+          "en": "salt",
+          "ko": "소금"
+        },
+        {
+          "ref": "cooking-oil",
+          "en": "cooking oil",
+          "ko": "식용유"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Season the warm rice with sesame oil and salt and let it cool slightly.",
+          "Fry the eggs into a thick sheet and cut it into long strips, then stir-fry the carrot and ham strips.",
+          "Blanch and season the spinach, and drain the pickled radish.",
+          "Lay a seaweed sheet on a mat and spread rice thinly, leaving a border at the top.",
+          "Line up the fillings in the center and roll firmly from the bottom, sealing the edge with a little water.",
+          "Brush the roll with sesame oil and slice it into bite-size pieces."
+        ],
+        "ko": [
+          "따뜻한 밥에 참기름과 소금으로 간해 살짝 식힌다.",
+          "계란을 도톰하게 부쳐 길게 자르고, 당근과 햄도 채 썰어 볶는다.",
+          "시금치는 데쳐서 무치고 단무지는 물기를 뺀다.",
+          "김발 위에 김을 놓고 위쪽에 여백을 남기며 밥을 얇게 편다.",
+          "가운데에 속재료를 가지런히 올리고 아래부터 단단히 말아 끝을 물로 붙인다.",
+          "김밥 겉에 참기름을 바르고 한입 크기로 썬다."
+        ]
+      }
+    },
+    {
+      "id": "samgyeopsal-gui",
+      "name": {
+        "en": "Grilled Pork Belly with Lettuce Wraps",
+        "ko": "삼겹살구이와 쌈"
+      },
+      "cuisine": "korean",
+      "minutes": 25,
+      "ingredients": [
+        {
+          "ref": "pork-belly",
+          "en": "pork belly (thick slices)",
+          "ko": "삼겹살 (두툼하게 썬 것)"
+        },
+        {
+          "ref": "lettuce",
+          "en": "lettuce leaves",
+          "ko": "상추"
+        },
+        {
+          "ref": "perilla-leaf",
+          "en": "perilla leaves",
+          "ko": "깻잎"
+        },
+        {
+          "ref": "garlic",
+          "en": "garlic cloves (sliced)",
+          "ko": "마늘 (편 썬 것)"
+        },
+        {
+          "ref": "green-onion",
+          "en": "green onion (shredded)",
+          "ko": "파채"
+        },
+        {
+          "ref": "doenjang",
+          "en": "doenjang",
+          "ko": "된장"
+        },
+        {
+          "ref": "gochujang",
+          "en": "gochujang",
+          "ko": "고추장"
+        },
+        {
+          "ref": "sesame-oil",
+          "en": "sesame oil",
+          "ko": "참기름"
+        },
+        {
+          "ref": "salt",
+          "en": "salt",
+          "ko": "소금"
+        },
+        {
+          "ref": "black-pepper",
+          "en": "black pepper",
+          "ko": "후추"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Mix doenjang, gochujang, and sesame oil to make a quick ssamjang dipping sauce.",
+          "Wash the lettuce and perilla leaves and drain them well.",
+          "Grill the pork belly in a dry pan over medium-high heat until both sides are deeply browned.",
+          "Grill the garlic slices in the rendered fat and cut the pork into bite-size pieces.",
+          "Wrap the pork in a lettuce and perilla leaf with ssamjang, garlic, and green onion, and eat in one bite."
+        ],
+        "ko": [
+          "된장, 고추장, 참기름을 섞어 간단한 쌈장을 만든다.",
+          "상추와 깻잎을 씻어 물기를 잘 뺀다.",
+          "마른 팬을 중강불로 달궈 삼겹살 양면을 노릇하게 굽는다.",
+          "고기 기름에 마늘 편을 굽고 삼겹살은 한입 크기로 자른다.",
+          "상추와 깻잎에 고기, 쌈장, 마늘, 파채를 올려 한입에 싸 먹는다."
+        ]
+      }
+    },
+    {
+      "id": "dak-juk",
+      "name": {
+        "en": "Chicken Rice Porridge",
+        "ko": "닭죽"
+      },
+      "cuisine": "korean",
+      "minutes": 50,
+      "ingredients": [
+        {
+          "ref": "chicken",
+          "en": "chicken (whole leg or half bird)",
+          "ko": "닭 (다리 또는 반 마리)"
+        },
+        {
+          "ref": "rice",
+          "en": "rice (soaked)",
+          "ko": "쌀 (불린 것)"
+        },
+        {
+          "ref": "garlic",
+          "en": "garlic cloves",
+          "ko": "통마늘"
+        },
+        {
+          "ref": "carrot",
+          "en": "carrot (finely diced)",
+          "ko": "당근 (잘게 썬 것)"
+        },
+        {
+          "ref": "green-onion",
+          "en": "green onion",
+          "ko": "대파"
+        },
+        {
+          "ref": "sesame-oil",
+          "en": "sesame oil",
+          "ko": "참기름"
+        },
+        {
+          "ref": "salt",
+          "en": "salt",
+          "ko": "소금"
+        },
+        {
+          "ref": "black-pepper",
+          "en": "black pepper",
+          "ko": "후추"
+        },
+        {
+          "ref": null,
+          "en": "water",
+          "ko": "물"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Simmer the chicken with garlic and the white part of the green onion in water for 25 minutes.",
+          "Take out the chicken, shred the meat, and strain the broth.",
+          "Add the soaked rice and diced carrot to the broth and cook over low heat, stirring often.",
+          "When the rice blooms into a thick porridge, return the shredded chicken to the pot.",
+          "Season with salt and pepper and finish with sesame oil and chopped green onion."
+        ],
+        "ko": [
+          "물에 닭, 통마늘, 대파 흰 부분을 넣고 25분간 끓인다.",
+          "닭을 건져 살을 발라내고 국물은 체에 거른다.",
+          "국물에 불린 쌀과 당근을 넣고 약불에서 자주 저어가며 끓인다.",
+          "쌀이 퍼져 걸쭉한 죽이 되면 발라낸 닭살을 다시 넣는다.",
+          "소금과 후추로 간하고 참기름과 송송 썬 파로 마무리한다."
+        ]
+      }
+    },
+    {
+      "id": "gyudon",
+      "name": {
+        "en": "Beef Rice Bowl (Gyudon)",
+        "ko": "규동"
+      },
+      "cuisine": "japanese",
+      "minutes": 20,
+      "ingredients": [
+        {
+          "ref": "beef",
+          "en": "beef (very thinly sliced)",
+          "ko": "소고기 (아주 얇게 썬 것)"
+        },
+        {
+          "ref": "onion",
+          "en": "onion",
+          "ko": "양파"
+        },
+        {
+          "ref": "rice",
+          "en": "cooked rice",
+          "ko": "밥"
+        },
+        {
+          "ref": "green-onion",
+          "en": "green onion",
+          "ko": "쪽파 또는 대파"
+        },
+        {
+          "ref": "soy-sauce",
+          "en": "soy sauce",
+          "ko": "간장"
+        },
+        {
+          "ref": "sugar",
+          "en": "sugar",
+          "ko": "설탕"
+        },
+        {
+          "ref": null,
+          "en": "mirin",
+          "ko": "미림"
+        },
+        {
+          "ref": null,
+          "en": "water (or dashi)",
+          "ko": "물 (또는 가쓰오 육수)"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Slice the onion thinly along the grain.",
+          "Simmer water, soy sauce, mirin, and sugar in a shallow pan until it comes to a gentle boil.",
+          "Add the onion and cook until translucent.",
+          "Spread the beef slices in the broth and simmer just until the color changes, skimming any foam.",
+          "Ladle the beef, onion, and broth over hot rice and top with green onion."
+        ],
+        "ko": [
+          "양파를 결대로 얇게 썬다.",
+          "얕은 팬에 물, 간장, 미림, 설탕을 넣고 살짝 끓인다.",
+          "양파를 넣고 투명해질 때까지 익힌다.",
+          "소고기를 펼쳐 넣고 색이 변할 정도로만 끓이며 거품을 걷어낸다.",
+          "뜨거운 밥 위에 고기, 양파, 국물을 얹고 파를 올려 낸다."
+        ]
+      }
+    },
+    {
+      "id": "oyakodon",
+      "name": {
+        "en": "Chicken and Egg Rice Bowl",
+        "ko": "오야코동"
+      },
+      "cuisine": "japanese",
+      "minutes": 20,
+      "ingredients": [
+        {
+          "ref": "chicken",
+          "en": "chicken thigh (bite-size)",
+          "ko": "닭다리살 (한입 크기)"
+        },
+        {
+          "ref": "egg",
+          "en": "eggs",
+          "ko": "계란"
+        },
+        {
+          "ref": "onion",
+          "en": "onion",
+          "ko": "양파"
+        },
+        {
+          "ref": "rice",
+          "en": "cooked rice",
+          "ko": "밥"
+        },
+        {
+          "ref": "green-onion",
+          "en": "green onion",
+          "ko": "쪽파"
+        },
+        {
+          "ref": "soy-sauce",
+          "en": "soy sauce",
+          "ko": "간장"
+        },
+        {
+          "ref": "sugar",
+          "en": "sugar",
+          "ko": "설탕"
+        },
+        {
+          "ref": null,
+          "en": "mirin",
+          "ko": "미림"
+        },
+        {
+          "ref": null,
+          "en": "water (or dashi)",
+          "ko": "물 (또는 가쓰오 육수)"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Simmer water, soy sauce, mirin, and sugar in a small pan.",
+          "Add the sliced onion and chicken and cook until the chicken is done.",
+          "Beat the eggs loosely so streaks of white remain.",
+          "Pour the eggs over the chicken in two batches, covering the pan after each pour.",
+          "When the egg is softly set, slide everything over a bowl of hot rice and top with green onion."
+        ],
+        "ko": [
+          "작은 팬에 물, 간장, 미림, 설탕을 넣고 끓인다.",
+          "채 썬 양파와 닭고기를 넣고 닭이 익을 때까지 끓인다.",
+          "계란은 흰자 결이 살짝 남을 정도로만 푼다.",
+          "계란물을 두 번에 나눠 붓고 그때마다 뚜껑을 덮는다.",
+          "계란이 반숙으로 몽글하게 익으면 뜨거운 밥 위에 미끄러뜨려 얹고 쪽파를 올린다."
+        ]
+      }
+    },
+    {
+      "id": "miso-soup",
+      "name": {
+        "en": "Miso Soup",
+        "ko": "미소시루"
+      },
+      "cuisine": "japanese",
+      "minutes": 10,
+      "ingredients": [
+        {
+          "ref": null,
+          "en": "miso paste",
+          "ko": "미소 된장"
+        },
+        {
+          "ref": "tofu",
+          "en": "tofu (small cubes)",
+          "ko": "두부 (작게 썬 것)"
+        },
+        {
+          "ref": "dried-seaweed",
+          "en": "dried wakame seaweed",
+          "ko": "건조 미역"
+        },
+        {
+          "ref": "green-onion",
+          "en": "green onion",
+          "ko": "쪽파"
+        },
+        {
+          "ref": null,
+          "en": "dashi stock (or water)",
+          "ko": "가쓰오 육수 (또는 물)"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Soak a small handful of dried wakame in water until it softens.",
+          "Bring the dashi to a gentle simmer and add the tofu cubes.",
+          "Turn the heat to low and dissolve the miso paste through a strainer or ladle.",
+          "Add the wakame and warm through without letting the soup boil hard.",
+          "Serve topped with thinly sliced green onion."
+        ],
+        "ko": [
+          "건미역 한 줌을 물에 불려 부드럽게 만든다.",
+          "육수를 약하게 끓이고 두부를 넣는다.",
+          "불을 줄이고 미소 된장을 체나 국자에 대고 풀어 넣는다.",
+          "미역을 넣고 국이 세게 끓지 않도록 데운다.",
+          "얇게 썬 쪽파를 올려 낸다."
+        ]
+      }
+    },
+    {
+      "id": "yakisoba",
+      "name": {
+        "en": "Yakisoba (Stir-Fried Noodles)",
+        "ko": "야키소바"
+      },
+      "cuisine": "japanese",
+      "minutes": 20,
+      "ingredients": [
+        {
+          "ref": "ramen-noodle",
+          "en": "steamed wheat noodles (yakisoba)",
+          "ko": "야키소바용 찐 중화면"
+        },
+        {
+          "ref": "pork",
+          "en": "pork (thin strips)",
+          "ko": "돼지고기 (얇게 썬 것)"
+        },
+        {
+          "ref": "cabbage",
+          "en": "cabbage",
+          "ko": "양배추"
+        },
+        {
+          "ref": "carrot",
+          "en": "carrot",
+          "ko": "당근"
+        },
+        {
+          "ref": "onion",
+          "en": "onion",
+          "ko": "양파"
+        },
+        {
+          "ref": "cooking-oil",
+          "en": "cooking oil",
+          "ko": "식용유"
+        },
+        {
+          "ref": null,
+          "en": "Worcestershire sauce",
+          "ko": "우스터소스"
+        },
+        {
+          "ref": "ketchup",
+          "en": "ketchup",
+          "ko": "케첩"
+        },
+        {
+          "ref": "soy-sauce",
+          "en": "soy sauce",
+          "ko": "간장"
+        },
+        {
+          "ref": "sugar",
+          "en": "sugar",
+          "ko": "설탕"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Mix Worcestershire sauce, ketchup, soy sauce, and sugar into a quick yakisoba sauce.",
+          "Stir-fry the pork in oil over high heat until browned.",
+          "Add the cabbage, carrot, and onion and cook until they begin to soften.",
+          "Loosen the noodles with a splash of water and add them to the pan.",
+          "Pour the sauce over everything and toss until the noodles are evenly coated and lightly charred."
+        ],
+        "ko": [
+          "우스터소스, 케첩, 간장, 설탕을 섞어 간단한 야키소바 소스를 만든다.",
+          "센 불에 기름을 두르고 돼지고기를 노릇하게 볶는다.",
+          "양배추, 당근, 양파를 넣고 숨이 죽기 시작할 때까지 볶는다.",
+          "면에 물을 약간 뿌려 풀어준 뒤 팬에 넣는다.",
+          "소스를 붓고 면에 골고루 배고 불맛이 살짝 나도록 볶아 낸다."
+        ]
+      }
+    },
+    {
+      "id": "japanese-curry-rice",
+      "name": {
+        "en": "Japanese Curry Rice",
+        "ko": "카레라이스"
+      },
+      "cuisine": "japanese",
+      "minutes": 40,
+      "ingredients": [
+        {
+          "ref": "curry-powder",
+          "en": "curry powder",
+          "ko": "카레 가루"
+        },
+        {
+          "ref": "potato",
+          "en": "potato",
+          "ko": "감자"
+        },
+        {
+          "ref": "carrot",
+          "en": "carrot",
+          "ko": "당근"
+        },
+        {
+          "ref": "onion",
+          "en": "onion",
+          "ko": "양파"
+        },
+        {
+          "ref": "pork",
+          "en": "pork (or beef)",
+          "ko": "돼지고기 (또는 소고기)"
+        },
+        {
+          "ref": "rice",
+          "en": "cooked rice",
+          "ko": "밥"
+        },
+        {
+          "ref": "flour",
+          "en": "flour",
+          "ko": "밀가루"
+        },
+        {
+          "ref": "butter",
+          "en": "butter",
+          "ko": "버터"
+        },
+        {
+          "ref": "cooking-oil",
+          "en": "cooking oil",
+          "ko": "식용유"
+        },
+        {
+          "ref": "salt",
+          "en": "salt",
+          "ko": "소금"
+        },
+        {
+          "ref": null,
+          "en": "water",
+          "ko": "물"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Cut the potato, carrot, onion, and meat into chunky bite-size pieces.",
+          "Brown the meat in oil, then add the vegetables and stir-fry for 3 minutes.",
+          "Pour in water and simmer until the potato and carrot are tender.",
+          "In a separate small pan, melt the butter, stir in the flour and curry powder, and cook into a fragrant roux.",
+          "Whisk the roux into the pot and simmer until the curry thickens.",
+          "Season with salt and serve the curry alongside hot rice."
+        ],
+        "ko": [
+          "감자, 당근, 양파, 고기를 큼직한 한입 크기로 썬다.",
+          "기름에 고기를 먼저 굽고 채소를 넣어 3분간 볶는다.",
+          "물을 붓고 감자와 당근이 익을 때까지 끓인다.",
+          "다른 작은 팬에 버터를 녹여 밀가루와 카레 가루를 넣고 고소하게 볶아 루를 만든다.",
+          "루를 냄비에 풀어 넣고 카레가 걸쭉해질 때까지 끓인다.",
+          "소금으로 간을 맞추고 뜨거운 밥과 함께 낸다."
+        ]
+      }
+    },
+    {
+      "id": "chawanmushi",
+      "name": {
+        "en": "Japanese Steamed Egg Custard",
+        "ko": "일본식 계란찜 (자완무시)"
+      },
+      "cuisine": "japanese",
+      "minutes": 25,
+      "ingredients": [
+        {
+          "ref": "egg",
+          "en": "eggs",
+          "ko": "계란"
+        },
+        {
+          "ref": "shrimp",
+          "en": "shrimp",
+          "ko": "새우"
+        },
+        {
+          "ref": "shiitake",
+          "en": "shiitake mushroom (thin slices)",
+          "ko": "표고버섯 (얇게 썬 것)"
+        },
+        {
+          "ref": "green-onion",
+          "en": "green onion",
+          "ko": "쪽파"
+        },
+        {
+          "ref": "soy-sauce",
+          "en": "soy sauce",
+          "ko": "간장"
+        },
+        {
+          "ref": "salt",
+          "en": "salt",
+          "ko": "소금"
+        },
+        {
+          "ref": null,
+          "en": "dashi stock (or water)",
+          "ko": "가쓰오 육수 (또는 물)"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Beat the eggs gently with cooled dashi, soy sauce, and salt, avoiding bubbles.",
+          "Strain the mixture for a silky texture and pour it into heatproof cups.",
+          "Add a shrimp and a few mushroom slices to each cup.",
+          "Cover the cups and steam them over low heat for about 15 minutes until just set.",
+          "Garnish with green onion and serve warm with a spoon."
+        ],
+        "ko": [
+          "식힌 육수, 간장, 소금을 계란에 넣고 거품이 나지 않게 살살 푼다.",
+          "체에 걸러 부드러운 질감을 만들고 내열 컵에 붓는다.",
+          "컵마다 새우와 표고버섯 몇 조각을 넣는다.",
+          "뚜껑을 덮고 약불에서 15분 정도, 겨우 굳을 만큼만 찐다.",
+          "쪽파를 올려 숟가락과 함께 따뜻하게 낸다."
+        ]
+      }
+    },
+    {
+      "id": "grilled-salmon-teishoku",
+      "name": {
+        "en": "Grilled Salmon Set Meal",
+        "ko": "연어구이 정식"
+      },
+      "cuisine": "japanese",
+      "minutes": 25,
+      "ingredients": [
+        {
+          "ref": "salmon",
+          "en": "salmon fillet",
+          "ko": "연어 필렛"
+        },
+        {
+          "ref": "salt",
+          "en": "salt",
+          "ko": "소금"
+        },
+        {
+          "ref": "black-pepper",
+          "en": "black pepper",
+          "ko": "후추"
+        },
+        {
+          "ref": "cooking-oil",
+          "en": "cooking oil",
+          "ko": "식용유"
+        },
+        {
+          "ref": "rice",
+          "en": "cooked rice",
+          "ko": "밥"
+        },
+        {
+          "ref": "lemon",
+          "en": "lemon wedge",
+          "ko": "레몬 조각"
+        },
+        {
+          "ref": "radish",
+          "en": "grated radish (daikon)",
+          "ko": "간 무"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Pat the salmon dry and season both sides with salt and pepper.",
+          "Let it sit for 10 minutes, then wipe off the surface moisture again.",
+          "Heat a lightly oiled pan and cook the salmon skin-side down until the skin crisps.",
+          "Flip once and cook until the flesh flakes easily.",
+          "Plate with hot rice, grated radish, and a lemon wedge to squeeze over the fish."
+        ],
+        "ko": [
+          "연어의 물기를 닦고 양면에 소금과 후추를 뿌린다.",
+          "10분간 두었다가 표면에 배어 나온 수분을 다시 닦는다.",
+          "기름을 얇게 두른 팬에 껍질 면부터 바삭해질 때까지 굽는다.",
+          "한 번만 뒤집어 살이 포슬하게 익을 때까지 굽는다.",
+          "뜨거운 밥, 간 무, 레몬 조각과 함께 접시에 담아 낸다."
+        ]
+      }
+    },
+    {
+      "id": "egg-fried-rice",
+      "name": {
+        "en": "Egg Fried Rice",
+        "ko": "계란볶음밥"
+      },
+      "cuisine": "chinese",
+      "minutes": 15,
+      "ingredients": [
+        {
+          "ref": "rice",
+          "en": "cooked rice (day-old is best)",
+          "ko": "밥 (찬밥이 좋음)"
+        },
+        {
+          "ref": "egg",
+          "en": "eggs",
+          "ko": "계란"
+        },
+        {
+          "ref": "green-onion",
+          "en": "green onion",
+          "ko": "대파"
+        },
+        {
+          "ref": "ham",
+          "en": "ham (diced, optional)",
+          "ko": "햄 (깍둑썬 것, 선택)"
+        },
+        {
+          "ref": "cooking-oil",
+          "en": "cooking oil",
+          "ko": "식용유"
+        },
+        {
+          "ref": "soy-sauce",
+          "en": "soy sauce",
+          "ko": "간장"
+        },
+        {
+          "ref": "salt",
+          "en": "salt",
+          "ko": "소금"
+        },
+        {
+          "ref": "black-pepper",
+          "en": "black pepper",
+          "ko": "후추"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Beat the eggs and chop the green onion, keeping the white and green parts separate.",
+          "Heat oil in a wok and fry the white part of the green onion until fragrant.",
+          "Pour in the eggs and scramble them softly, then add the rice before they fully set.",
+          "Toss over high heat, pressing out clumps, and add the ham if using.",
+          "Season with soy sauce along the rim of the wok, salt, and pepper, then finish with the green onion tops."
+        ],
+        "ko": [
+          "계란을 풀고 대파는 흰 부분과 초록 부분을 나눠 썬다.",
+          "웍에 기름을 두르고 대파 흰 부분을 향이 나게 볶는다.",
+          "계란물을 부어 부드럽게 스크램블하고 완전히 익기 전에 밥을 넣는다.",
+          "센 불에서 덩어리를 풀어가며 볶고 햄이 있으면 함께 넣는다.",
+          "웍 가장자리에 간장을 둘러 향을 내고 소금, 후추로 간한 뒤 파 초록 부분으로 마무리한다."
+        ]
+      }
+    },
+    {
+      "id": "mapo-tofu",
+      "name": {
+        "en": "Mapo Tofu",
+        "ko": "마파두부"
+      },
+      "cuisine": "chinese",
+      "minutes": 25,
+      "ingredients": [
+        {
+          "ref": "tofu",
+          "en": "tofu (firm, cubed)",
+          "ko": "두부 (단단한 것, 깍둑썬 것)"
+        },
+        {
+          "ref": "pork",
+          "en": "ground pork",
+          "ko": "다진 돼지고기"
+        },
+        {
+          "ref": "garlic",
+          "en": "minced garlic",
+          "ko": "다진 마늘"
+        },
+        {
+          "ref": "ginger",
+          "en": "minced ginger",
+          "ko": "다진 생강"
+        },
+        {
+          "ref": "green-onion",
+          "en": "green onion",
+          "ko": "대파"
+        },
+        {
+          "ref": null,
+          "en": "chili bean paste (doubanjiang)",
+          "ko": "두반장"
+        },
+        {
+          "ref": "soy-sauce",
+          "en": "soy sauce",
+          "ko": "간장"
+        },
+        {
+          "ref": "sugar",
+          "en": "sugar",
+          "ko": "설탕"
+        },
+        {
+          "ref": null,
+          "en": "potato starch (for slurry)",
+          "ko": "감자 전분 (물전분용)"
+        },
+        {
+          "ref": "cooking-oil",
+          "en": "cooking oil",
+          "ko": "식용유"
+        },
+        {
+          "ref": null,
+          "en": "water",
+          "ko": "물"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Blanch the tofu cubes in lightly salted water so they hold their shape.",
+          "Fry the ground pork in oil until crumbly, then add garlic, ginger, and chili bean paste.",
+          "When the oil turns red and fragrant, add water, soy sauce, and sugar.",
+          "Slide in the tofu and simmer gently for 3 to 4 minutes.",
+          "Thicken with a starch slurry and scatter chopped green onion on top.",
+          "Serve bubbling hot over rice."
+        ],
+        "ko": [
+          "두부가 부서지지 않도록 소금물에 살짝 데친다.",
+          "기름에 다진 돼지고기를 고슬하게 볶고 마늘, 생강, 두반장을 넣는다.",
+          "기름이 붉게 배어 향이 오르면 물, 간장, 설탕을 넣는다.",
+          "두부를 넣고 3~4분간 약하게 끓인다.",
+          "물전분으로 농도를 잡고 썬 대파를 올린다.",
+          "보글보글 끓는 채로 밥 위에 얹어 낸다."
+        ]
+      }
+    },
+    {
+      "id": "bok-choy-stir-fry",
+      "name": {
+        "en": "Garlic Bok Choy Stir-Fry",
+        "ko": "청경채 마늘볶음"
+      },
+      "cuisine": "chinese",
+      "minutes": 10,
+      "ingredients": [
+        {
+          "ref": "bok-choy",
+          "en": "bok choy",
+          "ko": "청경채"
+        },
+        {
+          "ref": "garlic",
+          "en": "garlic (sliced)",
+          "ko": "마늘 (편 썬 것)"
+        },
+        {
+          "ref": "cooking-oil",
+          "en": "cooking oil",
+          "ko": "식용유"
+        },
+        {
+          "ref": null,
+          "en": "oyster sauce",
+          "ko": "굴소스"
+        },
+        {
+          "ref": "sugar",
+          "en": "sugar",
+          "ko": "설탕"
+        },
+        {
+          "ref": "salt",
+          "en": "salt",
+          "ko": "소금"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Halve the bok choy lengthwise and rinse between the leaves.",
+          "Heat oil in a wok and fry the garlic slices until golden and fragrant.",
+          "Add the bok choy and stir-fry over high heat for about 2 minutes.",
+          "Season with oyster sauce, a pinch of sugar, and salt, tossing quickly so the stems stay crisp."
+        ],
+        "ko": [
+          "청경채를 세로로 반 갈라 잎 사이까지 씻는다.",
+          "웍에 기름을 두르고 마늘 편을 노릇하고 향이 나게 볶는다.",
+          "청경채를 넣고 센 불에서 2분 정도 볶는다.",
+          "굴소스, 설탕 한 꼬집, 소금으로 간하고 줄기가 아삭하도록 재빨리 섞어 낸다."
+        ]
+      }
+    },
+    {
+      "id": "kkanpung-chicken",
+      "name": {
+        "en": "Sweet and Spicy Crispy Chicken (Kkanpunggi Style)",
+        "ko": "깐풍기풍 닭요리"
+      },
+      "cuisine": "chinese",
+      "minutes": 35,
+      "ingredients": [
+        {
+          "ref": "chicken",
+          "en": "chicken (bite-size pieces)",
+          "ko": "닭고기 (한입 크기)"
+        },
+        {
+          "ref": "garlic",
+          "en": "minced garlic",
+          "ko": "다진 마늘"
+        },
+        {
+          "ref": "ginger",
+          "en": "minced ginger",
+          "ko": "다진 생강"
+        },
+        {
+          "ref": "chili-pepper",
+          "en": "dried or fresh chili peppers",
+          "ko": "건고추 또는 생고추"
+        },
+        {
+          "ref": "green-onion",
+          "en": "green onion (finely chopped)",
+          "ko": "다진 대파"
+        },
+        {
+          "ref": "soy-sauce",
+          "en": "soy sauce",
+          "ko": "간장"
+        },
+        {
+          "ref": "vinegar",
+          "en": "vinegar",
+          "ko": "식초"
+        },
+        {
+          "ref": "sugar",
+          "en": "sugar",
+          "ko": "설탕"
+        },
+        {
+          "ref": null,
+          "en": "potato starch",
+          "ko": "감자 전분"
+        },
+        {
+          "ref": "cooking-oil",
+          "en": "cooking oil (for frying)",
+          "ko": "식용유 (튀김용)"
+        },
+        {
+          "ref": "black-pepper",
+          "en": "black pepper",
+          "ko": "후추"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Season the chicken pieces with pepper and coat them thoroughly in potato starch.",
+          "Deep-fry the chicken in hot oil until golden, then fry once more briefly for extra crunch.",
+          "Mix soy sauce, vinegar, and sugar into a sweet-and-sour sauce.",
+          "In a clean pan, quickly fry the garlic, ginger, chili peppers, and green onion in a little oil.",
+          "Pour in the sauce, let it bubble for a few seconds, and toss the fried chicken through it.",
+          "Serve right away while the coating is still crisp."
+        ],
+        "ko": [
+          "닭고기에 후추로 밑간하고 감자 전분을 골고루 입힌다.",
+          "뜨거운 기름에 닭을 노릇하게 튀기고 한 번 더 짧게 튀겨 바삭함을 더한다.",
+          "간장, 식초, 설탕을 섞어 새콤달콤한 소스를 만든다.",
+          "깨끗한 팬에 기름을 약간 두르고 마늘, 생강, 고추, 대파를 재빨리 볶는다.",
+          "소스를 붓고 몇 초간 끓인 뒤 튀긴 닭을 넣어 버무린다.",
+          "튀김옷이 바삭할 때 바로 낸다."
+        ]
+      }
+    },
+    {
+      "id": "tomato-egg-stir-fry",
+      "name": {
+        "en": "Tomato and Egg Stir-Fry",
+        "ko": "토마토 계란볶음"
+      },
+      "cuisine": "chinese",
+      "minutes": 15,
+      "ingredients": [
+        {
+          "ref": "tomato",
+          "en": "ripe tomatoes",
+          "ko": "잘 익은 토마토"
+        },
+        {
+          "ref": "egg",
+          "en": "eggs",
+          "ko": "계란"
+        },
+        {
+          "ref": "green-onion",
+          "en": "green onion",
+          "ko": "대파"
+        },
+        {
+          "ref": "sugar",
+          "en": "sugar",
+          "ko": "설탕"
+        },
+        {
+          "ref": "salt",
+          "en": "salt",
+          "ko": "소금"
+        },
+        {
+          "ref": "ketchup",
+          "en": "ketchup (optional, for depth)",
+          "ko": "케첩 (선택, 감칠맛용)"
+        },
+        {
+          "ref": "cooking-oil",
+          "en": "cooking oil",
+          "ko": "식용유"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Cut the tomatoes into wedges and beat the eggs with a pinch of salt.",
+          "Soft-scramble the eggs in hot oil and set them aside while still glossy.",
+          "In the same pan, cook the tomatoes with sugar and a little ketchup until they release their juices.",
+          "Return the eggs, fold everything together gently, and season with salt.",
+          "Top with green onion and serve with rice."
+        ],
+        "ko": [
+          "토마토는 웨지로 썰고 계란은 소금 한 꼬집을 넣어 푼다.",
+          "뜨거운 기름에 계란을 촉촉하게 스크램블해 따로 덜어 둔다.",
+          "같은 팬에 토마토, 설탕, 케첩 약간을 넣고 즙이 나올 때까지 익힌다.",
+          "계란을 다시 넣고 살살 섞은 뒤 소금으로 간한다.",
+          "대파를 올려 밥과 함께 낸다."
+        ]
+      }
+    },
+    {
+      "id": "chicken-chow-mein",
+      "name": {
+        "en": "Chicken Chow Mein",
+        "ko": "닭고기 볶음면"
+      },
+      "cuisine": "chinese",
+      "minutes": 25,
+      "ingredients": [
+        {
+          "ref": "noodle",
+          "en": "wheat noodles",
+          "ko": "중화면 또는 소면류"
+        },
+        {
+          "ref": "chicken",
+          "en": "chicken (thin strips)",
+          "ko": "닭고기 (얇게 썬 것)"
+        },
+        {
+          "ref": "cabbage",
+          "en": "cabbage",
+          "ko": "양배추"
+        },
+        {
+          "ref": "carrot",
+          "en": "carrot",
+          "ko": "당근"
+        },
+        {
+          "ref": "onion",
+          "en": "onion",
+          "ko": "양파"
+        },
+        {
+          "ref": "bean-sprout",
+          "en": "bean sprouts",
+          "ko": "숙주 또는 콩나물"
+        },
+        {
+          "ref": "garlic",
+          "en": "minced garlic",
+          "ko": "다진 마늘"
+        },
+        {
+          "ref": "soy-sauce",
+          "en": "soy sauce",
+          "ko": "간장"
+        },
+        {
+          "ref": null,
+          "en": "oyster sauce",
+          "ko": "굴소스"
+        },
+        {
+          "ref": "sesame-oil",
+          "en": "sesame oil",
+          "ko": "참기름"
+        },
+        {
+          "ref": "cooking-oil",
+          "en": "cooking oil",
+          "ko": "식용유"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Boil the noodles until just cooked, drain, and toss with a little oil so they do not stick.",
+          "Stir-fry the chicken strips with garlic over high heat until cooked through.",
+          "Add the cabbage, carrot, and onion and cook until slightly softened.",
+          "Add the noodles, soy sauce, and oyster sauce and toss everything together.",
+          "Stir in the bean sprouts and sesame oil at the end so they keep their crunch."
+        ],
+        "ko": [
+          "면을 삶아 물기를 빼고 서로 붙지 않게 기름을 약간 넣어 버무린다.",
+          "센 불에서 닭고기와 마늘을 완전히 익도록 볶는다.",
+          "양배추, 당근, 양파를 넣고 살짝 숨이 죽을 때까지 볶는다.",
+          "면, 간장, 굴소스를 넣고 골고루 섞으며 볶는다.",
+          "마지막에 숙주와 참기름을 넣어 아삭함을 살려 마무리한다."
+        ]
+      }
+    },
+    {
+      "id": "pad-thai",
+      "name": {
+        "en": "Pad Thai",
+        "ko": "팟타이"
+      },
+      "cuisine": "thai",
+      "minutes": 25,
+      "ingredients": [
+        {
+          "ref": "noodle",
+          "en": "flat rice noodles",
+          "ko": "납작 쌀국수 면"
+        },
+        {
+          "ref": "shrimp",
+          "en": "shrimp",
+          "ko": "새우"
+        },
+        {
+          "ref": "egg",
+          "en": "egg",
+          "ko": "계란"
+        },
+        {
+          "ref": "tofu",
+          "en": "firm tofu (small cubes)",
+          "ko": "단단한 두부 (작게 썬 것)"
+        },
+        {
+          "ref": "bean-sprout",
+          "en": "bean sprouts",
+          "ko": "숙주"
+        },
+        {
+          "ref": "garlic",
+          "en": "minced garlic",
+          "ko": "다진 마늘"
+        },
+        {
+          "ref": "green-onion",
+          "en": "green onion (or garlic chives)",
+          "ko": "쪽파 (또는 부추)"
+        },
+        {
+          "ref": null,
+          "en": "fish sauce",
+          "ko": "피시소스"
+        },
+        {
+          "ref": null,
+          "en": "tamarind paste",
+          "ko": "타마린드 페이스트"
+        },
+        {
+          "ref": "sugar",
+          "en": "sugar",
+          "ko": "설탕"
+        },
+        {
+          "ref": "lime",
+          "en": "lime",
+          "ko": "라임"
+        },
+        {
+          "ref": null,
+          "en": "crushed roasted peanuts",
+          "ko": "볶은 땅콩 (다진 것)"
+        },
+        {
+          "ref": "cooking-oil",
+          "en": "cooking oil",
+          "ko": "식용유"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Soak the rice noodles in warm water until pliable but still firm.",
+          "Stir fish sauce, tamarind paste, and sugar together to make the pad thai sauce.",
+          "Stir-fry the garlic, tofu, and shrimp in hot oil until the shrimp turn pink.",
+          "Push everything aside, scramble the egg in the pan, then add the noodles and sauce.",
+          "Toss over high heat until the noodles absorb the sauce, then fold in the bean sprouts and green onion.",
+          "Serve with crushed peanuts and a lime wedge on the side."
+        ],
+        "ko": [
+          "쌀국수 면을 따뜻한 물에 불려 탄력이 남을 정도로만 부드럽게 한다.",
+          "피시소스, 타마린드 페이스트, 설탕을 섞어 팟타이 소스를 만든다.",
+          "뜨거운 기름에 마늘, 두부, 새우를 새우가 붉어질 때까지 볶는다.",
+          "재료를 한쪽으로 밀고 계란을 스크램블한 뒤 면과 소스를 넣는다.",
+          "면이 소스를 흡수하도록 센 불에서 볶고 숙주와 쪽파를 섞는다.",
+          "다진 땅콩과 라임 조각을 곁들여 낸다."
+        ]
+      }
+    },
+    {
+      "id": "thai-green-curry",
+      "name": {
+        "en": "Thai Green Curry",
+        "ko": "그린커리"
+      },
+      "cuisine": "thai",
+      "minutes": 30,
+      "ingredients": [
+        {
+          "ref": "chicken",
+          "en": "chicken (bite-size)",
+          "ko": "닭고기 (한입 크기)"
+        },
+        {
+          "ref": "eggplant",
+          "en": "eggplant",
+          "ko": "가지"
+        },
+        {
+          "ref": "bell-pepper",
+          "en": "bell pepper",
+          "ko": "파프리카"
+        },
+        {
+          "ref": null,
+          "en": "green curry paste",
+          "ko": "그린커리 페이스트"
+        },
+        {
+          "ref": null,
+          "en": "coconut milk",
+          "ko": "코코넛 밀크"
+        },
+        {
+          "ref": null,
+          "en": "fish sauce",
+          "ko": "피시소스"
+        },
+        {
+          "ref": "sugar",
+          "en": "sugar",
+          "ko": "설탕"
+        },
+        {
+          "ref": null,
+          "en": "Thai basil (optional)",
+          "ko": "타이 바질 (선택)"
+        },
+        {
+          "ref": "rice",
+          "en": "cooked rice",
+          "ko": "밥"
+        },
+        {
+          "ref": "cooking-oil",
+          "en": "cooking oil",
+          "ko": "식용유"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Fry the green curry paste in a little oil until it smells fragrant.",
+          "Add half of the coconut milk and simmer until the oil separates slightly.",
+          "Add the chicken and cook until it turns opaque.",
+          "Pour in the remaining coconut milk with the eggplant and bell pepper and simmer until tender.",
+          "Season with fish sauce and sugar, stir in the basil, and serve over rice."
+        ],
+        "ko": [
+          "기름을 약간 두르고 그린커리 페이스트를 향이 날 때까지 볶는다.",
+          "코코넛 밀크 절반을 넣고 기름이 살짝 분리될 때까지 끓인다.",
+          "닭고기를 넣고 겉이 하얗게 익을 때까지 익힌다.",
+          "남은 코코넛 밀크와 가지, 파프리카를 넣고 부드러워질 때까지 끓인다.",
+          "피시소스와 설탕으로 간하고 바질을 섞어 밥 위에 얹어 낸다."
+        ]
+      }
+    },
+    {
+      "id": "banh-mi-sandwich",
+      "name": {
+        "en": "Banh Mi Style Sandwich",
+        "ko": "반미풍 샌드위치"
+      },
+      "cuisine": "vietnamese",
+      "minutes": 20,
+      "ingredients": [
+        {
+          "ref": "bread",
+          "en": "baguette (or crusty roll)",
+          "ko": "바게트 (또는 겉이 바삭한 빵)"
+        },
+        {
+          "ref": "pork",
+          "en": "pork (thin slices)",
+          "ko": "돼지고기 (얇게 썬 것)"
+        },
+        {
+          "ref": "carrot",
+          "en": "carrot (julienned)",
+          "ko": "당근 (채 썬 것)"
+        },
+        {
+          "ref": "radish",
+          "en": "radish (julienned)",
+          "ko": "무 (채 썬 것)"
+        },
+        {
+          "ref": "cucumber",
+          "en": "cucumber (long slices)",
+          "ko": "오이 (길게 썬 것)"
+        },
+        {
+          "ref": null,
+          "en": "cilantro",
+          "ko": "고수"
+        },
+        {
+          "ref": "mayonnaise",
+          "en": "mayonnaise",
+          "ko": "마요네즈"
+        },
+        {
+          "ref": "vinegar",
+          "en": "vinegar",
+          "ko": "식초"
+        },
+        {
+          "ref": "sugar",
+          "en": "sugar",
+          "ko": "설탕"
+        },
+        {
+          "ref": "soy-sauce",
+          "en": "soy sauce",
+          "ko": "간장"
+        },
+        {
+          "ref": "chili-pepper",
+          "en": "chili pepper (sliced)",
+          "ko": "고추 (썬 것)"
+        },
+        {
+          "ref": "salt",
+          "en": "salt",
+          "ko": "소금"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Quick-pickle the carrot and radish in vinegar, sugar, and a pinch of salt for 15 minutes.",
+          "Marinate the pork briefly in soy sauce and sugar, then pan-fry until caramelized.",
+          "Split the baguette lengthwise and toast it until the crust crackles.",
+          "Spread mayonnaise inside and layer the pork, pickled vegetables, cucumber, chili, and cilantro.",
+          "Press gently, cut in half, and serve."
+        ],
+        "ko": [
+          "당근과 무를 식초, 설탕, 소금 한 꼬집에 15분간 절여 즉석 피클을 만든다.",
+          "돼지고기를 간장과 설탕에 잠시 재웠다가 팬에서 노릇하게 굽는다.",
+          "바게트를 길게 갈라 겉이 바삭해지도록 굽는다.",
+          "안쪽에 마요네즈를 바르고 고기, 절인 채소, 오이, 고추, 고수를 차례로 채운다.",
+          "가볍게 눌러 반으로 잘라 낸다."
+        ]
+      }
+    },
+    {
+      "id": "nasi-goreng",
+      "name": {
+        "en": "Nasi Goreng (Indonesian Fried Rice)",
+        "ko": "나시고렝"
+      },
+      "cuisine": "other",
+      "minutes": 20,
+      "ingredients": [
+        {
+          "ref": "rice",
+          "en": "cooked rice (day-old is best)",
+          "ko": "밥 (찬밥이 좋음)"
+        },
+        {
+          "ref": "egg",
+          "en": "eggs",
+          "ko": "계란"
+        },
+        {
+          "ref": "chicken",
+          "en": "chicken (small pieces)",
+          "ko": "닭고기 (작게 썬 것)"
+        },
+        {
+          "ref": "garlic",
+          "en": "minced garlic",
+          "ko": "다진 마늘"
+        },
+        {
+          "ref": "onion",
+          "en": "onion (or shallot)",
+          "ko": "양파 (또는 샬롯)"
+        },
+        {
+          "ref": "chili-pepper",
+          "en": "chili pepper",
+          "ko": "고추"
+        },
+        {
+          "ref": null,
+          "en": "sweet soy sauce (kecap manis)",
+          "ko": "케찹 마니스 (달콤한 간장)"
+        },
+        {
+          "ref": "soy-sauce",
+          "en": "soy sauce",
+          "ko": "간장"
+        },
+        {
+          "ref": "cooking-oil",
+          "en": "cooking oil",
+          "ko": "식용유"
+        },
+        {
+          "ref": "cucumber",
+          "en": "cucumber (for garnish)",
+          "ko": "오이 (곁들임용)"
+        },
+        {
+          "ref": "salt",
+          "en": "salt",
+          "ko": "소금"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Pound or finely chop the garlic, onion, and chili into a rough paste.",
+          "Fry the paste in oil until fragrant, then add the chicken and cook through.",
+          "Add the rice and break it up while stir-frying over high heat.",
+          "Season with sweet soy sauce, regular soy sauce, and salt until the rice turns glossy brown.",
+          "Serve topped with a fried egg and cucumber slices on the side."
+        ],
+        "ko": [
+          "마늘, 양파, 고추를 찧거나 잘게 다져 거친 페이스트를 만든다.",
+          "기름에 페이스트를 향이 나게 볶은 뒤 닭고기를 넣어 익힌다.",
+          "밥을 넣고 센 불에서 덩어리를 풀어가며 볶는다.",
+          "케찹 마니스, 간장, 소금으로 간해 밥이 윤기 나는 갈색이 되게 한다.",
+          "계란 프라이를 올리고 오이를 곁들여 낸다."
+        ]
+      }
+    },
+    {
+      "id": "quick-beef-pho",
+      "name": {
+        "en": "Quick Beef Pho",
+        "ko": "소고기 쌀국수"
+      },
+      "cuisine": "vietnamese",
+      "minutes": 40,
+      "ingredients": [
+        {
+          "ref": "noodle",
+          "en": "flat rice noodles",
+          "ko": "쌀국수 면"
+        },
+        {
+          "ref": "beef",
+          "en": "beef (very thinly sliced)",
+          "ko": "소고기 (아주 얇게 썬 것)"
+        },
+        {
+          "ref": "onion",
+          "en": "onion",
+          "ko": "양파"
+        },
+        {
+          "ref": "ginger",
+          "en": "ginger (thick slices)",
+          "ko": "생강 (도톰하게 썬 것)"
+        },
+        {
+          "ref": "green-onion",
+          "en": "green onion",
+          "ko": "쪽파"
+        },
+        {
+          "ref": "bean-sprout",
+          "en": "bean sprouts",
+          "ko": "숙주"
+        },
+        {
+          "ref": "lime",
+          "en": "lime",
+          "ko": "라임"
+        },
+        {
+          "ref": null,
+          "en": "fish sauce",
+          "ko": "피시소스"
+        },
+        {
+          "ref": null,
+          "en": "star anise",
+          "ko": "팔각"
+        },
+        {
+          "ref": "sugar",
+          "en": "sugar",
+          "ko": "설탕"
+        },
+        {
+          "ref": "salt",
+          "en": "salt",
+          "ko": "소금"
+        },
+        {
+          "ref": null,
+          "en": "water (or beef stock)",
+          "ko": "물 (또는 소고기 육수)"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Char the onion halves and ginger slices in a dry pan until the surfaces darken.",
+          "Simmer them in water with star anise for 25 minutes to build the broth.",
+          "Strain the broth and season it with fish sauce, sugar, and salt.",
+          "Cook the rice noodles according to their soaking or boiling time and divide them into bowls.",
+          "Lay the raw beef slices over the noodles and pour the boiling broth on top to cook them.",
+          "Serve with bean sprouts, green onion, and a squeeze of lime."
+        ],
+        "ko": [
+          "마른 팬에 양파 반쪽과 생강 편의 겉면이 거뭇해질 때까지 굽는다.",
+          "구운 양파와 생강을 팔각과 함께 물에 넣고 25분간 끓여 육수를 만든다.",
+          "육수를 체에 거르고 피시소스, 설탕, 소금으로 간한다.",
+          "쌀국수 면을 불리거나 삶아 그릇에 나눠 담는다.",
+          "면 위에 생소고기를 얹고 팔팔 끓는 육수를 부어 고기를 익힌다.",
+          "숙주, 쪽파, 라임즙을 곁들여 낸다."
+        ]
+      }
+    },
+    {
+      "id": "tomato-pasta",
+      "name": {
+        "en": "Tomato Pasta",
+        "ko": "토마토 파스타"
+      },
+      "cuisine": "italian",
+      "minutes": 25,
+      "ingredients": [
+        {
+          "ref": "pasta",
+          "en": "pasta",
+          "ko": "파스타 면"
+        },
+        {
+          "ref": "tomato",
+          "en": "tomatoes (chopped)",
+          "ko": "토마토 (썬 것)"
+        },
+        {
+          "ref": "onion",
+          "en": "onion (diced)",
+          "ko": "양파 (잘게 썬 것)"
+        },
+        {
+          "ref": "garlic",
+          "en": "garlic (minced)",
+          "ko": "마늘 (다진 것)"
+        },
+        {
+          "ref": "olive-oil",
+          "en": "olive oil",
+          "ko": "올리브오일"
+        },
+        {
+          "ref": "salt",
+          "en": "salt",
+          "ko": "소금"
+        },
+        {
+          "ref": "sugar",
+          "en": "sugar (a pinch)",
+          "ko": "설탕 (약간)"
+        },
+        {
+          "ref": "black-pepper",
+          "en": "black pepper",
+          "ko": "후추"
+        },
+        {
+          "ref": "parmesan",
+          "en": "parmesan (grated, optional)",
+          "ko": "파마산 치즈 (간 것, 선택)"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Boil the pasta in well-salted water until just tender, then drain and set aside a little of the cooking water.",
+          "Warm olive oil in a pan and cook the minced garlic and diced onion over medium heat until fragrant.",
+          "Add the chopped tomatoes with a pinch of salt and sugar and simmer until they collapse into a loose sauce.",
+          "Toss the drained pasta into the sauce with a splash of the reserved water and stir until everything looks glossy.",
+          "Finish with black pepper and grated parmesan before serving."
+        ],
+        "ko": [
+          "소금을 넉넉히 넣은 끓는 물에 파스타를 알맞게 삶은 뒤 면수를 조금 남기고 건져 둔다.",
+          "팬에 올리브오일을 두르고 다진 마늘과 양파를 중불에서 향이 나도록 볶는다.",
+          "썬 토마토와 소금·설탕 약간을 넣고 토마토가 뭉그러져 소스가 될 때까지 뭉근히 끓인다.",
+          "건져 둔 파스타를 소스에 넣고 남긴 면수를 조금 부어 전체가 윤기 나게 버무린다.",
+          "후추와 간 파마산 치즈를 뿌려 마무리한 뒤 낸다."
+        ]
+      }
+    },
+    {
+      "id": "carbonara-style-pasta",
+      "name": {
+        "en": "Carbonara-Style Pasta",
+        "ko": "까르보나라풍 파스타"
+      },
+      "cuisine": "italian",
+      "minutes": 20,
+      "ingredients": [
+        {
+          "ref": "pasta",
+          "en": "pasta",
+          "ko": "파스타 면"
+        },
+        {
+          "ref": "bacon",
+          "en": "bacon (cut into strips)",
+          "ko": "베이컨 (썬 것)"
+        },
+        {
+          "ref": "egg",
+          "en": "eggs",
+          "ko": "달걀"
+        },
+        {
+          "ref": "parmesan",
+          "en": "parmesan (grated)",
+          "ko": "파마산 치즈 (간 것)"
+        },
+        {
+          "ref": "black-pepper",
+          "en": "black pepper (plenty)",
+          "ko": "후추 (넉넉히)"
+        },
+        {
+          "ref": "salt",
+          "en": "salt",
+          "ko": "소금"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Cook the pasta in salted boiling water until just tender and reserve a cup of the cooking water.",
+          "While the pasta cooks, fry the bacon strips in a pan until crisp, then take the pan off the heat.",
+          "Whisk the eggs with the grated parmesan and plenty of black pepper in a bowl.",
+          "Add the hot drained pasta to the bacon pan, then pour in the egg mixture off the heat, tossing quickly.",
+          "Loosen with reserved pasta water a spoonful at a time until the sauce turns creamy, then serve with extra pepper."
+        ],
+        "ko": [
+          "소금 넣은 끓는 물에 파스타를 알맞게 삶고 면수를 한 컵 정도 남겨 둔다.",
+          "파스타를 삶는 동안 팬에 베이컨을 바삭하게 구운 뒤 불을 끈다.",
+          "볼에 달걀, 간 파마산 치즈, 후추 넉넉히를 넣고 잘 푼다.",
+          "뜨거운 파스타를 베이컨 팬에 옮기고 불을 끈 상태에서 달걀물을 부어 재빨리 버무린다.",
+          "남긴 면수를 한 숟갈씩 넣어 크리미한 농도를 맞춘 뒤 후추를 더 뿌려 낸다."
+        ]
+      }
+    },
+    {
+      "id": "aglio-e-olio",
+      "name": {
+        "en": "Aglio e Olio",
+        "ko": "알리오 올리오"
+      },
+      "cuisine": "italian",
+      "minutes": 15,
+      "ingredients": [
+        {
+          "ref": "pasta",
+          "en": "pasta",
+          "ko": "파스타 면"
+        },
+        {
+          "ref": "garlic",
+          "en": "garlic (thinly sliced)",
+          "ko": "마늘 (얇게 썬 것)"
+        },
+        {
+          "ref": "olive-oil",
+          "en": "olive oil (generous)",
+          "ko": "올리브오일 (넉넉히)"
+        },
+        {
+          "ref": "chili-pepper",
+          "en": "chili pepper (sliced) or chili flakes",
+          "ko": "고추 (썬 것) 또는 페페론치노"
+        },
+        {
+          "ref": "salt",
+          "en": "salt",
+          "ko": "소금"
+        },
+        {
+          "ref": "black-pepper",
+          "en": "black pepper",
+          "ko": "후추"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Boil the pasta in salted water until just tender, keeping some of the cooking water.",
+          "Gently warm a generous amount of olive oil in a pan and cook the sliced garlic over low heat until pale gold.",
+          "Add the sliced chili and stir briefly so the oil picks up a little heat.",
+          "Toss in the drained pasta with a ladle of pasta water and shake the pan until the oil and water come together.",
+          "Season with salt and black pepper and serve right away."
+        ],
+        "ko": [
+          "소금 넣은 끓는 물에 파스타를 알맞게 삶고 면수를 조금 남겨 둔다.",
+          "팬에 올리브오일을 넉넉히 두르고 얇게 썬 마늘을 약불에서 연한 갈색이 될 때까지 천천히 익힌다.",
+          "썬 고추를 넣고 잠깐 볶아 기름에 매콤한 향을 입힌다.",
+          "건진 파스타와 면수 한 국자를 넣고 기름과 면수가 어우러지도록 팬을 흔들며 섞는다.",
+          "소금과 후추로 간을 맞춰 바로 낸다."
+        ]
+      }
+    },
+    {
+      "id": "margherita-toast",
+      "name": {
+        "en": "Margherita-Style Toast",
+        "ko": "마르게리타풍 토스트"
+      },
+      "cuisine": "italian",
+      "minutes": 10,
+      "ingredients": [
+        {
+          "ref": "bread",
+          "en": "bread slices",
+          "ko": "식빵"
+        },
+        {
+          "ref": "tomato",
+          "en": "tomato (sliced)",
+          "ko": "토마토 (슬라이스)"
+        },
+        {
+          "ref": "mozzarella",
+          "en": "mozzarella",
+          "ko": "모짜렐라 치즈"
+        },
+        {
+          "ref": "olive-oil",
+          "en": "olive oil",
+          "ko": "올리브오일"
+        },
+        {
+          "ref": "salt",
+          "en": "salt",
+          "ko": "소금"
+        },
+        {
+          "ref": "black-pepper",
+          "en": "black pepper",
+          "ko": "후추"
+        },
+        {
+          "ref": null,
+          "en": "fresh basil (optional)",
+          "ko": "바질 잎 (선택)"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Lightly toast the bread slices so they hold up to the toppings.",
+          "Layer tomato slices on each piece and season them with a little salt.",
+          "Top with mozzarella and heat in a pan with a lid or an oven until the cheese melts.",
+          "Drizzle with olive oil, add black pepper and basil if using, and serve warm."
+        ],
+        "ko": [
+          "식빵을 살짝 구워 토핑을 올려도 눅눅해지지 않게 준비한다.",
+          "빵 위에 토마토 슬라이스를 올리고 소금을 조금 뿌린다.",
+          "모짜렐라 치즈를 얹고 뚜껑 덮은 팬이나 오븐에서 치즈가 녹을 때까지 데운다.",
+          "올리브오일을 두르고 후추와 바질(선택)을 올려 따뜻할 때 낸다."
+        ]
+      }
+    },
+    {
+      "id": "minestrone",
+      "name": {
+        "en": "Minestrone",
+        "ko": "미네스트로네"
+      },
+      "cuisine": "italian",
+      "minutes": 35,
+      "ingredients": [
+        {
+          "ref": "onion",
+          "en": "onion (diced)",
+          "ko": "양파 (깍둑썬 것)"
+        },
+        {
+          "ref": "carrot",
+          "en": "carrot (diced)",
+          "ko": "당근 (깍둑썬 것)"
+        },
+        {
+          "ref": "zucchini",
+          "en": "zucchini (diced)",
+          "ko": "애호박 (깍둑썬 것)"
+        },
+        {
+          "ref": "potato",
+          "en": "potato (diced)",
+          "ko": "감자 (깍둑썬 것)"
+        },
+        {
+          "ref": "cabbage",
+          "en": "cabbage (chopped)",
+          "ko": "양배추 (썬 것)"
+        },
+        {
+          "ref": "tomato",
+          "en": "tomatoes (chopped)",
+          "ko": "토마토 (썬 것)"
+        },
+        {
+          "ref": "garlic",
+          "en": "garlic (minced)",
+          "ko": "마늘 (다진 것)"
+        },
+        {
+          "ref": "olive-oil",
+          "en": "olive oil",
+          "ko": "올리브오일"
+        },
+        {
+          "ref": null,
+          "en": "canned white beans (optional)",
+          "ko": "흰콩 통조림 (선택)"
+        },
+        {
+          "ref": "salt",
+          "en": "salt",
+          "ko": "소금"
+        },
+        {
+          "ref": "black-pepper",
+          "en": "black pepper",
+          "ko": "후추"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Sweat the onion, carrot, and garlic in olive oil over medium heat until softened.",
+          "Add the potato, zucchini, and cabbage and stir for a couple of minutes.",
+          "Add the chopped tomatoes and enough water to cover the vegetables generously.",
+          "Simmer for about twenty minutes until the potatoes are tender, adding beans near the end if using.",
+          "Season with salt and black pepper and ladle into bowls."
+        ],
+        "ko": [
+          "올리브오일에 양파, 당근, 마늘을 넣고 중불에서 부드러워질 때까지 볶는다.",
+          "감자, 애호박, 양배추를 넣고 2분 정도 함께 볶는다.",
+          "썬 토마토를 넣고 채소가 넉넉히 잠길 만큼 물을 붓는다.",
+          "감자가 익을 때까지 20분 정도 끓이고, 흰콩을 쓴다면 마지막에 넣는다.",
+          "소금과 후추로 간을 맞춰 그릇에 담아 낸다."
+        ]
+      }
+    },
+    {
+      "id": "mushroom-risotto",
+      "name": {
+        "en": "Mushroom Risotto",
+        "ko": "버섯 리조또"
+      },
+      "cuisine": "italian",
+      "minutes": 35,
+      "ingredients": [
+        {
+          "ref": "rice",
+          "en": "rice (short-grain, uncooked)",
+          "ko": "쌀 (생쌀)"
+        },
+        {
+          "ref": "mushroom",
+          "en": "mushrooms (sliced)",
+          "ko": "버섯 (썬 것)"
+        },
+        {
+          "ref": "onion",
+          "en": "onion (finely diced)",
+          "ko": "양파 (잘게 썬 것)"
+        },
+        {
+          "ref": "garlic",
+          "en": "garlic (minced)",
+          "ko": "마늘 (다진 것)"
+        },
+        {
+          "ref": "butter",
+          "en": "butter",
+          "ko": "버터"
+        },
+        {
+          "ref": "olive-oil",
+          "en": "olive oil",
+          "ko": "올리브오일"
+        },
+        {
+          "ref": "parmesan",
+          "en": "parmesan (grated)",
+          "ko": "파마산 치즈 (간 것)"
+        },
+        {
+          "ref": null,
+          "en": "chicken or vegetable stock (kept warm)",
+          "ko": "치킨 또는 채소 육수 (따뜻하게)"
+        },
+        {
+          "ref": "salt",
+          "en": "salt",
+          "ko": "소금"
+        },
+        {
+          "ref": "black-pepper",
+          "en": "black pepper",
+          "ko": "후추"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Brown the sliced mushrooms in olive oil over high heat and set them aside.",
+          "In the same pan, soften the onion and garlic in a knob of butter over medium heat.",
+          "Stir in the rice and toast it for a minute until the grains look translucent at the edges.",
+          "Add warm stock one ladle at a time, stirring and letting each addition absorb before the next.",
+          "When the rice is creamy but still slightly firm, fold in the mushrooms, parmesan, and remaining butter.",
+          "Season with salt and black pepper and serve immediately."
+        ],
+        "ko": [
+          "센 불에서 올리브오일에 썬 버섯을 노릇하게 볶아 따로 둔다.",
+          "같은 팬에 버터를 녹여 양파와 마늘을 중불에서 부드럽게 볶는다.",
+          "쌀을 넣고 가장자리가 투명해질 때까지 1분 정도 볶는다.",
+          "따뜻한 육수를 한 국자씩 넣으며, 흡수될 때마다 저어가며 추가한다.",
+          "쌀이 크리미하면서 심이 살짝 남을 때 버섯, 파마산 치즈, 남은 버터를 섞는다.",
+          "소금과 후추로 간을 맞춰 바로 낸다."
+        ]
+      }
+    },
+    {
+      "id": "caprese-salad",
+      "name": {
+        "en": "Caprese Salad",
+        "ko": "카프레제"
+      },
+      "cuisine": "italian",
+      "minutes": 10,
+      "ingredients": [
+        {
+          "ref": "tomato",
+          "en": "tomatoes (thickly sliced)",
+          "ko": "토마토 (도톰하게 썬 것)"
+        },
+        {
+          "ref": "mozzarella",
+          "en": "fresh mozzarella (sliced)",
+          "ko": "생 모짜렐라 (슬라이스)"
+        },
+        {
+          "ref": "olive-oil",
+          "en": "olive oil",
+          "ko": "올리브오일"
+        },
+        {
+          "ref": "vinegar",
+          "en": "vinegar (balsamic if available)",
+          "ko": "식초 (발사믹 권장)"
+        },
+        {
+          "ref": "salt",
+          "en": "salt",
+          "ko": "소금"
+        },
+        {
+          "ref": "black-pepper",
+          "en": "black pepper",
+          "ko": "후추"
+        },
+        {
+          "ref": null,
+          "en": "fresh basil",
+          "ko": "바질 잎"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Slice the tomatoes and mozzarella into rounds of similar thickness.",
+          "Arrange them on a plate, alternating tomato and cheese, tucking basil leaves between.",
+          "Sprinkle with salt and black pepper.",
+          "Drizzle olive oil and a little vinegar over the top just before serving."
+        ],
+        "ko": [
+          "토마토와 모짜렐라를 비슷한 두께로 둥글게 썬다.",
+          "접시에 토마토와 치즈를 번갈아 겹쳐 담고 사이사이에 바질 잎을 끼운다.",
+          "소금과 후추를 골고루 뿌린다.",
+          "내기 직전에 올리브오일과 식초를 살짝 둘러 마무리한다."
+        ]
+      }
+    },
+    {
+      "id": "lasagna-style-bake",
+      "name": {
+        "en": "Lasagna-Style Pasta Bake",
+        "ko": "라자냐풍 베이크"
+      },
+      "cuisine": "italian",
+      "minutes": 50,
+      "ingredients": [
+        {
+          "ref": "pasta",
+          "en": "pasta (flat or short shapes)",
+          "ko": "파스타 면 (넓적한 면 또는 숏파스타)"
+        },
+        {
+          "ref": "beef",
+          "en": "ground beef",
+          "ko": "다진 소고기"
+        },
+        {
+          "ref": "onion",
+          "en": "onion (diced)",
+          "ko": "양파 (잘게 썬 것)"
+        },
+        {
+          "ref": "garlic",
+          "en": "garlic (minced)",
+          "ko": "마늘 (다진 것)"
+        },
+        {
+          "ref": "tomato",
+          "en": "tomatoes (chopped) or tomato sauce",
+          "ko": "토마토 (썬 것) 또는 토마토소스"
+        },
+        {
+          "ref": "butter",
+          "en": "butter",
+          "ko": "버터"
+        },
+        {
+          "ref": "flour",
+          "en": "flour",
+          "ko": "밀가루"
+        },
+        {
+          "ref": "milk",
+          "en": "milk",
+          "ko": "우유"
+        },
+        {
+          "ref": "mozzarella",
+          "en": "mozzarella (shredded)",
+          "ko": "모짜렐라 치즈"
+        },
+        {
+          "ref": "parmesan",
+          "en": "parmesan (grated)",
+          "ko": "파마산 치즈 (간 것)"
+        },
+        {
+          "ref": "olive-oil",
+          "en": "olive oil",
+          "ko": "올리브오일"
+        },
+        {
+          "ref": "salt",
+          "en": "salt",
+          "ko": "소금"
+        },
+        {
+          "ref": "black-pepper",
+          "en": "black pepper",
+          "ko": "후추"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Boil the pasta until slightly underdone, then drain it.",
+          "Brown the ground beef with onion and garlic in olive oil, then add the tomatoes and simmer into a meat sauce seasoned with salt and pepper.",
+          "Melt butter in a small pot, stir in flour for a minute, then whisk in milk gradually to make a smooth white sauce.",
+          "In a baking dish, layer pasta, meat sauce, and white sauce, repeating once more.",
+          "Cover the top with mozzarella and parmesan.",
+          "Bake at 190 degrees Celsius until bubbling and golden, about twenty minutes, then rest briefly before serving."
+        ],
+        "ko": [
+          "파스타를 살짝 덜 익게 삶아 건져 둔다.",
+          "올리브오일에 다진 소고기, 양파, 마늘을 볶다가 토마토를 넣고 소금·후추로 간해 미트소스를 만든다.",
+          "작은 냄비에 버터를 녹여 밀가루를 1분간 볶고 우유를 조금씩 넣어 부드러운 화이트소스를 만든다.",
+          "오븐 용기에 파스타, 미트소스, 화이트소스 순으로 담고 한 번 더 반복해 층을 쌓는다.",
+          "맨 위에 모짜렐라와 파마산 치즈를 덮는다.",
+          "190도 오븐에서 20분 정도 노릇하게 구운 뒤 잠시 식혀 낸다."
+        ]
+      }
+    },
+    {
+      "id": "scrambled-eggs",
+      "name": {
+        "en": "Scrambled Eggs",
+        "ko": "스크램블에그"
+      },
+      "cuisine": "american",
+      "minutes": 10,
+      "ingredients": [
+        {
+          "ref": "egg",
+          "en": "eggs",
+          "ko": "달걀"
+        },
+        {
+          "ref": "milk",
+          "en": "milk (a splash)",
+          "ko": "우유 (약간)"
+        },
+        {
+          "ref": "butter",
+          "en": "butter",
+          "ko": "버터"
+        },
+        {
+          "ref": "salt",
+          "en": "salt",
+          "ko": "소금"
+        },
+        {
+          "ref": "black-pepper",
+          "en": "black pepper",
+          "ko": "후추"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Whisk the eggs with a splash of milk and a pinch of salt until even in color.",
+          "Melt butter in a nonstick pan over medium-low heat without letting it brown.",
+          "Pour in the eggs and let them sit a few seconds before stirring gently.",
+          "Keep folding the eggs slowly until they form soft, glossy curds.",
+          "Take the pan off the heat while slightly underdone, season with pepper, and serve."
+        ],
+        "ko": [
+          "달걀에 우유 약간과 소금 한 꼬집을 넣고 색이 고르게 풀리도록 젓는다.",
+          "코팅 팬에 버터를 중약불로 녹이되 갈색이 나지 않게 한다.",
+          "달걀물을 붓고 몇 초 기다렸다가 부드럽게 젓기 시작한다.",
+          "달걀이 촉촉하고 몽글몽글한 덩어리가 되도록 천천히 뒤적인다.",
+          "살짝 덜 익었을 때 불에서 내려 후추를 뿌려 낸다."
+        ]
+      }
+    },
+    {
+      "id": "cheese-omelette",
+      "name": {
+        "en": "Cheese Omelette",
+        "ko": "치즈 오믈렛"
+      },
+      "cuisine": "american",
+      "minutes": 10,
+      "ingredients": [
+        {
+          "ref": "egg",
+          "en": "eggs",
+          "ko": "달걀"
+        },
+        {
+          "ref": "cheese",
+          "en": "cheese (shredded or sliced)",
+          "ko": "치즈"
+        },
+        {
+          "ref": "milk",
+          "en": "milk (a splash)",
+          "ko": "우유 (약간)"
+        },
+        {
+          "ref": "butter",
+          "en": "butter",
+          "ko": "버터"
+        },
+        {
+          "ref": "salt",
+          "en": "salt",
+          "ko": "소금"
+        },
+        {
+          "ref": "black-pepper",
+          "en": "black pepper",
+          "ko": "후추"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Beat the eggs with milk, salt, and pepper until smooth.",
+          "Melt butter in a nonstick pan over medium heat and pour in the eggs.",
+          "As the edges set, pull them toward the center and tilt the pan so raw egg fills the gaps.",
+          "When the surface is still slightly wet, lay the cheese over one half.",
+          "Fold the omelette over the cheese, slide it onto a plate, and serve warm."
+        ],
+        "ko": [
+          "달걀에 우유, 소금, 후추를 넣고 매끈하게 푼다.",
+          "코팅 팬에 버터를 중불로 녹이고 달걀물을 붓는다.",
+          "가장자리가 익기 시작하면 안쪽으로 끌어모으며 팬을 기울여 덜 익은 달걀이 빈자리를 채우게 한다.",
+          "표면이 아직 살짝 촉촉할 때 반쪽에 치즈를 올린다.",
+          "치즈를 감싸듯 반으로 접어 접시에 미끄러뜨려 담고 따뜻할 때 낸다."
+        ]
+      }
+    },
+    {
+      "id": "pancakes",
+      "name": {
+        "en": "Pancakes",
+        "ko": "팬케이크"
+      },
+      "cuisine": "american",
+      "minutes": 20,
+      "ingredients": [
+        {
+          "ref": "flour",
+          "en": "flour",
+          "ko": "밀가루"
+        },
+        {
+          "ref": "egg",
+          "en": "egg",
+          "ko": "달걀"
+        },
+        {
+          "ref": "milk",
+          "en": "milk",
+          "ko": "우유"
+        },
+        {
+          "ref": "sugar",
+          "en": "sugar",
+          "ko": "설탕"
+        },
+        {
+          "ref": "salt",
+          "en": "salt (a pinch)",
+          "ko": "소금 (한 꼬집)"
+        },
+        {
+          "ref": null,
+          "en": "baking powder",
+          "ko": "베이킹파우더"
+        },
+        {
+          "ref": "butter",
+          "en": "butter (for the pan)",
+          "ko": "버터 (팬용)"
+        },
+        {
+          "ref": "honey",
+          "en": "honey or syrup (for serving)",
+          "ko": "꿀 또는 시럽 (곁들임)"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Mix the flour, sugar, baking powder, and salt in a bowl.",
+          "Whisk the egg and milk together, then stir them into the dry mixture until just combined with a few lumps left.",
+          "Heat a lightly buttered pan over medium-low heat.",
+          "Pour small rounds of batter and cook until bubbles appear on the surface.",
+          "Flip and cook the other side until golden, then repeat with the remaining batter.",
+          "Stack the pancakes and serve with honey or syrup."
+        ],
+        "ko": [
+          "볼에 밀가루, 설탕, 베이킹파우더, 소금을 섞는다.",
+          "달걀과 우유를 풀어 가루 재료에 붓고 덩어리가 약간 남을 정도로만 섞는다.",
+          "팬에 버터를 얇게 두르고 중약불로 달군다.",
+          "반죽을 동그랗게 붓고 표면에 기포가 올라올 때까지 굽는다.",
+          "뒤집어 반대면도 노릇하게 굽고 남은 반죽도 같은 방법으로 굽는다.",
+          "팬케이크를 쌓아 꿀이나 시럽을 곁들여 낸다."
+        ]
+      }
+    },
+    {
+      "id": "french-toast",
+      "name": {
+        "en": "French Toast",
+        "ko": "프렌치토스트"
+      },
+      "cuisine": "american",
+      "minutes": 15,
+      "ingredients": [
+        {
+          "ref": "bread",
+          "en": "bread slices (thick-cut)",
+          "ko": "식빵 (두툼한 것)"
+        },
+        {
+          "ref": "egg",
+          "en": "eggs",
+          "ko": "달걀"
+        },
+        {
+          "ref": "milk",
+          "en": "milk",
+          "ko": "우유"
+        },
+        {
+          "ref": "sugar",
+          "en": "sugar",
+          "ko": "설탕"
+        },
+        {
+          "ref": "butter",
+          "en": "butter",
+          "ko": "버터"
+        },
+        {
+          "ref": "honey",
+          "en": "honey or syrup (for serving)",
+          "ko": "꿀 또는 시럽 (곁들임)"
+        },
+        {
+          "ref": null,
+          "en": "cinnamon (optional)",
+          "ko": "시나몬 가루 (선택)"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Whisk the eggs, milk, sugar, and cinnamon if using in a wide, shallow dish.",
+          "Soak each bread slice in the mixture for a few seconds per side.",
+          "Melt butter in a pan over medium heat.",
+          "Cook the soaked bread until golden brown on both sides.",
+          "Serve warm with honey or syrup drizzled on top."
+        ],
+        "ko": [
+          "넓은 그릇에 달걀, 우유, 설탕, 시나몬(선택)을 넣고 잘 푼다.",
+          "식빵을 앞뒤로 몇 초씩 담가 달걀물을 입힌다.",
+          "팬에 버터를 중불로 녹인다.",
+          "적신 빵을 양면이 노릇해질 때까지 굽는다.",
+          "꿀이나 시럽을 뿌려 따뜻할 때 낸다."
+        ]
+      }
+    },
+    {
+      "id": "grilled-cheese",
+      "name": {
+        "en": "Grilled Cheese Sandwich",
+        "ko": "그릴드 치즈 샌드위치"
+      },
+      "cuisine": "american",
+      "minutes": 10,
+      "ingredients": [
+        {
+          "ref": "bread",
+          "en": "bread slices",
+          "ko": "식빵"
+        },
+        {
+          "ref": "cheese",
+          "en": "cheese slices",
+          "ko": "치즈"
+        },
+        {
+          "ref": "butter",
+          "en": "butter (softened)",
+          "ko": "버터 (부드럽게 둔 것)"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Butter one side of each bread slice.",
+          "Place a slice butter-side down in a pan over medium-low heat and layer the cheese on top.",
+          "Close the sandwich with the second slice, butter side facing out.",
+          "Cook until the underside is deep golden, then flip carefully.",
+          "When both sides are crisp and the cheese has melted, cut in half and serve."
+        ],
+        "ko": [
+          "식빵 한쪽 면에 각각 버터를 바른다.",
+          "버터 바른 면이 아래로 가게 팬에 올리고 중약불에서 치즈를 얹는다.",
+          "버터 면이 바깥으로 오도록 나머지 빵을 덮는다.",
+          "아랫면이 진한 갈색이 되면 조심스럽게 뒤집는다.",
+          "양면이 바삭해지고 치즈가 녹으면 반으로 잘라 낸다."
+        ]
+      }
+    },
+    {
+      "id": "blt-sandwich",
+      "name": {
+        "en": "BLT Sandwich",
+        "ko": "BLT 샌드위치"
+      },
+      "cuisine": "american",
+      "minutes": 15,
+      "ingredients": [
+        {
+          "ref": "bread",
+          "en": "bread slices",
+          "ko": "식빵"
+        },
+        {
+          "ref": "bacon",
+          "en": "bacon",
+          "ko": "베이컨"
+        },
+        {
+          "ref": "lettuce",
+          "en": "lettuce leaves",
+          "ko": "양상추"
+        },
+        {
+          "ref": "tomato",
+          "en": "tomato (sliced)",
+          "ko": "토마토 (슬라이스)"
+        },
+        {
+          "ref": "mayonnaise",
+          "en": "mayonnaise",
+          "ko": "마요네즈"
+        },
+        {
+          "ref": "black-pepper",
+          "en": "black pepper",
+          "ko": "후추"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Fry the bacon in a dry pan until crisp and drain it on paper towels.",
+          "Toast the bread slices lightly.",
+          "Spread mayonnaise on the inner side of each slice.",
+          "Layer lettuce, tomato slices seasoned with black pepper, and the crisp bacon.",
+          "Close the sandwich, press gently, cut in half, and serve."
+        ],
+        "ko": [
+          "마른 팬에 베이컨을 바삭하게 구워 키친타월에 기름을 뺀다.",
+          "식빵을 가볍게 굽는다.",
+          "빵 안쪽 면에 마요네즈를 바른다.",
+          "양상추, 후추 뿌린 토마토 슬라이스, 바삭한 베이컨 순으로 올린다.",
+          "빵을 덮어 살짝 누른 뒤 반으로 잘라 낸다."
+        ]
+      }
+    },
+    {
+      "id": "chicken-salad",
+      "name": {
+        "en": "Chicken Salad",
+        "ko": "치킨 샐러드"
+      },
+      "cuisine": "american",
+      "minutes": 20,
+      "ingredients": [
+        {
+          "ref": "chicken-breast",
+          "en": "chicken breast",
+          "ko": "닭가슴살"
+        },
+        {
+          "ref": "lettuce",
+          "en": "lettuce (torn)",
+          "ko": "양상추 (뜯은 것)"
+        },
+        {
+          "ref": "cherry-tomato",
+          "en": "cherry tomatoes (halved)",
+          "ko": "방울토마토 (반 가른 것)"
+        },
+        {
+          "ref": "cucumber",
+          "en": "cucumber (sliced)",
+          "ko": "오이 (썬 것)"
+        },
+        {
+          "ref": "olive-oil",
+          "en": "olive oil",
+          "ko": "올리브오일"
+        },
+        {
+          "ref": "lemon",
+          "en": "lemon (juiced)",
+          "ko": "레몬 (즙)"
+        },
+        {
+          "ref": "honey",
+          "en": "honey",
+          "ko": "꿀"
+        },
+        {
+          "ref": "mustard",
+          "en": "mustard",
+          "ko": "머스터드"
+        },
+        {
+          "ref": "salt",
+          "en": "salt",
+          "ko": "소금"
+        },
+        {
+          "ref": "black-pepper",
+          "en": "black pepper",
+          "ko": "후추"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Season the chicken breast with salt and pepper and pan-cook it over medium heat until cooked through.",
+          "Rest the chicken briefly, then slice it against the grain.",
+          "Whisk olive oil, lemon juice, honey, mustard, and a pinch of salt into a dressing.",
+          "Toss the lettuce, cherry tomatoes, and cucumber in a large bowl.",
+          "Top with the sliced chicken, pour over the dressing, and serve."
+        ],
+        "ko": [
+          "닭가슴살에 소금과 후추로 밑간해 중불 팬에서 속까지 익힌다.",
+          "닭고기를 잠시 쉬였다가 결 반대 방향으로 썬다.",
+          "올리브오일, 레몬즙, 꿀, 머스터드, 소금 한 꼬집을 섞어 드레싱을 만든다.",
+          "큰 볼에 양상추, 방울토마토, 오이를 담아 가볍게 섞는다.",
+          "썬 닭고기를 올리고 드레싱을 부어 낸다."
+        ]
+      }
+    },
+    {
+      "id": "mashed-potatoes",
+      "name": {
+        "en": "Mashed Potatoes",
+        "ko": "매쉬드 포테이토"
+      },
+      "cuisine": "american",
+      "minutes": 25,
+      "ingredients": [
+        {
+          "ref": "potato",
+          "en": "potatoes (peeled and quartered)",
+          "ko": "감자 (껍질 벗겨 4등분)"
+        },
+        {
+          "ref": "butter",
+          "en": "butter",
+          "ko": "버터"
+        },
+        {
+          "ref": "milk",
+          "en": "milk (warmed)",
+          "ko": "우유 (데운 것)"
+        },
+        {
+          "ref": "salt",
+          "en": "salt",
+          "ko": "소금"
+        },
+        {
+          "ref": "black-pepper",
+          "en": "black pepper",
+          "ko": "후추"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Boil the potatoes in salted water until a fork slides in easily.",
+          "Drain well and let the steam escape for a minute.",
+          "Mash the potatoes while still hot until mostly smooth.",
+          "Fold in the butter and warm milk a little at a time until creamy.",
+          "Season with salt and black pepper and serve warm."
+        ],
+        "ko": [
+          "소금 넣은 물에 감자를 포크가 쉽게 들어갈 때까지 삶는다.",
+          "물기를 잘 빼고 1분 정도 김을 날린다.",
+          "감자가 뜨거울 때 거의 매끈해질 때까지 으깬다.",
+          "버터와 데운 우유를 조금씩 넣어 크리미하게 섞는다.",
+          "소금과 후추로 간해 따뜻할 때 낸다."
+        ]
+      }
+    },
+    {
+      "id": "burger-patty",
+      "name": {
+        "en": "Homemade Burger Patty",
+        "ko": "수제 버거 패티"
+      },
+      "cuisine": "american",
+      "minutes": 25,
+      "ingredients": [
+        {
+          "ref": "beef",
+          "en": "ground beef",
+          "ko": "다진 소고기"
+        },
+        {
+          "ref": "onion",
+          "en": "onion (finely minced)",
+          "ko": "양파 (곱게 다진 것)"
+        },
+        {
+          "ref": "egg",
+          "en": "egg",
+          "ko": "달걀"
+        },
+        {
+          "ref": "bread",
+          "en": "bread (torn into crumbs)",
+          "ko": "식빵 (잘게 뜯은 것)"
+        },
+        {
+          "ref": "salt",
+          "en": "salt",
+          "ko": "소금"
+        },
+        {
+          "ref": "black-pepper",
+          "en": "black pepper",
+          "ko": "후추"
+        },
+        {
+          "ref": "cooking-oil",
+          "en": "cooking oil",
+          "ko": "식용유"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Combine the ground beef, minced onion, egg, bread crumbs, salt, and pepper in a bowl.",
+          "Knead briefly until the mixture holds together, then divide it into portions.",
+          "Shape each portion into a patty slightly wider than your bun, pressing a dimple into the center.",
+          "Heat oil in a pan over medium-high heat and sear the patties without moving them for a few minutes.",
+          "Flip once and cook until the juices run clear, then rest briefly before serving."
+        ],
+        "ko": [
+          "볼에 다진 소고기, 다진 양파, 달걀, 빵가루, 소금, 후추를 넣고 섞는다.",
+          "반죽이 뭉칠 정도로만 치댄 뒤 몇 덩이로 나눈다.",
+          "번보다 살짝 넓게 패티를 빚고 가운데를 살짝 눌러 준다.",
+          "팬에 기름을 두르고 중강불에서 패티를 움직이지 않고 몇 분간 굽는다.",
+          "한 번만 뒤집어 육즙이 맑게 나올 때까지 익히고 잠시 쉬였다가 낸다."
+        ]
+      }
+    },
+    {
+      "id": "mac-and-cheese",
+      "name": {
+        "en": "Mac and Cheese",
+        "ko": "맥앤치즈"
+      },
+      "cuisine": "american",
+      "minutes": 25,
+      "ingredients": [
+        {
+          "ref": "pasta",
+          "en": "pasta (macaroni or short shapes)",
+          "ko": "파스타 면 (마카로니 등 숏파스타)"
+        },
+        {
+          "ref": "butter",
+          "en": "butter",
+          "ko": "버터"
+        },
+        {
+          "ref": "flour",
+          "en": "flour",
+          "ko": "밀가루"
+        },
+        {
+          "ref": "milk",
+          "en": "milk",
+          "ko": "우유"
+        },
+        {
+          "ref": "cheese",
+          "en": "cheese (shredded)",
+          "ko": "치즈"
+        },
+        {
+          "ref": "mustard",
+          "en": "mustard (a little, optional)",
+          "ko": "머스터드 (약간, 선택)"
+        },
+        {
+          "ref": "salt",
+          "en": "salt",
+          "ko": "소금"
+        },
+        {
+          "ref": "black-pepper",
+          "en": "black pepper",
+          "ko": "후추"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Boil the pasta in salted water until just tender and drain it.",
+          "Melt butter in a pot, stir in the flour, and cook for a minute without browning.",
+          "Whisk in the milk gradually until the sauce is smooth and slightly thickened.",
+          "Turn the heat low and melt in the cheese with a touch of mustard if using.",
+          "Fold the pasta into the sauce, season with salt and pepper, and serve hot."
+        ],
+        "ko": [
+          "소금 넣은 물에 파스타를 알맞게 삶아 건진다.",
+          "냄비에 버터를 녹이고 밀가루를 넣어 타지 않게 1분간 볶는다.",
+          "우유를 조금씩 부으며 저어 매끈하고 살짝 걸쭉한 소스를 만든다.",
+          "약불로 줄이고 치즈와 머스터드(선택)를 넣어 녹인다.",
+          "파스타를 소스에 버무리고 소금·후추로 간해 뜨거울 때 낸다."
+        ]
+      }
+    },
+    {
+      "id": "quesadilla",
+      "name": {
+        "en": "Quesadilla",
+        "ko": "퀘사디아"
+      },
+      "cuisine": "mexican",
+      "minutes": 15,
+      "ingredients": [
+        {
+          "ref": "tortilla",
+          "en": "tortillas",
+          "ko": "또띠아"
+        },
+        {
+          "ref": "mozzarella",
+          "en": "mozzarella (shredded)",
+          "ko": "모짜렐라 치즈"
+        },
+        {
+          "ref": "bell-pepper",
+          "en": "bell pepper (thinly sliced)",
+          "ko": "파프리카 (얇게 썬 것)"
+        },
+        {
+          "ref": "onion",
+          "en": "onion (thinly sliced)",
+          "ko": "양파 (얇게 썬 것)"
+        },
+        {
+          "ref": "cooking-oil",
+          "en": "cooking oil",
+          "ko": "식용유"
+        },
+        {
+          "ref": "salt",
+          "en": "salt",
+          "ko": "소금"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Sauté the sliced bell pepper and onion in a little oil with a pinch of salt until softened, then set aside.",
+          "Place a tortilla in a dry pan over medium heat.",
+          "Scatter cheese over half the tortilla, top with the vegetables, and add a little more cheese.",
+          "Fold the tortilla over and press gently, cooking until the underside is golden.",
+          "Flip and cook until the cheese melts fully, then cut into wedges and serve."
+        ],
+        "ko": [
+          "기름 약간에 파프리카와 양파를 소금 한 꼬집과 함께 부드럽게 볶아 둔다.",
+          "마른 팬에 또띠아 한 장을 올리고 중불로 데운다.",
+          "또띠아 반쪽에 치즈를 뿌리고 볶은 채소를 올린 뒤 치즈를 조금 더 얹는다.",
+          "반으로 접어 살짝 누르며 아랫면이 노릇해질 때까지 굽는다.",
+          "뒤집어 치즈가 완전히 녹을 때까지 구운 뒤 조각내어 낸다."
+        ]
+      }
+    },
+    {
+      "id": "beef-tacos",
+      "name": {
+        "en": "Beef Tacos",
+        "ko": "소고기 타코"
+      },
+      "cuisine": "mexican",
+      "minutes": 25,
+      "ingredients": [
+        {
+          "ref": "tortilla",
+          "en": "tortillas (small)",
+          "ko": "또띠아 (작은 것)"
+        },
+        {
+          "ref": "beef",
+          "en": "ground beef",
+          "ko": "다진 소고기"
+        },
+        {
+          "ref": "onion",
+          "en": "onion (diced)",
+          "ko": "양파 (잘게 썬 것)"
+        },
+        {
+          "ref": "tomato",
+          "en": "tomato (diced)",
+          "ko": "토마토 (깍둑썬 것)"
+        },
+        {
+          "ref": "lettuce",
+          "en": "lettuce (shredded)",
+          "ko": "양상추 (채썬 것)"
+        },
+        {
+          "ref": "cheese",
+          "en": "cheese (shredded)",
+          "ko": "치즈"
+        },
+        {
+          "ref": null,
+          "en": "taco seasoning (or mild chili powder)",
+          "ko": "타코 시즈닝 (또는 순한 칠리 파우더)"
+        },
+        {
+          "ref": "cooking-oil",
+          "en": "cooking oil",
+          "ko": "식용유"
+        },
+        {
+          "ref": "salt",
+          "en": "salt",
+          "ko": "소금"
+        },
+        {
+          "ref": "black-pepper",
+          "en": "black pepper",
+          "ko": "후추"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Brown the ground beef with the diced onion in a little oil over medium-high heat.",
+          "Stir in the taco seasoning with a splash of water and simmer until the meat is coated.",
+          "Season with salt and pepper to taste.",
+          "Warm the tortillas briefly in a dry pan.",
+          "Fill each tortilla with the beef, then top with lettuce, tomato, and cheese before serving."
+        ],
+        "ko": [
+          "기름 약간에 다진 소고기와 양파를 중강불에서 볶아 익힌다.",
+          "타코 시즈닝과 물 약간을 넣고 고기에 양념이 배도록 졸인다.",
+          "소금과 후추로 입맛에 맞게 간을 한다.",
+          "또띠아를 마른 팬에 살짝 데운다.",
+          "또띠아에 고기를 채우고 양상추, 토마토, 치즈를 올려 낸다."
+        ]
+      }
+    },
+    {
+      "id": "burrito-bowl",
+      "name": {
+        "en": "Burrito Bowl",
+        "ko": "부리토볼"
+      },
+      "cuisine": "mexican",
+      "minutes": 30,
+      "ingredients": [
+        {
+          "ref": "rice",
+          "en": "rice (cooked)",
+          "ko": "밥"
+        },
+        {
+          "ref": "chicken",
+          "en": "chicken (bite-sized pieces)",
+          "ko": "닭고기 (한입 크기)"
+        },
+        {
+          "ref": "corn",
+          "en": "corn kernels",
+          "ko": "옥수수"
+        },
+        {
+          "ref": "tomato",
+          "en": "tomato (diced)",
+          "ko": "토마토 (깍둑썬 것)"
+        },
+        {
+          "ref": "avocado",
+          "en": "avocado (sliced)",
+          "ko": "아보카도 (슬라이스)"
+        },
+        {
+          "ref": "lettuce",
+          "en": "lettuce (shredded)",
+          "ko": "양상추 (채썬 것)"
+        },
+        {
+          "ref": "lime",
+          "en": "lime (juiced)",
+          "ko": "라임 (즙)"
+        },
+        {
+          "ref": "olive-oil",
+          "en": "olive oil",
+          "ko": "올리브오일"
+        },
+        {
+          "ref": "salt",
+          "en": "salt",
+          "ko": "소금"
+        },
+        {
+          "ref": "black-pepper",
+          "en": "black pepper",
+          "ko": "후추"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Season the chicken pieces with salt and pepper and cook them in olive oil until golden and done.",
+          "Warm the corn briefly in the same pan.",
+          "Mix the diced tomato with lime juice and a pinch of salt for a quick salsa.",
+          "Spoon warm rice into bowls as the base.",
+          "Arrange the chicken, corn, salsa, lettuce, and avocado on top and finish with a squeeze of lime."
+        ],
+        "ko": [
+          "닭고기에 소금·후추로 간해 올리브오일에 노릇하게 익힌다.",
+          "같은 팬에 옥수수를 잠깐 데운다.",
+          "깍둑썬 토마토에 라임즙과 소금 한 꼬집을 섞어 간단한 살사를 만든다.",
+          "그릇에 따뜻한 밥을 담아 바닥을 만든다.",
+          "닭고기, 옥수수, 살사, 양상추, 아보카도를 올리고 라임즙을 짜서 마무리한다."
+        ]
+      }
+    },
+    {
+      "id": "salsa-and-nachos",
+      "name": {
+        "en": "Fresh Salsa with Nachos",
+        "ko": "살사와 나초"
+      },
+      "cuisine": "mexican",
+      "minutes": 20,
+      "ingredients": [
+        {
+          "ref": "tortilla",
+          "en": "tortillas (cut into wedges)",
+          "ko": "또띠아 (조각낸 것)"
+        },
+        {
+          "ref": "tomato",
+          "en": "tomatoes (finely diced)",
+          "ko": "토마토 (잘게 썬 것)"
+        },
+        {
+          "ref": "onion",
+          "en": "onion (finely diced)",
+          "ko": "양파 (잘게 썬 것)"
+        },
+        {
+          "ref": "chili-pepper",
+          "en": "chili pepper (minced)",
+          "ko": "고추 (다진 것)"
+        },
+        {
+          "ref": "lime",
+          "en": "lime (juiced)",
+          "ko": "라임 (즙)"
+        },
+        {
+          "ref": "cooking-oil",
+          "en": "cooking oil",
+          "ko": "식용유"
+        },
+        {
+          "ref": "salt",
+          "en": "salt",
+          "ko": "소금"
+        },
+        {
+          "ref": null,
+          "en": "cilantro (optional)",
+          "ko": "고수 (선택)"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Cut the tortillas into wedges and brush them lightly with oil.",
+          "Bake or pan-toast the wedges until crisp and lightly golden.",
+          "Combine the diced tomato, onion, and minced chili in a bowl.",
+          "Season the salsa with lime juice, salt, and cilantro if using, then let it sit for a few minutes.",
+          "Serve the crisp chips alongside the fresh salsa for dipping."
+        ],
+        "ko": [
+          "또띠아를 조각으로 잘라 기름을 얇게 바른다.",
+          "오븐이나 팬에서 바삭하고 노릇해질 때까지 굽는다.",
+          "볼에 잘게 썬 토마토, 양파, 다진 고추를 섞는다.",
+          "라임즙, 소금, 고수(선택)로 간해 몇 분간 재워 맛이 어우러지게 한다.",
+          "바삭한 칩에 살사를 곁들여 찍어 먹도록 낸다."
+        ]
+      }
+    },
+    {
+      "id": "chicken-fajitas",
+      "name": {
+        "en": "Chicken Fajitas",
+        "ko": "치킨 파히타"
+      },
+      "cuisine": "mexican",
+      "minutes": 25,
+      "ingredients": [
+        {
+          "ref": "chicken-breast",
+          "en": "chicken breast (cut into strips)",
+          "ko": "닭가슴살 (길게 썬 것)"
+        },
+        {
+          "ref": "bell-pepper",
+          "en": "bell peppers (sliced)",
+          "ko": "파프리카 (썬 것)"
+        },
+        {
+          "ref": "onion",
+          "en": "onion (sliced)",
+          "ko": "양파 (썬 것)"
+        },
+        {
+          "ref": "tortilla",
+          "en": "tortillas",
+          "ko": "또띠아"
+        },
+        {
+          "ref": "lime",
+          "en": "lime",
+          "ko": "라임"
+        },
+        {
+          "ref": null,
+          "en": "fajita seasoning (or mild chili powder)",
+          "ko": "파히타 시즈닝 (또는 순한 칠리 파우더)"
+        },
+        {
+          "ref": "cooking-oil",
+          "en": "cooking oil",
+          "ko": "식용유"
+        },
+        {
+          "ref": "salt",
+          "en": "salt",
+          "ko": "소금"
+        },
+        {
+          "ref": "black-pepper",
+          "en": "black pepper",
+          "ko": "후추"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Toss the chicken strips with the seasoning, salt, and pepper.",
+          "Sear the chicken in oil over high heat until browned and cooked through, then set aside.",
+          "In the same pan, stir-fry the sliced peppers and onion until softened with charred edges.",
+          "Return the chicken to the pan, squeeze lime over everything, and toss together.",
+          "Warm the tortillas and serve the filling alongside for wrapping at the table."
+        ],
+        "ko": [
+          "길게 썬 닭가슴살에 시즈닝, 소금, 후추를 버무린다.",
+          "센 불에 기름을 두르고 닭고기를 노릇하게 완전히 익혀 따로 둔다.",
+          "같은 팬에 파프리카와 양파를 가장자리가 살짝 그을리도록 볶는다.",
+          "닭고기를 다시 넣고 라임즙을 짜서 함께 버무린다.",
+          "또띠아를 데워 곁들여 내고 식탁에서 싸 먹도록 한다."
+        ]
+      }
+    },
+    {
+      "id": "ratatouille",
+      "name": {
+        "en": "Ratatouille",
+        "ko": "라따뚜이"
+      },
+      "cuisine": "french",
+      "minutes": 40,
+      "ingredients": [
+        {
+          "ref": "eggplant",
+          "en": "eggplant (diced)",
+          "ko": "가지 (깍둑썬 것)"
+        },
+        {
+          "ref": "zucchini",
+          "en": "zucchini (diced)",
+          "ko": "애호박 (깍둑썬 것)"
+        },
+        {
+          "ref": "bell-pepper",
+          "en": "bell pepper (diced)",
+          "ko": "파프리카 (깍둑썬 것)"
+        },
+        {
+          "ref": "tomato",
+          "en": "tomatoes (chopped)",
+          "ko": "토마토 (썬 것)"
+        },
+        {
+          "ref": "onion",
+          "en": "onion (diced)",
+          "ko": "양파 (깍둑썬 것)"
+        },
+        {
+          "ref": "garlic",
+          "en": "garlic (minced)",
+          "ko": "마늘 (다진 것)"
+        },
+        {
+          "ref": "olive-oil",
+          "en": "olive oil",
+          "ko": "올리브오일"
+        },
+        {
+          "ref": null,
+          "en": "dried herbs (thyme or herbes de Provence)",
+          "ko": "말린 허브 (타임 또는 프로방스 허브)"
+        },
+        {
+          "ref": "salt",
+          "en": "salt",
+          "ko": "소금"
+        },
+        {
+          "ref": "black-pepper",
+          "en": "black pepper",
+          "ko": "후추"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Sauté the eggplant in olive oil until lightly browned and set it aside.",
+          "In the same pot, cook the onion, garlic, and bell pepper until softened.",
+          "Add the zucchini and cook for a few more minutes.",
+          "Return the eggplant, add the chopped tomatoes and herbs, and season with salt and pepper.",
+          "Simmer gently with the lid ajar until the vegetables are tender and the flavors meld.",
+          "Adjust the seasoning and serve warm or at room temperature."
+        ],
+        "ko": [
+          "올리브오일에 가지를 살짝 노릇하게 볶아 따로 둔다.",
+          "같은 냄비에 양파, 마늘, 파프리카를 부드러워질 때까지 볶는다.",
+          "애호박을 넣고 몇 분 더 볶는다.",
+          "가지를 다시 넣고 썬 토마토와 허브를 더한 뒤 소금·후추로 간한다.",
+          "뚜껑을 비스듬히 덮고 채소가 부드러워지고 맛이 어우러질 때까지 뭉근히 끓인다.",
+          "간을 확인해 따뜻하게 또는 상온으로 낸다."
+        ]
+      }
+    },
+    {
+      "id": "cream-of-mushroom-soup",
+      "name": {
+        "en": "Cream of Mushroom Soup",
+        "ko": "버섯 크림수프"
+      },
+      "cuisine": "french",
+      "minutes": 30,
+      "ingredients": [
+        {
+          "ref": "mushroom",
+          "en": "mushrooms (sliced)",
+          "ko": "버섯 (썬 것)"
+        },
+        {
+          "ref": "onion",
+          "en": "onion (diced)",
+          "ko": "양파 (잘게 썬 것)"
+        },
+        {
+          "ref": "butter",
+          "en": "butter",
+          "ko": "버터"
+        },
+        {
+          "ref": "flour",
+          "en": "flour",
+          "ko": "밀가루"
+        },
+        {
+          "ref": "milk",
+          "en": "milk",
+          "ko": "우유"
+        },
+        {
+          "ref": "cream",
+          "en": "cream",
+          "ko": "생크림"
+        },
+        {
+          "ref": "salt",
+          "en": "salt",
+          "ko": "소금"
+        },
+        {
+          "ref": "black-pepper",
+          "en": "black pepper",
+          "ko": "후추"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Cook the mushrooms and onion in butter over medium heat until their moisture evaporates.",
+          "Sprinkle in the flour and stir for a minute to coat everything.",
+          "Pour in the milk gradually, stirring so no lumps form.",
+          "Simmer gently until the soup thickens, then blend partially or fully to your preferred texture.",
+          "Stir in the cream, season with salt and pepper, and warm through before serving."
+        ],
+        "ko": [
+          "버터에 버섯과 양파를 중불에서 수분이 날아갈 때까지 볶는다.",
+          "밀가루를 뿌려 1분 정도 고루 볶는다.",
+          "우유를 조금씩 부으며 덩어리가 생기지 않게 젓는다.",
+          "수프가 걸쭉해질 때까지 뭉근히 끓인 뒤 취향에 맞게 일부 또는 전부를 간다.",
+          "생크림을 섞고 소금·후추로 간해 따뜻하게 데워 낸다."
+        ]
+      }
+    },
+    {
+      "id": "potato-gratin",
+      "name": {
+        "en": "Potato Gratin",
+        "ko": "감자 그라탕"
+      },
+      "cuisine": "french",
+      "minutes": 55,
+      "ingredients": [
+        {
+          "ref": "potato",
+          "en": "potatoes (thinly sliced)",
+          "ko": "감자 (얇게 썬 것)"
+        },
+        {
+          "ref": "cream",
+          "en": "cream",
+          "ko": "생크림"
+        },
+        {
+          "ref": "milk",
+          "en": "milk",
+          "ko": "우유"
+        },
+        {
+          "ref": "garlic",
+          "en": "garlic (minced)",
+          "ko": "마늘 (다진 것)"
+        },
+        {
+          "ref": "mozzarella",
+          "en": "mozzarella (shredded)",
+          "ko": "모짜렐라 치즈"
+        },
+        {
+          "ref": "butter",
+          "en": "butter (for the dish)",
+          "ko": "버터 (용기용)"
+        },
+        {
+          "ref": "salt",
+          "en": "salt",
+          "ko": "소금"
+        },
+        {
+          "ref": "black-pepper",
+          "en": "black pepper",
+          "ko": "후추"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Warm the cream, milk, and garlic together with salt and pepper in a pot.",
+          "Butter a baking dish and layer the potato slices with a little overlap.",
+          "Pour the warm cream mixture over the potatoes so they are nearly covered.",
+          "Bake at 180 degrees Celsius until the potatoes are tender when pierced, about thirty-five minutes.",
+          "Scatter the cheese on top and bake until golden and bubbling.",
+          "Rest for a few minutes before serving so the layers set."
+        ],
+        "ko": [
+          "냄비에 생크림, 우유, 마늘을 소금·후추와 함께 데운다.",
+          "오븐 용기에 버터를 바르고 감자 슬라이스를 살짝 겹치게 켜켜이 담는다.",
+          "따뜻한 크림 혼합물을 감자가 거의 잠기도록 붓는다.",
+          "180도 오븐에서 감자가 푹 익을 때까지 35분 정도 굽는다.",
+          "치즈를 뿌리고 노릇하게 부풀 때까지 더 굽는다.",
+          "층이 자리 잡도록 몇 분 식힌 뒤 낸다."
+        ]
+      }
+    },
+    {
+      "id": "crepes",
+      "name": {
+        "en": "Crepes",
+        "ko": "크레페"
+      },
+      "cuisine": "french",
+      "minutes": 25,
+      "ingredients": [
+        {
+          "ref": "flour",
+          "en": "flour",
+          "ko": "밀가루"
+        },
+        {
+          "ref": "egg",
+          "en": "eggs",
+          "ko": "달걀"
+        },
+        {
+          "ref": "milk",
+          "en": "milk",
+          "ko": "우유"
+        },
+        {
+          "ref": "butter",
+          "en": "butter (melted, plus more for the pan)",
+          "ko": "버터 (녹인 것, 팬용 추가)"
+        },
+        {
+          "ref": "sugar",
+          "en": "sugar",
+          "ko": "설탕"
+        },
+        {
+          "ref": "salt",
+          "en": "salt (a pinch)",
+          "ko": "소금 (한 꼬집)"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Whisk the flour, eggs, milk, melted butter, sugar, and salt into a thin, smooth batter.",
+          "Rest the batter for at least ten minutes so the flour hydrates.",
+          "Heat a lightly buttered pan over medium heat.",
+          "Pour in a small ladle of batter and swirl the pan to coat it thinly.",
+          "Cook until the edges lift, flip briefly, then slide onto a plate.",
+          "Repeat with the remaining batter and serve folded with your favorite filling."
+        ],
+        "ko": [
+          "밀가루, 달걀, 우유, 녹인 버터, 설탕, 소금을 섞어 묽고 매끈한 반죽을 만든다.",
+          "밀가루가 수분을 머금도록 반죽을 10분 이상 휴지시킨다.",
+          "팬에 버터를 얇게 두르고 중불로 달군다.",
+          "반죽을 한 국자 붓고 팬을 돌려 얇게 편다.",
+          "가장자리가 들리면 잠깐 뒤집었다가 접시에 옮긴다.",
+          "남은 반죽도 같은 방법으로 굽고 좋아하는 속재료와 함께 접어 낸다."
+        ]
+      }
+    },
+    {
+      "id": "french-onion-soup",
+      "name": {
+        "en": "French Onion Soup",
+        "ko": "프렌치 어니언 수프"
+      },
+      "cuisine": "french",
+      "minutes": 50,
+      "ingredients": [
+        {
+          "ref": "onion",
+          "en": "onions (thinly sliced, several)",
+          "ko": "양파 (얇게 썬 것, 여러 개)"
+        },
+        {
+          "ref": "butter",
+          "en": "butter",
+          "ko": "버터"
+        },
+        {
+          "ref": null,
+          "en": "beef stock (or bouillon)",
+          "ko": "소고기 육수 (또는 육수 큐브)"
+        },
+        {
+          "ref": "bread",
+          "en": "bread slices (toasted)",
+          "ko": "빵 (구운 것)"
+        },
+        {
+          "ref": "mozzarella",
+          "en": "mozzarella (shredded)",
+          "ko": "모짜렐라 치즈"
+        },
+        {
+          "ref": "salt",
+          "en": "salt",
+          "ko": "소금"
+        },
+        {
+          "ref": "black-pepper",
+          "en": "black pepper",
+          "ko": "후추"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Cook the sliced onions in butter over medium-low heat, stirring often, until deeply caramelized.",
+          "Pour in the stock, scraping up the browned bits from the bottom.",
+          "Simmer for fifteen minutes and season with salt and pepper.",
+          "Ladle the soup into oven-safe bowls and float a slice of toasted bread on each.",
+          "Cover generously with cheese and broil until melted and golden, then serve carefully."
+        ],
+        "ko": [
+          "버터에 얇게 썬 양파를 중약불에서 자주 저어가며 진한 갈색이 나도록 볶는다.",
+          "육수를 붓고 바닥에 눌은 갈색 부분을 긁어 섞는다.",
+          "15분간 끓이고 소금·후추로 간한다.",
+          "오븐용 그릇에 수프를 담고 구운 빵을 한 조각씩 띄운다.",
+          "치즈를 넉넉히 덮어 노릇하게 녹을 때까지 구운 뒤 뜨거우니 조심히 낸다."
+        ]
+      }
+    },
+    {
+      "id": "nicoise-style-salad",
+      "name": {
+        "en": "Nicoise-Style Salad",
+        "ko": "니수아즈풍 샐러드"
+      },
+      "cuisine": "french",
+      "minutes": 25,
+      "ingredients": [
+        {
+          "ref": "tuna",
+          "en": "canned tuna (drained)",
+          "ko": "참치 통조림 (기름 뺀 것)"
+        },
+        {
+          "ref": "egg",
+          "en": "eggs (boiled)",
+          "ko": "달걀 (삶은 것)"
+        },
+        {
+          "ref": "potato",
+          "en": "potatoes (small, boiled)",
+          "ko": "감자 (작게 삶은 것)"
+        },
+        {
+          "ref": "lettuce",
+          "en": "lettuce (torn)",
+          "ko": "양상추 (뜯은 것)"
+        },
+        {
+          "ref": "cherry-tomato",
+          "en": "cherry tomatoes (halved)",
+          "ko": "방울토마토 (반 가른 것)"
+        },
+        {
+          "ref": null,
+          "en": "olives (optional)",
+          "ko": "올리브 (선택)"
+        },
+        {
+          "ref": "olive-oil",
+          "en": "olive oil",
+          "ko": "올리브오일"
+        },
+        {
+          "ref": "vinegar",
+          "en": "vinegar",
+          "ko": "식초"
+        },
+        {
+          "ref": "mustard",
+          "en": "mustard",
+          "ko": "머스터드"
+        },
+        {
+          "ref": "salt",
+          "en": "salt",
+          "ko": "소금"
+        },
+        {
+          "ref": "black-pepper",
+          "en": "black pepper",
+          "ko": "후추"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Boil the potatoes until tender and the eggs until just set, then cool and cut both into wedges.",
+          "Whisk olive oil, vinegar, mustard, salt, and pepper into a sharp dressing.",
+          "Spread the lettuce on a wide plate as the base.",
+          "Arrange the potatoes, eggs, cherry tomatoes, tuna, and olives in sections on top.",
+          "Spoon the dressing over everything just before serving."
+        ],
+        "ko": [
+          "감자는 부드럽게, 달걀은 적당히 삶아 식힌 뒤 각각 조각낸다.",
+          "올리브오일, 식초, 머스터드, 소금, 후추를 섞어 새콤한 드레싱을 만든다.",
+          "넓은 접시에 양상추를 깔아 바닥을 만든다.",
+          "감자, 달걀, 방울토마토, 참치, 올리브를 구역을 나눠 보기 좋게 올린다.",
+          "내기 직전에 드레싱을 골고루 끼얹는다."
+        ]
+      }
+    },
+    {
+      "id": "schnitzel-style-cutlet",
+      "name": {
+        "en": "Schnitzel-Style Pork Cutlet",
+        "ko": "슈니첼풍 포크 커틀릿"
+      },
+      "cuisine": "other",
+      "minutes": 30,
+      "ingredients": [
+        {
+          "ref": "pork",
+          "en": "pork loin (pounded thin)",
+          "ko": "돼지고기 등심 (얇게 두드린 것)"
+        },
+        {
+          "ref": "flour",
+          "en": "flour",
+          "ko": "밀가루"
+        },
+        {
+          "ref": "egg",
+          "en": "egg (beaten)",
+          "ko": "달걀 (푼 것)"
+        },
+        {
+          "ref": "bread",
+          "en": "bread (dried and crumbled)",
+          "ko": "식빵 (말려 부순 것)"
+        },
+        {
+          "ref": "cooking-oil",
+          "en": "cooking oil (for shallow frying)",
+          "ko": "식용유 (지짐용)"
+        },
+        {
+          "ref": "lemon",
+          "en": "lemon (wedges)",
+          "ko": "레몬 (조각)"
+        },
+        {
+          "ref": "salt",
+          "en": "salt",
+          "ko": "소금"
+        },
+        {
+          "ref": "black-pepper",
+          "en": "black pepper",
+          "ko": "후추"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Pound the pork slices thin and season both sides with salt and pepper.",
+          "Set up three plates with flour, beaten egg, and bread crumbs.",
+          "Coat each slice in flour, dip in egg, then press into the crumbs.",
+          "Shallow-fry in hot oil until deep golden on both sides.",
+          "Drain on paper towels and serve with lemon wedges for squeezing."
+        ],
+        "ko": [
+          "돼지고기를 얇게 두드려 양면에 소금·후추로 간한다.",
+          "밀가루, 푼 달걀, 빵가루를 각각 접시에 준비한다.",
+          "고기에 밀가루를 묻히고 달걀물을 입힌 뒤 빵가루를 꾹꾹 눌러 묻힌다.",
+          "달군 기름에 양면이 진한 갈색이 되도록 지진다.",
+          "키친타월에 기름을 빼고 레몬 조각을 곁들여 낸다."
+        ]
+      }
+    },
+    {
+      "id": "butter-chicken-style-curry",
+      "name": {
+        "en": "Butter Chicken-Style Curry",
+        "ko": "버터치킨풍 커리"
+      },
+      "cuisine": "indian",
+      "minutes": 40,
+      "ingredients": [
+        {
+          "ref": "chicken",
+          "en": "chicken (bite-sized pieces)",
+          "ko": "닭고기 (한입 크기)"
+        },
+        {
+          "ref": "butter",
+          "en": "butter",
+          "ko": "버터"
+        },
+        {
+          "ref": "onion",
+          "en": "onion (finely diced)",
+          "ko": "양파 (잘게 썬 것)"
+        },
+        {
+          "ref": "garlic",
+          "en": "garlic (minced)",
+          "ko": "마늘 (다진 것)"
+        },
+        {
+          "ref": "ginger",
+          "en": "ginger (minced)",
+          "ko": "생강 (다진 것)"
+        },
+        {
+          "ref": "tomato",
+          "en": "tomatoes (chopped) or tomato puree",
+          "ko": "토마토 (썬 것) 또는 토마토 퓨레"
+        },
+        {
+          "ref": "cream",
+          "en": "cream",
+          "ko": "생크림"
+        },
+        {
+          "ref": "curry-powder",
+          "en": "curry powder",
+          "ko": "카레가루"
+        },
+        {
+          "ref": "sugar",
+          "en": "sugar (a little)",
+          "ko": "설탕 (약간)"
+        },
+        {
+          "ref": "salt",
+          "en": "salt",
+          "ko": "소금"
+        },
+        {
+          "ref": "rice",
+          "en": "cooked rice (for serving)",
+          "ko": "밥 (곁들임)"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Brown the chicken pieces in half the butter and set them aside.",
+          "Melt the remaining butter and cook the onion, garlic, and ginger until soft and golden.",
+          "Stir in the curry powder for thirty seconds, then add the tomatoes and simmer into a thick sauce.",
+          "Return the chicken, add a splash of water, and simmer until cooked through.",
+          "Stir in the cream with a little sugar and salt to balance the sauce.",
+          "Serve hot over cooked rice."
+        ],
+        "ko": [
+          "버터 절반에 닭고기를 노릇하게 구워 따로 둔다.",
+          "남은 버터를 녹여 양파, 마늘, 생강을 노릇하고 부드럽게 볶는다.",
+          "카레가루를 30초간 볶은 뒤 토마토를 넣고 걸쭉한 소스가 되도록 끓인다.",
+          "닭고기를 다시 넣고 물을 약간 부어 속까지 익힌다.",
+          "생크림과 설탕·소금 약간을 넣어 소스 맛의 균형을 맞춘다.",
+          "밥 위에 뜨겁게 올려 낸다."
+        ]
+      }
+    },
+    {
+      "id": "chickpea-curry",
+      "name": {
+        "en": "Chickpea Curry",
+        "ko": "병아리콩 커리"
+      },
+      "cuisine": "indian",
+      "minutes": 30,
+      "ingredients": [
+        {
+          "ref": null,
+          "en": "canned chickpeas (drained)",
+          "ko": "병아리콩 통조림 (물기 뺀 것)"
+        },
+        {
+          "ref": "onion",
+          "en": "onion (diced)",
+          "ko": "양파 (잘게 썬 것)"
+        },
+        {
+          "ref": "garlic",
+          "en": "garlic (minced)",
+          "ko": "마늘 (다진 것)"
+        },
+        {
+          "ref": "ginger",
+          "en": "ginger (minced)",
+          "ko": "생강 (다진 것)"
+        },
+        {
+          "ref": "tomato",
+          "en": "tomatoes (chopped)",
+          "ko": "토마토 (썬 것)"
+        },
+        {
+          "ref": "curry-powder",
+          "en": "curry powder",
+          "ko": "카레가루"
+        },
+        {
+          "ref": "cooking-oil",
+          "en": "cooking oil",
+          "ko": "식용유"
+        },
+        {
+          "ref": "cream",
+          "en": "cream (or coconut milk)",
+          "ko": "생크림 (또는 코코넛밀크)"
+        },
+        {
+          "ref": "salt",
+          "en": "salt",
+          "ko": "소금"
+        },
+        {
+          "ref": "rice",
+          "en": "cooked rice (for serving)",
+          "ko": "밥 (곁들임)"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Cook the onion, garlic, and ginger in oil over medium heat until soft.",
+          "Add the curry powder and stir briefly until fragrant.",
+          "Add the chopped tomatoes and simmer until they break down.",
+          "Stir in the chickpeas with a splash of water and simmer for ten minutes.",
+          "Finish with cream, season with salt, and serve over rice."
+        ],
+        "ko": [
+          "기름에 양파, 마늘, 생강을 중불에서 부드러워질 때까지 볶는다.",
+          "카레가루를 넣고 향이 올라올 때까지 잠깐 볶는다.",
+          "썬 토마토를 넣고 뭉그러질 때까지 끓인다.",
+          "병아리콩과 물 약간을 넣고 10분간 뭉근히 끓인다.",
+          "생크림을 섞고 소금으로 간해 밥에 곁들여 낸다."
+        ]
+      }
+    },
+    {
+      "id": "hummus-with-flatbread",
+      "name": {
+        "en": "Hummus with Flatbread",
+        "ko": "후무스와 플랫브레드"
+      },
+      "cuisine": "middle-eastern",
+      "minutes": 20,
+      "ingredients": [
+        {
+          "ref": null,
+          "en": "canned chickpeas (drained, liquid reserved)",
+          "ko": "병아리콩 통조림 (물기 빼고 콩물은 남김)"
+        },
+        {
+          "ref": null,
+          "en": "tahini (sesame paste)",
+          "ko": "타히니 (참깨 페이스트)"
+        },
+        {
+          "ref": "garlic",
+          "en": "garlic",
+          "ko": "마늘"
+        },
+        {
+          "ref": "lemon",
+          "en": "lemon (juiced)",
+          "ko": "레몬 (즙)"
+        },
+        {
+          "ref": "olive-oil",
+          "en": "olive oil",
+          "ko": "올리브오일"
+        },
+        {
+          "ref": "salt",
+          "en": "salt",
+          "ko": "소금"
+        },
+        {
+          "ref": "tortilla",
+          "en": "tortillas or flatbread",
+          "ko": "또띠아 또는 플랫브레드"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Blend the chickpeas with tahini, garlic, lemon juice, and salt.",
+          "Add the reserved chickpea liquid a spoonful at a time while blending until silky.",
+          "Taste and adjust with more lemon or salt as needed.",
+          "Warm the flatbread in a dry pan until soft and lightly blistered.",
+          "Spread the hummus in a bowl, swirl olive oil on top, and serve with the warm bread."
+        ],
+        "ko": [
+          "병아리콩을 타히니, 마늘, 레몬즙, 소금과 함께 간다.",
+          "남겨둔 콩물을 한 숟갈씩 넣어가며 실키한 질감이 될 때까지 간다.",
+          "맛을 보고 레몬즙이나 소금을 더해 조절한다.",
+          "플랫브레드를 마른 팬에 부드럽고 살짝 부풀도록 데운다.",
+          "그릇에 후무스를 펴 담고 올리브오일을 둘러 따뜻한 빵과 함께 낸다."
+        ]
+      }
+    },
+    {
+      "id": "shakshuka",
+      "name": {
+        "en": "Shakshuka",
+        "ko": "샥슈카"
+      },
+      "cuisine": "middle-eastern",
+      "minutes": 30,
+      "ingredients": [
+        {
+          "ref": "egg",
+          "en": "eggs",
+          "ko": "달걀"
+        },
+        {
+          "ref": "tomato",
+          "en": "tomatoes (chopped)",
+          "ko": "토마토 (썬 것)"
+        },
+        {
+          "ref": "onion",
+          "en": "onion (diced)",
+          "ko": "양파 (잘게 썬 것)"
+        },
+        {
+          "ref": "bell-pepper",
+          "en": "bell pepper (diced)",
+          "ko": "파프리카 (깍둑썬 것)"
+        },
+        {
+          "ref": "garlic",
+          "en": "garlic (minced)",
+          "ko": "마늘 (다진 것)"
+        },
+        {
+          "ref": "olive-oil",
+          "en": "olive oil",
+          "ko": "올리브오일"
+        },
+        {
+          "ref": null,
+          "en": "paprika powder (or mild chili powder)",
+          "ko": "파프리카 가루 (또는 순한 칠리 파우더)"
+        },
+        {
+          "ref": "salt",
+          "en": "salt",
+          "ko": "소금"
+        },
+        {
+          "ref": "black-pepper",
+          "en": "black pepper",
+          "ko": "후추"
+        },
+        {
+          "ref": "bread",
+          "en": "bread (for dipping)",
+          "ko": "빵 (곁들임)"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Soften the onion, bell pepper, and garlic in olive oil over medium heat.",
+          "Add the paprika, then the chopped tomatoes, and simmer into a thick sauce seasoned with salt and pepper.",
+          "Make small wells in the sauce and crack an egg into each.",
+          "Cover and cook gently until the whites are set but the yolks are still soft.",
+          "Serve straight from the pan with bread for scooping."
+        ],
+        "ko": [
+          "올리브오일에 양파, 파프리카, 마늘을 중불에서 부드럽게 볶는다.",
+          "파프리카 가루와 썬 토마토를 넣고 소금·후추로 간해 걸쭉한 소스로 끓인다.",
+          "소스에 홈을 파고 달걀을 하나씩 깨 넣는다.",
+          "뚜껑을 덮고 흰자는 익되 노른자는 부드럽게 남도록 은근히 익힌다.",
+          "팬째로 내어 빵으로 떠먹도록 곁들인다."
+        ]
+      }
+    },
+    {
+      "id": "tandoori-style-chicken",
+      "name": {
+        "en": "Tandoori-Style Grilled Chicken",
+        "ko": "탄두리풍 치킨구이"
+      },
+      "cuisine": "indian",
+      "minutes": 45,
+      "ingredients": [
+        {
+          "ref": "chicken",
+          "en": "chicken (thighs or drumsticks)",
+          "ko": "닭고기 (허벅지살 또는 닭다리)"
+        },
+        {
+          "ref": "yogurt",
+          "en": "plain yogurt",
+          "ko": "플레인 요거트"
+        },
+        {
+          "ref": "garlic",
+          "en": "garlic (minced)",
+          "ko": "마늘 (다진 것)"
+        },
+        {
+          "ref": "ginger",
+          "en": "ginger (minced)",
+          "ko": "생강 (다진 것)"
+        },
+        {
+          "ref": "curry-powder",
+          "en": "curry powder",
+          "ko": "카레가루"
+        },
+        {
+          "ref": "gochugaru",
+          "en": "gochugaru (or mild chili powder)",
+          "ko": "고춧가루 (또는 순한 칠리 파우더)"
+        },
+        {
+          "ref": "lemon",
+          "en": "lemon (juiced)",
+          "ko": "레몬 (즙)"
+        },
+        {
+          "ref": "cooking-oil",
+          "en": "cooking oil",
+          "ko": "식용유"
+        },
+        {
+          "ref": "salt",
+          "en": "salt",
+          "ko": "소금"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Score the chicken pieces so the marinade can soak in.",
+          "Mix the yogurt with garlic, ginger, curry powder, chili powder, lemon juice, oil, and salt.",
+          "Coat the chicken in the marinade and rest it for at least twenty minutes.",
+          "Roast in a hot oven or grill pan, turning once, until charred at the edges and cooked through.",
+          "Rest briefly and serve with extra lemon."
+        ],
+        "ko": [
+          "양념이 잘 배도록 닭고기에 칼집을 낸다.",
+          "요거트에 마늘, 생강, 카레가루, 고춧가루, 레몬즙, 기름, 소금을 섞는다.",
+          "닭고기에 양념을 고루 발라 최소 20분간 재운다.",
+          "뜨거운 오븐이나 그릴팬에서 한 번 뒤집어가며 가장자리가 그을리고 속까지 익도록 굽는다.",
+          "잠시 쉬였다가 레몬을 곁들여 낸다."
+        ]
+      }
+    },
+    {
+      "id": "salmon-steak",
+      "name": {
+        "en": "Pan-Seared Salmon Steak",
+        "ko": "연어 스테이크"
+      },
+      "cuisine": "other",
+      "minutes": 20,
+      "ingredients": [
+        {
+          "ref": "salmon",
+          "en": "salmon fillets",
+          "ko": "연어 필렛"
+        },
+        {
+          "ref": "butter",
+          "en": "butter",
+          "ko": "버터"
+        },
+        {
+          "ref": "olive-oil",
+          "en": "olive oil",
+          "ko": "올리브오일"
+        },
+        {
+          "ref": "garlic",
+          "en": "garlic (crushed)",
+          "ko": "마늘 (으깬 것)"
+        },
+        {
+          "ref": "lemon",
+          "en": "lemon",
+          "ko": "레몬"
+        },
+        {
+          "ref": "salt",
+          "en": "salt",
+          "ko": "소금"
+        },
+        {
+          "ref": "black-pepper",
+          "en": "black pepper",
+          "ko": "후추"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Pat the salmon dry and season both sides with salt and pepper.",
+          "Heat olive oil in a pan over medium-high heat and place the salmon skin-side down.",
+          "Cook without moving until the skin is crisp and the flesh is mostly opaque.",
+          "Flip, add the butter and crushed garlic, and spoon the melted butter over the fish.",
+          "Finish with a squeeze of lemon and serve immediately."
+        ],
+        "ko": [
+          "연어의 물기를 닦고 양면에 소금·후추로 간한다.",
+          "팬에 올리브오일을 중강불로 달구고 껍질 면이 아래로 가게 연어를 올린다.",
+          "껍질이 바삭해지고 살이 거의 불투명해질 때까지 움직이지 않고 굽는다.",
+          "뒤집은 뒤 버터와 으깬 마늘을 넣고 녹은 버터를 생선 위에 끼얹는다.",
+          "레몬즙을 짜서 마무리하고 바로 낸다."
+        ]
+      }
+    },
+    {
+      "id": "garlic-butter-shrimp",
+      "name": {
+        "en": "Garlic Butter Shrimp",
+        "ko": "갈릭버터새우"
+      },
+      "cuisine": "other",
+      "minutes": 15,
+      "ingredients": [
+        {
+          "ref": "shrimp",
+          "en": "shrimp (peeled)",
+          "ko": "새우 (껍질 깐 것)"
+        },
+        {
+          "ref": "garlic",
+          "en": "garlic (minced, plenty)",
+          "ko": "마늘 (다진 것, 넉넉히)"
+        },
+        {
+          "ref": "butter",
+          "en": "butter",
+          "ko": "버터"
+        },
+        {
+          "ref": "olive-oil",
+          "en": "olive oil",
+          "ko": "올리브오일"
+        },
+        {
+          "ref": "lemon",
+          "en": "lemon (juiced)",
+          "ko": "레몬 (즙)"
+        },
+        {
+          "ref": "salt",
+          "en": "salt",
+          "ko": "소금"
+        },
+        {
+          "ref": "black-pepper",
+          "en": "black pepper",
+          "ko": "후추"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Pat the shrimp dry and season with salt and pepper.",
+          "Warm olive oil with half the butter in a pan and cook the garlic until fragrant but not browned.",
+          "Add the shrimp in a single layer and cook until pink on one side.",
+          "Flip the shrimp, add the remaining butter, and cook until just opaque.",
+          "Squeeze lemon juice over the pan and serve while sizzling."
+        ],
+        "ko": [
+          "새우의 물기를 닦고 소금·후추로 간한다.",
+          "팬에 올리브오일과 버터 절반을 데우고 마늘을 타지 않게 향이 나도록 볶는다.",
+          "새우를 겹치지 않게 올려 한 면이 분홍빛이 될 때까지 익힌다.",
+          "새우를 뒤집고 남은 버터를 넣어 살이 막 불투명해질 때까지 익힌다.",
+          "레몬즙을 팬에 짜 넣고 지글거릴 때 바로 낸다."
+        ]
+      }
+    },
+    {
+      "id": "pan-seared-steak",
+      "name": {
+        "en": "Pan-Seared Steak",
+        "ko": "팬시어드 스테이크"
+      },
+      "cuisine": "american",
+      "minutes": 20,
+      "ingredients": [
+        {
+          "ref": "beef",
+          "en": "beef steak (thick-cut)",
+          "ko": "소고기 스테이크용 (두툼한 것)"
+        },
+        {
+          "ref": "butter",
+          "en": "butter",
+          "ko": "버터"
+        },
+        {
+          "ref": "garlic",
+          "en": "garlic (crushed)",
+          "ko": "마늘 (으깬 것)"
+        },
+        {
+          "ref": "cooking-oil",
+          "en": "cooking oil (high heat)",
+          "ko": "식용유 (센 불용)"
+        },
+        {
+          "ref": "salt",
+          "en": "salt (generous)",
+          "ko": "소금 (넉넉히)"
+        },
+        {
+          "ref": "black-pepper",
+          "en": "black pepper",
+          "ko": "후추"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Bring the steak to room temperature and season generously with salt and pepper.",
+          "Heat oil in a heavy pan until it just starts to smoke.",
+          "Sear the steak without moving it until a deep crust forms, then flip.",
+          "Add butter and crushed garlic and baste the steak with the foaming butter.",
+          "Cook to your preferred doneness, then rest for five minutes before slicing."
+        ],
+        "ko": [
+          "스테이크를 실온에 두었다가 소금·후추를 넉넉히 뿌린다.",
+          "두꺼운 팬에 기름을 연기가 살짝 오를 때까지 달군다.",
+          "고기를 움직이지 않고 진한 크러스트가 생길 때까지 구운 뒤 뒤집는다.",
+          "버터와 으깬 마늘을 넣고 거품 나는 버터를 고기에 끼얹는다.",
+          "원하는 익힘까지 구운 뒤 5분간 쉬였다가 썰어 낸다."
+        ]
+      }
+    },
+    {
+      "id": "vegetable-soup",
+      "name": {
+        "en": "Vegetable Soup",
+        "ko": "야채수프"
+      },
+      "cuisine": "other",
+      "minutes": 35,
+      "ingredients": [
+        {
+          "ref": "onion",
+          "en": "onion (diced)",
+          "ko": "양파 (깍둑썬 것)"
+        },
+        {
+          "ref": "carrot",
+          "en": "carrot (diced)",
+          "ko": "당근 (깍둑썬 것)"
+        },
+        {
+          "ref": "potato",
+          "en": "potato (diced)",
+          "ko": "감자 (깍둑썬 것)"
+        },
+        {
+          "ref": "cabbage",
+          "en": "cabbage (chopped)",
+          "ko": "양배추 (썬 것)"
+        },
+        {
+          "ref": "tomato",
+          "en": "tomato (chopped)",
+          "ko": "토마토 (썬 것)"
+        },
+        {
+          "ref": "garlic",
+          "en": "garlic (minced)",
+          "ko": "마늘 (다진 것)"
+        },
+        {
+          "ref": "olive-oil",
+          "en": "olive oil",
+          "ko": "올리브오일"
+        },
+        {
+          "ref": "salt",
+          "en": "salt",
+          "ko": "소금"
+        },
+        {
+          "ref": "black-pepper",
+          "en": "black pepper",
+          "ko": "후추"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Sauté the onion and garlic in olive oil until translucent.",
+          "Add the carrot, potato, and cabbage and stir for a few minutes.",
+          "Add the tomato and enough water to cover everything well.",
+          "Simmer until all the vegetables are tender, about twenty minutes.",
+          "Season with salt and pepper and serve hot."
+        ],
+        "ko": [
+          "올리브오일에 양파와 마늘을 투명해질 때까지 볶는다.",
+          "당근, 감자, 양배추를 넣고 몇 분간 함께 볶는다.",
+          "토마토와 재료가 넉넉히 잠길 만큼의 물을 넣는다.",
+          "채소가 모두 부드러워질 때까지 20분 정도 끓인다.",
+          "소금과 후추로 간해 뜨겁게 낸다."
+        ]
+      }
+    },
+    {
+      "id": "vegetable-frittata",
+      "name": {
+        "en": "Vegetable Frittata",
+        "ko": "야채 프리타타"
+      },
+      "cuisine": "italian",
+      "minutes": 25,
+      "ingredients": [
+        {
+          "ref": "egg",
+          "en": "eggs",
+          "ko": "달걀"
+        },
+        {
+          "ref": "onion",
+          "en": "onion (diced)",
+          "ko": "양파 (잘게 썬 것)"
+        },
+        {
+          "ref": "bell-pepper",
+          "en": "bell pepper (diced)",
+          "ko": "파프리카 (깍둑썬 것)"
+        },
+        {
+          "ref": "mushroom",
+          "en": "mushrooms (sliced)",
+          "ko": "버섯 (썬 것)"
+        },
+        {
+          "ref": "milk",
+          "en": "milk (a splash)",
+          "ko": "우유 (약간)"
+        },
+        {
+          "ref": "parmesan",
+          "en": "parmesan (grated)",
+          "ko": "파마산 치즈 (간 것)"
+        },
+        {
+          "ref": "olive-oil",
+          "en": "olive oil",
+          "ko": "올리브오일"
+        },
+        {
+          "ref": "salt",
+          "en": "salt",
+          "ko": "소금"
+        },
+        {
+          "ref": "black-pepper",
+          "en": "black pepper",
+          "ko": "후추"
+        }
+      ],
+      "steps": {
+        "en": [
+          "Sauté the onion, bell pepper, and mushrooms in olive oil in an oven-safe pan until softened.",
+          "Whisk the eggs with milk, parmesan, salt, and pepper.",
+          "Pour the eggs over the vegetables and cook on low heat until the edges set.",
+          "Transfer the pan to a 180 degrees Celsius oven or cover with a lid until the center is just firm.",
+          "Slide onto a plate, cut into wedges, and serve warm or at room temperature."
+        ],
+        "ko": [
+          "오븐 사용이 가능한 팬에 올리브오일을 두르고 양파, 파프리카, 버섯을 부드럽게 볶는다.",
+          "달걀에 우유, 파마산 치즈, 소금, 후추를 넣고 푼다.",
+          "달걀물을 채소 위에 붓고 약불에서 가장자리가 굳을 때까지 익힌다.",
+          "팬째 180도 오븐에 넣거나 뚜껑을 덮어 가운데가 막 굳을 때까지 익힌다.",
+          "접시에 미끄러뜨려 옮겨 조각내고 따뜻하게 또는 상온으로 낸다."
+        ]
+      }
+    }
+  ]
+}

@@ -11,6 +11,18 @@ packages:
     url: https://github.com/phosphor-icons/swift
     from: 2.1.0
 
+schemes:
+  Reffi:
+    build:
+      targets:
+        Reffi: all
+        ReffiTests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets: [ReffiTests]
+
 targets:
   Reffi:
     type: application
@@ -34,6 +46,7 @@ targets:
           - UIInterfaceOrientationPortrait
         UIApplicationSupportsIndirectInputEvents: true
         ITSAppUsesNonExemptEncryption: false
+        NSCameraUsageDescription: "Reffi uses the camera to scan grocery receipts so items are added automatically."
         UIAppFonts:
           - Pretendard-Regular.otf
           - Pretendard-Medium.otf
@@ -52,3 +65,18 @@ targets:
         CODE_SIGNING_ALLOWED: "NO"
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         ENABLE_USER_SCRIPT_SANDBOXING: "YES"
+
+  ReffiTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "18.0"
+    sources: [ReffiTests]
+    dependencies:
+      - target: Reffi
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: "YES"
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Reffi.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)Reffi"
+        BUNDLE_LOADER: "$(TEST_HOST)"
+        CODE_SIGNING_REQUIRED: "NO"
+        CODE_SIGNING_ALLOWED: "NO"

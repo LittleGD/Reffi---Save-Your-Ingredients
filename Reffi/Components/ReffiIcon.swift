@@ -29,15 +29,9 @@ enum ReffiIcon {
     static var manual: Ph { .pencilSimple }
     static var close: Ph { .x }
 
-    /// 대안액션별 아이콘.
-    static func action(_ a: AlternativeAction) -> Ph {
-        switch a {
-        case .freeze: .snowflake
-        case .prep:   .knife
-        case .share:  .handHeart
-        case .cook:   .bowlSteam
-        }
-    }
+    // 냉동(버리기 직전 구제, §13.6) — 판정 커버의 3번째 선택지.
+    static var freeze: Ph { .snowflake }
+    static var delete: Ph { .trashSimple }
 }
 
 extension Ph {

@@ -14,7 +14,7 @@ struct GlyphGalleryView: View {
                             .frame(width: 88, height: 88)
                             .background(ReffiColor.paper,
                                         in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                        Text("\(glyph)")
+                        Text(verbatim: glyph.rawValue)
                             .font(.custom("Pretendard-Medium", size: 11, relativeTo: .caption2))
                             .foregroundStyle(ReffiColor.ink2)
                     }

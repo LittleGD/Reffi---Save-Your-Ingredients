@@ -7,8 +7,10 @@ struct HistoryView: View {
     @Environment(\.dismiss) private var dismiss
 
     private var logs: [RemovalLog] { store.history }
-    private var eaten: Int { logs.filter { !$0.wasted }.count }
-    private var tossed: Int { logs.filter(\.wasted).count }
+    /// 요약(도넛·비율)은 라벨 그대로 **최근 30일** 기준. 타임라인은 전체.
+    private var recent: [RemovalLog] { store.recentHistory }
+    private var eaten: Int { recent.filter { !$0.wasted }.count }
+    private var tossed: Int { recent.filter(\.wasted).count }
     private var rate: Int { store.wasteRate }
 
     private var rateColor: Color {
@@ -22,8 +24,11 @@ struct HistoryView: View {
     /// 자주 버린 품목 — 버림 이력을 이름으로 묶어 많은 순.
     private var topTossed: [(name: String, glyph: FoodGlyph, count: Int)] {
         let grouped = Dictionary(grouping: logs.filter(\.wasted)) { $0.name }
-        return grouped.map { (name: $0.key, glyph: $0.value.first!.glyph, count: $0.value.count) }
-            .sorted { $0.count > $1.count }
+        return grouped
+            .compactMap { name, group in
+                group.first.map { (name: name, glyph: $0.glyph, count: group.count) }
+            }
+            .sorted { $0.count != $1.count ? $0.count > $1.count : $0.name < $1.name }
     }
 
     var body: some View {
@@ -59,6 +64,8 @@ struct HistoryView: View {
                             s.fill(ReffiColor.oklch(0.99, 0.006, 90)).paperEdge(s)
                         }
                         .reffiShadow1()
+                        .frame(minWidth: 44, minHeight: 44)   // §7.3 — 시각은 34, 히트는 44
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.paperPress)
                 .accessibilityLabel("Close")
@@ -77,7 +84,8 @@ struct HistoryView: View {
                     Text("Past 30 days").reffiType(.subhead).foregroundStyle(ReffiColor.ink)
                     Spacer()
                     Text("\(eaten) ate · \(tossed) tossed")
-                        .font(.reffiNum(12, relativeTo: .caption2)).foregroundStyle(ReffiColor.ink2)
+                        .font(.custom("Pretendard-Medium", size: 12, relativeTo: .caption2))
+                        .foregroundStyle(ReffiColor.ink2)
                 }
 
                 if wasteSegments.isEmpty {
@@ -100,13 +108,13 @@ struct HistoryView: View {
         }
     }
 
-    /// 버린 품목을 카테고리(글리프 기반)로 묶은 도넛 세그먼트.
+    /// 버린 품목을 카테고리(글리프 기반)로 묶은 도넛 세그먼트 — 최근 30일(라벨과 일치).
     private var wasteSegments: [(name: String, count: Int, color: Color)] {
-        let tossed = logs.filter(\.wasted)
-        let grouped = Dictionary(grouping: tossed) { Self.category($0.glyph) }
+        let tossed = recent.filter(\.wasted)
+        let grouped = Dictionary(grouping: tossed) { $0.glyph.categoryLabel }
         return grouped
             .map { (name: $0.key, count: $0.value.count, color: Self.catColor($0.key)) }
-            .sorted { $0.count > $1.count }
+            .sorted { $0.count != $1.count ? $0.count > $1.count : $0.name < $1.name }
     }
 
     private var donut: some View {
@@ -138,7 +146,7 @@ struct HistoryView: View {
             ForEach(segs, id: \.name) { seg in
                 HStack(spacing: ReffiSpace.s2) {
                     Circle().fill(seg.color).frame(width: 9, height: 9)
-                    Text(seg.name).reffiType(.body).foregroundStyle(ReffiColor.ink)
+                    Text(LocalizedStringKey(seg.name)).reffiType(.body).foregroundStyle(ReffiColor.ink)
                     Spacer()
                     Text("\(Int((Double(seg.count) / Double(total) * 100).rounded()))%")
                         .font(.reffiNum(13, relativeTo: .caption)).foregroundStyle(ReffiColor.ink2)
@@ -147,19 +155,6 @@ struct HistoryView: View {
         }
     }
 
-    /// 글리프 → 거친 카테고리.
-    private static func category(_ g: FoodGlyph) -> String {
-        switch g {
-        case .leaf, .broccoli, .onion, .garlic, .potato, .root, .squash, .mushroom, .pepper, .tomato: "Veg"
-        case .apple, .citrus, .berry: "Fruit"
-        case .egg, .milk, .cheese: "Dairy"
-        case .meat, .poultry: "Meat"
-        case .fish, .shrimp: "Seafood"
-        case .tofu: "Protein"
-        case .bread: "Bakery"
-        case .generic: "Other"
-        }
-    }
     /// 카테고리 색 — DS 토큰만. 흔한 3종(Veg·Fruit·Dairy)은 명도 일관 파스텔(fresh·urgent·soon).
     private static func catColor(_ c: String) -> Color {
         switch c {
@@ -182,9 +177,9 @@ struct HistoryView: View {
                 ForEach(topTossed, id: \.name) { row in
                     HStack(spacing: ReffiSpace.s3) {
                         miniGlyph(row.glyph)
-                        Text(row.name).reffiType(.body).foregroundStyle(ReffiColor.ink)
+                        Text(verbatim: row.name).reffiType(.body).foregroundStyle(ReffiColor.ink)
                         Spacer()
-                        Text(row.count > 1 ? "×\(row.count)" : "once")
+                        (row.count > 1 ? Text(verbatim: "×\(row.count)") : Text("once"))
                             .font(.reffiNum(13, relativeTo: .caption)).foregroundStyle(ReffiColor.ink2)
                     }
                 }
@@ -200,12 +195,19 @@ struct HistoryView: View {
                 ForEach(logs) { log in
                     HStack(spacing: ReffiSpace.s3) {
                         miniGlyph(log.glyph)
-                        Text(log.name).reffiType(.body).foregroundStyle(ReffiColor.ink)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(verbatim: log.name).reffiType(.body).foregroundStyle(ReffiColor.ink)
+                            // 발주로 소비된 재료는 "한 요리"로 귀속(조리 payoff의 기록면).
+                            if let via = log.via {
+                                Text("Cooked · \(via)")
+                                    .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
+                            }
+                        }
                         Spacer()
                         Text(log.wasted ? "Tossed" : "Ate")
                             .reffiType(.caption)
                             .foregroundStyle(log.wasted ? ReffiColor.urgentDark : ReffiColor.freshDark)
-                        Text(log.dateText)
+                        Text(verbatim: log.dateText)
                             .font(.reffiNum(12, relativeTo: .caption2)).foregroundStyle(ReffiColor.muted)
                     }
                 }

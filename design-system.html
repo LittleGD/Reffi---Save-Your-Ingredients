@@ -668,7 +668,7 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
       <section class="section" id="color">
         <span class="section__num num">02</span>
         <h2 class="text">컬러</h2>
-        <p class="section__lead text">모든 색은 OKLCH. 신선도 3색(Sage·Amber·Terracotta)을 파스텔로 보정해 가져오고 Lilac은 제외, 네 번째는 Reffi Blue(레시피·AI·기본 액션). 각각 main / dark / light.</p>
+        <p class="section__lead text">모든 색은 OKLCH. 신선도 3색(Sage·Amber·Terracotta)을 파스텔로 보정해 가져오고 Lilac은 제외, 네 번째는 Reffi Blue(레시피·AI·기본 액션). 각각 main / dark / light. <strong>컬러 스킴은 현재 라이트 고정</strong>(<code class="inline">preferredColorScheme(.light)</code>) — 다크 토큰 램프가 정의되기 전까지 고정 크림 팔레트와 적응형 머티리얼(글래스)이 다크에서 어긋나는 중간 상태를 막는다.</p>
 
         <p class="subhead text">브랜드 컬러 (4)</p>
         <div class="swatch-row">
@@ -819,7 +819,7 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
             </div>
             <div class="type-row">
               <div class="type-row__tag">Subhead<small>22 / 600 / 120%</small></div>
-              <div class="t-subhead text--title">유통기한이 가까운 재료부터</div>
+              <div class="t-subhead text--title">소비기한이 가까운 재료부터</div>
             </div>
             <div class="type-row">
               <div class="type-row__tag">Body<small>18 / 400 / 140%</small></div>
@@ -836,7 +836,7 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
           <div class="card">
             <p class="t-subhead text">숫자는 고정폭(tabular)</p>
             <p class="t-body num text" style="margin-top:var(--space-3)">D-2 · 3개 · 05.27 · 12:08</p>
-            <p class="t-caption text" style="color:var(--color-ink-2);margin-top:var(--space-2)">유통기한·D-day·수량·카운트다운이 떨리지 않게 <code class="inline">.num</code>으로 정렬한다.</p>
+            <p class="t-caption text" style="color:var(--color-ink-2);margin-top:var(--space-2)">소비기한·D-day·수량·카운트다운이 떨리지 않게 <code class="inline">.num</code>으로 정렬한다.</p>
           </div>
           <div class="card">
             <p class="t-subhead text">고아 단어 금지</p>
@@ -893,7 +893,7 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
             </div>
             <div class="icon-cell" style="color:var(--color-soon-dark)">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
-              <span class="t-caption">유통기한</span>
+              <span class="t-caption">소비기한</span>
             </div>
             <div class="icon-cell" style="color:var(--color-urgent-dark)">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
@@ -988,7 +988,7 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
         </div>
 
         <p class="subhead text">통통 튀는 스프링 (§7.5) — 종이컷 표면 전용</p>
-        <p class="t-caption text" style="color:var(--color-ink-2);margin-bottom:var(--space-3)">뱃지·종이 버튼에만 가벼운 오버슈트 스프링. <strong>재료 낙하·바운스는 스프링이 아니라 진짜 물리 엔진</strong>(SpriteKit gravity≈-26 · restitution≈0.12 — 묵직하게 거의 안 튐, 끌어서 던지기). 그 외 일반 UI는 위 듀레이션·이징 유지(남용 금지). reduced-motion이면 제거.</p>
+        <p class="t-caption text" style="color:var(--color-ink-2);margin-bottom:var(--space-3)">뱃지·종이 버튼에만 가벼운 오버슈트 스프링. <strong>재료 낙하·바운스는 스프링이 아니라 진짜 물리 엔진</strong>(SpriteKit gravity=-42 · restitution≈0.12 — 묵직하게 거의 안 튐, 끌어서 던지기·단일 터치 추적). 그 외 일반 UI는 위 듀레이션·이징 유지(남용 금지). reduced-motion이면 제거.</p>
         <div class="motion-tokens">
           <div class="motion-card"><div class="dur num">0.34 / 0.56</div><div class="lbl">spring-pop — 뱃지 pop-in</div></div>
           <div class="motion-card"><div class="dur num">0.50 / 0.74</div><div class="lbl">spring-settle — dim·reflow·인디케이터</div></div>
@@ -1197,7 +1197,7 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
 
           <div class="demo-pane">
             <p class="subhead text">일러스트 · 물리 낙하</p>
-            <p class="lbl">재료는 <strong>손으로 자른 종이(Matisse)풍 자연색 멀티컬러</strong> 일러스트(몸+초록 잎/줄기+디테일, `FoodGlyph` — 채소·과일·고기·생선·유제품)로, <strong>진짜 물리 엔진</strong>으로 <strong>묵직하게</strong> 떨어져 쌓이고 그대로 남는다(끌어서 던지기). 일러스트는 자연색이라 <strong>신선도는 뱃지·이름 라벨 점</strong>으로(§2.5 행동표면 예외). 배경은 리퀴드글래스.</p>
+            <p class="lbl">재료는 <strong>손으로 자른 종이(Matisse)풍 자연색 멀티컬러</strong> 일러스트(몸+초록 잎/줄기+디테일, `FoodGlyph` — 채소·과일·고기·생선·유제품)로, <strong>진짜 물리 엔진</strong>으로 <strong>묵직하게</strong> 떨어져 쌓이고 그대로 남는다(끌어서 던지기). 일러스트는 자연색이라 <strong>신선도는 뱃지</strong>로(§2.5 행동표면 예외) — 씬 위에 이름 라벨을 얹지 않는다. 칩을 드래그하면 <strong>판정 바스켓(마그네틱)</strong> — 좌상 휴지통(Tossed)·우상 냄비(Ate) 종이 블롭이 나타나고, 반경 ≈88pt에 들면 재료가 자석처럼 끌려 들어가(1.14× 확대) 놓는 즉시 확정된다(되돌리기 토스트가 안전망). 배경은 리퀴드글래스.</p>
             <div class="silo-row">
               <span class="silo f-urgent"></span><span class="silo f-soon"></span><span class="silo f-fresh"></span>
             </div>
@@ -1206,7 +1206,7 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
 
           <div class="demo-pane" style="grid-column: 1 / -1;">
             <p class="subhead text">오더 메모 카드 (추천 캐러셀)</p>
-            <p class="lbl">주방 오더 티켓: 상·하 톱니 절취 + 모노 헤더 + 점선 룰 + 메뉴/시간 + 재료 체크리스트 + START 스탬프. 캐러셀은 풀스크린·네비 없음·좌우로 둘러보기.</p>
+            <p class="lbl">주방 오더 티켓: 상·하 톱니 절취 + 모노 헤더 + 점선 룰 + 판정문 키커 + 메뉴/시간 + 재료 체크리스트 + PREP 조리 메모 + "이걸로 요리" 발주 CTA(발주 시 START 스탬프 슬램). 덱은 풀스크린·네비 없음 — 뒤에 겹친 종이가 실제 다음 티켓이며, 맨 앞을 튕겨(플릭) 넘긴다(순환). <strong>발주 = 예약</strong>(START 슬램은 연출, 재고 차감·이력은 <strong>요리 완료에서 확정</strong> — 재료별 "다 썼어요/조금 남았어요" 원탭, 조리 취소는 예약 해제). 발주는 커버당 1회 + 6초 되돌리기 → 곧장 단계별 조리 화면(체크리스트), 메인의 Cooking now 카드로 복귀. 판정 커버엔 urgent 한정 <strong>Freeze</strong> 3번째 선택지 — 얼리면 유예 14일의 새 D-day(재냉동 불가), 냉장고 카드엔 FROZEN 도장.</p>
             <div class="memo">
               <div class="ticket-head"><span>ORDER</span><span class="num">#01</span></div>
               <div class="rule"></div>

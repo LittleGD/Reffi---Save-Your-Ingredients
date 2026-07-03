@@ -5,7 +5,7 @@ import SwiftUI
 struct PaperButton: View {
     enum Kind { case primary, secondary }
 
-    let title: String
+    let title: LocalizedStringKey
     var kind: Kind = .primary
     var fullWidth: Bool = true
     var seed: Int = 0

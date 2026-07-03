@@ -2,10 +2,10 @@ import SwiftUI
 import PhosphorSwift
 
 /// 재료 뱃지(§13) — 실루엣이 정착해 모핑되는 형태. 캡슐이 아니라 **종이 둥근 사각**(`PaperRect`),
-/// 재료명 **왼쪽에 인디케이터 바**(둥근 직사각, 신선도색). 탭 = 활성/비활성 토글.
+/// 재료명 **왼쪽에 인디케이터 바**(둥근 직사각, 신선도색). 탭 = Ate/Tossed 판정 묻기.
+/// 히트 영역은 최소 44pt(§7.3), 시각은 그대로.
 struct IngredientBadge: View {
     let ingredient: Ingredient
-    var isDisabled: Bool = false
     var seed: Int = 0
     var onTap: () -> Void = {}
 
@@ -16,35 +16,35 @@ struct IngredientBadge: View {
                 // 신선도 그룹(좌측) — 인디케이터 바 + 남은 기간(D-N)을 하나로 묶는다.
                 HStack(spacing: 5) {
                     RoundedRectangle(cornerRadius: 2, style: .continuous)
-                        .fill(isDisabled ? ReffiColor.muted : f.dark)
+                        .fill(f.dark)
                         .frame(width: 4, height: 14)
-                    Text(ingredient.dDayText)
+                    Text(verbatim: ingredient.dDayText)
                         .font(.reffiNum(12, relativeTo: .caption2))
-                        .foregroundStyle(isDisabled ? ReffiColor.muted : f.dark)
+                        .foregroundStyle(f.dark)
                 }
-                Text(ingredient.name)
+                Text(verbatim: ingredient.name)
                     .font(.custom("Pretendard-SemiBold", size: 15, relativeTo: .subheadline))
                     .tracking(-0.15)
-                    .foregroundStyle(isDisabled ? ReffiColor.muted : ReffiColor.ink)
+                    .foregroundStyle(ReffiColor.ink)
                     .lineLimit(1)
             }
             .padding(.leading, ReffiSpace.s3)
             .padding(.trailing, ReffiSpace.s3 + 2)
             .padding(.vertical, ReffiSpace.s2 + 2)
-            .background { surface(disabled: isDisabled) }
-            .opacity(isDisabled ? 0.72 : 1)
+            .background { surface }
+            .frame(minHeight: 44)              // §7.3 최소 터치 타깃
+            .contentShape(Rectangle())
         }
         .buttonStyle(.paperPress)
-        .accessibilityLabel("\(ingredient.name) \(ingredient.dDayText)")
-        .accessibilityValue(isDisabled ? "비활성" : "사용")
-        .accessibilityAddTraits(isDisabled ? [] : [.isSelected])
+        .accessibilityLabel(Text("\(ingredient.name), \(ingredient.dDayText)"))
+        .accessibilityHint(Text("Decide: eaten or tossed?"))
     }
 
-    private func surface(disabled: Bool) -> some View {
+    private var surface: some View {
         let shape = PaperRect(cornerRadius: ReffiRadius.md, seed: seed)
         return shape
-            .fill(disabled ? ReffiColor.sub.opacity(0.7) : ReffiColor.paper)
-            .paperEdge(shape, tint: ReffiColor.ink.opacity(disabled ? 0.05 : 0.08))
+            .fill(ReffiColor.paper)
+            .paperEdge(shape, tint: ReffiColor.ink.opacity(0.08))
             .reffiShadow1()
     }
 }
@@ -69,8 +69,10 @@ struct AddBadge: View {
                 shape.stroke(ReffiColor.muted.opacity(0.7),
                              style: StrokeStyle(lineWidth: 1.5, dash: [4, 4]))
             }
+            .frame(minHeight: 44)              // §7.3 최소 터치 타깃
+            .contentShape(Rectangle())
         }
         .buttonStyle(.paperPress)
-        .accessibilityLabel("재료 추가")
+        .accessibilityLabel(Text("Add ingredients"))
     }
 }

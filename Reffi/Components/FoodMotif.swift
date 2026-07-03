@@ -259,29 +259,3 @@ struct FoodMotif: View {
     }
 }
 
-/// 히어로 배너용 합성 모티프 — 김 + 대표 재료 + 그릇. 따뜻하고 식욕 도는 플랫 신.
-struct FoodHeroMotif: View {
-    let glyph: FoodGlyph
-
-    var body: some View {
-        Canvas { ctx, size in
-            let s = min(size.width, size.height)
-            FoodMotif.drawSteam(CGRect(x: size.width * 0.5 - s * 0.20, y: size.height * 0.02,
-                                       width: s * 0.40, height: s * 0.30), &ctx)
-            let item = CGRect(x: size.width * 0.5 - s * 0.36, y: size.height * 0.14,
-                              width: s * 0.72, height: s * 0.60)
-            FoodMotif.draw(glyph, in: item, ctx: &ctx)
-            // 곁들임
-            FoodMotif.draw(.leaf, in: CGRect(x: size.width * 0.5 + s * 0.20, y: size.height * 0.46,
-                                             width: s * 0.24, height: s * 0.28), ctx: &ctx)
-            // 그릇
-            let bowl = CGRect(x: size.width * 0.5 - s * 0.44, y: size.height * 0.62,
-                              width: s * 0.88, height: s * 0.30)
-            ctx.fill(FoodMotif.bowlPath(in: bowl), with: .color(FoodPalette.bowl))
-            ctx.fill(Ellipse().path(in: CGRect(x: bowl.minX, y: bowl.minY - s * 0.035,
-                                              width: bowl.width, height: s * 0.10)),
-                     with: .color(FoodPalette.bowlHi))
-        }
-        .accessibilityHidden(true)
-    }
-}

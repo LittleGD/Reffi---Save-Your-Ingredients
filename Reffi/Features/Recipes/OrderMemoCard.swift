@@ -16,10 +16,10 @@ struct OrderMemoCard: View {
     private var rescuedCount: Int { result.used.filter { $0.freshness != .fresh }.count }
 
     /// 카드 1순위 판정문 — 왜 이 티켓이 추천됐나(랭킹 근거를 사람 말로).
-    private var verdictKicker: String {
-        if result.urgentUsedCount > 0 { return "Saves \(result.urgentUsedCount) expiring today" }
-        if rescuedCount > 0 { return "Clears \(rescuedCount) before they spoil" }
-        return "Use these while fresh"
+    private var verdictKicker: Text {
+        if result.urgentUsedCount > 0 { return Text("Saves \(result.urgentUsedCount) expiring today") }
+        if rescuedCount > 0 { return Text("Clears \(rescuedCount) before they spoil") }
+        return Text("Use these while fresh")
     }
     private var verdictColor: Color {
         result.urgentUsedCount > 0 ? ReffiColor.urgentDark
@@ -34,35 +34,41 @@ struct OrderMemoCard: View {
             DashedRule()
 
             // 판정문 키커 — 이 티켓이 비우는 임박 재료(미션 페이로드).
-            Text(verdictKicker)
+            verdictKicker
                 .font(.custom("Pretendard-Bold", size: 12, relativeTo: .caption2))
                 .tracking(0.2).foregroundStyle(verdictColor)
 
             // 메뉴명 + 시간
-            Text(r.name)
+            Text(verbatim: r.displayName)
                 .font(.custom("Pretendard-Bold", size: 24, relativeTo: .title2))
                 .tracking(-0.3).foregroundStyle(ReffiColor.ink)
                 .lineLimit(2).minimumScaleFactor(0.8).fixedSize(horizontal: false, vertical: true)
             HStack(spacing: 4) {
                 ReffiIcon.time.reffi(13).foregroundStyle(ReffiColor.ink2)
                 Text("\(r.minutes) min · \(result.used.count) to use")
-                    .font(.reffiNum(13, relativeTo: .caption)).foregroundStyle(ReffiColor.ink2)
+                    .font(.custom("Pretendard-Medium", size: 13, relativeTo: .caption))
+                    .foregroundStyle(ReffiColor.ink2)
             }
 
             DashedRule()
 
             Text("ON THE TICKET")
                 .font(.custom("Pretendard-SemiBold", size: 11, relativeTo: .caption2))
-                .tracking(1.4).foregroundStyle(ReffiColor.ink.opacity(0.5))
+                .tracking(1.4).foregroundStyle(ReffiColor.ink2)   // §2.6 — 소형 텍스트는 불투명 토큰으로
 
             VStack(alignment: .leading, spacing: ReffiSpace.s2) {
                 ForEach(result.used) { ing in ticketLine(ing, done: fired) }
             }
 
             if !result.missing.isEmpty {
-                Text("Short: " + result.missing.joined(separator: ", "))
+                Text("Short: \(result.missing.joined(separator: ", "))")
                     .font(.custom("Pretendard-Medium", size: 12, relativeTo: .caption))
-                    .foregroundStyle(ReffiColor.muted).lineLimit(2).padding(.top, 1)
+                    .foregroundStyle(ReffiColor.ink2).lineLimit(2).padding(.top, 1)
+            }
+
+            if !r.displaySteps.isEmpty {
+                DashedRule()
+                prepSection(r.displaySteps)
             }
 
             Spacer(minLength: ReffiSpace.s3)
@@ -89,7 +95,26 @@ struct OrderMemoCard: View {
             }
             Text("TABLE · REFFI KITCHEN")
                 .font(.custom("Pretendard-Medium", size: 10, relativeTo: .caption2))
-                .tracking(1.6).foregroundStyle(ReffiColor.muted)
+                .tracking(1.6).foregroundStyle(ReffiColor.ink2)   // §2.6 — 소형 텍스트 대비
+        }
+    }
+
+    /// 조리 메모(§13.6 payoff) — 발주 전부터 티켓에 짧은 순서를 보여줘 "누르면 뭘 하게 되는지"가 보인다.
+    private func prepSection(_ steps: [String]) -> some View {
+        VStack(alignment: .leading, spacing: ReffiSpace.s1 + 2) {
+            Text("PREP")
+                .font(.custom("Pretendard-SemiBold", size: 11, relativeTo: .caption2))
+                .tracking(1.4).foregroundStyle(ReffiColor.ink2)
+            ForEach(Array(steps.enumerated()), id: \.offset) { i, step in
+                HStack(alignment: .firstTextBaseline, spacing: ReffiSpace.s2) {
+                    Text(verbatim: "\(i + 1).")
+                        .font(.reffiNum(12, relativeTo: .caption)).foregroundStyle(ReffiColor.ink2)
+                    Text(verbatim: step)
+                        .font(.custom("Pretendard-Medium", size: 13, relativeTo: .caption))
+                        .foregroundStyle(ReffiColor.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
         }
     }
 
@@ -98,7 +123,9 @@ struct OrderMemoCard: View {
         if fired {
             HStack(spacing: 6) {
                 ReffiIcon.ate.reffi(15, .fill).foregroundStyle(ReffiColor.freshDark)
-                Text("Saved \(result.used.count)" + (result.urgentUsedCount > 0 ? " · \(result.urgentUsedCount) today" : ""))
+                (result.urgentUsedCount > 0
+                    ? Text("Saved \(result.used.count) · \(result.urgentUsedCount) today")
+                    : Text("Saved \(result.used.count)"))
                     .font(.custom("Pretendard-SemiBold", size: 14, relativeTo: .caption))
                     .foregroundStyle(ReffiColor.ink)
             }
@@ -119,7 +146,7 @@ struct OrderMemoCard: View {
                     }
             }
             .buttonStyle(.paperPress)
-            .accessibilityLabel("이걸로 요리")
+            .accessibilityLabel(Text("Cook this"))
         }
     }
 
@@ -155,12 +182,12 @@ struct OrderMemoCard: View {
                     Image(systemName: "checkmark").font(.system(size: 8, weight: .heavy)).foregroundStyle(.white)
                 }
             }
-            Text(ing.name)
+            Text(verbatim: ing.name)
                 .font(.custom("Pretendard-SemiBold", size: 16, relativeTo: .body))
                 .foregroundStyle(done ? ReffiColor.muted : ReffiColor.ink)
                 .strikethrough(done, color: ReffiColor.muted)
             Spacer(minLength: ReffiSpace.s2)
-            Text(ing.dDayText)
+            Text(verbatim: ing.dDayText)
                 .font(.reffiNum(13, relativeTo: .caption))
                 .foregroundStyle(ing.freshness.dark)
         }

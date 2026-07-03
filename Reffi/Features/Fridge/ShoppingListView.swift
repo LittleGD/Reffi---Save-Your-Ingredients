@@ -1,10 +1,13 @@
 import SwiftUI
 
 /// 사야 할 식재료 — 자주 쓰는데(이력) 지금 냉장고에 없는 항목이 자동으로 채워진다.
-/// 항목의 ＋를 누르면 냉장고에 재입고(restock)된다.
+/// Add를 누르면 이름이 채워진 입력 폼이 열려 냉장고에 재입고(restock)된다.
 struct ShoppingListView: View {
     @Environment(FridgeStore.self) private var store
     @Environment(\.dismiss) private var dismiss
+
+    private struct Restock: Identifiable { let name: String; var id: String { name } }
+    @State private var restocking: Restock?
 
     private var items: [(name: String, glyph: FoodGlyph)] { store.toBuy }
 
@@ -26,6 +29,10 @@ struct ShoppingListView: View {
                 }
             }
         }
+        .sheet(item: $restocking) {
+            AddIngredientSheet(prefillName: $0.name)
+                .presentationDetents([.medium, .large])
+        }
     }
 
     private var header: some View {
@@ -42,6 +49,8 @@ struct ShoppingListView: View {
                             s.fill(ReffiColor.oklch(0.99, 0.006, 90)).paperEdge(s)
                         }
                         .reffiShadow1()
+                        .frame(minWidth: 44, minHeight: 44)   // §7.3 — 시각은 34, 히트는 44
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.paperPress)
                 .accessibilityLabel("Close")
@@ -60,8 +69,25 @@ struct ShoppingListView: View {
             ForEach(items, id: \.name) { item in
                 HStack(spacing: ReffiSpace.s3) {
                     PaperSilhouette(glyph: item.glyph, fresh: .fresh).frame(width: 36, height: 36)
-                    Text(item.name).reffiType(.body).foregroundStyle(ReffiColor.ink)
+                    Text(verbatim: item.name).reffiType(.body).foregroundStyle(ReffiColor.ink)
                     Spacer()
+                    Button {
+                        restocking = Restock(name: item.name)
+                    } label: {
+                        Text("Add")
+                            .font(.custom("Pretendard-SemiBold", size: 14, relativeTo: .subheadline))
+                            .foregroundStyle(ReffiColor.blueDark)
+                            .padding(.horizontal, ReffiSpace.s3 + 2)
+                            .padding(.vertical, ReffiSpace.s1 + 1)
+                            .background {
+                                let s = PaperRect(cornerRadius: ReffiRadius.pill, seed: 1)
+                                s.fill(ReffiColor.blueLight).paperEdge(s, tint: ReffiColor.ink.opacity(0.06))
+                            }
+                            .frame(minHeight: 44)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.paperPress)
+                    .accessibilityLabel(Text("Restock \(item.name)"))
                     Button {
                         withAnimation(ReffiMotion.settle) { store.skipBuy(item.name) }
                     } label: {
@@ -74,9 +100,11 @@ struct ShoppingListView: View {
                                 let s = PaperRect(cornerRadius: ReffiRadius.pill, seed: 2)
                                 s.fill(ReffiColor.sub).paperEdge(s, tint: ReffiColor.ink.opacity(0.06))
                             }
+                            .frame(minHeight: 44)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.paperPress)
-                    .accessibilityLabel("Skip \(item.name) this time")
+                    .accessibilityLabel(Text("Skip \(item.name) this time"))
                 }
             }
         }

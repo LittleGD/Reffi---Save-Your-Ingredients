@@ -7,7 +7,7 @@ struct PaperIconButton: View {
     enum Intent { case primary, soft, fresh, soon, urgent, neutral }
 
     let icon: Ph
-    var label: String? = nil
+    var label: LocalizedStringKey? = nil
     var intent: Intent = .primary
     var size: CGFloat = 88
     var seed: Int = 0
@@ -53,6 +53,6 @@ struct PaperIconButton: View {
             }
         }
         .buttonStyle(.paperPress)
-        .accessibilityLabel(label ?? "")
+        .accessibilityLabel(label.map { Text($0) } ?? Text(verbatim: ""))
     }
 }
