@@ -66,9 +66,11 @@ final class ReffiFlowUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["History"].waitForExistence(timeout: 4), "리포트 카드 → History 시트")
         app.buttons["Close"].firstMatch.tap()
 
-        // 장보기 요약 카드 존재
+        // 장보기 요약 카드 — 페이저 2장(스와이프로 진입)
+        report.swipeLeft()
         XCTAssertTrue(app.buttons.matching(
-            NSPredicate(format: "label BEGINSWITH %@", "장보기")).firstMatch.exists, "장보기 카드")
+            NSPredicate(format: "label BEGINSWITH %@", "장보기")).firstMatch
+            .waitForExistence(timeout: 4), "페이저 2장의 장보기 카드")
 
         // 통합 메뉴 — 간편보기 전환(수량 텍스트가 노출되는 행으로 바뀜)
         let menu = app.buttons["정렬: 임박한 순"]

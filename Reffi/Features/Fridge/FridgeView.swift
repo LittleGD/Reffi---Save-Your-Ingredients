@@ -17,6 +17,8 @@ struct FridgeView: View {
     /// 정렬·보기 선택 — 세션을 넘어 유지(리서치: 정렬 선택은 기억되어야 재방문 비용이 준다).
     @AppStorage("fridge.sort") private var sortRaw: String = FridgeSort.expiry.rawValue
     @AppStorage("fridge.compact") private var compact = false
+    /// 요약 페이저 현재 장(리포트 0 · 장보기 1) — 세션 한정.
+    @State private var summaryPage = 0
 
     private let cardHeight: CGFloat = 170   // 길게 늘려 슬립·틸트로 생기는 측면 빈틈을 덮음
     private let overlap: CGFloat = -60   // advance(=높이+겹침)=110 유지 → 이름 안전 구간 불변
@@ -214,15 +216,9 @@ struct FridgeView: View {
         VStack(alignment: .leading, spacing: ReffiSpace.s1) {
             Text("Fridge").reffiType(.display).foregroundStyle(ReffiColor.ink)
             HStack(spacing: ReffiSpace.s2) {
+                // Ate/Tossed 숫자는 리포트와 중복이라 뺐다 — 한 번에 보이는 정보 최소화.
                 Text("\(items.count) in stock")
                     .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
-                if store.ateCount + store.tossedCount > 0 {
-                    Text("·").foregroundStyle(ReffiColor.muted)
-                    Text("Ate \(store.ateCount)")
-                        .font(.reffiNum(12, relativeTo: .caption2)).foregroundStyle(ReffiColor.freshDark)
-                    Text("Tossed \(store.tossedCount)")
-                        .font(.reffiNum(12, relativeTo: .caption2)).foregroundStyle(ReffiColor.urgentDark)
-                }
                 Spacer(minLength: ReffiSpace.s2)
                 sortViewMenu
             }
@@ -264,25 +260,42 @@ struct FridgeView: View {
         .accessibilityLabel("정렬: \(sort.label)")
     }
 
-    // MARK: 요약 한 줄 — 리포트(도장) + 장보기(종이) 반반. 스와이프 없이 다 보이고 행 수 최소.
+    // MARK: 요약 페이저 — 한 번에 카드 한 장(점진적 공개), 점 인디케이터로 다음 장 예고.
+    // 리포트가 1페이지라 발견성 손실 없음. 전폭 카드라 내용이 여유 있게 배치된다.
     private var summaryRow: some View {
-        HStack(spacing: ReffiSpace.s2) {
-            Button { showHistory = true } label: {
-                summaryCard(icon: ReffiIcon.report, title: "리포트",
-                            value: "\(store.wasteRate)%", tint: rateColor, stamped: true, seed: 7)
-            }
-            .buttonStyle(.paperPress)
-            .accessibilityLabel("무낭비 리포트 열기, 낭비율 \(store.wasteRate)퍼센트")
+        VStack(spacing: ReffiSpace.s2) {
+            TabView(selection: $summaryPage) {
+                Button { showHistory = true } label: {
+                    summaryCard(icon: ReffiIcon.report, title: "무낭비 리포트",
+                                value: "\(store.wasteRate)%", tint: rateColor, stamped: true, seed: 7)
+                }
+                .buttonStyle(.paperPress)
+                .accessibilityLabel("무낭비 리포트 열기, 낭비율 \(store.wasteRate)퍼센트")
+                .padding(.horizontal, cardInset)
+                .tag(0)
 
-            Button { showShopping = true } label: {
-                summaryCard(icon: ReffiIcon.receipt, title: "장보기",
-                            value: "\(store.toBuy.count)", tint: ReffiColor.blueDark,
-                            stamped: false, seed: 8)
+                Button { showShopping = true } label: {
+                    summaryCard(icon: ReffiIcon.receipt, title: "장보기",
+                                value: "\(store.toBuy.count)개", tint: ReffiColor.blueDark,
+                                stamped: false, seed: 8)
+                }
+                .buttonStyle(.paperPress)
+                .accessibilityLabel("장보기 목록, \(store.toBuy.count)개")
+                .padding(.horizontal, cardInset)
+                .tag(1)
             }
-            .buttonStyle(.paperPress)
-            .accessibilityLabel("장보기 목록, \(store.toBuy.count)개")
+            .tabViewStyle(.page(indexDisplayMode: .never))
+            .frame(height: 62)
+
+            HStack(spacing: 6) {
+                ForEach(0..<2, id: \.self) { i in
+                    Circle()
+                        .fill(i == summaryPage ? ReffiColor.ink2 : ReffiColor.muted.opacity(0.3))
+                        .frame(width: 7, height: 7)
+                }
+            }
+            .accessibilityHidden(true)
         }
-        .padding(.horizontal, cardInset)
     }
 
     /// 요약 카드 공통 해부(아이콘·제목·값·셰브론) — 리포트만 도장 외곽선으로 격리(유일한 강조).
