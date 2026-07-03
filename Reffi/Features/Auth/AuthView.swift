@@ -54,7 +54,7 @@ struct AuthView: View {
             Text("Reffi")
                 .reffiType(.display)
                 .foregroundStyle(ReffiColor.blueDark)
-            Text("버리기 전에, 오늘 먹기")
+            Text("Eat it today, waste nothing")
                 .reffiType(.caption)
                 .foregroundStyle(ReffiColor.ink2)
         }
@@ -72,7 +72,7 @@ struct AuthView: View {
                 Text(isSignIn ? "Log in" : "Sign up")
                     .reffiType(.heading).foregroundStyle(ReffiColor.ink)
                 Spacer()
-                Text(isSignIn ? "다시 만나 반가워요" : "1분이면 충분해요")
+                Text(isSignIn ? "Good to see you again" : "Takes under a minute")
                     .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
             }
 
@@ -98,9 +98,9 @@ struct AuthView: View {
             modeToggle
             dashRule
 
-            socialButton(icon: .appleLogo, title: "Apple로 계속하기",
+            socialButton(icon: .appleLogo, title: "Continue with Apple",
                          fill: ReffiColor.ink, fg: .white, seed: 5) { startApple() }
-            socialButton(icon: .googleLogo, title: "Google로 계속하기",
+            socialButton(icon: .googleLogo, title: "Continue with Google",
                          fill: ReffiColor.paper, fg: ReffiColor.ink, seed: 6) {
                 Task { await auth.signInWithGoogle() }
             }
@@ -116,8 +116,8 @@ struct AuthView: View {
     }
 
     private var primaryTitle: String {
-        if auth.busy { return "잠시만요…" }
-        return isSignIn ? "로그인" : "가입하기"
+        if auth.busy { return "One sec…" }
+        return isSignIn ? "Log in" : "Sign up"
     }
 
     private func submit() {
@@ -145,7 +145,7 @@ struct AuthView: View {
     }
 
     private var secureField: some View {
-        SecureField("Password (6자 이상)", text: $password)
+        SecureField("Password (6+ characters)", text: $password)
             .reffiType(.body)
             .foregroundStyle(ReffiColor.ink)
             .focused($focus, equals: .password)
@@ -173,9 +173,9 @@ struct AuthView: View {
     /// 모드 전환 — 질문 + 텍스트 버튼(§2.6 캔버스 위 blue-dark).
     private var modeToggle: some View {
         HStack(spacing: ReffiSpace.s1) {
-            Text(isSignIn ? "처음이신가요?" : "이미 계정이 있나요?")
+            Text(isSignIn ? "New here?" : "Already have an account?")
                 .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
-            Button(isSignIn ? "가입하기" : "로그인") {
+            Button(isSignIn ? "Sign up" : "Log in") {
                 withAnimation(ReffiMotion.gated(.easeOut(duration: 0.18), reduce: false)) {
                     mode = isSignIn ? .signUp : .signIn
                     auth.errorMessage = nil
@@ -244,7 +244,7 @@ struct AuthView: View {
     // MARK: 게스트
 
     private var guestButton: some View {
-        QuietButton(title: "계정 없이 둘러보기", icon: ReffiIcon.go, tint: ReffiColor.ink2) {
+        QuietButton(title: "Browse without an account", icon: ReffiIcon.go, tint: ReffiColor.ink2) {
             Task { await auth.continueAsGuest() }
         }
         .frame(maxWidth: .infinity)

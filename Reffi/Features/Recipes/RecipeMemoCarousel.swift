@@ -86,7 +86,7 @@ struct RecipeMemoCarousel: View {
                     .reffiShadow1()
             }
             .buttonStyle(.paperPress)
-            .accessibilityLabel("닫기")
+            .accessibilityLabel("Close")
         }
         .padding(.horizontal, ReffiGrid.margin)
         .padding(.top, ReffiSpace.s4)

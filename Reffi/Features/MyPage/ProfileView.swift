@@ -43,24 +43,24 @@ struct ProfileView: View {
             switch which {
             case .nickname:  NicknameEditSheet().presentationDetents([.height(260)])
             case .cuisines:  CuisinePickerSheet().presentationDetents([.medium, .large])
-            case .favorites: TagEditorSheet(title: "Favorites", placeholder: "예: 두부",
+            case .favorites: TagEditorSheet(title: "Favorites", placeholder: "e.g. Tofu",
                                             tags: $profile.favorites).presentationDetents([.medium, .large])
-            case .disliked:  TagEditorSheet(title: "Disliked", placeholder: "예: 오이",
+            case .disliked:  TagEditorSheet(title: "Disliked", placeholder: "e.g. Cucumber",
                                             tags: $profile.disliked).presentationDetents([.medium, .large])
-            case .allergies: TagEditorSheet(title: "Allergies", placeholder: "예: 땅콩",
+            case .allergies: TagEditorSheet(title: "Allergies", placeholder: "e.g. Peanuts",
                                             tags: $profile.allergies).presentationDetents([.medium, .large])
             case .time:      NotifyTimeSheet().presentationDetents([.height(300)])
             }
         }
         .sheet(isPresented: $showAuth) { AuthView() }
-        .alert("로그아웃", isPresented: $showLogout) {
-            Button("로그아웃", role: .destructive) { Task { await auth.signOut() } }
-            Button("취소", role: .cancel) {}
-        } message: { Text("정말 로그아웃할까요?") }
-        .alert("회원 탈퇴", isPresented: $showDelete) {
-            Button("탈퇴", role: .destructive) { profile.resetAll() }
-            Button("취소", role: .cancel) {}
-        } message: { Text("프로필과 선호 설정이 초기화됩니다.") }
+        .alert("Log out", isPresented: $showLogout) {
+            Button("Log out", role: .destructive) { Task { await auth.signOut() } }
+            Button("Cancel", role: .cancel) {}
+        } message: { Text("Log out of Reffi?") }
+        .alert("Delete account", isPresented: $showDelete) {
+            Button("Delete", role: .destructive) { profile.resetAll() }
+            Button("Cancel", role: .cancel) {}
+        } message: { Text("Your profile and preferences will be reset.") }
     }
 
     /// 배경 액센트 — 가장 임박한 재료의 신선도색(Fridge와 동일, 세 탭이 한 몸).
@@ -114,7 +114,7 @@ struct ProfileView: View {
 
     /// 부제 — 요리 취향 요약(스트릭은 리포트 도장으로 이동해 중복 제거). 취향 없으면 담백한 문구.
     private var subtitle: String {
-        profile.cuisines.isEmpty ? "Reffi와 함께 절약 중" : profile.cuisines.summaryText
+        profile.cuisines.isEmpty ? "Saving with Reffi" : profile.cuisines.summaryText
     }
 
     // MARK: - 요리 취향 영수증
@@ -137,7 +137,7 @@ struct ProfileView: View {
     private var householdReceipt: some View {
         ReceiptCard(title: "Household") {
             VStack(alignment: .leading, spacing: ReffiSpace.s3) {
-                Text("몇 인분 기준으로 추천할까요?")
+                Text("How many servings should we plan for?")
                     .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
                 HStack(spacing: ReffiSpace.s2) {
                     ForEach(HouseholdSize.allCases) { h in
@@ -153,7 +153,7 @@ struct ProfileView: View {
     }
 
     private func tagSummary(_ tags: [String]) -> String {
-        guard !tags.isEmpty else { return "아직 없음" }   // 빈 상태 카피 통일(Cuisines·시트와 동일)
+        guard !tags.isEmpty else { return "None yet" }   // 빈 상태 카피 통일(Cuisines·시트와 동일)
         let head = tags.prefix(2).joined(separator: ", ")
         let extra = tags.count - Swift.min(2, tags.count)
         return extra > 0 ? "\(head) +\(extra)" : head
@@ -198,17 +198,17 @@ struct ProfileView: View {
         ReceiptCard(title: "Account") {
             // 로그인 상태 행 — 이메일(로그인) 또는 게스트 안내.
             HStack {
-                Text(auth.isGuest ? "게스트 모드" : "로그인됨")
+                Text(auth.isGuest ? "Guest mode" : "Signed in")
                     .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
                 Spacer()
-                Text(auth.userEmail ?? "가입하면 지금 기록이 계정으로 이어져요")
+                Text(auth.userEmail ?? "Sign up to keep your data")
                     .reffiType(.caption).foregroundStyle(ReffiColor.ink)
                     .lineLimit(1).truncationMode(.middle)
             }
             .padding(.horizontal, ReffiSpace.s5)
             .padding(.vertical, ReffiSpace.s3)
             ReceiptRule()
-            QuietButton(title: auth.isGuest ? "로그인 / 가입하기" : "로그아웃",
+            QuietButton(title: auth.isGuest ? "Log in / Sign up" : "Log out",
                         icon: ReffiIcon.go, tint: ReffiColor.blueDark) {
                 // 게스트는 익명 세션을 유지한 채 시트에서 전환/로그인(승계 보장).
                 if auth.isGuest { showAuth = true }
@@ -218,7 +218,7 @@ struct ProfileView: View {
             .padding(.vertical, ReffiSpace.s1)
             ReceiptRule()
             // toss(재료 버림)와 의미 충돌 방지 — 탈퇴는 별도 아이콘(x).
-            QuietButton(title: "회원 탈퇴", icon: ReffiIcon.close, tint: ReffiColor.urgentDark) {
+            QuietButton(title: "Delete account", icon: ReffiIcon.close, tint: ReffiColor.urgentDark) {
                 showDelete = true
             }
             .padding(.horizontal, ReffiSpace.s3)

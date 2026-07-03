@@ -119,7 +119,7 @@ struct OrderMemoCard: View {
                     }
             }
             .buttonStyle(.paperPress)
-            .accessibilityLabel("이걸로 요리")
+            .accessibilityLabel("Cook with this")
         }
     }
 

@@ -196,7 +196,7 @@ struct MainView: View {
         .frame(maxWidth: .infinity)
         .animation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion), value: activeIngredients.map(\.id))
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("임박 재료 \(activeIngredients.count)개")
+        .accessibilityLabel("\(activeIngredients.count) expiring ingredients")
     }
 
     /// 뱃지 행 — 긴급도순 가로 스크롤(가장 임박이 맨 앞). 끝에 ＋추가.

@@ -20,9 +20,9 @@ enum CardStyle: String, CaseIterable {
     }
     var title: String {
         switch self {
-        case .neutral: "뉴트럴 + 신선도 레일"
-        case .tint:    "소프트 틴트"
-        case .pastel:  "정제 파스텔 + 배지"
+        case .neutral: "Neutral + freshness rail"
+        case .tint:    "Soft tint"
+        case .pastel:  "Refined pastel + badge"
         }
     }
 

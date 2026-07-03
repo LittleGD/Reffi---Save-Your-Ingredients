@@ -68,7 +68,7 @@ struct NicknameEditSheet: View {
     var body: some View {
         SheetShell(title: "Nickname", onClose: { dismiss() }) {
             VStack(alignment: .leading, spacing: ReffiSpace.s4) {
-                TextField("닉네임", text: $draft)
+                TextField("Nickname", text: $draft)
                     .reffiType(.body)
                     .foregroundStyle(ReffiColor.ink)
                     .padding(.horizontal, ReffiSpace.s4)
@@ -103,7 +103,7 @@ struct CuisinePickerSheet: View {
     var body: some View {
         SheetShell(title: "Cuisines", onClose: { dismiss() }) {
             VStack(alignment: .leading, spacing: ReffiSpace.s4) {
-                Text("좋아하는 요리 스타일을 골라주세요 · 여러 개 선택 가능")
+                Text("Pick your favorite cuisines · choose as many as you like")
                     .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
 
                 LazyVGrid(columns: columns, alignment: .leading, spacing: ReffiSpace.s2) {
@@ -142,11 +142,11 @@ struct TagEditorSheet: View {
                         }
                         .submitLabel(.done)
                         .onSubmit(add)
-                    QuietButton(title: "추가", icon: ReffiIcon.add, action: add)
+                    QuietButton(title: "Add", icon: ReffiIcon.add, action: add)
                 }
 
                 if tags.isEmpty {
-                    Text("아직 없음")
+                    Text("None yet")
                         .reffiType(.caption).foregroundStyle(ReffiColor.muted)
                         .padding(.top, ReffiSpace.s1)
                 } else {

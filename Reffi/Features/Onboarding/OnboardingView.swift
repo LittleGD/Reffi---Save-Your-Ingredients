@@ -30,16 +30,16 @@ struct OnboardingView: View {
                 topBar
                 TabView(selection: $page) {
                     valuePage(hero: { recordHero },
-                              title: "냉장고 속 재료를\n영수증처럼 기록해요",
-                              body: "사 온 재료를 등록하면 유통기한을 대신 세어드려요.")
+                              title: "Log your fridge\nlike a receipt",
+                              body: "Add what you buy — we'll count down the expiry dates.")
                         .tag(0)
                     valuePage(hero: { recipeHero },
-                              title: "임박한 재료로\n오늘의 레시피를 추천해요",
-                              body: "가장 급한 재료부터 먹을 수 있게, 위에서부터 순서대로.")
+                              title: "Today's recipes,\nfrom what expires first",
+                              body: "Eat the most urgent ingredients first, top to bottom.")
                         .tag(1)
                     valuePage(hero: { reportHero },
-                              title: "버리지 않은 날들이\n리포트로 쌓여요",
-                              body: "무낭비 스트릭과 절약 리포트로 변화를 확인하세요.")
+                              title: "Days without waste\nadd up to a report",
+                              body: "Watch your no-waste streak and savings grow.")
                         .tag(2)
                     householdPage.tag(3)
                     cuisinePage.tag(4)
@@ -74,7 +74,7 @@ struct OnboardingView: View {
                 .scaleEffect(0.62, anchor: .leading)   // 워드마크 축소 배치(위계는 페이지 타이틀에)
             Spacer()
             if page < last {
-                QuietButton(title: "건너뛰기", tint: ReffiColor.ink2) { onFinish() }
+                QuietButton(title: "Skip", tint: ReffiColor.ink2) { onFinish() }
             }
         }
         .padding(.horizontal, ReffiGrid.margin)
@@ -91,9 +91,9 @@ struct OnboardingView: View {
                 .frame(maxWidth: .infinity)
                 .padding(.bottom, ReffiSpace.s4)
 
+            // 영문 디스플레이 = Story Script(§3.1 브랜드 모먼트 — 워드마크·온보딩 타이틀).
             Text(title)
-                .font(ReffiTextRole.display.koreanDisplayFont)
-                .lineSpacing(4)
+                .reffiType(.display)
                 .foregroundStyle(ReffiColor.ink)
             Text(copy)
                 .reffiType(.body).foregroundStyle(ReffiColor.ink2)
@@ -109,11 +109,11 @@ struct OnboardingView: View {
         miniReceipt(seed: 0) {
             VStack(spacing: ReffiSpace.s3) {
                 heroHeader("REFFI · FRIDGE")
-                heroRow(.tomato, "토마토", "D-2", ReffiColor.soonDark)
+                heroRow(.tomato, "Tomato", "D-2", ReffiColor.soonDark)
                 heroDash
-                heroRow(.leaf, "시금치", "D-1", ReffiColor.soonDark)
+                heroRow(.leaf, "Spinach", "D-1", ReffiColor.soonDark)
                 heroDash
-                heroRow(.milk, "우유", "D-5", ReffiColor.freshDark)
+                heroRow(.milk, "Milk", "D-5", ReffiColor.freshDark)
             }
         }
     }
@@ -130,7 +130,7 @@ struct OnboardingView: View {
             // 레시피 추천 예시 — AI(§2.4 Blue) 칩. 틴트 면 위 ink(§2.6 AAA).
             HStack(spacing: ReffiSpace.s2) {
                 ReffiIcon.ai.reffi(15, .bold).foregroundStyle(ReffiColor.blueDark)
-                Text("오늘의 레시피 · 토마토 프리타타")
+                Text("Today's recipe · Tomato frittata")
                     .font(.custom("Pretendard-SemiBold", size: 14, relativeTo: .caption))
                     .foregroundStyle(ReffiColor.ink)
                     .lineLimit(1)
@@ -195,8 +195,8 @@ struct OnboardingView: View {
     // MARK: 개인화 ① 가구 인원 — 레시피 양의 근거(프로필 Household와 동일 문법)
 
     private var householdPage: some View {
-        questionPage(title: "몇 명이 먹나요?",
-                     body: "레시피 양과 장보기 수량을 여기에 맞춰드려요.") {
+        questionPage(title: "How many are eating?",
+                     body: "We'll size recipes and shopping lists to match.") {
             HStack(spacing: ReffiSpace.s2) {
                 ForEach(HouseholdSize.allCases) { h in
                     SelectableChip(text: h.label, selected: profile.household == h) {
@@ -210,8 +210,8 @@ struct OnboardingView: View {
     // MARK: 개인화 ② 요리 취향 — 멀티 선택(프로필 Cuisines와 동일 문법)
 
     private var cuisinePage: some View {
-        questionPage(title: "어떤 요리를 좋아하세요?",
-                     body: "여러 개 골라도 돼요. 추천 레시피에 반영돼요.") {
+        questionPage(title: "What do you like to cook?",
+                     body: "Pick as many as you like — recipes will follow.") {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 92), spacing: ReffiSpace.s2)],
                       alignment: .leading, spacing: ReffiSpace.s2) {
                 ForEach(CuisineStyle.allCases) { c in
@@ -227,22 +227,22 @@ struct OnboardingView: View {
     // MARK: 알림 프라이밍 — 가치 설명 후 시스템 권한(소프트 애스크)
 
     private var notifyPage: some View {
-        questionPage(title: "버리기 전에\n딱 한 번 알려드릴까요?",
-                     body: "임박한 재료가 있을 때만, 하루 한 번 아침에 알려드려요.") {
+        questionPage(title: "Want one heads-up\nbefore food goes bad?",
+                     body: "Only when something's expiring — once a day, in the morning.") {
             VStack(alignment: .leading, spacing: ReffiSpace.s3) {
                 // 개인화 payoff — 방금 답한 내용을 즉시 반영해 "맞춰졌다"는 신호(리서치: aha moment).
                 HStack(spacing: ReffiSpace.s2) {
                     ReffiIcon.ai.reffi(18, .bold).foregroundStyle(ReffiColor.blueDark)
-                    Text("\(profile.cuisines.summaryText) · \(profile.household.label) 기준으로 추천을 준비했어요")
+                    Text("Recipes tuned for \(profile.cuisines.summaryText) · \(profile.household.label)")
                         .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
                         .lineLimit(2)
                 }
                 HStack(spacing: ReffiSpace.s2) {
                     ReffiIcon.countdown.reffi(18, .bold).foregroundStyle(ReffiColor.blueDark)
-                    Text("기본: 유통기한 3일 전 · 오전 8시")
+                    Text("Default: 3 days before expiry · 8 AM")
                         .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
                 }
-                Text("설정은 프로필에서 언제든 바꿀 수 있어요.")
+                Text("You can change this anytime in Profile.")
                     .reffiType(.caption).foregroundStyle(ReffiColor.muted)
             }
         }
@@ -285,20 +285,20 @@ struct OnboardingView: View {
             }
         }
         .padding(.bottom, ReffiSpace.s4)
-        .accessibilityLabel("\(page + 1) / \(last + 1) 페이지")
+        .accessibilityLabel("Page \(page + 1) of \(last + 1)")
     }
 
     @ViewBuilder private var bottomButton: some View {
         VStack(spacing: ReffiSpace.s1) {
             if page == last {
-                PaperButton(title: "알림 켜고 시작하기", seed: 2) { requestNotifications() }
-                QuietButton(title: "나중에 할게요", tint: ReffiColor.ink2) {
+                PaperButton(title: "Turn on alerts & start", seed: 2) { requestNotifications() }
+                QuietButton(title: "Maybe later", tint: ReffiColor.ink2) {
                     profile.notifyEnabled = false
                     onFinish()
                 }
                 .frame(maxWidth: .infinity)
             } else {
-                PaperButton(title: "다음", seed: 2) {
+                PaperButton(title: "Next", seed: 2) {
                     withAnimation(motion) { page += 1 }
                 }
             }

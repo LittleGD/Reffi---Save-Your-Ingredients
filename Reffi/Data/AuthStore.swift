@@ -70,11 +70,11 @@ final class AuthStore {
                 try await Self.client.auth.update(
                     user: UserAttributes(email: email, password: password)
                 )
-                self.notice = "확인 메일을 보냈어요. 인증하면 게스트 기록이 이 계정으로 이어져요."
+                self.notice = "Check your inbox — once verified, your guest data carries over."
             } else {
                 let res = try await Self.client.auth.signUp(email: email, password: password)
                 if res.session == nil {
-                    self.notice = "확인 메일을 보냈어요. 메일함에서 인증 후 로그인해주세요."
+                    self.notice = "Confirmation email sent. Verify it, then log in."
                 }
             }
         }
@@ -158,23 +158,23 @@ final class AuthStore {
     private static func friendly(_ error: Error) -> String {
         let raw = error.localizedDescription
         let lower = raw.lowercased()
-        if lower.contains("invalid login credentials") { return "이메일 또는 비밀번호가 올바르지 않아요." }
-        if lower.contains("email not confirmed") { return "가입 확인 메일의 링크를 먼저 눌러주세요." }
-        if lower.contains("already registered") { return "이미 가입된 이메일이에요. 로그인해주세요." }
+        if lower.contains("invalid login credentials") { return "Email or password doesn't match." }
+        if lower.contains("email not confirmed") { return "Please verify your email first — check your inbox." }
+        if lower.contains("already registered") { return "This email is already registered. Try logging in." }
         if lower.contains("at least 6 characters") || lower.contains("password should")
-            { return "비밀번호는 6자 이상이어야 해요." }
+            { return "Password must be at least 6 characters." }
         if lower.contains("invalid format") || lower.contains("validate email")
-            { return "이메일 주소 형식을 확인해주세요." }
+            { return "Please check the email address." }
         if lower.contains("network") || lower.contains("offline") || lower.contains("internet")
-            { return "네트워크 연결을 확인해주세요." }
-        if lower.contains("provider is not enabled") { return "이 로그인 방식은 아직 준비 중이에요." }
-        if (error as? ASAuthorizationError) != nil { return "Apple 로그인을 완료하지 못했어요." }
+            { return "Check your network connection." }
+        if lower.contains("provider is not enabled") { return "This sign-in method isn't available yet." }
+        if (error as? ASAuthorizationError) != nil { return "Couldn't complete Apple sign-in." }
         return raw
     }
 
     enum AuthLocalError: LocalizedError {
         case appleToken
-        var errorDescription: String? { "Apple 로그인을 완료하지 못했어요." }
+        var errorDescription: String? { "Couldn't complete Apple sign-in." }
     }
 
     private enum Key {

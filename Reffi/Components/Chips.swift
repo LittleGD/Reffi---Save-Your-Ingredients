@@ -3,7 +3,7 @@ import PhosphorSwift
 
 /// AI/레시피 라벨 — 시간 라벨(MetaChip)과 동일 포맷: 인라인 아이콘 + 텍스트, 면 없이 ink-2.
 struct AITag: View {
-    var text: String = "AI 추천 · 오늘의 레시피"
+    var text: String = "AI pick · Today's recipe"
     var body: some View {
         HStack(spacing: ReffiSpace.s1) {
             ReffiIcon.ai.reffi(15)

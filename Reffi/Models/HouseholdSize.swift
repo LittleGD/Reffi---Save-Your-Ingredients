@@ -7,13 +7,13 @@ enum HouseholdSize: String, CaseIterable, Identifiable, Codable {
 
     var id: String { rawValue }
 
-    /// 칩 라벨.
+    /// 칩 라벨(앱 디폴트 = 영문).
     var label: String {
         switch self {
-        case .one:    "1인"
-        case .two:    "2인"
-        case .family: "3–4인"
-        case .large:  "5인+"
+        case .one:    "Just me"
+        case .two:    "2 people"
+        case .family: "3–4"
+        case .large:  "5+"
         }
     }
 

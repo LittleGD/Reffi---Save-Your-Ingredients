@@ -230,7 +230,7 @@ struct FridgeView: View {
     /// 정렬 메뉴 — 체크 그룹 하나만(모호함 제거). 라벨은 현재 정렬을 상시 노출. 종이컷 칩(§13.5).
     private var sortMenu: some View {
         Menu {
-            Picker("정렬", selection: $sortRaw) {
+            Picker("Sort", selection: $sortRaw) {
                 ForEach(FridgeSort.allCases) { s in
                     Text(s.label).tag(s.rawValue)
                 }
@@ -252,7 +252,7 @@ struct FridgeView: View {
             .frame(minHeight: 44)   // §7.3 터치 타깃
             .contentShape(Rectangle())
         }
-        .accessibilityLabel("정렬: \(sort.label)")
+        .accessibilityLabel("Sort: \(sort.label)")
     }
 
     /// 보기 전환 — 메뉴에 숨기지 않는 원탭 토글(사진·파일 앱 문법). 아이콘은 "누르면 바뀔 모습".
@@ -271,7 +271,7 @@ struct FridgeView: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.paperPress)
-        .accessibilityLabel(compact ? "스택 보기로 전환" : "간편보기로 전환")
+        .accessibilityLabel(compact ? "Switch to stack view" : "Switch to simple view")
     }
 
     // MARK: 요약 페이저 — 한 번에 카드 한 장(점진적 공개), 점 인디케이터로 다음 장 예고.
@@ -280,21 +280,21 @@ struct FridgeView: View {
         VStack(spacing: ReffiSpace.s2) {
             TabView(selection: $summaryPage) {
                 Button { showShopping = true } label: {
-                    summaryCard(icon: ReffiIcon.receipt, title: "장보기",
-                                value: "\(store.toBuy.count)개", tint: ReffiColor.blueDark,
+                    summaryCard(icon: ReffiIcon.receipt, title: "To buy",
+                                value: "\(store.toBuy.count)", tint: ReffiColor.blueDark,
                                 stamped: false, seed: 8)
                 }
                 .buttonStyle(.paperPress)
-                .accessibilityLabel("장보기 목록, \(store.toBuy.count)개")
+                .accessibilityLabel("Shopping list, \(store.toBuy.count) items")
                 .padding(.horizontal, cardInset)
                 .tag(0)
 
                 Button { showHistory = true } label: {
-                    summaryCard(icon: ReffiIcon.report, title: "무낭비 리포트",
+                    summaryCard(icon: ReffiIcon.report, title: "No-waste report",
                                 value: "\(store.wasteRate)%", tint: rateColor, stamped: true, seed: 7)
                 }
                 .buttonStyle(.paperPress)
-                .accessibilityLabel("무낭비 리포트 열기, 낭비율 \(store.wasteRate)퍼센트")
+                .accessibilityLabel("Open no-waste report, \(store.wasteRate) percent wasted")
                 .padding(.horizontal, cardInset)
                 .tag(1)
             }
@@ -388,9 +388,9 @@ enum FridgeSort: String, CaseIterable, Identifiable {
     var id: String { rawValue }
     var label: String {
         switch self {
-        case .expiry:   "임박한 순"
-        case .freshest: "신선한 순"
-        case .recent:   "최근 등록순"
+        case .expiry:   "Expiring first"
+        case .freshest: "Freshest first"
+        case .recent:   "Recently added"
         }
     }
 }

@@ -36,7 +36,7 @@ struct IngredientBadge: View {
         }
         .buttonStyle(.paperPress)
         .accessibilityLabel("\(ingredient.name) \(ingredient.dDayText)")
-        .accessibilityValue(isDisabled ? "비활성" : "사용")
+        .accessibilityValue(isDisabled ? "disabled" : "active")
         .accessibilityAddTraits(isDisabled ? [] : [.isSelected])
     }
 
@@ -71,6 +71,6 @@ struct AddBadge: View {
             }
         }
         .buttonStyle(.paperPress)
-        .accessibilityLabel("재료 추가")
+        .accessibilityLabel("Add ingredient")
     }
 }

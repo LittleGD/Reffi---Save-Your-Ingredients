@@ -8,21 +8,21 @@ enum CuisineStyle: String, CaseIterable, Identifiable, Codable {
 
     var id: String { rawValue }
 
-    /// 칩·요약에 쓰는 한글 라벨.
+    /// 칩·요약 라벨(앱 디폴트 = 영문).
     var label: String {
         switch self {
-        case .korean:        "한식"
-        case .western:       "양식"
-        case .japanese:      "일식"
-        case .chinese:       "중식"
-        case .italian:       "이탈리안"
-        case .mexican:       "멕시칸"
-        case .brazilian:     "브라질식"
-        case .indian:        "인도식"
-        case .thai:          "태국식"
-        case .mediterranean: "지중해식"
-        case .vietnamese:    "베트남식"
-        case .vegetarian:    "채식 위주"
+        case .korean:        "Korean"
+        case .western:       "Western"
+        case .japanese:      "Japanese"
+        case .chinese:       "Chinese"
+        case .italian:       "Italian"
+        case .mexican:       "Mexican"
+        case .brazilian:     "Brazilian"
+        case .indian:        "Indian"
+        case .thai:          "Thai"
+        case .mediterranean: "Mediterranean"
+        case .vietnamese:    "Vietnamese"
+        case .vegetarian:    "Vegetarian"
         }
     }
 }
@@ -30,7 +30,7 @@ enum CuisineStyle: String, CaseIterable, Identifiable, Codable {
 extension Set where Element == CuisineStyle {
     /// 프로필 행 요약 — "한식 · 양식 +1" (CaseIterable 순서로 안정 정렬).
     var summaryText: String {
-        guard !isEmpty else { return "아직 없음" }
+        guard !isEmpty else { return "None yet" }
         let ordered = CuisineStyle.allCases.filter { contains($0) }
         let head = ordered.prefix(2).map(\.label).joined(separator: " · ")
         let extra = ordered.count - Swift.min(2, ordered.count)
