@@ -59,18 +59,16 @@ final class ReffiFlowUITests: XCTestCase {
         app.launchArguments = ["-skipAuth", "-onboarding.done", "YES", "-fridgeTab"]
         app.launch()
 
-        // 리포트 요약 카드 → History 시트
+        // 페이저 1장 = 장보기(빈도 우선), 2장 = 무낭비 리포트(스와이프로 진입)
+        let toBuy = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "장보기")).firstMatch
+        XCTAssertTrue(toBuy.waitForExistence(timeout: 8), "장보기 카드가 1장이어야 한다")
+        toBuy.swipeLeft()
+
         let report = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "무낭비 리포트")).firstMatch
-        XCTAssertTrue(report.waitForExistence(timeout: 8), "무낭비 리포트 카드가 보여야 한다")
+        XCTAssertTrue(report.waitForExistence(timeout: 4), "스와이프하면 리포트 카드")
         report.tap()
         XCTAssertTrue(app.staticTexts["History"].waitForExistence(timeout: 4), "리포트 카드 → History 시트")
         app.buttons["Close"].firstMatch.tap()
-
-        // 장보기 요약 카드 — 페이저 2장(스와이프로 진입)
-        report.swipeLeft()
-        XCTAssertTrue(app.buttons.matching(
-            NSPredicate(format: "label BEGINSWITH %@", "장보기")).firstMatch
-            .waitForExistence(timeout: 4), "페이저 2장의 장보기 카드")
 
         // 통합 메뉴 — 간편보기 전환(수량 텍스트가 노출되는 행으로 바뀜)
         let menu = app.buttons["정렬: 임박한 순"]

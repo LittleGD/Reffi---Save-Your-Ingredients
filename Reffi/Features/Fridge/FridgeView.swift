@@ -261,19 +261,10 @@ struct FridgeView: View {
     }
 
     // MARK: 요약 페이저 — 한 번에 카드 한 장(점진적 공개), 점 인디케이터로 다음 장 예고.
-    // 리포트가 1페이지라 발견성 손실 없음. 전폭 카드라 내용이 여유 있게 배치된다.
+    // 순서 = 사용 빈도: 장보기(할 일, 수시) 먼저 → 리포트(회고, 가끔)는 도장 강조 + 한 스와이프.
     private var summaryRow: some View {
         VStack(spacing: ReffiSpace.s2) {
             TabView(selection: $summaryPage) {
-                Button { showHistory = true } label: {
-                    summaryCard(icon: ReffiIcon.report, title: "무낭비 리포트",
-                                value: "\(store.wasteRate)%", tint: rateColor, stamped: true, seed: 7)
-                }
-                .buttonStyle(.paperPress)
-                .accessibilityLabel("무낭비 리포트 열기, 낭비율 \(store.wasteRate)퍼센트")
-                .padding(.horizontal, cardInset)
-                .tag(0)
-
                 Button { showShopping = true } label: {
                     summaryCard(icon: ReffiIcon.receipt, title: "장보기",
                                 value: "\(store.toBuy.count)개", tint: ReffiColor.blueDark,
@@ -281,6 +272,15 @@ struct FridgeView: View {
                 }
                 .buttonStyle(.paperPress)
                 .accessibilityLabel("장보기 목록, \(store.toBuy.count)개")
+                .padding(.horizontal, cardInset)
+                .tag(0)
+
+                Button { showHistory = true } label: {
+                    summaryCard(icon: ReffiIcon.report, title: "무낭비 리포트",
+                                value: "\(store.wasteRate)%", tint: rateColor, stamped: true, seed: 7)
+                }
+                .buttonStyle(.paperPress)
+                .accessibilityLabel("무낭비 리포트 열기, 낭비율 \(store.wasteRate)퍼센트")
                 .padding(.horizontal, cardInset)
                 .tag(1)
             }
