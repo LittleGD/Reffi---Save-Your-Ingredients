@@ -52,35 +52,47 @@ final class ReffiFlowUITests: XCTestCase {
                       "건너뛰기 → 로그인 화면으로 전환돼야 한다")
     }
 
-    // MARK: 냉장고 — 리포트 배너 · 정렬 · 간편보기
+    // MARK: 냉장고 — 요약 카드(리포트·장보기) · 통합 정렬/보기 메뉴
 
     func testFridge_ReportBand_SortMenu_CompactToggle() {
         let app = XCUIApplication()
         app.launchArguments = ["-skipAuth", "-onboarding.done", "YES", "-fridgeTab"]
         app.launch()
 
-        // 리포트 배너 → History 시트
+        // 리포트 요약 카드 → History 시트
         let report = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "무낭비 리포트")).firstMatch
-        XCTAssertTrue(report.waitForExistence(timeout: 8), "무낭비 리포트 배너가 보여야 한다")
+        XCTAssertTrue(report.waitForExistence(timeout: 8), "무낭비 리포트 카드가 보여야 한다")
         report.tap()
-        XCTAssertTrue(app.staticTexts["History"].waitForExistence(timeout: 4), "리포트 배너 → History 시트")
+        XCTAssertTrue(app.staticTexts["History"].waitForExistence(timeout: 4), "리포트 카드 → History 시트")
         app.buttons["Close"].firstMatch.tap()
 
-        // 간편보기 토글
-        let toCompact = app.buttons["간편보기로 전환"]
-        XCTAssertTrue(toCompact.waitForExistence(timeout: 4))
-        toCompact.tap()
-        XCTAssertTrue(app.buttons["스택 보기로 전환"].waitForExistence(timeout: 4), "간편보기 상태로 전환돼야 한다")
+        // 장보기 요약 카드 존재
+        XCTAssertTrue(app.buttons.matching(
+            NSPredicate(format: "label BEGINSWITH %@", "장보기")).firstMatch.exists, "장보기 카드")
 
-        // 정렬 메뉴 — 임박한 순 → 최근 등록순
-        let sortMenu = app.buttons["정렬: 임박한 순"]
-        XCTAssertTrue(sortMenu.waitForExistence(timeout: 4), "기본 정렬은 임박한 순")
-        sortMenu.tap()
-        let recent = app.buttons["최근 등록순"]
-        XCTAssertTrue(recent.waitForExistence(timeout: 4))
-        recent.tap()
+        // 통합 메뉴 — 간편보기 전환(수량 텍스트가 노출되는 행으로 바뀜)
+        let menu = app.buttons["정렬: 임박한 순"]
+        XCTAssertTrue(menu.waitForExistence(timeout: 4), "기본 정렬은 임박한 순")
+        menu.tap()
+        app.buttons["간편보기"].tap()
+        let compactRow = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label CONTAINS %@", "300 g")).firstMatch
+        XCTAssertTrue(compactRow.waitForExistence(timeout: 4), "간편보기 행(수량 노출)로 전환")
+
+        // 통합 메뉴 — 정렬 전환이 라벨에 반영
+        menu.tap()
+        app.buttons["최근 등록순"].tap()
         XCTAssertTrue(app.buttons["정렬: 최근 등록순"].waitForExistence(timeout: 4),
                       "정렬 선택이 라벨에 반영돼야 한다")
+
+        // 상태 원복(스택 보기·임박한 순) — 테스트가 기기 저장 상태를 오염시키지 않게.
+        let menu2 = app.buttons["정렬: 최근 등록순"]
+        menu2.tap()
+        app.buttons["스택 보기"].tap()
+        XCTAssertTrue(app.staticTexts["Meat · Beef"].waitForExistence(timeout: 4), "스택 카드 복귀")
+        menu2.tap()
+        app.buttons["임박한 순"].tap()
+        XCTAssertTrue(app.buttons["정렬: 임박한 순"].waitForExistence(timeout: 4), "기본 정렬 복귀")
     }
 
     // MARK: 로그인 화면 요소

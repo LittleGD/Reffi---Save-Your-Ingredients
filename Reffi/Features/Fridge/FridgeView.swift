@@ -1,4 +1,5 @@
 import SwiftUI
+import PhosphorSwift
 
 /// 냉장고 — 전체 재고를 임박순으로 쌓은 "흰 영수증" 스택(§13).
 /// 영수증 냉장고의 IA(스택 + 탭→상세 + 히스토리)를 그대로, 비주얼은 Main의 종이컷 언어로.
@@ -85,12 +86,10 @@ struct FridgeView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: ReffiSpace.s5) {
                 header
-                reportBand
-                toBuyRow
+                summaryRow
                 if items.isEmpty {
                     emptyState
                 } else {
-                    controlsRow
                     if compact {
                         compactList
                     } else {
@@ -210,7 +209,7 @@ struct FridgeView: View {
         )
     }
 
-    // MARK: 헤더
+    // MARK: 헤더 — 서브라인 오른쪽 끝에 정렬·보기 통합 메뉴(별도 행 제거, 수직 적층 최소화)
     private var header: some View {
         VStack(alignment: .leading, spacing: ReffiSpace.s1) {
             Text("Fridge").reffiType(.display).foregroundStyle(ReffiColor.ink)
@@ -224,42 +223,99 @@ struct FridgeView: View {
                     Text("Tossed \(store.tossedCount)")
                         .font(.reffiNum(12, relativeTo: .caption2)).foregroundStyle(ReffiColor.urgentDark)
                 }
+                Spacer(minLength: ReffiSpace.s2)
+                sortViewMenu
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    // MARK: 무낭비 리포트 배너 — 한 줄·숫자 하나(글랜서블: 위젯 원칙 "one idea").
-    // 도장 이중선은 페이지에서 유일한 외곽선(폰 레스토프 격리). 스트릭·기간·구성은 리포트 안에서.
-    private var reportBand: some View {
-        Button { showHistory = true } label: {
-            HStack(spacing: ReffiSpace.s3) {
-                ReffiIcon.report.reffi(20, .bold).foregroundStyle(rateColor)
-                Text("무낭비 리포트")
-                    .font(.custom("Pretendard-SemiBold", size: 16, relativeTo: .body))
-                    .foregroundStyle(ReffiColor.ink)
-                Spacer(minLength: ReffiSpace.s2)
-                Text("\(store.wasteRate)%")
-                    .font(.reffiNum(18, relativeTo: .body))
-                    .foregroundStyle(rateColor)
-                ReffiIcon.chevron.reffi(12, .bold).foregroundStyle(ReffiColor.muted)
-            }
-            .padding(.horizontal, ReffiSpace.s4)
-            .frame(minHeight: 54)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .contentShape(Rectangle())
-            .background {
-                let s = RoundedRectangle(cornerRadius: ReffiRadius.lg, style: .continuous)
-                ZStack {
-                    s.strokeBorder(rateColor.opacity(0.9), lineWidth: 2.2)          // 도장 이중선
-                    s.inset(by: 4).strokeBorder(rateColor.opacity(0.5), lineWidth: 1.0)
+    /// 정렬 + 보기 통합 메뉴 — 리서치 권고(관련 컨트롤은 하나의 풀다운으로, 체크마크로 상태 표시).
+    /// 라벨은 현재 정렬을 상시 노출. 종이컷 칩(§13.5).
+    private var sortViewMenu: some View {
+        Menu {
+            Picker("정렬", selection: $sortRaw) {
+                ForEach(FridgeSort.allCases) { s in
+                    Text(s.label).tag(s.rawValue)
                 }
             }
+            Divider()
+            Picker("보기", selection: $compact) {
+                Text("스택 보기").tag(false)
+                Text("간편보기").tag(true)
+            }
+        } label: {
+            HStack(spacing: ReffiSpace.s1) {
+                ReffiIcon.sort.reffi(12, .bold)
+                Text(sort.label)
+                    .font(ReffiTextRole.caption.font)
+                    .tracking(ReffiTextRole.caption.tracking)
+            }
+            .foregroundStyle(ReffiColor.ink)
+            .padding(.horizontal, ReffiSpace.s3)
+            .padding(.vertical, ReffiSpace.s2)
+            .background {
+                let s = PaperRect(cornerRadius: ReffiRadius.sm, seed: 5)
+                s.fill(ReffiColor.paper).paperEdge(s)
+            }
+            .frame(minHeight: 44)   // §7.3 터치 타깃
+            .contentShape(Rectangle())
         }
-        .buttonStyle(.paperPress)
+        .accessibilityLabel("정렬: \(sort.label)")
+    }
+
+    // MARK: 요약 한 줄 — 리포트(도장) + 장보기(종이) 반반. 스와이프 없이 다 보이고 행 수 최소.
+    private var summaryRow: some View {
+        HStack(spacing: ReffiSpace.s2) {
+            Button { showHistory = true } label: {
+                summaryCard(icon: ReffiIcon.report, title: "리포트",
+                            value: "\(store.wasteRate)%", tint: rateColor, stamped: true, seed: 7)
+            }
+            .buttonStyle(.paperPress)
+            .accessibilityLabel("무낭비 리포트 열기, 낭비율 \(store.wasteRate)퍼센트")
+
+            Button { showShopping = true } label: {
+                summaryCard(icon: ReffiIcon.receipt, title: "장보기",
+                            value: "\(store.toBuy.count)", tint: ReffiColor.blueDark,
+                            stamped: false, seed: 8)
+            }
+            .buttonStyle(.paperPress)
+            .accessibilityLabel("장보기 목록, \(store.toBuy.count)개")
+        }
         .padding(.horizontal, cardInset)
-        .accessibilityLabel("무낭비 리포트 열기, 낭비율 \(store.wasteRate)퍼센트")
-        .accessibilityAddTraits(.isButton)
+    }
+
+    /// 요약 카드 공통 해부(아이콘·제목·값·셰브론) — 리포트만 도장 외곽선으로 격리(유일한 강조).
+    private func summaryCard(icon: Ph, title: String, value: String,
+                             tint: Color, stamped: Bool, seed: Int) -> some View {
+        HStack(spacing: ReffiSpace.s1 + 2) {
+            icon.reffi(16, .bold).foregroundStyle(tint)
+            Text(title)
+                .font(.custom("Pretendard-SemiBold", size: 15, relativeTo: .subheadline))
+                .foregroundStyle(ReffiColor.ink)
+                .lineLimit(1).fixedSize()   // 제목은 절대 말줄임하지 않는다(우선 확보)
+            Spacer(minLength: ReffiSpace.s1)
+            Text(value)
+                .font(.reffiNum(16, relativeTo: .body)).foregroundStyle(tint)
+                .lineLimit(1).minimumScaleFactor(0.8)
+            ReffiIcon.chevron.reffi(10, .bold).foregroundStyle(ReffiColor.muted)
+        }
+        .padding(.horizontal, ReffiSpace.s3)
+        .frame(minHeight: 52)
+        .frame(maxWidth: .infinity)
+        .contentShape(Rectangle())
+        .background {
+            if stamped {
+                let s = RoundedRectangle(cornerRadius: ReffiRadius.lg, style: .continuous)
+                ZStack {
+                    s.strokeBorder(tint.opacity(0.9), lineWidth: 2)                 // 도장 이중선
+                    s.inset(by: 3.5).strokeBorder(tint.opacity(0.5), lineWidth: 1)
+                }
+            } else {
+                let s = PaperRect(cornerRadius: ReffiRadius.lg, seed: seed)
+                s.fill(ReffiColor.paper).paperEdge(s, tint: ReffiColor.ink.opacity(0.06))
+            }
+        }
     }
 
     /// 낭비율 색 — HistoryView와 동일 임계값(색=정보, §1). 캔버스 위라 dark 변형(§2.6).
@@ -269,81 +325,6 @@ struct FridgeView: View {
         case ...30: ReffiColor.soonDark
         default:    ReffiColor.urgentDark
         }
-    }
-
-    // MARK: 사야 할 것 — 리포트보다 한 단계 낮은 슬림 행(종이 면, 도장 없음).
-    private var toBuyRow: some View {
-        Button { showShopping = true } label: {
-            HStack(spacing: ReffiSpace.s3) {
-                ReffiIcon.receipt.reffi(18, .bold).foregroundStyle(ReffiColor.blueDark)
-                Text("To buy")
-                    .reffiType(.caption).foregroundStyle(ReffiColor.ink)
-                Spacer()
-                Text(store.toBuy.count == 0 ? "All set"
-                     : "\(store.toBuy.count) item\(store.toBuy.count == 1 ? "" : "s")")
-                    .font(.reffiNum(14, relativeTo: .caption)).foregroundStyle(ReffiColor.blueDark)
-                ReffiIcon.chevron.reffi(11, .bold).foregroundStyle(ReffiColor.muted)
-            }
-            .padding(.horizontal, ReffiSpace.s4)
-            .frame(minHeight: 48)
-            .contentShape(Rectangle())
-            .background {
-                let s = PaperRect(cornerRadius: ReffiRadius.md, seed: 8)
-                s.fill(ReffiColor.paper).paperEdge(s, tint: ReffiColor.ink.opacity(0.06))
-            }
-        }
-        .buttonStyle(.paperPress)
-        .padding(.horizontal, cardInset)
-        .accessibilityLabel("장보기 목록, \(store.toBuy.count)개")
-    }
-
-    // MARK: 정렬 · 보기 컨트롤 — 리스트 바로 위(맥락 인접), 현재 상태를 라벨로 상시 노출.
-    private var controlsRow: some View {
-        HStack(spacing: ReffiSpace.s2) {
-            Menu {
-                Picker("정렬", selection: $sortRaw) {
-                    ForEach(FridgeSort.allCases) { s in
-                        Text(s.label).tag(s.rawValue)
-                    }
-                }
-            } label: {
-                HStack(spacing: ReffiSpace.s1) {
-                    ReffiIcon.sort.reffi(13, .bold)
-                    Text(sort.label)
-                        .font(ReffiTextRole.caption.font)
-                        .tracking(ReffiTextRole.caption.tracking)
-                }
-                .foregroundStyle(ReffiColor.ink)
-                .padding(.horizontal, ReffiSpace.s3)
-                .padding(.vertical, ReffiSpace.s2)
-                .background(ReffiColor.sub, in: Capsule())
-                .frame(minHeight: 44)   // §7.3
-                .contentShape(Rectangle())
-            }
-            .accessibilityLabel("정렬: \(sort.label)")
-
-            Spacer()
-
-            Button {
-                withAnimation(motion) { compact.toggle() }
-            } label: {
-                HStack(spacing: ReffiSpace.s1) {
-                    (compact ? ReffiIcon.stackView : ReffiIcon.compactView).reffi(13, .bold)
-                    Text(compact ? "스택 보기" : "간편보기")
-                        .font(ReffiTextRole.caption.font)
-                        .tracking(ReffiTextRole.caption.tracking)
-                }
-                .foregroundStyle(ReffiColor.ink)
-                .padding(.horizontal, ReffiSpace.s3)
-                .padding(.vertical, ReffiSpace.s2)
-                .background(ReffiColor.sub, in: Capsule())
-                .frame(minHeight: 44)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.reffiPress)
-            .accessibilityLabel(compact ? "스택 보기로 전환" : "간편보기로 전환")
-        }
-        .padding(.horizontal, cardInset)
     }
 
     private var emptyState: some View {
