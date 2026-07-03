@@ -70,27 +70,26 @@ final class ReffiFlowUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["History"].waitForExistence(timeout: 4), "리포트 카드 → History 시트")
         app.buttons["Close"].firstMatch.tap()
 
-        // 통합 메뉴 — 간편보기 전환(수량 텍스트가 노출되는 행으로 바뀜)
-        let menu = app.buttons["정렬: 임박한 순"]
-        XCTAssertTrue(menu.waitForExistence(timeout: 4), "기본 정렬은 임박한 순")
-        menu.tap()
-        app.buttons["간편보기"].tap()
+        // 보기 토글(원탭 버튼) — 간편보기 전환(수량 텍스트가 노출되는 행으로 바뀜)
+        let toCompact = app.buttons["간편보기로 전환"]
+        XCTAssertTrue(toCompact.waitForExistence(timeout: 4), "보기 토글 버튼")
+        toCompact.tap()
         let compactRow = app.descendants(matching: .any)
             .matching(NSPredicate(format: "label CONTAINS %@", "300 g")).firstMatch
         XCTAssertTrue(compactRow.waitForExistence(timeout: 4), "간편보기 행(수량 노출)로 전환")
 
-        // 통합 메뉴 — 정렬 전환이 라벨에 반영
+        // 정렬 메뉴(정렬 전용) — 전환이 라벨에 반영
+        let menu = app.buttons["정렬: 임박한 순"]
+        XCTAssertTrue(menu.waitForExistence(timeout: 4), "기본 정렬은 임박한 순")
         menu.tap()
         app.buttons["최근 등록순"].tap()
         XCTAssertTrue(app.buttons["정렬: 최근 등록순"].waitForExistence(timeout: 4),
                       "정렬 선택이 라벨에 반영돼야 한다")
 
         // 상태 원복(스택 보기·임박한 순) — 테스트가 기기 저장 상태를 오염시키지 않게.
-        let menu2 = app.buttons["정렬: 최근 등록순"]
-        menu2.tap()
-        app.buttons["스택 보기"].tap()
+        app.buttons["스택 보기로 전환"].tap()
         XCTAssertTrue(app.staticTexts["Meat · Beef"].waitForExistence(timeout: 4), "스택 카드 복귀")
-        menu2.tap()
+        app.buttons["정렬: 최근 등록순"].tap()
         app.buttons["임박한 순"].tap()
         XCTAssertTrue(app.buttons["정렬: 임박한 순"].waitForExistence(timeout: 4), "기본 정렬 복귀")
     }

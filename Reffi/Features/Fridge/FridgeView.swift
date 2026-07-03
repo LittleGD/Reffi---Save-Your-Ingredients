@@ -220,25 +220,20 @@ struct FridgeView: View {
                 Text("\(items.count) in stock")
                     .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
                 Spacer(minLength: ReffiSpace.s2)
-                sortViewMenu
+                sortMenu
+                viewToggle
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// 정렬 + 보기 통합 메뉴 — 리서치 권고(관련 컨트롤은 하나의 풀다운으로, 체크마크로 상태 표시).
-    /// 라벨은 현재 정렬을 상시 노출. 종이컷 칩(§13.5).
-    private var sortViewMenu: some View {
+    /// 정렬 메뉴 — 체크 그룹 하나만(모호함 제거). 라벨은 현재 정렬을 상시 노출. 종이컷 칩(§13.5).
+    private var sortMenu: some View {
         Menu {
             Picker("정렬", selection: $sortRaw) {
                 ForEach(FridgeSort.allCases) { s in
                     Text(s.label).tag(s.rawValue)
                 }
-            }
-            Divider()
-            Picker("보기", selection: $compact) {
-                Text("스택 보기").tag(false)
-                Text("간편보기").tag(true)
             }
         } label: {
             HStack(spacing: ReffiSpace.s1) {
@@ -258,6 +253,25 @@ struct FridgeView: View {
             .contentShape(Rectangle())
         }
         .accessibilityLabel("정렬: \(sort.label)")
+    }
+
+    /// 보기 전환 — 메뉴에 숨기지 않는 원탭 토글(사진·파일 앱 문법). 아이콘은 "누르면 바뀔 모습".
+    private var viewToggle: some View {
+        Button {
+            withAnimation(motion) { compact.toggle() }
+        } label: {
+            (compact ? ReffiIcon.stackView : ReffiIcon.compactView).reffi(14, .bold)
+                .foregroundStyle(ReffiColor.ink)
+                .padding(ReffiSpace.s2 + 2)
+                .background {
+                    let s = PaperRect(cornerRadius: ReffiRadius.sm, seed: 6)
+                    s.fill(ReffiColor.paper).paperEdge(s)
+                }
+                .frame(minWidth: 44, minHeight: 44)   // §7.3
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.paperPress)
+        .accessibilityLabel(compact ? "스택 보기로 전환" : "간편보기로 전환")
     }
 
     // MARK: 요약 페이저 — 한 번에 카드 한 장(점진적 공개), 점 인디케이터로 다음 장 예고.
