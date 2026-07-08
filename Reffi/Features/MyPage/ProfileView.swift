@@ -141,7 +141,8 @@ struct ProfileView: View {
                     .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
                 HStack(spacing: ReffiSpace.s2) {
                     ForEach(HouseholdSize.allCases) { h in
-                        SelectableChip(text: h.label, selected: profile.household == h) {
+                        SelectableChip(text: h.label, selected: profile.household == h,
+                                       fullWidth: false) {
                             profile.household = h
                         }
                     }

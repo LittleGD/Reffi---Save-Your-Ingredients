@@ -197,9 +197,11 @@ struct OnboardingView: View {
     private var householdPage: some View {
         questionPage(title: "How many are eating?",
                      body: "We'll size recipes and shopping lists to match.") {
+            // 칩은 내용 크기(fullWidth false) — 균등 4등분은 "2 people" 등을 말줄임시킨다.
             HStack(spacing: ReffiSpace.s2) {
                 ForEach(HouseholdSize.allCases) { h in
-                    SelectableChip(text: h.label, selected: profile.household == h) {
+                    SelectableChip(text: h.label, selected: profile.household == h,
+                                   fullWidth: false) {
                         profile.household = h
                     }
                 }
@@ -227,23 +229,21 @@ struct OnboardingView: View {
     // MARK: 알림 프라이밍 — 가치 설명 후 시스템 권한(소프트 애스크)
 
     private var notifyPage: some View {
-        questionPage(title: "Want one heads-up\nbefore food goes bad?",
-                     body: "Only when something's expiring — once a day, in the morning.") {
+        questionPage(title: "A heads-up before\nfood goes bad?",
+                     body: "Once a day, only when something's expiring.") {
             VStack(alignment: .leading, spacing: ReffiSpace.s3) {
                 // 개인화 payoff — 방금 답한 내용을 즉시 반영해 "맞춰졌다"는 신호(리서치: aha moment).
                 HStack(spacing: ReffiSpace.s2) {
                     ReffiIcon.ai.reffi(18, .bold).foregroundStyle(ReffiColor.blueDark)
-                    Text("Recipes tuned for \(profile.cuisines.summaryText) · \(profile.household.label)")
+                    Text("Tuned for \(profile.cuisines.summaryText) · \(profile.household.label)")
                         .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
-                        .lineLimit(2)
+                        .lineLimit(1)
                 }
                 HStack(spacing: ReffiSpace.s2) {
                     ReffiIcon.countdown.reffi(18, .bold).foregroundStyle(ReffiColor.blueDark)
-                    Text("Default: 3 days before expiry · 8 AM")
+                    Text("3 days before · 8 AM")
                         .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
                 }
-                Text("You can change this anytime in Profile.")
-                    .reffiType(.caption).foregroundStyle(ReffiColor.muted)
             }
         }
     }

@@ -281,8 +281,7 @@ struct FridgeView: View {
             TabView(selection: $summaryPage) {
                 Button { showShopping = true } label: {
                     summaryCard(icon: ReffiIcon.receipt, title: "To buy",
-                                value: "\(store.toBuy.count)", tint: ReffiColor.blueDark,
-                                stamped: false, seed: 8)
+                                value: "\(store.toBuy.count)", tint: ReffiColor.blueDark, seed: 8)
                 }
                 .buttonStyle(.paperPress)
                 .accessibilityLabel("Shopping list, \(store.toBuy.count) items")
@@ -291,7 +290,7 @@ struct FridgeView: View {
 
                 Button { showHistory = true } label: {
                     summaryCard(icon: ReffiIcon.report, title: "No-waste report",
-                                value: "\(store.wasteRate)%", tint: rateColor, stamped: true, seed: 7)
+                                value: "\(store.wasteRate)%", tint: rateColor, seed: 7)
                 }
                 .buttonStyle(.paperPress)
                 .accessibilityLabel("Open no-waste report, \(store.wasteRate) percent wasted")
@@ -299,7 +298,7 @@ struct FridgeView: View {
                 .tag(1)
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
-            .frame(height: 62)
+            .frame(height: 72)   // 종이컷 버튼 minHeight 56 + 그림자·프레스 여유
 
             HStack(spacing: 6) {
                 ForEach(0..<2, id: \.self) { i in
@@ -312,36 +311,32 @@ struct FridgeView: View {
         }
     }
 
-    /// 요약 카드 공통 해부(아이콘·제목·값·셰브론) — 리포트만 도장 외곽선으로 격리(유일한 강조).
+    /// 요약 카드 = 종이컷 버튼(§13.5) — 메인 CTA(PaperButton)와 같은 8각형 셰입 + 종이 질감 + 그림자.
+    /// 색은 크림 위 sub 면 + ink 글자(§2.6), 아이콘·값만 의미색(To buy=blue, 리포트=낭비율색).
     private func summaryCard(icon: Ph, title: String, value: String,
-                             tint: Color, stamped: Bool, seed: Int) -> some View {
-        HStack(spacing: ReffiSpace.s1 + 2) {
-            icon.reffi(16, .bold).foregroundStyle(tint)
+                             tint: Color, seed: Int) -> some View {
+        HStack(spacing: ReffiSpace.s2) {
+            icon.reffi(17, .bold).foregroundStyle(tint)
             Text(title)
-                .font(.custom("Pretendard-SemiBold", size: 15, relativeTo: .subheadline))
+                .font(.custom("Pretendard-SemiBold", size: 16, relativeTo: .subheadline))
                 .foregroundStyle(ReffiColor.ink)
-                .lineLimit(1).fixedSize()   // 제목은 절대 말줄임하지 않는다(우선 확보)
+                .lineLimit(1).fixedSize()   // 제목은 절대 말줄임하지 않는다
             Spacer(minLength: ReffiSpace.s1)
             Text(value)
-                .font(.reffiNum(16, relativeTo: .body)).foregroundStyle(tint)
-                .lineLimit(1).minimumScaleFactor(0.8)
-            ReffiIcon.chevron.reffi(10, .bold).foregroundStyle(ReffiColor.muted)
+                .font(.reffiNum(17, relativeTo: .body)).foregroundStyle(tint)
+                .lineLimit(1)
+            ReffiIcon.chevron.reffi(11, .bold).foregroundStyle(ReffiColor.ink2)
         }
-        .padding(.horizontal, ReffiSpace.s3)
-        .frame(minHeight: 52)
-        .frame(maxWidth: .infinity)
+        .padding(.horizontal, ReffiSpace.s5)
+        .frame(maxWidth: .infinity, minHeight: 56)
         .contentShape(Rectangle())
         .background {
-            if stamped {
-                let s = RoundedRectangle(cornerRadius: ReffiRadius.lg, style: .continuous)
-                ZStack {
-                    s.strokeBorder(tint.opacity(0.9), lineWidth: 2)                 // 도장 이중선
-                    s.inset(by: 3.5).strokeBorder(tint.opacity(0.5), lineWidth: 1)
-                }
-            } else {
-                let s = PaperRect(cornerRadius: ReffiRadius.lg, seed: seed)
-                s.fill(ReffiColor.paper).paperEdge(s, tint: ReffiColor.ink.opacity(0.06))
-            }
+            let s = PaperCutRect(seed: seed)                            // 아이콘 버튼(9각)·CTA와 같은 8각형
+            s.fill(ReffiColor.sub)                                      // 솔리드(그라데이션 없음)
+                .overlay(PaperGrain(seed: UInt64(seed) &+ 11).clipShape(s))   // 종이 질감
+                .paperEdge(s, tint: ReffiColor.ink.opacity(0.08), width: 1)
+                .compositingGroup()
+                .reffiShadow1()
         }
     }
 
