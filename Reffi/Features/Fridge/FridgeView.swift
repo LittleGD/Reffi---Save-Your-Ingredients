@@ -332,9 +332,9 @@ struct FridgeView: View {
         .contentShape(Rectangle())
         .background {
             let s = PaperCutRect(seed: seed)                            // 아이콘 버튼(9각)·CTA와 같은 8각형
-            s.fill(ReffiColor.sub)                                      // 솔리드(그라데이션 없음)
-                .overlay(PaperGrain(seed: UInt64(seed) &+ 11).clipShape(s))   // 종이 질감
-                .paperEdge(s, tint: ReffiColor.ink.opacity(0.08), width: 1)
+            s.fill(ReffiColor.paper)                                    // 밝은 종이 면(sub는 크림 위에서 칙칙)
+                .overlay(PaperGrain(seed: UInt64(seed) &+ 11, strength: 0.7).clipShape(s))  // 옅은 질감
+                .paperEdge(s, tint: ReffiColor.ink.opacity(0.06), width: 1)
                 .compositingGroup()
                 .reffiShadow1()
         }
