@@ -76,12 +76,15 @@ struct HistoryView: View {
         .padding(.bottom, ReffiSpace.s3)
     }
 
-    // MARK: ① 요약 — 도넛 차트(버린 품목 카테고리 구성) + 가운데 낭비율 + 범례
+    // MARK: ① 요약(No-waste report) — 도넛(낭비 구성) + 낭비율 + 스트릭 도장 + 영수증 명세 마감
     private var summaryCard: some View {
         card(seed: 0) {
             VStack(alignment: .leading, spacing: ReffiSpace.s4) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text("Past 30 days").reffiType(.subhead).foregroundStyle(ReffiColor.ink)
+                HStack(alignment: .center, spacing: ReffiSpace.s2) {
+                    Text("No-waste report").reffiType(.subhead).foregroundStyle(ReffiColor.ink)
+                    if streakDays > 0 {
+                        DDayStamp(text: String(localized: "DAY \(streakDays)"), color: ReffiColor.freshDark, size: 10)
+                    }
                     Spacer()
                     Text("\(eaten) ate · \(tossed) tossed")
                         .font(.custom("Pretendard-Medium", size: 12, relativeTo: .caption2))
@@ -104,8 +107,31 @@ struct HistoryView: View {
                     .frame(maxWidth: .infinity)
                     legend
                 }
+
+                // 영수증 명세 마감 — 점선 룰 + 기간 라벨 + 번호(장식, 이력에서 유도).
+                HLine().stroke(ReffiColor.ink.opacity(0.16), style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                    .frame(height: 1)
+                HStack {
+                    Text("REFFI · PAST 30 DAYS")
+                        .font(.custom("Pretendard-Bold", size: 10, relativeTo: .caption2)).tracking(1.2)
+                        .foregroundStyle(ReffiColor.muted)
+                    Spacer()
+                    Text(receiptNo)
+                        .font(.reffiNum(11, relativeTo: .caption2)).foregroundStyle(ReffiColor.muted)
+                }
             }
         }
+    }
+
+    /// 무낭비 스트릭 — 마지막 버림 이후 경과일(버린 적 없으면 기록 시작부터). (PR #4 리포트 통합)
+    private var streakDays: Int {
+        if let last = logs.filter(\.wasted).map(\.daysAgo).min() { return last }
+        return logs.map(\.daysAgo).max() ?? 0
+    }
+
+    /// 영수증 번호 — 이력 수치에서 유도(장식, 안정적).
+    private var receiptNo: String {
+        String(format: "No. %04d", (eaten &* 31 &+ tossed &* 7 &+ rate) % 10000)
     }
 
     /// 버린 품목을 카테고리(글리프 기반)로 묶은 도넛 세그먼트 — 최근 30일(라벨과 일치).

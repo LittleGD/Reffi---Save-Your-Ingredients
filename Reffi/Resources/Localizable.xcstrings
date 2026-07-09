@@ -263,6 +263,76 @@
         }
       }
     },
+    "2 people": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "2인"
+          }
+        }
+      }
+    },
+    "3 days before · 8 AM": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3일 전 · 오전 8시"
+          }
+        }
+      }
+    },
+    "3–4": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3~4인"
+          }
+        }
+      }
+    },
+    "5+": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "5인+"
+          }
+        }
+      }
+    },
+    "A heads-up before\nfood goes bad?": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "상하기 전에\n미리 알려드릴까요?"
+          }
+        }
+      }
+    },
+    "A morning reminder for what expires today and tomorrow": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "오늘·내일 소비기한인 재료를 아침에 알려드려요"
+          }
+        }
+      }
+    },
+    "Account": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "계정"
+          }
+        }
+      }
+    },
     "Add": {
       "localizations": {
         "ko": {
@@ -361,6 +431,16 @@
         }
       }
     },
+    "Add what you buy — we'll count down the expiry dates.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "산 것을 추가하면 — 소비기한을 세어드려요."
+          }
+        }
+      }
+    },
     "Add your own recipe": {
       "localizations": {
         "ko": {
@@ -421,12 +501,32 @@
         }
       }
     },
+    "Allergies": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "알레르기"
+          }
+        }
+      }
+    },
     "Allow notifications for Reffi in Settings to get expiry alerts.": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
             "value": "설정에서 Reffi 알림을 허용하면 임박 알림을 받을 수 있어요."
+          }
+        }
+      }
+    },
+    "Already have an account?": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이미 계정이 있으신가요?"
           }
         }
       }
@@ -491,6 +591,26 @@
         }
       }
     },
+    "Brazilian": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "브라질리안"
+          }
+        }
+      }
+    },
+    "Browse without an account": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "계정 없이 둘러보기"
+          }
+        }
+      }
+    },
     "Cancel": {
       "localizations": {
         "ko": {
@@ -527,6 +647,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "카테고리"
+          }
+        }
+      }
+    },
+    "Check your inbox — once verified, your guest data carries over.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "받은 편지함을 확인해 주세요 — 인증하면 게스트 데이터가 그대로 이어져요."
+          }
+        }
+      }
+    },
+    "Check your network connection.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "네트워크 연결을 확인해 주세요."
+          }
+        }
+      }
+    },
+    "Chinese": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "중식"
           }
         }
       }
@@ -591,12 +741,42 @@
         }
       }
     },
+    "Confirmation email sent. Verify it, then log in.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "확인 메일을 보냈어요. 인증 후 로그인해 주세요."
+          }
+        }
+      }
+    },
     "Continue cooking %@": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
             "value": "%@ 이어서 요리하기"
+          }
+        }
+      }
+    },
+    "Continue with Apple": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple로 계속하기"
+          }
+        }
+      }
+    },
+    "Continue with Google": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Google로 계속하기"
           }
         }
       }
@@ -631,6 +811,46 @@
         }
       }
     },
+    "Couldn't complete Apple sign-in.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple 로그인을 완료하지 못했어요."
+          }
+        }
+      }
+    },
+    "Cuisines": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "요리 취향"
+          }
+        }
+      }
+    },
+    "Custom recipes": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "커스텀 레시피"
+          }
+        }
+      }
+    },
+    "DAY %lld": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld일째"
+          }
+        }
+      }
+    },
     "Dairy": {
       "localizations": {
         "ko": {
@@ -647,6 +867,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "데이터"
+          }
+        }
+      }
+    },
+    "Days without waste\nadd up to a report": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "낭비 없는 날들이\n리포트로 쌓여요"
           }
         }
       }
@@ -687,6 +917,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "삭제"
+          }
+        }
+      }
+    },
+    "Delete account": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "계정 삭제"
           }
         }
       }
@@ -741,12 +981,42 @@
         }
       }
     },
+    "Disliked": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "비선호"
+          }
+        }
+      }
+    },
     "Done": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
             "value": "완료"
+          }
+        }
+      }
+    },
+    "Eat it today, waste nothing": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "오늘 먹고, 낭비는 없이"
+          }
+        }
+      }
+    },
+    "Eat the most urgent ingredients first, top to bottom.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "가장 급한 재료부터 위에서 아래로 드세요."
           }
         }
       }
@@ -771,12 +1041,42 @@
         }
       }
     },
+    "Edit nickname": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "닉네임 편집"
+          }
+        }
+      }
+    },
     "Edit recipe": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
             "value": "레시피 수정"
+          }
+        }
+      }
+    },
+    "Email": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이메일"
+          }
+        }
+      }
+    },
+    "Email or password doesn't match.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이메일 또는 비밀번호가 일치하지 않아요."
           }
         }
       }
@@ -811,6 +1111,16 @@
         }
       }
     },
+    "Expiring first": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "임박순"
+          }
+        }
+      }
+    },
     "Expiring tomorrow": {
       "localizations": {
         "ko": {
@@ -837,6 +1147,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "냉동"
+          }
+        }
+      }
+    },
+    "Favorites": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "즐겨찾기"
           }
         }
       }
@@ -911,6 +1231,16 @@
         }
       }
     },
+    "Freshest first": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "신선한순"
+          }
+        }
+      }
+    },
     "Fridge": {
       "localizations": {
         "ko": {
@@ -927,6 +1257,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "과일"
+          }
+        }
+      }
+    },
+    "Good to see you again": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "다시 만나서 반가워요"
+          }
+        }
+      }
+    },
+    "Guest mode": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "게스트 모드"
           }
         }
       }
@@ -951,6 +1301,46 @@
         }
       }
     },
+    "Household": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "가구 인원"
+          }
+        }
+      }
+    },
+    "How many are eating?": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "몇 명이서 드세요?"
+          }
+        }
+      }
+    },
+    "How many servings should we plan for?": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "몇 인분 기준으로 준비할까요?"
+          }
+        }
+      }
+    },
+    "Indian": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "인도식"
+          }
+        }
+      }
+    },
     "Ingredients (comma separated)": {
       "localizations": {
         "ko": {
@@ -971,12 +1361,42 @@
         }
       }
     },
+    "Italian": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이탈리안"
+          }
+        }
+      }
+    },
     "Item": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
             "value": "재료"
+          }
+        }
+      }
+    },
+    "Japanese": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "일식"
+          }
+        }
+      }
+    },
+    "Just me": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "혼자"
           }
         }
       }
@@ -1031,6 +1451,16 @@
         }
       }
     },
+    "Korean": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "한식"
+          }
+        }
+      }
+    },
     "Later": {
       "localizations": {
         "ko": {
@@ -1071,12 +1501,102 @@
         }
       }
     },
+    "Log in": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "로그인"
+          }
+        }
+      }
+    },
+    "Log in / Sign up": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "로그인 / 가입"
+          }
+        }
+      }
+    },
+    "Log out": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "로그아웃"
+          }
+        }
+      }
+    },
+    "Log out of Reffi?": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reffi에서 로그아웃할까요?"
+          }
+        }
+      }
+    },
+    "Log your fridge\nlike a receipt": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "영수증처럼\n냉장고를 기록하세요"
+          }
+        }
+      }
+    },
+    "Maybe later": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "나중에 할게요"
+          }
+        }
+      }
+    },
     "Meat": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
             "value": "고기"
+          }
+        }
+      }
+    },
+    "Mediterranean": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "지중해식"
+          }
+        }
+      }
+    },
+    "Mexican": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "멕시칸"
+          }
+        }
+      }
+    },
+    "Milk": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "우유"
           }
         }
       }
@@ -1121,12 +1641,42 @@
         }
       }
     },
+    "New here?": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "처음이신가요?"
+          }
+        }
+      }
+    },
+    "Next": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "다음"
+          }
+        }
+      }
+    },
     "Next ticket": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
             "value": "다음 티켓"
+          }
+        }
+      }
+    },
+    "Nickname": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "닉네임"
           }
         }
       }
@@ -1167,6 +1717,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "아직 버린 게 없어요 — 잘하고 있어요."
+          }
+        }
+      }
+    },
+    "No-waste report": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "무낭비 리포트"
+          }
+        }
+      }
+    },
+    "None yet": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "아직 없어요"
           }
         }
       }
@@ -1221,6 +1791,16 @@
         }
       }
     },
+    "Notifications": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "알림"
+          }
+        }
+      }
+    },
     "Notifications are off": {
       "localizations": {
         "ko": {
@@ -1241,12 +1821,52 @@
         }
       }
     },
+    "OR": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "또는"
+          }
+        }
+      }
+    },
+    "Once a day, only when something's expiring.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "하루 한 번, 임박한 게 있을 때만요."
+          }
+        }
+      }
+    },
+    "One sec…": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "잠시만요…"
+          }
+        }
+      }
+    },
     "Onion, Egg, Rice…": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
             "value": "양파, 계란, 밥…"
+          }
+        }
+      }
+    },
+    "Open no-waste report, %lld percent wasted": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "무낭비 리포트 열기, %lld퍼센트 낭비"
           }
         }
       }
@@ -1281,6 +1901,16 @@
         }
       }
     },
+    "Page %lld of %lld": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld / %lld 페이지"
+          }
+        }
+      }
+    },
     "Pantry": {
       "localizations": {
         "ko": {
@@ -1291,12 +1921,72 @@
         }
       }
     },
+    "Password (6+ characters)": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "비밀번호 (6자 이상)"
+          }
+        }
+      }
+    },
+    "Password must be at least 6 characters.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "비밀번호는 6자 이상이어야 해요."
+          }
+        }
+      }
+    },
     "Past 30 days": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
             "value": "최근 30일"
+          }
+        }
+      }
+    },
+    "Pick as many as you like — recipes will follow.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "원하는 만큼 골라주세요 — 레시피가 따라올게요."
+          }
+        }
+      }
+    },
+    "Pick your favorite cuisines · choose as many as you like": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "좋아하는 요리 스타일을 골라주세요 · 원하는 만큼요"
+          }
+        }
+      }
+    },
+    "Please check the email address.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이메일 주소를 확인해 주세요."
+          }
+        }
+      }
+    },
+    "Please verify your email first — check your inbox.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "먼저 이메일을 인증해 주세요 — 받은 편지함을 확인해 보세요."
           }
         }
       }
@@ -1401,6 +2091,16 @@
         }
       }
     },
+    "Recently added": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "최근 등록순"
+          }
+        }
+      }
+    },
     "Recipe": {
       "localizations": {
         "ko": {
@@ -1427,6 +2127,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "추가한 레시피는 기본 레시피와 함께 티켓 덱에 나타나요."
+          }
+        }
+      }
+    },
+    "Remove %@": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 삭제"
           }
         }
       }
@@ -1561,6 +2271,16 @@
         }
       }
     },
+    "Saving with Reffi": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reffi와 함께 절약 중이에요"
+          }
+        }
+      }
+    },
     "Scan a receipt": {
       "localizations": {
         "ko": {
@@ -1601,12 +2321,52 @@
         }
       }
     },
+    "Shopping list, %lld items": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "쇼핑리스트, %lld개"
+          }
+        }
+      }
+    },
     "Short: %@": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
             "value": "부족: %@"
+          }
+        }
+      }
+    },
+    "Sign up": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "가입하기"
+          }
+        }
+      }
+    },
+    "Sign up to keep your data": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "가입하고 데이터를 지켜보세요"
+          }
+        }
+      }
+    },
+    "Signed in": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "로그인됨"
           }
         }
       }
@@ -1647,6 +2407,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "조금 남음"
+          }
+        }
+      }
+    },
+    "Sort: %@": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "정렬: %@"
+          }
+        }
+      }
+    },
+    "Spinach": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "시금치"
           }
         }
       }
@@ -1701,12 +2481,92 @@
         }
       }
     },
+    "Switch to simple view": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "간편보기로 전환"
+          }
+        }
+      }
+    },
+    "Switch to stack view": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "쌓기보기로 전환"
+          }
+        }
+      }
+    },
+    "Takes under a minute": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1분이면 충분해요"
+          }
+        }
+      }
+    },
     "Tap one — did you eat it, or toss it?": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
             "value": "하나를 탭하세요 — 먹었나요, 버렸나요?"
+          }
+        }
+      }
+    },
+    "Taste": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "취향"
+          }
+        }
+      }
+    },
+    "Thai": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "태국식"
+          }
+        }
+      }
+    },
+    "This email is already registered. Try logging in.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이미 가입된 이메일이에요. 로그인해 보세요."
+          }
+        }
+      }
+    },
+    "This erases this device's data and signs you out. Full server account deletion is coming soon.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 기기의 데이터를 지우고 로그아웃해요. 서버 계정 완전 삭제는 곧 지원할 예정이에요."
+          }
+        }
+      }
+    },
+    "This sign-in method isn't available yet.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "아직 지원하지 않는 로그인 방식이에요."
           }
         }
       }
@@ -1751,6 +2611,26 @@
         }
       }
     },
+    "Today's recipe · Tomato frittata": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "오늘의 레시피 · 토마토 프리타타"
+          }
+        }
+      }
+    },
+    "Today's recipes,\nfrom what expires first": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "가장 임박한 재료부터,\n오늘의 레시피"
+          }
+        }
+      }
+    },
     "Today's tickets": {
       "localizations": {
         "ko": {
@@ -1767,6 +2647,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "남았는지 여부를 전환해요"
+          }
+        }
+      }
+    },
+    "Tomato": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "토마토"
           }
         }
       }
@@ -1831,12 +2721,32 @@
         }
       }
     },
+    "Tuned for %@ · %@": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · %@에 맞췄어요"
+          }
+        }
+      }
+    },
     "Turn on": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
             "value": "켜기"
+          }
+        }
+      }
+    },
+    "Turn on alerts & start": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "알림 켜고 시작하기"
           }
         }
       }
@@ -1931,6 +2841,26 @@
         }
       }
     },
+    "Vegetarian": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "채식"
+          }
+        }
+      }
+    },
+    "Vietnamese": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "베트남식"
+          }
+        }
+      }
+    },
     "Wasted": {
       "localizations": {
         "ko": {
@@ -1947,6 +2877,46 @@
           "stringUnit": {
             "state": "translated",
             "value": "버림 · 30일"
+          }
+        }
+      }
+    },
+    "Watch your no-waste streak and savings grow.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "무낭비 스트릭과 절약이 늘어나는 걸 지켜보세요."
+          }
+        }
+      }
+    },
+    "We'll size recipes and shopping lists to match.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "레시피와 쇼핑리스트 양을 거기에 맞출게요."
+          }
+        }
+      }
+    },
+    "Western": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "양식"
+          }
+        }
+      }
+    },
+    "What do you like to cook?": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "어떤 요리를 좋아하세요?"
           }
         }
       }
@@ -2037,6 +3007,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "단"
+          }
+        }
+      }
+    },
+    "e.g. Cucumber": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "예: 오이"
+          }
+        }
+      }
+    },
+    "e.g. Peanuts": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "예: 땅콩"
+          }
+        }
+      }
+    },
+    "e.g. Tofu": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "예: 두부"
           }
         }
       }

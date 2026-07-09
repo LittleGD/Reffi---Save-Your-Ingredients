@@ -10,6 +10,9 @@ packages:
   PhosphorSwift:
     url: https://github.com/phosphor-icons/swift
     from: 2.1.0
+  Supabase:
+    url: https://github.com/supabase/supabase-swift
+    from: 2.0.0
 
 schemes:
   Reffi:
@@ -17,11 +20,12 @@ schemes:
       targets:
         Reffi: all
         ReffiTests: [test]
+        ReffiUITests: [test]
     run:
       config: Debug
     test:
       config: Debug
-      targets: [ReffiTests]
+      targets: [ReffiTests, ReffiUITests]
 
 targets:
   Reffi:
@@ -35,6 +39,8 @@ targets:
     dependencies:
       - package: PhosphorSwift
         product: PhosphorSwift
+      - package: Supabase
+        product: Supabase
     info:
       path: Reffi/Info.plist
       properties:
@@ -47,6 +53,10 @@ targets:
         UIApplicationSupportsIndirectInputEvents: true
         ITSAppUsesNonExemptEncryption: false
         NSCameraUsageDescription: "Reffi uses the camera to scan grocery receipts so items are added automatically."
+        CFBundleURLTypes:
+          - CFBundleURLName: com.reffi.app.auth
+            CFBundleURLSchemes:
+              - reffi
         UIAppFonts:
           - Pretendard-Regular.otf
           - Pretendard-Medium.otf
@@ -78,5 +88,22 @@ targets:
         GENERATE_INFOPLIST_FILE: "YES"
         TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Reffi.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)Reffi"
         BUNDLE_LOADER: "$(TEST_HOST)"
+        CODE_SIGNING_REQUIRED: "NO"
+        CODE_SIGNING_ALLOWED: "NO"
+
+  ReffiUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    deploymentTarget: "18.0"
+    sources:
+      - path: ReffiUITests
+    dependencies:
+      - target: Reffi
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: "YES"
+        PRODUCT_BUNDLE_IDENTIFIER: com.reffi.app.uitests
+        SWIFT_VERSION: "5.0"
+        TEST_TARGET_NAME: Reffi
         CODE_SIGNING_REQUIRED: "NO"
         CODE_SIGNING_ALLOWED: "NO"

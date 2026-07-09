@@ -351,6 +351,7 @@ struct MainView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
+    // 신선도 점 인디케이터(PR #4)는 §13.6 E(뱃지의 인디케이터 바·D-N과 중복 → 제거 결정)와 상충해 미채택.
     // MARK: - Badge scroll (persistent)
 
     /// 뱃지 행 — 긴급도순 가로 스크롤(가장 임박이 맨 앞). 끝에 ＋추가.

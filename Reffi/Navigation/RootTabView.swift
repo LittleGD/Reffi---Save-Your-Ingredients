@@ -10,15 +10,24 @@ struct RootTabView: View {
     @Environment(FridgeStore.self) private var store
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    @State private var tab: Tab = .home
+    @State private var tab: Tab = {
+        #if DEBUG
+        // 스크린샷·QA용 — 런치 인자로 특정 탭 직행(-glyphGallery 선례, PR #4).
+        if ProcessInfo.processInfo.arguments.contains("-profileTab") { return .profile }
+        if ProcessInfo.processInfo.arguments.contains("-fridgeTab") { return .fridge }
+        #endif
+        return .home
+    }()
     @State private var showAdd = false
     @State private var undoHaptic = 0
 
     var body: some View {
         ZStack(alignment: .bottom) {
+            // 세 탭 공존(pane) 유지 — switch 전환은 메인 물리 더미·undo 상태를 파괴한다.
+            // 프로필 탭은 PR #4의 ProfileView(계정·취향·리포트)로 교체.
             pane(MainView(isActive: tab == .home), visible: tab == .home)
             pane(FridgeView(), visible: tab == .fridge)
-            pane(MyPageView(), visible: tab == .profile)
+            pane(ProfileView(), visible: tab == .profile)
 
             CapsuleNav(tab: $tab, onAdd: { showAdd = true })
         }
@@ -39,6 +48,18 @@ struct RootTabView: View {
         }
         .animation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion), value: store.pendingUndo)
         .sensoryFeedback(.success, trigger: undoHaptic)
+        #if DEBUG
+        // UI 테스트 결정적 상태 — 기기에 남은 사용자 데이터와 무관하게 샘플 냉장고로 고정.
+        // (-loadSample은 첫 실행(isPristine)에만 시드하므로 테스트엔 강제 리셋 인자가 따로 필요.)
+        .onAppear {
+            if ProcessInfo.processInfo.arguments.contains("-uiTestSampleFridge") {
+                store.loadSampleData()
+                // 냉장고 보기 프리퍼런스도 기본값으로 — 직전 테스트가 중간에 죽어도 오염이 남지 않게.
+                UserDefaults.standard.set(false, forKey: "fridge.compact")
+                UserDefaults.standard.set(FridgeSort.expiry.rawValue, forKey: "fridge.sort")
+            }
+        }
+        #endif
         .sheet(isPresented: $showAdd) {
             AddIngredientSheet()   // presentationDetents는 시트 내부에서 적용(중복 방지)
         }
