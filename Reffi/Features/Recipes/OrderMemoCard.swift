@@ -7,10 +7,17 @@ import PhosphorSwift
 struct OrderMemoCard: View {
     let result: RecipeRecommender.Result
     let number: Int
+    /// 덱 가장 깊은 티켓 경량화 — true면 머리(ORDER/#·TABLE 줄)까지만 그리고 본문·CTA를 생략한다.
+    /// 가장 깊은 티켓은 어차피 상단 슬리버만 보이므로 전환 프레임드롭을 줄이려 본문 렌더를 건너뛴다(§13.6).
+    /// 주의: 컨테이너(VStack·배경·compositingGroup·그림자)는 headerOnly와 무관하게 **단일 뷰 정체성**을
+    /// 유지하고 내부 콘텐츠만 분기한다 — body 수준 if/else(ConditionalContent)면 덱 회전 시
+    /// 카드가 제거+삽입(기본 opacity 트랜지션)되어 번쩍인다.
+    var headerOnly: Bool = false
     var onFire: () -> Void = {}
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var fired = false
+    @State private var middleScrolls = false   // 중간 섹션이 실제로 스크롤되는가(안전망 발동 여부)
 
     /// 임박(urgent+soon) 재료 수 — 안티-웨이스트 증명.
     private var rescuedCount: Int { result.used.filter { $0.freshness != .fresh }.count }
@@ -26,62 +33,106 @@ struct OrderMemoCard: View {
             : rescuedCount > 0 ? ReffiColor.soonDark : ReffiColor.freshDark
     }
 
+    /// 컨테이너는 항상 같은 뷰 트리(단일 정체성) — headerOnly는 내부 콘텐츠·모디파이어 값만 바꾼다.
+    /// 덱 회전으로 headerOnly가 토글돼도(승격·강등) 카드가 통째로 교체되지 않아 번쩍임이 없다.
     var body: some View {
-        let r = result.recipe
         VStack(alignment: .leading, spacing: ReffiSpace.s3) {
             header
-
-            DashedRule()
-
-            // 판정문 키커 — 이 티켓이 비우는 임박 재료(미션 페이로드).
-            verdictKicker
-                .font(.custom("Pretendard-Bold", size: 12, relativeTo: .caption2))
-                .tracking(0.2).foregroundStyle(verdictColor)
-
-            // 메뉴명 + 시간
-            Text(verbatim: r.displayName)
-                .font(.custom("Pretendard-Bold", size: 24, relativeTo: .title2))
-                .tracking(-0.3).foregroundStyle(ReffiColor.ink)
-                .lineLimit(2).minimumScaleFactor(0.8).fixedSize(horizontal: false, vertical: true)
-            HStack(spacing: 4) {
-                ReffiIcon.time.reffi(13).foregroundStyle(ReffiColor.ink2)
-                Text("\(r.minutes) min · \(result.used.count) to use")
-                    .font(.custom("Pretendard-Medium", size: 13, relativeTo: .caption))
-                    .foregroundStyle(ReffiColor.ink2)
+            if headerOnly {
+                Spacer(minLength: 0)
+            } else {
+                middleScroll
+                Spacer(minLength: ReffiSpace.s3)
+                fireBand
             }
-
-            DashedRule()
-
-            Text("ON THE TICKET")
-                .font(.custom("Pretendard-SemiBold", size: 11, relativeTo: .caption2))
-                .tracking(1.4).foregroundStyle(ReffiColor.ink2)   // §2.6 — 소형 텍스트는 불투명 토큰으로
-
-            VStack(alignment: .leading, spacing: ReffiSpace.s2) {
-                ForEach(result.used) { ing in ticketLine(ing, done: fired) }
-            }
-
-            if !result.missing.isEmpty {
-                Text("Short: \(result.missing.joined(separator: ", "))")
-                    .font(.custom("Pretendard-Medium", size: 12, relativeTo: .caption))
-                    .foregroundStyle(ReffiColor.ink2).lineLimit(2).padding(.top, 1)
-            }
-
-            if !r.displaySteps.isEmpty {
-                DashedRule()
-                prepSection(r.displaySteps)
-            }
-
-            Spacer(minLength: ReffiSpace.s3)
-            fireBand
         }
         .padding(.horizontal, ReffiSpace.s5)
         .padding(.top, ReffiSpace.s5 + 2)
         .padding(.bottom, ReffiSpace.s5)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(ReceiptShape(tooth: 9).fill(ReffiColor.paper))
-        .overlay(ReceiptShape(tooth: 9).stroke(ReffiColor.ink.opacity(0.07), lineWidth: 1))
+        .overlay { if !headerOnly { ReceiptShape(tooth: 9).stroke(ReffiColor.ink.opacity(0.07), lineWidth: 1) } }
         .overlay { if fired { slamStamp } }
-        .reffiShadow1()
+        .compositingGroup()   // 그림자 재합성을 1패스로 — PaperGrain(.overlay)도 이 경계에 갇힌다.
+        // 그림자는 값만 분기, 체인(2패스)은 고정 — 뷰 정체성 유지.
+        // 풀 렌더면 reffiShadow1(§6.2)과 동일 값, headerOnly면 가벼운 단일 패스(2패스째 투명).
+        .shadow(color: ReffiColor.ink.opacity(headerOnly ? 0.06 : 0.10),
+                radius: headerOnly ? 4 : 1.5, x: 0, y: headerOnly ? 2 : 1)
+        .shadow(color: ReffiColor.ink.opacity(headerOnly ? 0 : 0.05),
+                radius: 10, x: 0, y: 8)
+    }
+
+    /// 중간 섹션 — 헤더·fireBand는 고정, 'ON THE TICKET'~PREP(+ Short 문구)만 내부 스크롤(§13.6).
+    private var middleScroll: some View {
+        let r = result.recipe
+        // 콘텐츠가 프레임보다 작으면 스크롤이 비활성이라 시각 무변화, 극단 Dynamic Type에서만 발동.
+        return ScrollView(.vertical, showsIndicators: false) {
+            VStack(alignment: .leading, spacing: ReffiSpace.s3) {
+                DashedRule()
+
+                // 판정문 키커 — 이 티켓이 비우는 임박 재료(미션 페이로드).
+                verdictKicker
+                    .font(.custom("Pretendard-Bold", size: 12, relativeTo: .caption2))
+                    .tracking(0.2).foregroundStyle(verdictColor)
+
+                // 메뉴명 + 시간
+                Text(verbatim: r.displayName)
+                    .font(.custom("Pretendard-Bold", size: 24, relativeTo: .title2))
+                    .tracking(-0.3).foregroundStyle(ReffiColor.ink)
+                    .lineLimit(2).minimumScaleFactor(0.8).fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 4) {
+                    ReffiIcon.time.reffi(13).foregroundStyle(ReffiColor.ink2)
+                    Text("\(r.minutes) min · \(result.used.count) to use")
+                        .font(.custom("Pretendard-Medium", size: 13, relativeTo: .caption))
+                        .foregroundStyle(ReffiColor.ink2)
+                }
+
+                DashedRule()
+
+                Text("ON THE TICKET")
+                    .font(.custom("Pretendard-SemiBold", size: 11, relativeTo: .caption2))
+                    .tracking(1.4).foregroundStyle(ReffiColor.ink2)   // §2.6 — 소형 텍스트는 불투명 토큰으로
+
+                // 체크리스트는 최대 5줄 미리보기(+N more) — 소비는 result.used 전체를 쓰므로 표시만 축약.
+                VStack(alignment: .leading, spacing: ReffiSpace.s2) {
+                    ForEach(result.used.prefix(5)) { ing in ticketLine(ing, done: fired) }
+                    if result.used.count > 5 {
+                        Text("+\(result.used.count - 5) more on the ticket")
+                            .font(.custom("Pretendard-Medium", size: 12, relativeTo: .caption))
+                            .foregroundStyle(ReffiColor.ink2)
+                    }
+                }
+
+                if !result.missing.isEmpty {
+                    Text("Short: \(result.missing.joined(separator: ", "))")
+                        .font(.custom("Pretendard-Medium", size: 12, relativeTo: .caption))
+                        .foregroundStyle(ReffiColor.ink2).lineLimit(2).padding(.top, 1)
+                }
+
+                if !r.displaySteps.isEmpty {
+                    DashedRule()
+                    prepSection(r.displaySteps)
+                }
+            }
+        }
+        .scrollBounceBehavior(.basedOnSize)
+        .onScrollGeometryChange(for: Bool.self) { g in
+            g.contentSize.height > g.containerSize.height + 1
+        } action: { _, scrolls in
+            middleScrolls = scrolls
+        }
+        // 스크롤이 실제로 발동할 때만 하단 페이드 — 경계에서 줄이 '뚝' 잘린 게 아니라
+        // 더 있음을 읽히게 한다. 콘텐츠가 다 들어가면 마스크 없음(마지막 줄 흐림 방지).
+        .mask {
+            if middleScrolls {
+                LinearGradient(stops: [.init(color: .black, location: 0),
+                                       .init(color: .black, location: 0.92),
+                                       .init(color: .black.opacity(0.15), location: 1)],
+                               startPoint: .top, endPoint: .bottom)
+            } else {
+                Rectangle()
+            }
+        }
     }
 
     private var header: some View {
@@ -100,12 +151,13 @@ struct OrderMemoCard: View {
     }
 
     /// 조리 메모(§13.6 payoff) — 발주 전부터 티켓에 짧은 순서를 보여줘 "누르면 뭘 하게 되는지"가 보인다.
+    /// 미리보기는 최대 3단계(+N more) — 전체 단계는 발주 후 CookingStepsView가 정본이다.
     private func prepSection(_ steps: [String]) -> some View {
         VStack(alignment: .leading, spacing: ReffiSpace.s1 + 2) {
             Text("PREP")
                 .font(.custom("Pretendard-SemiBold", size: 11, relativeTo: .caption2))
                 .tracking(1.4).foregroundStyle(ReffiColor.ink2)
-            ForEach(Array(steps.enumerated()), id: \.offset) { i, step in
+            ForEach(Array(steps.prefix(3).enumerated()), id: \.offset) { i, step in
                 HStack(alignment: .firstTextBaseline, spacing: ReffiSpace.s2) {
                     Text(verbatim: "\(i + 1).")
                         .font(.reffiNum(12, relativeTo: .caption)).foregroundStyle(ReffiColor.ink2)
@@ -114,6 +166,11 @@ struct OrderMemoCard: View {
                         .foregroundStyle(ReffiColor.ink)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+            }
+            if steps.count > 3 {
+                Text("+\(steps.count - 3) more steps")
+                    .font(.custom("Pretendard-Medium", size: 12, relativeTo: .caption))
+                    .foregroundStyle(ReffiColor.ink2)
             }
         }
     }

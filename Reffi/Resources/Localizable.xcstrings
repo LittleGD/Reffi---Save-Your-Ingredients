@@ -225,6 +225,44 @@
         }
       }
     },
+    "+%lld more on the ticket": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "티켓에 %lld개 더"
+          }
+        }
+      }
+    },
+    "+%lld more steps": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "+1 more step"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "+%lld more steps"
+                }
+              }
+            }
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "+%lld단계 더"
+          }
+        }
+      }
+    },
     "Add": {
       "localizations": {
         "ko": {
@@ -329,6 +367,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "나만의 레시피 추가"
+          }
+        }
+      }
+    },
+    "Added %@ · %lld this run": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ 추가됨 · 이번에 %2$lld개"
           }
         }
       }

@@ -5,6 +5,9 @@ import SwiftUI
 struct PaperSilhouette: View {
     let glyph: FoodGlyph
     let fresh: Freshness   // 시그니처 유지(색엔 미사용; 신선도는 뱃지·라벨)
+    /// false면 외곽 그림자 필터를 끈다 — 물리 바디용 텍스처는 알파 임계로 모양을 뜨므로
+    /// 그림자가 실제 글리프보다 큰 충돌체를 만든다(재료 사이 빈틈). 표시용은 기본값 그대로.
+    var shadowed: Bool = true
 
     var body: some View {
         Canvas { ctx, size in
@@ -12,8 +15,10 @@ struct PaperSilhouette: View {
             // 배경 분리 — 실루엣 전체를 한 겹으로 합성해 **단일 외곽 그림자**를 준다.
             // 흰색 계열(달걀·버섯 기둥·우유)이 크림 배경에 묻히지 않게 가장자리에 옅은 헤일로.
             var shaded = ctx
-            shaded.addFilter(.shadow(color: .black.opacity(0.20),
-                                     radius: size.width * 0.04, x: 0, y: size.height * 0.015))
+            if shadowed {
+                shaded.addFilter(.shadow(color: .black.opacity(0.20),
+                                         radius: size.width * 0.04, x: 0, y: size.height * 0.015))
+            }
             shaded.drawLayer { layer in
                 Self.draw(glyph, in: r, ctx: &layer)
             }

@@ -127,7 +127,7 @@ struct MainView: View {
                 .presentationBackground(.clear)
         }
         .sheet(isPresented: $showAdd) {
-            AddIngredientSheet().presentationDetents([.medium, .large])
+            AddIngredientSheet()   // presentationDetents는 시트 내부에서 적용(중복 방지)
         }
         // 자정 경과 — D-day·신선도 파생 UI와 씬 라벨 점을 다시 계산한다.
         .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged)) { _ in
@@ -144,6 +144,7 @@ struct MainView: View {
                 carouselSnapshot = carouselResults
                 showCarousel = true
             }
+            if args.contains("-previewAdd") { showAdd = true }   // 재료 추가 시트 스크린샷 검증용
         }
         #endif
     }
@@ -282,14 +283,15 @@ struct MainView: View {
     private var physicsField: some View {
         GeometryReader { geo in
             ZStack {
-                // 주의: SpriteView(isPaused:)로 SKView를 멈추면 첫 프레임이 안 그려져 회색이 될 수 있다.
-                // 씬 레벨 pause(scene.isPaused)로 물리만 멈추고 렌더(투명 배경)는 유지한다.
+                // 주의: SpriteView(isPaused:)는 초기화 시점에 멈춰 첫 프레임이 안 그려질 수 있다(회색).
+                // 일시정지는 씬이 스스로 관리한다(externallyPaused ∥ idle) — 첫 프레임 이후엔
+                // SKView 렌더 루프까지 멈춰(마지막 프레임 정지화면) 가려진 탭의 유휴 CPU를 없앤다.
                 SpriteView(scene: scene, options: [.allowsTransparency])
                     .onAppear { configureScene(size: geo.size) }
                     .onChange(of: geo.size) { _, s in scene.size = s }
                     .onChange(of: sceneSyncKey) { _, _ in scene.sync(counter) }
                     .onChange(of: reduceMotion) { _, v in scene.reduceMotion = v }
-                    .onChange(of: scenePaused) { _, p in scene.isPaused = p }
+                    .onChange(of: scenePaused) { _, p in scene.externallyPaused = p }
                 if counter.isEmpty { emptyField }
             }
             .frame(width: geo.size.width, height: geo.size.height)
@@ -302,7 +304,7 @@ struct MainView: View {
         scene.reduceMotion = reduceMotion
         scene.onRemove = { id in decide(id) }
         scene.onDecide = { id, wasted in gestureDecide(id, wasted: wasted) }
-        scene.isPaused = scenePaused
+        scene.externallyPaused = scenePaused
         scene.sync(counter)
     }
 
@@ -407,7 +409,9 @@ struct MainView: View {
         carouselSnapshot = carouselResults   // 발주로 store가 바뀌어도 커버 입력은 고정(재랭크 방지)
         firedTicket = false
         coverGeneration += 1                 // 이전 발주의 지연 닫기 타이머 무효화
-        showCarousel = true
+        // 커버 표시를 한 틱 지연 — 80레시피 스코어링(carouselResults)과 커버 첫 프레임이
+        // 같은 틱에 겹쳐 프레임드롭 나지 않게 랭킹 계산 틱과 표시 틱을 분리한다.
+        DispatchQueue.main.async { showCarousel = true }
     }
 
     /// 티켓 발주(Fire the Ticket) — used 재료를 이 레시피로 전량 소비 처리 → 슬램 본 뒤 커버 닫기.
@@ -416,9 +420,9 @@ struct MainView: View {
         guard !firedTicket, !result.used.isEmpty else { return }
         firedTicket = true
         fireHaptic += 1
-        withAnimation(ReffiMotion.gated(ReffiMotion.pop, reduce: reduceMotion)) {
-            store.cook(result)
-        }
+        // 스토어 변이는 애니메이션 밖에서 — 슬램 연출은 OrderMemoCard 로컬 fired 상태가 구동하고,
+        // 메인 뱃지·씬 변화는 커버 뒤라 애니메이션이 필요 없다(전환 프레임드롭 방지).
+        store.cook(result)
         let gen = coverGeneration
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.25) {
             if coverGeneration == gen { showCarousel = false }   // 새로 연 커버는 닫지 않는다

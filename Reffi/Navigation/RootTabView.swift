@@ -40,7 +40,7 @@ struct RootTabView: View {
         .animation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion), value: store.pendingUndo)
         .sensoryFeedback(.success, trigger: undoHaptic)
         .sheet(isPresented: $showAdd) {
-            AddIngredientSheet().presentationDetents([.medium, .large])
+            AddIngredientSheet()   // presentationDetents는 시트 내부에서 적용(중복 방지)
         }
     }
 

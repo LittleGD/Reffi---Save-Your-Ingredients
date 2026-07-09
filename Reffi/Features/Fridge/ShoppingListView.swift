@@ -30,8 +30,7 @@ struct ShoppingListView: View {
             }
         }
         .sheet(item: $restocking) {
-            AddIngredientSheet(prefillName: $0.name)
-                .presentationDetents([.medium, .large])
+            AddIngredientSheet(prefillName: $0.name)   // presentationDetents는 시트 내부에서 적용
         }
     }
 

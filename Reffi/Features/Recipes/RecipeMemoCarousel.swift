@@ -16,45 +16,51 @@ struct RecipeMemoCarousel: View {
     @State private var dragOffset: CGSize = .zero
     @State private var fired = false              // 발주 후 덱 잠금(슬램 유지)
 
-    private let topInset: CGFloat = 124   // 뒤 티켓이 위로 살짝 머리를 내밀 공간 포함
-    private let botInset: CGFloat = 86
-
     private var deck: [Int] { order.isEmpty ? Array(results.indices) : order }
 
     var body: some View {
-        ZStack(alignment: .top) {
-            ReffiColor.paperPass.ignoresSafeArea()
-            if results.isEmpty { emptyState } else { ticketDeck }
-            topBar
+        GeometryReader { geo in
+            // 카드 높이 캡(근본) — 카드가 컨테이너를 절대 넘지 못하게 safe area에 연동해 예산을 뺀다.
+            // topInset = safe top + 헤더 예산(~72) + 뒤티켓 peek(28), botInset = safe bottom + 12.
+            // 기존 124/86과 유사한 시각을 유지하되 기기별 노치·홈 인디케이터에 안전하다.
+            let topInset = geo.safeAreaInsets.top + 72 + 28
+            let botInset = geo.safeAreaInsets.bottom + 12
+            let cardHeight = max(0, geo.size.height - topInset - botInset)
+            ZStack(alignment: .top) {
+                ReffiColor.paperPass.ignoresSafeArea()
+                if results.isEmpty { emptyState } else { ticketDeck(cardHeight: cardHeight, topInset: topInset) }
+                topBar
+            }
         }
         .onAppear { order = Array(results.indices) }
     }
 
     // MARK: - 티켓 덱 (뒤 종이 = 실제 다음 티켓)
 
-    private var ticketDeck: some View {
+    private func ticketDeck(cardHeight: CGFloat, topInset: CGFloat) -> some View {
         ZStack {
             ForEach(Array(deck.enumerated().reversed()), id: \.element) { position, idx in
-                ticketCard(idx: idx, depth: position)
+                ticketCard(idx: idx, depth: position, cardHeight: cardHeight, topInset: topInset)
             }
         }
         .accessibilityAction(named: Text("Next ticket")) { advance() }
     }
 
-    @ViewBuilder private func ticketCard(idx: Int, depth: Int) -> some View {
+    @ViewBuilder private func ticketCard(idx: Int, depth: Int, cardHeight: CGFloat, topInset: CGFloat) -> some View {
         let isFront = depth == 0
-        OrderMemoCard(result: results[idx], number: idx + 1) { fire(results[idx]) }
+        // 가장 깊은 티켓(depth ≥ 2)만 headerOnly 경량 렌더 — 바로 뒤(depth 1)는 풀 렌더라
+        // 플릭 승격(1→0)이 내용 변화 없이 매끄럽다(ScrollView 상태·래스터 유지, 번쩍임 없음).
+        // 전환 진입 성능은 '무거운 카드 3→2장'으로 이득 대부분 유지(§13.6).
+        OrderMemoCard(result: results[idx], number: idx + 1, headerOnly: depth >= 2) { fire(results[idx]) }
+            .frame(height: cardHeight)   // 카드가 컨테이너를 넘지 못하게 캡(headerOnly도 동일 캡)
             .padding(.horizontal, ReffiGrid.margin + 8)
             .padding(.top, topInset)
-            .padding(.bottom, botInset)
             .scaleEffect(isFront ? 1 : 1 - CGFloat(depth) * 0.035, anchor: .top)
             .offset(y: isFront ? 0 : CGFloat(depth) * -14)   // 뒤 티켓이 위로 머리를 내민다
             .rotationEffect(.degrees(isFront ? Double(dragOffset.width / 22)
                                              : (idx % 2 == 0 ? -2.2 : 2.4)),
                             anchor: .top)
             .offset(isFront ? dragOffset : .zero)
-            .shadow(color: ReffiColor.ink.opacity(isFront ? 0.10 : 0.04),
-                    radius: isFront ? 14 : 6, x: 0, y: isFront ? 8 : 3)
             .allowsHitTesting(isFront)
             .accessibilityHidden(!isFront)
             .zIndex(Double(deck.count - depth))
@@ -62,9 +68,14 @@ struct RecipeMemoCarousel: View {
     }
 
     /// 플릭 — 손을 따라오다(살짝 기울며) 임계 넘게 튕기면 뒤로 넘어간다. 못 미치면 제자리로.
+    /// onChanged는 수평 우세(|Δx| > |Δy|·1.4)일 때만 따라와, 카드 내부 세로 스크롤과의 경합을 완화한다.
     private var flick: some Gesture {
         DragGesture(minimumDistance: 14)
-            .onChanged { v in dragOffset = v.translation }
+            .onChanged { v in
+                if abs(v.translation.width) > abs(v.translation.height) * 1.4 {
+                    dragOffset = v.translation
+                }
+            }
             .onEnded { v in
                 let p = v.predictedEndTranslation
                 if abs(p.width) > 160 || abs(p.height) > 220 {

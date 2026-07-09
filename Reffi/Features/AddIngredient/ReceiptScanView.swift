@@ -25,16 +25,11 @@ struct ReceiptScanView: View {
     private var cameraAvailable: Bool { VNDocumentCameraViewController.isSupported }
 
     var body: some View {
-        NavigationStack {
+        VStack(spacing: 0) {
+            header
             content
-                .navigationTitle(Text("Scan a receipt"))
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("Cancel") { dismiss() }
-                    }
-                }
         }
+        .background(ReffiColor.canvas)
         .sensoryFeedback(.success, trigger: addedHaptic)
         .fullScreenCover(isPresented: $showCamera) {
             DocumentCameraView { images in
@@ -56,6 +51,33 @@ struct ReceiptScanView: View {
         case .processing: processing
         case .review(let candidates): review(candidates)
         }
+    }
+
+    /// 커스텀 헤더 — 가운데 타이틀 + 오른쪽 종이 X(§7.3 시각 34·히트 44). Add 시트와 같은 종이 X 패턴.
+    private var header: some View {
+        ZStack {
+            Text("Scan a receipt").reffiType(.subhead).foregroundStyle(ReffiColor.ink)
+            HStack {
+                Spacer()
+                Button { dismiss() } label: {
+                    ReffiIcon.close.reffi(14, .bold)
+                        .foregroundStyle(ReffiColor.ink)
+                        .frame(width: 34, height: 34)
+                        .background {
+                            let s = PaperRect(cornerRadius: ReffiRadius.md, seed: 4)
+                            s.fill(ReffiColor.paper).paperEdge(s)
+                        }
+                        .reffiShadow1()
+                        .frame(minWidth: 44, minHeight: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.paperPress)
+                .accessibilityLabel("Close")
+            }
+        }
+        .padding(.horizontal, ReffiGrid.margin)
+        .padding(.top, ReffiSpace.s4)
+        .padding(.bottom, ReffiSpace.s3)
     }
 
     // MARK: - 소스 선택
@@ -115,11 +137,18 @@ struct ReceiptScanView: View {
             VStack(spacing: 0) {
                 List {
                     Section {
-                        ForEach(candidates) { c in candidateRow(c) }
+                        ForEach(candidates) { c in
+                            candidateRow(c)
+                                .listRowBackground(Color.clear)
+                                .listRowSeparatorTint(ReffiColor.ink.opacity(0.06))
+                        }
                     } footer: {
                         Text("Use-by dates are filled from the ingredient dictionary — adjust anytime in Fridge.")
+                            .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
                     }
                 }
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
                 PaperButton(title: "Add \(selected.count) items") { add(candidates) }
                     .padding(.horizontal, ReffiGrid.margin)
                     .padding(.vertical, ReffiSpace.s3)
