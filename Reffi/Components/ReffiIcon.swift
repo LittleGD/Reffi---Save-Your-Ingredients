@@ -35,6 +35,7 @@ enum ReffiIcon {
     static var barcode: Ph { .barcode }
     static var manual: Ph { .pencilSimple }
     static var close: Ph { .x }
+    static var search: Ph { .magnifyingGlass }   // 일러스트 사전 픽커 검색 필드(§13.5)
 
     // 냉동(버리기 직전 구제, §13.6) — 판정 커버의 3번째 선택지.
     static var freeze: Ph { .snowflake }

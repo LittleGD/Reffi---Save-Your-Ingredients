@@ -41,6 +41,26 @@ struct LexiconTests {
         #expect(fridge != nil && freezer != nil)
         #expect(freezer! > fridge!)   // 냉동이 냉장보다 길어야 정상
     }
+
+    /// 신규 12종 글리프 재배정(§13.3 — corn·cucumber·pea·cabbage·chili·pumpkin·avocado·banana·
+    /// noodles·rice·sauceBottle·can) 전수 검증. `GlyphTests`는 enum 자체의 계약만 보고 이쪽에서
+    /// 미루기로 한 몫 — JSON의 `glyph` 문자열이 `FoodGlyph` rawValue 집합 밖으로 새면 픽커 그리드
+    /// (일러스트 사전 픽커)가 조용히 `.generic`으로 무너진다. 디코드는 톨러런트해도 데이터 품질은 아니다.
+    @Test func allEntryGlyphsAreValidFoodGlyphCases() {
+        let validGlyphs = Set(FoodGlyph.allCases.map(\.rawValue))
+        for entry in lex.entries {
+            #expect(validGlyphs.contains(entry.glyph), "unknown glyph '\(entry.glyph)' for entry '\(entry.id)'")
+        }
+    }
+
+    @Test func newGlyphsAreActuallyAssignedInLexicon() {
+        // 재배정이 빠지면(예: 스크립트 재실행 실수) 픽커의 신규 종 타일이 전부 죽은 코드가 된다.
+        let assigned = Set(lex.entries.map(\.glyph))
+        for glyph in ["corn", "cucumber", "pea", "cabbage", "chili", "pumpkin",
+                      "avocado", "banana", "noodles", "rice", "sauceBottle", "can"] {
+            #expect(assigned.contains(glyph), "no lexicon entry uses new glyph '\(glyph)'")
+        }
+    }
 }
 
 /// 추천 매칭 — canonical ID 동일성 원칙(부분문자열 오탐 금지)·랭킹.

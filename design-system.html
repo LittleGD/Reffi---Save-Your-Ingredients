@@ -542,10 +542,10 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
 .glass-nav span { width: 22px; height: 22px; border-radius: 7px; background: oklch(25% 0.012 80 / 0.55); }
 .glass-nav span:first-child { background: var(--color-blue); }
 
-/* 종이컷 실루엣(유기적 블롭) — 일러스트는 자연색(FoodGlyph), 신선도색 아님(§13.3) */
+/* 각진 면분할 컷페이퍼 실루엣 — 일러스트는 자연색(FoodGlyph 35종), 신선도색 아님(§13.3) */
 .silo-row { display: flex; gap: var(--space-3); align-items: center; }
-.silo { width: 54px; height: 54px; box-shadow: var(--shadow-1);
-  border-radius: 46% 54% 58% 42% / 55% 44% 56% 45%; }
+.silo { width: 54px; height: 54px; filter: drop-shadow(0 2px 3px rgba(0,0,0,.14));
+  clip-path: polygon(50% 2%, 88% 22%, 98% 62%, 74% 96%, 28% 96%, 4% 60%, 14% 22%); }
 .silo.f-urgent { background: oklch(62% 0.18 32); }   /* 토마토 */
 .silo.f-soon   { background: oklch(70% 0.16 56); border-radius: 58% 42% 50% 50% / 60% 46% 54% 40%; }   /* 당근 */
 .silo.f-fresh  { background: oklch(55% 0.13 148); border-radius: 50% 50% 44% 56% / 42% 58% 42% 58%; }   /* 잎채소 */
@@ -1197,7 +1197,7 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
 
           <div class="demo-pane">
             <p class="subhead text">일러스트 · 물리 낙하</p>
-            <p class="lbl">재료는 <strong>손으로 자른 종이(Matisse)풍 자연색 멀티컬러</strong> 일러스트(몸+초록 잎/줄기+디테일, `FoodGlyph` — 채소·과일·고기·생선·유제품)로, <strong>진짜 물리 엔진</strong>으로 <strong>묵직하게</strong> 떨어져 쌓이고 그대로 남는다(끌어서 던지기). 일러스트는 자연색이라 <strong>신선도는 뱃지</strong>로(§2.5 행동표면 예외) — 씬 위에 이름 라벨을 얹지 않는다. 칩을 드래그하면 <strong>판정 바스켓(마그네틱)</strong> — 좌상 휴지통(Tossed)·우상 냄비(Ate) 종이 블롭이 나타나고, 반경 ≈88pt에 들면 재료가 자석처럼 끌려 들어가(1.14× 확대) 놓는 즉시 확정된다(되돌리기 토스트가 안전망). 배경은 리퀴드글래스.</p>
+            <p class="lbl">재료는 <strong>각진 면분할(faceted) 컷페이퍼</strong> 일러스트(곡선 대신 5~9각 직선 면 + 몸통 2~3톤 면분할 + 오프컬러 액센트[양파 뿌리 보라], `FoodGlyph` <strong>35종</strong> — 채소·과일·고기·생선·유제품·<strong>곡류·저장식품</strong>)로, <strong>진짜 물리 엔진</strong>으로 <strong>묵직하게</strong> 떨어져 쌓이고 그대로 남는다(끌어서 던지기). 충돌체는 각 글리프 <strong>실측 알파 bbox 기반 볼록 폴리곤</strong>(bbox의 ~90% + 시각 중심 정렬)이라 겹침·지터 없이 안착한다. 일러스트는 자연색이라 <strong>신선도는 뱃지</strong>로(§2.5 행동표면 예외) — 씬 위에 이름 라벨을 얹지 않는다. 카테고리 라벨은 기존 8종에 <strong>Grain(곡류)·Pantry(저장식품)</strong>를 더한다. 칩을 드래그하면 <strong>판정 바스켓(마그네틱)</strong> — 좌상 휴지통(Tossed)·우상 냄비(Ate) 종이 블롭이 나타나고, 반경 ≈88pt에 들면 재료가 자석처럼 끌려 들어가(1.14× 확대) 놓는 즉시 확정된다(되돌리기 토스트가 안전망). 배경은 리퀴드글래스.</p>
             <div class="silo-row">
               <span class="silo f-urgent"></span><span class="silo f-soon"></span><span class="silo f-fresh"></span>
             </div>
@@ -1219,7 +1219,7 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
           </div>
         </div>
 
-        <div class="note" style="margin-top:var(--space-5)"><strong>입력 시트도 행동표면 언어를 따른다.</strong> 재료 추가·편집 시트는 표준 Form·시스템 글래스 툴바가 아니라 <strong>크림 캔버스 + 흰 영수증 카드 + 모노 섹션 라벨(ITEM·DETAILS · OPTIONAL) + DashedRule + PaperButton</strong>으로 짓는다. 시스템 글래스 툴바·리퀴드글래스 배경 금지(입력 표면은 조용한 종이) — 상단은 종이 X 닫기 헤더, 1차 저장은 하단 고정 액션 바(safeAreaInset, --z-sticky)의 PaperButton으로 키보드 위에서도 항상 보이게 한다.</div>
+        <div class="note" style="margin-top:var(--space-5)"><strong>입력 시트도 행동표면 언어를 따른다 — 재료 추가는 폼이 아니라 픽커다.</strong> 타이핑으로 임의 재료를 만드는 직접 입력 폼은 주 추가 플로우에 없다 — <strong>일러스트 사전 픽커 + 영수증 스캔</strong>이 전부. 크림 캔버스 + 흰 영수증 카드(스캔 카드) + <strong>검색 필드</strong>(사전 필터, 임의 생성용 아님) + <strong>픽커 그리드</strong>(PaperSilhouette 일러스트 + 흰 종이 타일, 3~4열 — FREQUENT 이력/시드 → 카테고리 섹션)로 짓는다. <strong>탭 = 즉시 추가</strong>(사전 기본값으로 폼 없이 저장) — 일러스트는 카테고리를 대표할 뿐 고른 재료와 1:1이 아니다, 정확한 표기는 하단 피드백 스트립("Added {name} · {n} this run" + Edit)이 책임진다. 검색이 사전에서 못 찾을 때만 컴팩트 <strong>커스텀 시트</strong>(이름 고정 + 기한·수량·보관)로 폴백한다 — 사전 밖 재료를 만드는 유일한 경로. 커스텀·편집 시트는 여전히 모노 섹션 라벨(ITEM·DETAILS · OPTIONAL) + DashedRule + PaperButton 문법. 시스템 글래스 툴바·리퀴드글래스 배경 금지(입력 표면은 조용한 종이) — 상단은 종이 X 닫기 헤더. 쇼핑리스트 재입고는 시트조차 열지 않고 이력 스냅샷 + 사전 기본 기한으로 곧장 채운다.</div>
 
         <div class="note" style="margin-top:var(--space-5)"><strong>냉장고 요약·정렬도 §13 문법을 공유한다.</strong> 헤더 아래 요약 페이저(장보기 · 무낭비 리포트, 한 장씩 스와이프)는 PaperCutRect 종이컷 버튼 면 + 옅은 그레인 + 점 인디케이터로 짓는다. 정렬 메뉴 칩과 간편보기 원탭 토글은 둘 다 PaperRect 종이 면(히트 44pt), 간편보기 행은 틸트·겹침 없는 납작한 흰 영수증 한 조각 — 실루엣 + 이름 + 수량 + D-day(냉동이면 + FROZEN 도장)를 한 줄로 훑어보기에 최적화한다.</div>
 

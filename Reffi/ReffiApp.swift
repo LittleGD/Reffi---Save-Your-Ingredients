@@ -42,6 +42,8 @@ struct ReffiApp: App {
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("-glyphGallery") {
             GlyphGalleryView()
+        } else if ProcessInfo.processInfo.arguments.contains("-glyphMetrics") {
+            GlyphMetricsView()
         } else if ProcessInfo.processInfo.arguments.contains("-buttonGallery") {
             ButtonGalleryView()
         } else if ProcessInfo.processInfo.arguments.contains("-authView") {

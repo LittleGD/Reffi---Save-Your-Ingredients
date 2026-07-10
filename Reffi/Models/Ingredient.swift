@@ -2,13 +2,19 @@ import Foundation
 
 /// 음식 모티프 종류 — 종이컷 실루엣(`PaperSilhouette`)이 이 값으로 단일 쉐입을 그린다.
 enum FoodGlyph: String, Codable, CaseIterable {
-    // 채소·과일
+    // 채소
     case leaf, root, squash, onion, tomato, pepper, mushroom, broccoli, potato, garlic
+    case cucumber, pea, cabbage, chili, pumpkin        // 신규 채소
+    // 과일
     case apple, citrus, berry
+    case avocado, banana                               // 신규 과일
     // 단백질
     case egg, tofu, meat, poultry, fish, shrimp
-    // 유제품·기타
+    // 유제품
     case milk, cheese, bread
+    // 곡류·저장식품
+    case rice, noodles, corn                           // 신규 곡류
+    case sauceBottle, can                              // 신규 저장식품
     case generic
 
     /// 톨러런트 디코드 — 미지의 rawValue(향후 케이스 추가·데이터 오염)가 필드 하나로 끝나게
@@ -27,6 +33,9 @@ enum FoodGlyph: String, Codable, CaseIterable {
         switch true {
         case has(["tofu", "두부"]):                                              return .tofu
         case has(["egg", "계란", "달걀"]):                                        return .egg
+        // 저장식품·통조림 — 스팸/캔은 고기·생선보다 먼저(캔이 우선).
+        case has(["canned", "통조림", "spam", "스팸", "런천", "캔"]):              return .can
+        case has(["sauce", "소스", "간장", "ketchup", "케첩", "mayo", "마요", "dressing", "드레싱", "vinegar", "식초"]): return .sauceBottle
         case has(["beef", "pork", "steak", "bacon", "ham", "meat", "소고기", "쇠고기", "돼지", "고기", "삼겹", "스테이크"]): return .meat
         case has(["chicken", "drumstick", "poultry", "wing", "닭", "치킨"]):       return .poultry
         case has(["shrimp", "prawn", "새우"]):                                    return .shrimp
@@ -34,19 +43,32 @@ enum FoodGlyph: String, Codable, CaseIterable {
         case has(["milk", "cream", "yogurt", "yoghurt", "우유", "크림", "요거트", "요구르트"]): return .milk
         case has(["cheese", "butter", "치즈", "버터"]):                            return .cheese
         case has(["bread", "toast", "bun", "baguette", "빵", "식빵", "토스트"]):    return .bread
+        case has(["rice", "공기밥", "쌀", "밥"]):                                  return .rice
+        case has(["noodle", "pasta", "spaghetti", "ramen", "udon", "면", "국수", "파스타", "라면", "우동", "스파게티"]): return .noodles
+        case has(["corn", "옥수수", "콘"]):                                        return .corn
         case has(["onion", "scallion", "leek", "양파", "대파", "쪽파", "파"]):      return .onion
         case has(["garlic", "마늘"]):                                            return .garlic
         case has(["tomato", "토마토"]):                                          return .tomato
-        case has(["pepper", "paprika", "bell", "chili", "피망", "파프리카", "고추"]): return .pepper
+        // 파프리카/피망은 pepper, 매운 고추는 chili로 분리.
+        case has(["chili", "청양", "고추", "페퍼론치노"]):                          return .chili
+        case has(["pepper", "paprika", "bell", "피망", "파프리카"]):               return .pepper
         case has(["mushroom", "shiitake", "버섯"]):                              return .mushroom
         case has(["broccoli", "cauliflower", "브로콜리", "콜리"]):                 return .broccoli
         case has(["potato", "감자"]):                                            return .potato
-        case has(["zucchini", "squash", "courgette", "cucumber", "eggplant", "애호박", "호박", "오이", "가지"]): return .squash
+        case has(["cucumber", "오이"]):                                          return .cucumber
+        case has(["pea", "peas", "완두"]):                                        return .pea
+        // 애호박·주키니·가지는 squash 유지, 늙은호박·단호박은 pumpkin(순서 중요 — 애호박이 pumpkin에 안 걸리게).
+        case has(["zucchini", "squash", "courgette", "eggplant", "애호박", "주키니", "가지"]): return .squash
+        case has(["pumpkin", "kabocha", "단호박", "늙은호박", "호박"]):             return .pumpkin
         case has(["carrot", "radish", "당근", "무"]):                            return .root
+        // 양배추·배추는 cabbage, 나머지 잎채소는 leaf(cabbage가 leaf보다 먼저).
+        case has(["cabbage", "napa", "양배추", "배추"]):                          return .cabbage
+        case has(["avocado", "아보카도"]):                                       return .avocado
+        case has(["banana", "바나나"]):                                          return .banana
         case has(["apple", "pear", "peach", "사과", "배", "복숭아"]):              return .apple
         case has(["lemon", "lime", "orange", "citrus", "mandarin", "레몬", "라임", "오렌지", "귤", "감귤"]): return .citrus
         case has(["berry", "strawberry", "blueberry", "grape", "베리", "딸기", "블루베리", "포도"]): return .berry
-        case has(["spinach", "lettuce", "cabbage", "kale", "greens", "herb", "leaf", "시금치", "상추", "배추", "양배추", "나물", "잎"]): return .leaf
+        case has(["spinach", "lettuce", "kale", "greens", "herb", "leaf", "시금치", "상추", "케일", "나물", "잎"]): return .leaf
         default:                                                                return .generic
         }
     }
@@ -205,13 +227,16 @@ extension FoodGlyph {
     /// 거친 카테고리 라벨 — 직접 입력의 자동 카테고리, History 도넛 그룹핑 공용.
     var categoryLabel: String {
         switch self {
-        case .leaf, .broccoli, .onion, .garlic, .potato, .root, .squash, .mushroom, .pepper, .tomato: "Veg"
-        case .apple, .citrus, .berry: "Fruit"
+        case .leaf, .broccoli, .onion, .garlic, .potato, .root, .squash, .mushroom, .pepper, .tomato,
+             .cucumber, .pea, .cabbage, .chili, .pumpkin: "Veg"
+        case .apple, .citrus, .berry, .avocado, .banana: "Fruit"
         case .egg, .milk, .cheese: "Dairy"
         case .meat, .poultry: "Meat"
         case .fish, .shrimp: "Seafood"
         case .tofu: "Protein"
         case .bread: "Bakery"
+        case .rice, .noodles, .corn: "Grain"
+        case .sauceBottle, .can: "Pantry"
         case .generic: "Other"
         }
     }

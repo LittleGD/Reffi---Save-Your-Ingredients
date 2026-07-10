@@ -353,6 +353,16 @@
         }
       }
     },
+    "Add %@": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 추가"
+          }
+        }
+      }
+    },
     "Add %lld items": {
       "localizations": {
         "en": {
@@ -457,6 +467,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "나만의 레시피 추가"
+          }
+        }
+      }
+    },
+    "Add “%@” as a custom item": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "“%@”를 커스텀 재료로 추가"
           }
         }
       }
@@ -707,6 +727,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "썰고, 볶고, 간하기…"
+          }
+        }
+      }
+    },
+    "Clear search": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "검색어 지우기"
           }
         }
       }
@@ -1171,6 +1201,16 @@
         }
       }
     },
+    "FREQUENT": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "자주 구매"
+          }
+        }
+      }
+    },
     "FROZEN": {
       "localizations": {
         "ko": {
@@ -1297,6 +1337,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "다시 만나서 반가워요"
+          }
+        }
+      }
+    },
+    "Grain": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "곡류"
           }
         }
       }
@@ -2347,6 +2397,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "해산물"
+          }
+        }
+      }
+    },
+    "Search ingredients": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "재료 검색"
           }
         }
       }
