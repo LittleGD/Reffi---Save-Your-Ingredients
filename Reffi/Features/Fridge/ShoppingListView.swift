@@ -49,29 +49,9 @@ struct ShoppingListView: View {
     }
 
     private var header: some View {
-        ZStack {
-            Text("To buy").reffiType(.subhead).foregroundStyle(ReffiColor.ink)
-            HStack {
-                Spacer()
-                Button { dismiss() } label: {
-                    ReffiIcon.close.reffi(14, .bold)
-                        .foregroundStyle(ReffiColor.ink)
-                        .frame(width: 34, height: 34)
-                        .background {
-                            let s = PaperRect(cornerRadius: ReffiRadius.md, seed: 4)
-                            s.fill(ReffiColor.oklch(0.99, 0.006, 90)).paperEdge(s)
-                        }
-                        .reffiShadow1()
-                        .frame(minWidth: 44, minHeight: 44)   // §7.3 — 시각은 34, 히트는 44
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.paperPress)
-                .accessibilityLabel("Close")
-            }
-        }
-        .padding(.horizontal, ReffiGrid.margin)
-        .padding(.top, ReffiSpace.s4)
-        .padding(.bottom, ReffiSpace.s3)
+        CoverHeader(title: "To buy",
+                    subtitle: "Restock what you use often",
+                    onClose: { dismiss() })
     }
 
     private var listCard: some View {

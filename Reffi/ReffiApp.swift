@@ -81,12 +81,12 @@ private struct RootGateView: View {
             splash
         } else if !onboardingDone {
             OnboardingView(onFinish: { onboardingDone = true })
-        } else if !auth.isSignedIn {
-            AuthView()
-                .transition(.opacity)
         } else {
+            // 게스트 우선 — 온보딩 후엔 로그인 벽 없이 곧장 메인 앱. 세션이 없으면 익명 게스트로 진입한다.
+            // 로그인/가입은 프로필 탭 Account 섹션에서 선택적으로(익명→가입 데이터 승계 보장).
             RootTabView()
                 .transition(.opacity)
+                .task { if !auth.isSignedIn { await auth.continueAsGuest() } }
         }
     }
 

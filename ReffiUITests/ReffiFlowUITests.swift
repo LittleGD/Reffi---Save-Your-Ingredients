@@ -8,48 +8,69 @@ final class ReffiFlowUITests: XCTestCase {
         continueAfterFailure = false
     }
 
-    /// 온보딩을 처음부터, 게스트/세션 없이 시작.
+    /// 온보딩을 처음부터 시작. `-skipAuth`로 게스트 상태를 로컬에 고정해, 셋업 완료 후
+    /// 메인 진입이 실제 익명 로그인 네트워크 호출에 좌우되지 않고 결정론적으로 검증되게 한다
+    /// (게이트 로직 자체는 세션 유무와 무관하게 온보딩 완료 시 곧장 메인으로 보낸다).
     private func launchFreshOnboarding() -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = ["-resetOnboarding", "-authGate"]
+        app.launchArguments = ["-resetOnboarding", "-skipAuth"]
         app.launch()
         return app
     }
 
-    // MARK: 사용자 보고 시나리오 — "나중에 할게요"가 다음 게이트(로그인)로 이어지는가
+    // MARK: 신 플로우 — 인트로(스와이프 전용) → "Let's Start" → 셋업 시트(Next…Maybe later) → 도장 → 메인
 
-    func testOnboarding_LaterButton_ReachesLoginThenGuestMain() {
+    /// 인트로 마지막 장까지 스와이프 → "Let's Start" → 셋업 각 단계를 "Next"로 진행 →
+    /// 알림 프라이밍 페이지에서 "Maybe later"로 스킵 → 도장 연출 뒤 로그인 게이트 없이 곧장
+    /// 메인(RootTabView, 게스트)에 도달하는지 검증(게스트 우선 플로우).
+    func testOnboarding_CompleteSetup_ReachesGuestMain() {
         let app = launchFreshOnboarding()
 
-        // 가치 3장 + 가구 + 취향 = "다음" 5회 → 알림 페이지
-        let next = app.buttons["Next"]
-        XCTAssertTrue(next.waitForExistence(timeout: 8), "온보딩 첫 페이지가 떠야 한다")
-        for _ in 0..<5 {
-            next.tap()
-        }
+        // 인트로 진입 확인 — 스플래시("Reffi" 워드마크뿐)와 모호하지 않은 온보딩 전용 요소(Skip)로.
+        XCTAssertTrue(app.buttons["Skip"].waitForExistence(timeout: 8), "온보딩 인트로가 떠야 한다")
+        XCTAssertTrue(app.descendants(matching: .any)["Intro 1 of 3"].exists, "인트로 1장 인디케이터")
+        let letsStart = app.buttons["Let's Start"]
+        XCTAssertFalse(letsStart.exists, "인트로 첫 장엔 Let's Start가 없어야 한다(스와이프 전용)")
 
+        // 인트로는 하단 버튼 없이 스와이프 전용 — 페이지 인디케이터 라벨로 이동을 확인.
+        app.swipeLeft()
+        XCTAssertTrue(app.descendants(matching: .any)["Intro 2 of 3"].waitForExistence(timeout: 4),
+                      "스와이프 → 인트로 2장")
+        app.swipeLeft()
+        XCTAssertTrue(app.descendants(matching: .any)["Intro 3 of 3"].waitForExistence(timeout: 4),
+                      "스와이프 → 인트로 3장(마지막)")
+        XCTAssertTrue(letsStart.waitForExistence(timeout: 4), "인트로 마지막 장에서 Let's Start 등장")
+        letsStart.tap()
+
+        // 셋업 시트(풀스크린) — Step 1(가구)·Step 2(취향)는 "Next"로 진행, 단계는 상단 라벨로 확인.
+        let next = app.buttons["Next"]
+        XCTAssertTrue(app.staticTexts["Step 1 of 3"].waitForExistence(timeout: 4), "셋업 시트 Step 1 진입")
+        next.tap()   // Step 1 → 2
+        XCTAssertTrue(app.staticTexts["Step 2 of 3"].waitForExistence(timeout: 4), "Next → Step 2")
+        next.tap()   // Step 2 → 3(알림 프라이밍)
+        XCTAssertTrue(app.staticTexts["Step 3 of 3"].waitForExistence(timeout: 4), "Next → Step 3(알림)")
+
+        // Step 3(알림 프라이밍) — 실제 권한 프롬프트를 띄우지 않는 "Maybe later" 경로.
         let later = app.buttons["Maybe later"]
-        XCTAssertTrue(later.waitForExistence(timeout: 4), "알림 프라이밍 페이지 도달")
+        XCTAssertTrue(later.waitForExistence(timeout: 4), "알림 프라이밍 스킵 경로")
         later.tap()
 
-        // 온보딩 종료 → 로그인 게이트
-        let guest = app.buttons["Browse without an account"]
-        XCTAssertTrue(guest.waitForExistence(timeout: 6), "나중에 할게요 → 로그인 화면으로 전환돼야 한다")
-        guest.tap()
-
-        // 게스트 → 메인(하단 네비 노출)
-        XCTAssertTrue(app.buttons["Fridge"].waitForExistence(timeout: 6), "게스트 진입 후 메인 탭바가 보여야 한다")
+        // "Start" 도장이 0.75초 뒤 onFinish() → 로그인 게이트 없이 곧장 메인(하단 네비 노출).
+        XCTAssertTrue(app.buttons["Fridge"].waitForExistence(timeout: 8),
+                      "셋업 완료 후 게스트로 메인 탭바에 곧장 도달해야 한다")
     }
 
-    func testOnboarding_SkipButton_GoesToLogin() {
+    /// 상단 "Skip"(언제든 건너뛰기)은 셋업 시트 없이 즉시 onFinish() → 로그인 게이트 없이
+    /// 곧장 메인(게스트)에 도달해야 한다.
+    func testOnboarding_SkipButton_ReachesGuestMain() {
         let app = launchFreshOnboarding()
 
         let skip = app.buttons["Skip"]
-        XCTAssertTrue(skip.waitForExistence(timeout: 8))
+        XCTAssertTrue(skip.waitForExistence(timeout: 8), "인트로 상단 Skip 버튼")
         skip.tap()
 
-        XCTAssertTrue(app.buttons["Browse without an account"].waitForExistence(timeout: 6),
-                      "건너뛰기 → 로그인 화면으로 전환돼야 한다")
+        XCTAssertTrue(app.buttons["Fridge"].waitForExistence(timeout: 8),
+                      "건너뛰기 → 게스트로 메인 탭바에 곧장 도달해야 한다")
     }
 
     // MARK: 냉장고 — 요약 카드(리포트·장보기) · 통합 정렬/보기 메뉴

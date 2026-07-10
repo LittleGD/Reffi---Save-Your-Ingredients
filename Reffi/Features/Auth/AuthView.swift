@@ -76,6 +76,16 @@ struct AuthView: View {
                     .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
             }
 
+            // 소셜 우선 — Apple/Google을 기본 이메일 로그인보다 위에 배치.
+            socialButton(icon: .appleLogo, title: "Continue with Apple",
+                         fill: ReffiColor.ink, fg: .white, seed: 5) { startApple() }
+            socialButton(icon: .googleLogo, title: "Continue with Google",
+                         fill: ReffiColor.paper, fg: ReffiColor.ink, seed: 6) {
+                Task { await auth.signInWithGoogle() }
+            }
+
+            dashRule
+
             field("Email", text: $email, focused: .email)
                 .textContentType(.emailAddress)
                 .keyboardType(.emailAddress)
@@ -96,14 +106,6 @@ struct AuthView: View {
                 .opacity(canSubmit ? 1 : 0.45)   // §7.2 disabled
 
             modeToggle
-            dashRule
-
-            socialButton(icon: .appleLogo, title: "Continue with Apple",
-                         fill: ReffiColor.ink, fg: .white, seed: 5) { startApple() }
-            socialButton(icon: .googleLogo, title: "Continue with Google",
-                         fill: ReffiColor.paper, fg: ReffiColor.ink, seed: 6) {
-                Task { await auth.signInWithGoogle() }
-            }
 
             footer
         }
