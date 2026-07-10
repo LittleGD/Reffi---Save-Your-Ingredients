@@ -1361,6 +1361,16 @@
         }
       }
     },
+    "Intro %lld of %lld": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "소개 %1$lld / %2$lld"
+          }
+        }
+      }
+    },
     "Italian": {
       "localizations": {
         "ko": {
@@ -1477,6 +1487,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "남은 재료는 수량이 절반으로 줄어 냉장고에 남아요."
+          }
+        }
+      }
+    },
+    "Let's Start": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "시작하기"
           }
         }
       }
@@ -2201,6 +2221,16 @@
         }
       }
     },
+    "Restock what you use often": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "자주 쓰는 재료를 다시 채워요"
+          }
+        }
+      }
+    },
     "Room": {
       "localizations": {
         "ko": {
@@ -2431,6 +2461,16 @@
         }
       }
     },
+    "Start": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "시작"
+          }
+        }
+      }
+    },
     "Start cooking": {
       "localizations": {
         "ko": {
@@ -2457,6 +2497,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@ 조리 시작 · %lld개 예약"
+          }
+        }
+      }
+    },
+    "Step %lld": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld단계"
+          }
+        }
+      }
+    },
+    "Step %lld of %lld": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%2$lld단계 중 %1$lld단계"
           }
         }
       }
@@ -2927,6 +2987,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "오늘·내일 만료 재료를 알려드려요"
+          }
+        }
+      }
+    },
+    "What you ate and what you tossed": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "무엇을 먹었고 무엇을 버렸는지"
           }
         }
       }
