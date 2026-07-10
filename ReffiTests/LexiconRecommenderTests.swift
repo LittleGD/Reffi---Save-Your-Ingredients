@@ -61,6 +61,17 @@ struct LexiconTests {
             #expect(assigned.contains(glyph), "no lexicon entry uses new glyph '\(glyph)'")
         }
     }
+
+    @Test func v2GlyphsAreActuallyAssignedInLexicon() {
+        // v2 신규 17종도 사전에 실제 배정돼야 픽커 타일이 산다(seaweed는 미역·김·다시마 공용).
+        let assigned = Set(lex.entries.map(\.glyph))
+        for glyph in ["eggplant", "sweetPotato", "ginger", "seaweed",
+                      "grape", "watermelon", "pineapple", "mango",
+                      "sausage", "bacon", "crab", "squid", "clam",
+                      "yogurt", "butter", "honey", "dumpling"] {
+            #expect(assigned.contains(glyph), "no lexicon entry uses v2 glyph '\(glyph)'")
+        }
+    }
 }
 
 /// 추천 매칭 — canonical ID 동일성 원칙(부분문자열 오탐 금지)·랭킹.

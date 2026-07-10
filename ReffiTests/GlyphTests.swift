@@ -2,14 +2,15 @@ import Testing
 import Foundation
 @testable import Reffi
 
-/// FoodGlyph — 35종 확장(각진 컷페이퍼) 후 카테고리 라벨 파생·케이스 목록·톨러런트 디코드 가드.
+/// FoodGlyph — 52종 확장(각진 컷페이퍼) 후 카테고리 라벨 파생·케이스 목록·톨러런트 디코드 가드.
 /// 재료명→글리프 라우팅(`match`)은 1순위 정본 사전이 결정하므로, 사전 글리프 값 재배정
 /// 이후에 그쪽에서 검증한다(이 스위트는 enum 자체의 결정론적 계약만 지킨다).
 struct GlyphTests {
 
-    @Test func caseCountIs35() {
-        // 기존 23종 + 신규 12종(cucumber·pea·cabbage·chili·pumpkin·avocado·banana·rice·noodles·corn·sauceBottle·can).
-        #expect(FoodGlyph.allCases.count == 35)
+    @Test func caseCountIs52() {
+        // 35종 + v2 신규 17종(eggplant·sweetPotato·ginger·seaweed·grape·watermelon·pineapple·mango·
+        // sausage·bacon·crab·squid·clam·yogurt·butter·honey·dumpling).
+        #expect(FoodGlyph.allCases.count == 52)
     }
 
     @Test func everyGlyphHasCategoryLabel() {
@@ -35,6 +36,25 @@ struct GlyphTests {
         #expect(FoodGlyph.banana.categoryLabel == "Fruit")
     }
 
+    @Test func v2GlyphsMapToExpectedCategory() {
+        // v2 신규 17종 카테고리 파생(전부 기존 라벨로 편입 — 신규 카테고리 없음).
+        for g in [FoodGlyph.eggplant, .sweetPotato, .ginger, .seaweed] {
+            #expect(g.categoryLabel == "Veg")
+        }
+        for g in [FoodGlyph.grape, .watermelon, .pineapple, .mango] {
+            #expect(g.categoryLabel == "Fruit")
+        }
+        #expect(FoodGlyph.sausage.categoryLabel == "Meat")
+        #expect(FoodGlyph.bacon.categoryLabel == "Meat")
+        for g in [FoodGlyph.crab, .squid, .clam] {
+            #expect(g.categoryLabel == "Seafood")
+        }
+        #expect(FoodGlyph.yogurt.categoryLabel == "Dairy")
+        #expect(FoodGlyph.butter.categoryLabel == "Dairy")
+        #expect(FoodGlyph.honey.categoryLabel == "Pantry")
+        #expect(FoodGlyph.dumpling.categoryLabel == "Other")
+    }
+
     @Test func categoryLabelsUnchangedForExisting() {
         // 라벨 추가일 뿐 기존 의미 변화 없음(회귀 가드).
         #expect(FoodGlyph.tomato.categoryLabel == "Veg")
@@ -52,6 +72,9 @@ struct GlyphTests {
         }
         #expect(try decode("sauceBottle") == .sauceBottle)
         #expect(try decode("avocado") == .avocado)
+        #expect(try decode("eggplant") == .eggplant)
+        #expect(try decode("watermelon") == .watermelon)
+        #expect(try decode("dumpling") == .dumpling)
         #expect(try decode("someFutureGlyph") == .generic)
     }
 }

@@ -2,7 +2,7 @@ import SwiftUI
 
 /// 검증/미리보기용 — 모든 `FoodGlyph` 실루엣을 한 화면 그리드로. 런치 인자 `-glyphGallery`로 표시.
 struct GlyphGalleryView: View {
-    // 35종을 한 화면 그리드로 — 컴팩트 타일(전 글리프를 스크롤 없이 자가 검증).
+    // 52종을 스크롤 그리드로 — 컴팩트 타일(전 글리프를 자가 검증).
     private let columns = [GridItem(.adaptive(minimum: 74), spacing: 10)]
     private let freshes: [Freshness] = [.fresh, .soon, .urgent]
 

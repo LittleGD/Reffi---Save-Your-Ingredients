@@ -119,6 +119,56 @@ struct PaperSilhouette: View {
         static let pumpkinSh = ReffiColor.oklch(0.56, 0.14, 58)
         static let pea     = ReffiColor.oklch(0.60, 0.14, 142)   // 완두 꼬투리
         static let peaBean = ReffiColor.oklch(0.80, 0.13, 138)   // 콩알
+        // v2 신규 17종 전용
+        static let grapeP  = ReffiColor.oklch(0.44, 0.12, 320)   // 포도 알(자주)
+        static let grapePSh = ReffiColor.oklch(0.35, 0.11, 320)
+        static let grapePHi = ReffiColor.oklch(0.55, 0.10, 322)
+        static let wmFlesh = ReffiColor.oklch(0.63, 0.17, 18)    // 수박 과육(핑크레드)
+        static let wmFleshSh = ReffiColor.oklch(0.55, 0.16, 16)
+        static let wmRind  = ReffiColor.oklch(0.52, 0.13, 148)   // 수박 껍질(진초록)
+        static let wmRindHi = ReffiColor.oklch(0.82, 0.12, 140)  // 껍질 안쪽 밴드(연녹)
+        static let pineB   = ReffiColor.oklch(0.75, 0.13, 78)    // 파인애플 몸(황갈)
+        static let pineBSh = ReffiColor.oklch(0.64, 0.13, 74)
+        static let pineBHi = ReffiColor.oklch(0.85, 0.11, 84)
+        static let mangoY  = ReffiColor.oklch(0.83, 0.15, 82)    // 망고 노랑면
+        static let mangoR  = ReffiColor.oklch(0.66, 0.16, 44)    // 망고 붉은면
+        static let mangoSh = ReffiColor.oklch(0.72, 0.14, 66)
+        static let eggpP   = ReffiColor.oklch(0.36, 0.09, 318)   // 가지 보라
+        static let eggpSh  = ReffiColor.oklch(0.28, 0.08, 316)
+        static let eggpHi  = ReffiColor.oklch(0.47, 0.10, 322)
+        static let spSkin  = ReffiColor.oklch(0.47, 0.11, 14)    // 고구마 자주빛
+        static let spSkinSh = ReffiColor.oklch(0.37, 0.10, 12)
+        static let spSkinHi = ReffiColor.oklch(0.57, 0.11, 20)
+        static let gingerB = ReffiColor.oklch(0.79, 0.05, 74)    // 생강 베이지
+        static let gingerBSh = ReffiColor.oklch(0.68, 0.06, 70)
+        static let gingerBHi = ReffiColor.oklch(0.88, 0.04, 80)
+        static let sausageB = ReffiColor.oklch(0.55, 0.12, 34)   // 소시지 링크
+        static let sausageBSh = ReffiColor.oklch(0.46, 0.12, 32)
+        static let sausageBHi = ReffiColor.oklch(0.66, 0.11, 40)
+        static let baconM  = ReffiColor.oklch(0.60, 0.15, 20)    // 베이컨 살
+        static let baconMSh = ReffiColor.oklch(0.51, 0.14, 18)
+        static let crabR   = ReffiColor.oklch(0.60, 0.16, 34)    // 게 껍질(주홍)
+        static let crabRSh = ReffiColor.oklch(0.51, 0.15, 32)
+        static let crabRHi = ReffiColor.oklch(0.70, 0.14, 42)
+        static let squidB  = ReffiColor.oklch(0.91, 0.03, 18)    // 오징어 몸(크림)
+        static let squidBSh = ReffiColor.oklch(0.82, 0.05, 16)
+        static let squidPink = ReffiColor.oklch(0.80, 0.08, 10)  // 오징어 분홍 기
+        static let clamSh1 = ReffiColor.oklch(0.83, 0.045, 68)   // 조개껍질(베이지)
+        static let clamSh1Sh = ReffiColor.oklch(0.71, 0.05, 62)
+        static let clamSh1Hi = ReffiColor.oklch(0.92, 0.035, 74)
+        static let yogurtLbl = ReffiColor.oklch(0.62, 0.14, 18)  // 요거트 라벨 띠(베리)
+        static let butterY = ReffiColor.oklch(0.87, 0.10, 96)    // 버터 블록
+        static let butterYSh = ReffiColor.oklch(0.79, 0.11, 92)
+        static let butterWrap = ReffiColor.oklch(0.66, 0.07, 240) // 버터 포장(포일블루)
+        static let honeyA  = ReffiColor.oklch(0.72, 0.14, 74)    // 꿀(앰버)
+        static let honeyASh = ReffiColor.oklch(0.62, 0.13, 70)
+        static let honeyGlass = ReffiColor.oklch(0.91, 0.03, 90) // 꿀단지 유리
+        static let dough   = ReffiColor.oklch(0.91, 0.03, 84)    // 만두피(크림)
+        static let doughSh = ReffiColor.oklch(0.82, 0.04, 80)
+        static let doughHi = ReffiColor.oklch(0.96, 0.02, 86)
+        static let seaweedDk = ReffiColor.oklch(0.33, 0.055, 156) // 김/미역(진초록)
+        static let seaweedShd = ReffiColor.oklch(0.26, 0.05, 155)
+        static let seaweedGloss = ReffiColor.oklch(0.45, 0.07, 158)
     }
 
     // MARK: Helpers
@@ -209,12 +259,20 @@ struct PaperSilhouette: View {
         case .chili:     chili(r, &ctx)
         case .pumpkin:   pumpkin(r, &ctx)
         case .corn:      corn(r, &ctx)
+        case .eggplant:  eggplant(r, &ctx)
+        case .sweetPotato: sweetPotato(r, &ctx)
+        case .ginger:    ginger(r, &ctx)
+        case .seaweed:   seaweed(r, &ctx)
         // 과일
         case .apple:     apple(r, &ctx)
         case .citrus:    lemon(r, &ctx)
         case .berry:     berry(r, &ctx)
         case .avocado:   avocado(r, &ctx)
         case .banana:    banana(r, &ctx)
+        case .grape:     grape(r, &ctx)
+        case .watermelon: watermelon(r, &ctx)
+        case .pineapple: pineapple(r, &ctx)
+        case .mango:     mango(r, &ctx)
         // 단백질
         case .egg:       egg(r, &ctx)
         case .tofu:      tofu(r, &ctx)
@@ -222,14 +280,23 @@ struct PaperSilhouette: View {
         case .poultry:   drumstick(r, &ctx)
         case .fish:      fish(r, &ctx)
         case .shrimp:    shrimp(r, &ctx)
+        case .sausage:   sausage(r, &ctx)
+        case .bacon:     bacon(r, &ctx)
+        case .crab:      crab(r, &ctx)
+        case .squid:     squid(r, &ctx)
+        case .clam:      clam(r, &ctx)
         // 유제품·곡류·저장식품
         case .milk:      milk(r, &ctx)
         case .cheese:    cheese(r, &ctx)
         case .bread:     bread(r, &ctx)
+        case .yogurt:    yogurt(r, &ctx)
+        case .butter:    butter(r, &ctx)
         case .rice:      rice(r, &ctx)
         case .noodles:   noodles(r, &ctx)
         case .sauceBottle: sauceBottle(r, &ctx)
         case .can:       can(r, &ctx)
+        case .honey:     honey(r, &ctx)
+        case .dumpling:  dumpling(r, &ctx)
         case .generic:   blob(r, &ctx)
         }
     }
@@ -1136,6 +1203,506 @@ struct PaperSilhouette: View {
                      CGPoint(x: cx - w * 0.34, y: top + h * 0.74),
                      CGPoint(x: cx - w * 0.5, y: top + h * 0.74)]),
                 with: .color(ReffiColor.oklch(0.68, 0.14, 28)))
+    }
+
+    // MARK: - v2 신규 17종
+
+    /// 가지 — 보라 각진 곡선체 + 초록 꼭지(calyx)·줄기.
+    private static func eggplant(_ r: CGRect, _ ctx: inout GraphicsContext) {
+        let cx = r.midX, w = r.width * 0.52, topY = r.minY + r.height * 0.22, botY = r.maxY - r.height * 0.06
+        let body = poly([
+            CGPoint(x: cx - w * 0.16, y: topY + r.height * 0.06),
+            CGPoint(x: cx + w * 0.22, y: topY),
+            CGPoint(x: cx + w * 0.50, y: topY + r.height * 0.24),
+            CGPoint(x: cx + w * 0.44, y: botY - r.height * 0.20),
+            CGPoint(x: cx + w * 0.10, y: botY),
+            CGPoint(x: cx - w * 0.32, y: botY - r.height * 0.12),
+            CGPoint(x: cx - w * 0.44, y: topY + r.height * 0.32),
+        ])
+        shadow(&ctx, body, r)
+        fill(&ctx, body, C.eggpP)
+        shadeBody(&ctx, body, dark: C.eggpSh, light: C.eggpHi.opacity(0.7), split: 0.42)
+        // 초록 꼭지(각진 잎 3장) + 줄기
+        let capC = CGPoint(x: cx + w * 0.02, y: topY + r.height * 0.04)
+        for dx in [-0.24, -0.04, 0.18] as [CGFloat] {
+            fill(&ctx, angularLeaf(capC, CGPoint(x: cx + w * dx, y: topY - r.height * 0.08), w * 0.13), C.dGreen)
+        }
+        fill(&ctx, poly([CGPoint(x: cx - w * 0.05, y: topY),
+                         CGPoint(x: cx + w * 0.07, y: topY - r.height * 0.02),
+                         CGPoint(x: cx + w * 0.05, y: topY - r.height * 0.16),
+                         CGPoint(x: cx - w * 0.05, y: topY - r.height * 0.14)]), C.mGreen)
+    }
+
+    /// 고구마 — 자주빛 각진 방추형 + 면분할 결·뿌리 팁.
+    private static func sweetPotato(_ r: CGRect, _ ctx: inout GraphicsContext) {
+        let cx = r.midX, cy = r.midY, w = r.width * 0.84, h = r.height * 0.44
+        let body = poly([
+            CGPoint(x: cx - w * 0.48, y: cy + h * 0.12),
+            CGPoint(x: cx - w * 0.28, y: cy - h * 0.22),
+            CGPoint(x: cx + w * 0.00, y: cy - h * 0.42),
+            CGPoint(x: cx + w * 0.30, y: cy - h * 0.28),
+            CGPoint(x: cx + w * 0.48, y: cy + h * 0.00),
+            CGPoint(x: cx + w * 0.30, y: cy + h * 0.36),
+            CGPoint(x: cx - w * 0.02, y: cy + h * 0.46),
+            CGPoint(x: cx - w * 0.30, y: cy + h * 0.34),
+        ]).applying(rot(-0.24, CGPoint(x: cx, y: cy)))
+        shadow(&ctx, body, r)
+        fill(&ctx, body, C.spSkin)
+        shadeBody(&ctx, body, dark: C.spSkinSh, light: C.spSkinHi.opacity(0.7), split: 0.46)
+        // 밝은 결 한 줄
+        var c = ctx; c.clip(to: body)
+        let groove = poly([CGPoint(x: cx - w * 0.28, y: cy - h * 0.08),
+                           CGPoint(x: cx - w * 0.06, y: cy - h * 0.16),
+                           CGPoint(x: cx + w * 0.24, y: cy - h * 0.02),
+                           CGPoint(x: cx + w * 0.02, y: cy + h * 0.06)]).applying(rot(-0.24, CGPoint(x: cx, y: cy)))
+        c.fill(groove, with: .color(C.spSkinHi.opacity(0.55)))
+    }
+
+    /// 생강 — 베이지 각진 울퉁불퉁 분지형(손가락 마디).
+    private static func ginger(_ r: CGRect, _ ctx: inout GraphicsContext) {
+        let cx = r.midX, cy = r.midY + r.height * 0.04, w = r.width * 0.74, h = r.height * 0.62
+        let body = poly([
+            CGPoint(x: cx - w * 0.42, y: cy + h * 0.12),
+            CGPoint(x: cx - w * 0.46, y: cy - h * 0.16),
+            CGPoint(x: cx - w * 0.20, y: cy - h * 0.28),
+            CGPoint(x: cx - w * 0.08, y: cy - h * 0.48),   // 손가락 마디
+            CGPoint(x: cx + w * 0.06, y: cy - h * 0.26),
+            CGPoint(x: cx + w * 0.24, y: cy - h * 0.42),   // 손가락 마디
+            CGPoint(x: cx + w * 0.34, y: cy - h * 0.16),
+            CGPoint(x: cx + w * 0.46, y: cy + h * 0.08),
+            CGPoint(x: cx + w * 0.28, y: cy + h * 0.34),
+            CGPoint(x: cx - w * 0.02, y: cy + h * 0.28),
+            CGPoint(x: cx - w * 0.24, y: cy + h * 0.42),
+        ])
+        shadow(&ctx, body, r)
+        fill(&ctx, body, C.gingerB)
+        shadeBody(&ctx, body, dark: C.gingerBSh, light: C.gingerBHi, split: 0.5)
+        // 마디 결(각진 어두운 쐐기 두 줄)
+        var c = ctx; c.clip(to: body)
+        for (ax, ay) in [(-0.06, -0.22), (0.20, -0.14)] as [(CGFloat, CGFloat)] {
+            c.fill(poly([CGPoint(x: cx + w * ax, y: cy + h * ay),
+                         CGPoint(x: cx + w * (ax + 0.10), y: cy + h * (ay + 0.04)),
+                         CGPoint(x: cx + w * (ax + 0.06), y: cy + h * (ay + 0.34)),
+                         CGPoint(x: cx + w * (ax - 0.04), y: cy + h * (ay + 0.30))]),
+                    with: .color(C.gingerBSh.opacity(0.55)))
+        }
+    }
+
+    /// 김/미역 — 진초록 각진 김 시트 + 광택 면.
+    private static func seaweed(_ r: CGRect, _ ctx: inout GraphicsContext) {
+        let cx = r.midX, cy = r.midY, w = r.width * 0.70, h = r.height * 0.80
+        let body = poly([
+            CGPoint(x: cx - w * 0.50, y: cy - h * 0.44),
+            CGPoint(x: cx - w * 0.08, y: cy - h * 0.50),
+            CGPoint(x: cx + w * 0.42, y: cy - h * 0.42),
+            CGPoint(x: cx + w * 0.50, y: cy - h * 0.02),
+            CGPoint(x: cx + w * 0.44, y: cy + h * 0.44),
+            CGPoint(x: cx + w * 0.02, y: cy + h * 0.50),
+            CGPoint(x: cx - w * 0.46, y: cy + h * 0.44),
+            CGPoint(x: cx - w * 0.50, y: cy + h * 0.04),
+        ]).applying(rot(0.05, CGPoint(x: cx, y: cy)))
+        shadow(&ctx, body, r)
+        fill(&ctx, body, C.seaweedDk)
+        shadeBody(&ctx, body, dark: C.seaweedShd, split: 0.5)
+        // 광택 면(연초록 대각 두 줄)
+        var c = ctx; c.clip(to: body)
+        c.fill(poly([CGPoint(x: cx - w * 0.36, y: cy - h * 0.40),
+                     CGPoint(x: cx - w * 0.12, y: cy - h * 0.44),
+                     CGPoint(x: cx + w * 0.16, y: cy + h * 0.40),
+                     CGPoint(x: cx - w * 0.08, y: cy + h * 0.44)]),
+                with: .color(C.seaweedGloss.opacity(0.5)))
+        c.fill(poly([CGPoint(x: cx + w * 0.20, y: cy - h * 0.38),
+                     CGPoint(x: cx + w * 0.34, y: cy - h * 0.40),
+                     CGPoint(x: cx + w * 0.30, y: cy + h * 0.10),
+                     CGPoint(x: cx + w * 0.18, y: cy + h * 0.08)]),
+                with: .color(C.seaweedGloss.opacity(0.35)))
+    }
+
+    // MARK: v2 과일
+
+    /// 포도 — 각진 자주 알맹이 클러스터(역삼각) + 초록 잎·줄기.
+    private static func grape(_ r: CGRect, _ ctx: inout GraphicsContext) {
+        let cx = r.midX, topY = r.minY + r.height * 0.30, w = r.width * 0.66
+        let bead = w * 0.30
+        let sx = bead * 0.50, sy = bead * 0.78
+        let anchor = CGPoint(x: cx, y: topY + bead * 0.7)
+        // 줄기 + 잎(클러스터 위)
+        fill(&ctx, poly([CGPoint(x: cx - w * 0.03, y: topY - r.height * 0.02),
+                         CGPoint(x: cx + w * 0.03, y: topY - r.height * 0.02),
+                         CGPoint(x: cx + w * 0.02, y: topY - r.height * 0.18),
+                         CGPoint(x: cx - w * 0.02, y: topY - r.height * 0.18)]), C.brown)
+        fill(&ctx, angularLeaf(CGPoint(x: cx + w * 0.02, y: topY - r.height * 0.08),
+                               CGPoint(x: cx + w * 0.26, y: topY - r.height * 0.20), w * 0.10), C.mGreen)
+        // 알맹이(3-2-1 역삼각) — 뒤(어두운) 먼저, 앞(밝은) 나중
+        let beads: [(CGFloat, CGFloat)] = [(-2, 0), (0, 0), (2, 0), (-1, 1), (1, 1), (0, 2)]
+        shadow(&ctx, facet(anchor.x, anchor.y + sy, bead * 3.2, bead * 3.0, 6), r)
+        for (ux, uy) in beads {
+            let p = CGPoint(x: anchor.x + ux * sx, y: anchor.y + uy * sy)
+            fill(&ctx, facet(p.x, p.y, bead, bead, 7, phase: ux * 2), C.grapeP)
+            shadeBody(&ctx, facet(p.x, p.y, bead, bead, 7, phase: ux * 2), dark: C.grapePSh, light: C.grapePHi.opacity(0.7), split: 0.5)
+        }
+    }
+
+    /// 수박 조각 — 진초록 껍질 + 연녹 밴드 + 핑크레드 과육 + 씨.
+    private static func watermelon(_ r: CGRect, _ ctx: inout GraphicsContext) {
+        let cx = r.midX, cy = r.midY, w = r.width * 0.92, h = r.height * 0.82
+        let arcTop: [CGPoint] = [
+            CGPoint(x: cx - w * 0.48, y: cy - h * 0.16),
+            CGPoint(x: cx - w * 0.26, y: cy - h * 0.34),
+            CGPoint(x: cx + 0.0,      y: cy - h * 0.40),
+            CGPoint(x: cx + w * 0.26, y: cy - h * 0.34),
+            CGPoint(x: cx + w * 0.48, y: cy - h * 0.16),
+        ]
+        let apex = CGPoint(x: cx, y: cy + h * 0.46)
+        func sliceAt(_ off: CGFloat) -> Path { poly(arcTop.map { CGPoint(x: $0.x, y: $0.y + off) } + [apex]) }
+        let outer = sliceAt(0)
+        shadow(&ctx, outer, r)
+        fill(&ctx, outer, C.wmRind)                  // 진초록 껍질
+        fill(&ctx, sliceAt(h * 0.05), C.wmRindHi)    // 연녹 밴드
+        let flesh = sliceAt(h * 0.11)
+        fill(&ctx, flesh, C.wmFlesh)                 // 핑크레드 과육
+        shadeBody(&ctx, flesh, dark: C.wmFleshSh, split: 0.5)
+        // 씨(각진 마름모)
+        for (dx, dy) in [(-0.17, 0.02), (0.15, 0.00), (0.0, 0.18), (-0.09, 0.28), (0.19, 0.22)] as [(CGFloat, CGFloat)] {
+            fill(&ctx, facet(cx + w * dx, cy + h * dy, w * 0.05, h * 0.09, 4), C.brown)
+        }
+    }
+
+    /// 파인애플 — 다이아 격자 황갈 몸통 + 뾰족 잎관.
+    private static func pineapple(_ r: CGRect, _ ctx: inout GraphicsContext) {
+        let cx = r.midX, cy = r.midY + r.height * 0.14, w = r.width * 0.56, h = r.height * 0.62
+        let body = facet(cx, cy, w, h, 8, phase: -.pi / 2 + .pi / 8)
+        // 잎관(뾰족 각진 5장)
+        let crownBase = cy - h * 0.46
+        for (dx, len, col) in [(-0.26, 0.20, C.dGreen), (-0.10, 0.30, C.mGreen), (0.04, 0.34, C.dGreen),
+                               (0.20, 0.26, C.mGreen), (-0.02, 0.22, C.lGreen)] as [(CGFloat, CGFloat, Color)] {
+            let leaf = angularLeaf(CGPoint(x: cx + w * dx * 0.5, y: crownBase),
+                                   CGPoint(x: cx + w * dx, y: crownBase - r.height * len), w * 0.13)
+            fill(&ctx, leaf, col)
+        }
+        shadow(&ctx, body, r)
+        fill(&ctx, body, C.pineB)
+        shadeBody(&ctx, body, dark: C.pineBSh, light: C.pineBHi, split: 0.46)
+        // 다이아 격자(마름모 스케일, 두 톤 교차)
+        var c = ctx; c.clip(to: body)
+        let cols = 3, rows = 5
+        for row in 0..<rows {
+            for col in 0..<cols {
+                let px = cx + (CGFloat(col) - 1) * w * 0.34 + (row % 2 == 0 ? 0 : w * 0.17)
+                let py = cy - h * 0.34 + CGFloat(row) * h * 0.16
+                c.fill(facet(px, py, w * 0.28, h * 0.14, 4),
+                       with: .color((row + col) % 2 == 0 ? C.pineBSh.opacity(0.55) : C.pineBHi.opacity(0.5)))
+            }
+        }
+    }
+
+    /// 망고 — 비대칭 각진 타원 + 빨강→노랑 2톤 면 + 초록 꼭지.
+    private static func mango(_ r: CGRect, _ ctx: inout GraphicsContext) {
+        let cx = r.midX, cy = r.midY, w = r.width * 0.80, h = r.height * 0.66
+        let body = poly([
+            CGPoint(x: cx - w * 0.44, y: cy - h * 0.04),
+            CGPoint(x: cx - w * 0.16, y: cy - h * 0.40),
+            CGPoint(x: cx + w * 0.24, y: cy - h * 0.42),
+            CGPoint(x: cx + w * 0.48, y: cy - h * 0.06),
+            CGPoint(x: cx + w * 0.42, y: cy + h * 0.28),
+            CGPoint(x: cx + w * 0.06, y: cy + h * 0.48),
+            CGPoint(x: cx - w * 0.30, y: cy + h * 0.32),
+        ]).applying(rot(-0.12, CGPoint(x: cx, y: cy)))
+        shadow(&ctx, body, r)
+        fill(&ctx, body, C.mangoY)
+        shadeBody(&ctx, body, dark: C.mangoSh, split: 0.5)
+        // 붉은 볼(상단-좌 면)
+        var c = ctx; c.clip(to: body)
+        c.fill(poly([CGPoint(x: cx - w * 0.5, y: cy - h * 0.5),
+                     CGPoint(x: cx + w * 0.12, y: cy - h * 0.5),
+                     CGPoint(x: cx - w * 0.16, y: cy + h * 0.18),
+                     CGPoint(x: cx - w * 0.5, y: cy + h * 0.06)]),
+                with: .color(C.mangoR))
+        // 초록 꼭지 나머지 컨텍스트에
+        fill(&ctx, poly([CGPoint(x: cx - w * 0.10, y: cy - h * 0.40),
+                         CGPoint(x: cx - w * 0.01, y: cy - h * 0.38),
+                         CGPoint(x: cx - w * 0.02, y: cy - h * 0.54),
+                         CGPoint(x: cx - w * 0.10, y: cy - h * 0.52)]), C.mGreen)
+    }
+
+    // MARK: v2 육류·해산물
+
+    /// 소시지 — 링크 소시지 2개 묶음(각진 캡슐).
+    private static func sausage(_ r: CGRect, _ ctx: inout GraphicsContext) {
+        let cx = r.midX, cy = r.midY
+        func link(_ ct: CGPoint, _ a: CGFloat) -> Path {
+            poly([
+                CGPoint(x: ct.x - r.width * 0.32, y: ct.y - r.height * 0.04),
+                CGPoint(x: ct.x - r.width * 0.24, y: ct.y - r.height * 0.20),
+                CGPoint(x: ct.x + r.width * 0.18, y: ct.y - r.height * 0.22),
+                CGPoint(x: ct.x + r.width * 0.34, y: ct.y - r.height * 0.06),
+                CGPoint(x: ct.x + r.width * 0.32, y: ct.y + r.height * 0.10),
+                CGPoint(x: ct.x - r.width * 0.16, y: ct.y + r.height * 0.14),
+                CGPoint(x: ct.x - r.width * 0.34, y: ct.y + r.height * 0.06),
+            ]).applying(rot(a, ct))
+        }
+        let back = link(CGPoint(x: cx + r.width * 0.06, y: cy - r.height * 0.14), -0.30)
+        let front = link(CGPoint(x: cx - r.width * 0.04, y: cy + r.height * 0.14), 0.24)
+        shadow(&ctx, front, r)
+        fill(&ctx, back, C.sausageBSh)
+        shadeBody(&ctx, back, dark: C.sausageBSh, light: C.sausageB.opacity(0.5), split: 0.5)
+        fill(&ctx, front, C.sausageB)
+        shadeBody(&ctx, front, dark: C.sausageBSh, light: C.sausageBHi.opacity(0.6), split: 0.5)
+        // 묶인 끝(각진 트위스트 매듭)
+        fill(&ctx, facet(cx - r.width * 0.36, cy + r.height * 0.16, r.width * 0.08, r.height * 0.10, 4), C.sausageBSh)
+        fill(&ctx, facet(cx + r.width * 0.36, cy - r.height * 0.20, r.width * 0.08, r.height * 0.10, 4), C.sausageBSh)
+    }
+
+    /// 베이컨 — 물결 스트립 + 지방 줄무늬 면.
+    private static func bacon(_ r: CGRect, _ ctx: inout GraphicsContext) {
+        let cx = r.midX, cy = r.midY, w = r.width * 0.9
+        let amp = r.height * 0.12, thk = r.height * 0.15, n = 4
+        func wave(_ off: CGFloat, _ half: CGFloat) -> Path {
+            var top: [CGPoint] = [], bot: [CGPoint] = []
+            for i in 0...n {
+                let fx = CGFloat(i) / CGFloat(n) - 0.5
+                let x = cx + w * fx
+                let midY = cy + sin(fx * 2 * .pi + 0.7) * amp + off
+                top.append(CGPoint(x: x, y: midY - half))
+                bot.append(CGPoint(x: x, y: midY + half))
+            }
+            return poly(top + bot.reversed())
+        }
+        let strip = wave(0, thk).applying(rot(-0.12, CGPoint(x: cx, y: cy)))
+        shadow(&ctx, strip, r)
+        fill(&ctx, strip, C.baconM)
+        shadeBody(&ctx, strip, dark: C.baconMSh, split: 0.5)
+        // 지방 줄무늬(크림 물결 두 줄)
+        var c = ctx; c.clip(to: strip)
+        for o in [-thk * 0.42, thk * 0.42] as [CGFloat] {
+            c.fill(wave(o, thk * 0.20).applying(rot(-0.12, CGPoint(x: cx, y: cy))), with: .color(C.fat))
+        }
+    }
+
+    /// 게 — 빨강 각진 몸통 + 집게 2 + 다리.
+    private static func crab(_ r: CGRect, _ ctx: inout GraphicsContext) {
+        let cx = r.midX, cy = r.midY + r.height * 0.08, w = r.width * 0.62, h = r.height * 0.40
+        // 다리(각진 3쌍)
+        for s in [-1.0, 1.0] as [CGFloat] {
+            for (ry, len) in [(-0.02, 0.30), (0.18, 0.34), (0.36, 0.28)] as [(CGFloat, CGFloat)] {
+                let leg = angularLeaf(CGPoint(x: cx + s * w * 0.34, y: cy + h * ry),
+                                      CGPoint(x: cx + s * w * (0.34 + len), y: cy + h * (ry + 0.5)), w * 0.05)
+                fill(&ctx, leg, C.crabRSh)
+            }
+        }
+        // 집게(위 두 개) — 각진 핀서(노치 있는 V)
+        func claw(_ o: CGPoint, _ m: CGFloat) -> Path {
+            poly([
+                CGPoint(x: o.x, y: o.y),
+                CGPoint(x: o.x + m * w * 0.04, y: o.y - h * 0.66),
+                CGPoint(x: o.x + m * w * 0.22, y: o.y - h * 0.94),
+                CGPoint(x: o.x + m * w * 0.10, y: o.y - h * 0.60),
+                CGPoint(x: o.x + m * w * 0.28, y: o.y - h * 0.44),
+                CGPoint(x: o.x + m * w * 0.24, y: o.y - h * 0.06),
+            ])
+        }
+        for s in [-1.0, 1.0] as [CGFloat] {
+            let cl = claw(CGPoint(x: cx + s * w * 0.40, y: cy - h * 0.10), s)
+            fill(&ctx, cl, C.crabR)
+            shadeBody(&ctx, cl, dark: C.crabRSh, split: 0.5)
+        }
+        // 몸통(넓은 각진 오벌)
+        let body = facet(cx, cy, w, h, 8)
+        shadow(&ctx, body, r)
+        fill(&ctx, body, C.crabR)
+        shadeBody(&ctx, body, dark: C.crabRSh, light: C.crabRHi, split: 0.5)
+        // 눈 두 개(위)
+        for s in [-1.0, 1.0] as [CGFloat] {
+            fill(&ctx, facet(cx + s * w * 0.16, cy - h * 0.28, w * 0.09, w * 0.09, 6), C.cream)
+            fill(&ctx, facet(cx + s * w * 0.16, cy - h * 0.28, w * 0.04, w * 0.04, 5), ReffiColor.ink)
+        }
+    }
+
+    /// 오징어 — 크림/분홍 몸통(hood) + 다리 프린지.
+    private static func squid(_ r: CGRect, _ ctx: inout GraphicsContext) {
+        let cx = r.midX, w = r.width * 0.50, topY = r.minY + r.height * 0.08, midY = r.midY + r.height * 0.08
+        // 다리 프린지(먼저, 뒤에)
+        let fringeTop = midY + r.height * 0.06
+        for dx in [-0.30, -0.15, 0.0, 0.15, 0.30] as [CGFloat] {
+            let leg = angularLeaf(CGPoint(x: cx + w * dx * 0.8, y: fringeTop),
+                                  CGPoint(x: cx + w * dx * 1.3, y: r.maxY - r.height * 0.06), w * 0.09)
+            fill(&ctx, leg, abs(dx) < 0.01 ? C.squidPink : C.squidBSh)
+        }
+        // 몸통(hood, 위 뾰족)
+        let mantle = poly([
+            CGPoint(x: cx, y: topY),
+            CGPoint(x: cx + w * 0.30, y: topY + r.height * 0.22),
+            CGPoint(x: cx + w * 0.34, y: midY),
+            CGPoint(x: cx + w * 0.22, y: midY + r.height * 0.12),
+            CGPoint(x: cx - w * 0.22, y: midY + r.height * 0.12),
+            CGPoint(x: cx - w * 0.34, y: midY),
+            CGPoint(x: cx - w * 0.30, y: topY + r.height * 0.22),
+        ])
+        shadow(&ctx, mantle, r)
+        fill(&ctx, mantle, C.squidB)
+        shadeBody(&ctx, mantle, dark: C.squidBSh, light: C.squidPink.opacity(0.4), split: 0.5)
+        // 지느러미(양옆 삼각) + 눈
+        for s in [-1.0, 1.0] as [CGFloat] {
+            fill(&ctx, poly([CGPoint(x: cx + s * w * 0.28, y: topY + r.height * 0.16),
+                             CGPoint(x: cx + s * w * 0.42, y: topY + r.height * 0.10),
+                             CGPoint(x: cx + s * w * 0.32, y: topY + r.height * 0.30)]), C.squidPink.opacity(0.7))
+        }
+        fill(&ctx, facet(cx - w * 0.10, midY - r.height * 0.02, w * 0.10, w * 0.10, 6), C.squidBSh)
+        fill(&ctx, facet(cx - w * 0.10, midY - r.height * 0.02, w * 0.05, w * 0.05, 5), ReffiColor.ink)
+    }
+
+    /// 조개 — 부채꼴 각진 조개껍질 + 방사 홈 + 힌지.
+    private static func clam(_ r: CGRect, _ ctx: inout GraphicsContext) {
+        let cx = r.midX, cy = r.midY + r.height * 0.12, w = r.width * 0.82, h = r.height * 0.64
+        let hinge = CGPoint(x: cx, y: cy + h * 0.42)
+        let arc: [CGPoint] = [
+            CGPoint(x: cx - w * 0.48, y: cy - h * 0.04),
+            CGPoint(x: cx - w * 0.26, y: cy - h * 0.32),
+            CGPoint(x: cx + 0.0,      y: cy - h * 0.42),
+            CGPoint(x: cx + w * 0.26, y: cy - h * 0.32),
+            CGPoint(x: cx + w * 0.48, y: cy - h * 0.04),
+        ]
+        let shell = poly([hinge] + arc)
+        shadow(&ctx, shell, r)
+        fill(&ctx, shell, C.clamSh1)
+        shadeBody(&ctx, shell, dark: C.clamSh1Sh, light: C.clamSh1Hi, split: 0.5)
+        // 방사 홈(힌지→아치, 얇은 어두운 쐐기)
+        var c = ctx; c.clip(to: shell)
+        for p in [arc[1], arc[2], arc[3]] {
+            c.fill(poly([hinge, CGPoint(x: p.x - w * 0.035, y: p.y), CGPoint(x: p.x + w * 0.035, y: p.y)]),
+                   with: .color(C.clamSh1Sh.opacity(0.55)))
+        }
+        // 힌지 귀(양옆 작은 삼각) + 힌지 마디
+        for s in [-1.0, 1.0] as [CGFloat] {
+            fill(&ctx, poly([hinge,
+                             CGPoint(x: hinge.x + s * w * 0.16, y: hinge.y - h * 0.04),
+                             CGPoint(x: hinge.x + s * w * 0.10, y: hinge.y + h * 0.10)]), C.clamSh1Sh)
+        }
+    }
+
+    // MARK: v2 유제품
+
+    /// 요거트 — 테이퍼 컵 + 라벨 밴드 + 포일 뚜껑.
+    private static func yogurt(_ r: CGRect, _ ctx: inout GraphicsContext) {
+        let cx = r.midX, w = r.width * 0.58, top = r.minY + r.height * 0.20, bot = r.maxY - r.height * 0.06
+        let cup = poly([
+            CGPoint(x: cx - w * 0.50, y: top),
+            CGPoint(x: cx + w * 0.50, y: top),
+            CGPoint(x: cx + w * 0.36, y: bot),
+            CGPoint(x: cx - w * 0.36, y: bot),
+        ])
+        shadow(&ctx, cup, r)
+        fill(&ctx, cup, C.creamHi)
+        shadeBody(&ctx, cup, dark: C.creamLo, split: 0.5)
+        // 라벨 밴드(베리)
+        var c = ctx; c.clip(to: cup)
+        c.fill(Path(CGRect(x: cx - w * 0.5, y: top + r.height * 0.20, width: w, height: r.height * 0.26)),
+               with: .color(C.yogurtLbl))
+        // 포일 뚜껑(살짝 오버행)
+        let lidTop = top - r.height * 0.05
+        fill(&ctx, poly([CGPoint(x: cx - w * 0.54, y: top),
+                         CGPoint(x: cx - w * 0.42, y: lidTop),
+                         CGPoint(x: cx + w * 0.42, y: lidTop),
+                         CGPoint(x: cx + w * 0.54, y: top)]), C.metalHi)
+        fill(&ctx, poly([CGPoint(x: cx - w * 0.42, y: lidTop),
+                         CGPoint(x: cx + w * 0.42, y: lidTop),
+                         CGPoint(x: cx + w * 0.30, y: lidTop - r.height * 0.05),
+                         CGPoint(x: cx - w * 0.30, y: lidTop - r.height * 0.05)]), C.metalSh)
+    }
+
+    /// 버터 — 노랑 각진 블록(윗면·옆면) + 포일 포장 한 겹.
+    private static func butter(_ r: CGRect, _ ctx: inout GraphicsContext) {
+        let w = r.width * 0.78, h = r.height * 0.44, cx = r.midX, cy = r.midY
+        let front = CGRect(x: cx - w / 2, y: cy - h * 0.16, width: w, height: h * 0.86)
+        let off = w * 0.14
+        let topF = poly([CGPoint(x: front.minX, y: front.minY),
+                         CGPoint(x: front.minX + off, y: front.minY - off * 0.7),
+                         CGPoint(x: front.maxX + off, y: front.minY - off * 0.7),
+                         CGPoint(x: front.maxX, y: front.minY)])
+        let side = poly([CGPoint(x: front.maxX, y: front.minY),
+                         CGPoint(x: front.maxX + off, y: front.minY - off * 0.7),
+                         CGPoint(x: front.maxX + off, y: front.maxY - off * 0.7),
+                         CGPoint(x: front.maxX, y: front.maxY)])
+        let f = Path(front)
+        shadow(&ctx, f, r)
+        fill(&ctx, side, C.butterYSh)
+        fill(&ctx, topF, ReffiColor.oklch(0.91, 0.09, 98))
+        fill(&ctx, f, C.butterY)
+        // 포일 포장(가로 한 겹) + 접힌 모서리
+        var c = ctx; c.clip(to: f)
+        c.fill(Path(CGRect(x: front.minX, y: cy + h * 0.10, width: w, height: h * 0.30)),
+               with: .color(C.butterWrap))
+        c.fill(poly([CGPoint(x: front.minX, y: cy + h * 0.10),
+                     CGPoint(x: front.minX + w * 0.22, y: cy + h * 0.10),
+                     CGPoint(x: front.minX, y: cy + h * 0.34)]),
+               with: .color(C.butterWrap.opacity(0.6)))
+    }
+
+    // MARK: v2 저장식품·기타
+
+    /// 꿀 — 유리 단지 + 앰버 꿀 + 라벨 + 나무 디퍼.
+    private static func honey(_ r: CGRect, _ ctx: inout GraphicsContext) {
+        let cx = r.midX, w = r.width * 0.52, top = r.minY + r.height * 0.18, bot = r.maxY - r.height * 0.06
+        let shoulder = top + r.height * 0.16
+        let jar = poly([
+            CGPoint(x: cx - w * 0.18, y: top),
+            CGPoint(x: cx + w * 0.18, y: top),
+            CGPoint(x: cx + w * 0.18, y: shoulder - r.height * 0.02),
+            CGPoint(x: cx + w * 0.5, y: shoulder + r.height * 0.06),
+            CGPoint(x: cx + w * 0.5, y: bot - r.height * 0.04),
+            CGPoint(x: cx + w * 0.36, y: bot),
+            CGPoint(x: cx - w * 0.36, y: bot),
+            CGPoint(x: cx - w * 0.5, y: bot - r.height * 0.04),
+            CGPoint(x: cx - w * 0.5, y: shoulder + r.height * 0.06),
+            CGPoint(x: cx - w * 0.18, y: shoulder - r.height * 0.02),
+        ])
+        shadow(&ctx, jar, r)
+        fill(&ctx, jar, C.honeyGlass)
+        // 앰버 꿀(단지 하부 채움)
+        var c = ctx; c.clip(to: jar)
+        c.fill(Path(CGRect(x: cx - w * 0.5, y: shoulder + r.height * 0.10, width: w, height: r.height * 0.6)),
+               with: .color(C.honeyA))
+        c.fill(poly([CGPoint(x: cx - w * 0.5, y: bot),
+                     CGPoint(x: cx + w * 0.5, y: shoulder + r.height * 0.30),
+                     CGPoint(x: cx + w * 0.5, y: bot)]),
+               with: .color(C.honeyASh))
+        // 라벨(크림 각진)
+        c.fill(Path(CGRect(x: cx - w * 0.34, y: shoulder + r.height * 0.22, width: w * 0.68, height: r.height * 0.20)),
+               with: .color(C.cream))
+        // 뚜껑(앰버 어둡게)
+        fill(&ctx, Path(CGRect(x: cx - w * 0.20, y: top - r.height * 0.06, width: w * 0.40, height: r.height * 0.08)), C.honeyASh)
+        // 나무 디퍼(대각 스틱 + 마디)
+        let dip = angularLeaf(CGPoint(x: cx + w * 0.30, y: shoulder + r.height * 0.20),
+                              CGPoint(x: cx + w * 0.66, y: top - r.height * 0.10), w * 0.06)
+        fill(&ctx, dip, C.brown)
+    }
+
+    /// 만두 — 주름 접힌 반달 만두(크림 만두피 + 주름 면).
+    private static func dumpling(_ r: CGRect, _ ctx: inout GraphicsContext) {
+        let cx = r.midX, cy = r.midY + r.height * 0.06, w = r.width * 0.82, h = r.height * 0.52
+        let body = poly([
+            CGPoint(x: cx - w * 0.46, y: cy + h * 0.10),
+            CGPoint(x: cx - w * 0.34, y: cy - h * 0.28),
+            CGPoint(x: cx + 0.0,      y: cy - h * 0.44),
+            CGPoint(x: cx + w * 0.34, y: cy - h * 0.28),
+            CGPoint(x: cx + w * 0.46, y: cy + h * 0.10),
+            CGPoint(x: cx + w * 0.30, y: cy + h * 0.40),
+            CGPoint(x: cx - w * 0.30, y: cy + h * 0.40),
+        ])
+        shadow(&ctx, body, r)
+        fill(&ctx, body, C.dough)
+        shadeBody(&ctx, body, dark: C.doughSh, light: C.doughHi.opacity(0.7), split: 0.5)
+        // 주름(윗 크림프 — 각진 V 폴드 교차)
+        var c = ctx; c.clip(to: body)
+        let crimpY = cy - h * 0.26
+        var i = 0
+        for dx in stride(from: CGFloat(-0.34), through: 0.34, by: 0.17) {
+            c.fill(poly([CGPoint(x: cx + w * dx, y: crimpY - h * 0.12),
+                         CGPoint(x: cx + w * (dx + 0.05), y: crimpY + h * 0.08),
+                         CGPoint(x: cx + w * (dx + 0.10), y: crimpY - h * 0.10)]),
+                   with: .color(i % 2 == 0 ? C.doughSh.opacity(0.6) : C.doughHi.opacity(0.6)))
+            i += 1
+        }
     }
 
     /// 일반 — 각진 뉴트럴 블롭.
