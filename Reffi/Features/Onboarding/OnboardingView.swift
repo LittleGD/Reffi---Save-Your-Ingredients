@@ -1,16 +1,23 @@
 import SwiftUI
 import UserNotifications
 
-/// 온보딩 — 가치 3장(기록→레시피→리포트) + 개인화 2장(가구·취향) + 알림 프라이밍 1장.
-/// 혜택 중심 카피, 언제든 건너뛰기 가능, 개인화 답은 ProfileStore에 바로 저장(가입 전이어도 로컬 유지).
+/// 온보딩 — [인트로] 가치 3장(기록→레시피→리포트): 하단 버튼 없이 스와이프, 마지막 장에서 "Let's Start" 등장.
+///        [셋업 시트] "Let's Start" → 하단에서 올라오는 시트에서 개인화(가구·취향) + 알림 프라이밍을 Next로 진행.
+/// 인트로/셋업 각각 3점 인디케이터. 혜택 중심 카피, 언제든 건너뛰기, 답은 ProfileStore에 즉시 저장(가입 전이어도 로컬 유지).
 struct OnboardingView: View {
     @Environment(ProfileStore.self) private var profile
     @Environment(FridgeStore.self) private var store
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let onFinish: () -> Void
 
-    @State private var page = 0
-    private let last = 5
+    @State private var page = 0             // 인트로 페이지 0…introLast
+    @State private var showSetup = false    // "Let's Start" → 하단에서 올라오는 셋업 시트
+    @State private var setupPage = 0        // 셋업 시트 내 페이지 0…setupLast
+    @State private var stamping = false     // 셋업 완료 시 "Start" 도장 슬램 연출
+    @State private var stampScale: CGFloat = 2.4
+    @State private var stampOpacity: Double = 0
+    private let introLast = 2               // 인트로 마지막 장(page 2) — 여기서 "Let's Start"로 셋업 시트를 연다
+    private let setupLast = 2               // 셋업 3장(가구·취향·알림)의 마지막
 
     init(onFinish: @escaping () -> Void) {
         self.onFinish = onFinish
@@ -19,7 +26,16 @@ struct OnboardingView: View {
         let args = ProcessInfo.processInfo.arguments
         if let i = args.firstIndex(of: "-onboardingPage"), i + 1 < args.count,
            let n = Int(args[i + 1]) {
-            _page = State(initialValue: min(max(0, n), last))
+            _page = State(initialValue: min(max(0, n), introLast))
+        }
+        // 셋업 시트 QA — `-onboardingSetup`으로 시트를 바로 열고, `-onboardingSetupPage N`으로 특정 장 직행.
+        if args.contains("-onboardingSetup") {
+            _showSetup = State(initialValue: true)
+        }
+        if let i = args.firstIndex(of: "-onboardingSetupPage"), i + 1 < args.count,
+           let n = Int(args[i + 1]) {
+            _setupPage = State(initialValue: min(max(0, n), setupLast))
+            _showSetup = State(initialValue: true)
         }
         #endif
     }
@@ -42,16 +58,17 @@ struct OnboardingView: View {
                               title: "Days without waste\nadd up to a report",
                               body: "Watch your no-waste streak and savings grow.")
                         .tag(2)
-                    householdPage.tag(3)
-                    cuisinePage.tag(4)
-                    notifyPage.tag(5)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
                 .animation(motion, value: page)
 
-                dots
+                introDots
                 bottomButton
             }
+        }
+        // "Let's Start" → 하단에서 올라와 화면 전체를 덮는 셋업(개인화·알림). Start cooking과 동일한 풀스크린 커버.
+        .fullScreenCover(isPresented: $showSetup) {
+            setupSheet
         }
     }
 
@@ -74,9 +91,7 @@ struct OnboardingView: View {
             Text("Reffi").reffiType(.display).foregroundStyle(ReffiColor.blueDark)
                 .scaleEffect(0.62, anchor: .leading)   // 워드마크 축소 배치(위계는 페이지 타이틀에)
             Spacer()
-            if page < last {
-                QuietButton(title: "Skip", tint: ReffiColor.ink2) { onFinish() }
-            }
+            QuietButton(title: "Skip", tint: ReffiColor.ink2) { onFinish() }
         }
         .padding(.horizontal, ReffiGrid.margin)
         .padding(.top, ReffiSpace.s3)
@@ -86,18 +101,23 @@ struct OnboardingView: View {
 
     private func valuePage<H: View>(@ViewBuilder hero: () -> H,
                                     title: LocalizedStringKey, body copy: LocalizedStringKey) -> some View {
-        VStack(alignment: .leading, spacing: ReffiSpace.s5) {
+        VStack(alignment: .center, spacing: ReffiSpace.s5) {
             Spacer(minLength: 0)
             hero()
                 .frame(maxWidth: .infinity)
                 .padding(.bottom, ReffiSpace.s4)
 
-            // 영문 디스플레이 = Story Script(§3.1 브랜드 모먼트 — 워드마크·온보딩 타이틀).
+            // 영문 디스플레이 = Story Script(§3.1 브랜드 모먼트 — 워드마크·온보딩 타이틀). 인트로 카피는 가운데 정렬.
             Text(title)
                 .reffiType(.display)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
                 .foregroundStyle(ReffiColor.ink)
             Text(copy)
-                .reffiType(.body).foregroundStyle(ReffiColor.ink2)
+                .reffiType(.body)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
+                .foregroundStyle(ReffiColor.ink2)
             Spacer(minLength: 0)
         }
         .padding(.horizontal, ReffiGrid.margin + ReffiSpace.s2)
@@ -277,31 +297,125 @@ struct OnboardingView: View {
 
     // MARK: 하단 — 페이지 점 + 진행 버튼
 
-    private var dots: some View {
+    /// 인트로 3점 인디케이터.
+    private var introDots: some View {
         HStack(spacing: 6) {
-            ForEach(0...last, id: \.self) { i in
+            ForEach(0...introLast, id: \.self) { i in
                 Circle()
                     .fill(i == page ? ReffiColor.ink2 : ReffiColor.muted.opacity(0.3))
                     .frame(width: 7, height: 7)
             }
         }
         .padding(.bottom, ReffiSpace.s4)
-        .accessibilityLabel("Page \(page + 1) of \(last + 1)")
+        .animation(motion, value: page)
+        .accessibilityElement()
+        .accessibilityLabel("Intro \(page + 1) of \(introLast + 1)")
     }
 
+    /// 인트로 하단 — 마지막 장에서만 "Let's Start"(셋업 시트 오픈). 그 전엔 스와이프로 이동.
     @ViewBuilder private var bottomButton: some View {
         VStack(spacing: ReffiSpace.s1) {
-            if page == last {
+            if page == introLast {
+                PaperButton(title: "Let's Start", seed: 2) {
+                    showSetup = true
+                }
+                .transition(.opacity.combined(with: .move(edge: .bottom)))
+            }
+            // page < introLast: 하단 버튼 없음 — 스와이프로 이동, 인디케이터만 노출.
+        }
+        .frame(maxWidth: .infinity, minHeight: 52)   // 버튼 유무와 무관하게 높이 예약 → 인트로 스와이프 시 점 위치 고정
+        .padding(.horizontal, ReffiGrid.margin + ReffiSpace.s2)
+        .padding(.bottom, ReffiSpace.s5)
+        .animation(motion, value: page)
+    }
+
+    // MARK: 셋업 시트 — "Let's Start"로 하단에서 올라오는 개인화(가구·취향) + 알림 프라이밍
+
+    private var setupSheet: some View {
+        ZStack {
+            LiquidGlassBackground(accent: ReffiColor.blue)
+            VStack(spacing: 0) {
+                // 상단 — 디스플레이 폰트(Story Script)로 현재 단계를 가운데 표기.
+                Text("Step \(setupPage + 1)")
+                    .reffiType(.display)
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(ReffiColor.ink)
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, ReffiSpace.s5 + 20)              // 그래버 대신 상태바에서 ~20px 내림
+                    .padding(.bottom, ReffiSpace.s2)
+                    .accessibilityLabel("Step \(setupPage + 1) of \(setupLast + 1)")
+
+                TabView(selection: $setupPage) {
+                    householdPage.tag(0)
+                    cuisinePage.tag(1)
+                    notifyPage.tag(2)
+                }
+                .tabViewStyle(.page(indexDisplayMode: .never))
+                .animation(motion, value: setupPage)
+
+                setupDots
+                setupButton
+            }
+        }
+        // 셋업 완료 시 "Start" 도장이 위에서 쾅 찍히는 연출.
+        .overlay { if stamping { startStamp } }
+    }
+
+    /// "Start" 도장 슬램 — 큰 상태에서 스프링으로 내려앉으며(오버슈트) 임팩트 햅틱.
+    private var startStamp: some View {
+        ZStack {
+            Color.black.opacity(0.10).ignoresSafeArea()
+            DDayStamp(text: "Start", color: ReffiColor.blueDark, size: 46)
+                .scaleEffect(stampScale)
+                .opacity(stampOpacity)
+                .shadow(color: .black.opacity(0.18), radius: 14, y: 8)
+        }
+        .sensoryFeedback(.impact(weight: .heavy), trigger: stamping)
+        .onAppear {
+            let anim: Animation = reduceMotion
+                ? .easeOut(duration: 0.2)
+                : .spring(response: 0.26, dampingFraction: 0.5)   // 오버슈트 = 쾅
+            withAnimation(anim) { stampScale = 1; stampOpacity = 1 }
+        }
+    }
+
+    /// 셋업 완료 — 도장을 찍고 잠깐 뒤 온보딩 종료(게이트 → 메인 앱).
+    private func finishWithStamp() {
+        guard !stamping else { return }
+        stamping = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.75) { onFinish() }
+    }
+
+    /// 셋업 하단 3점 인디케이터.
+    private var setupDots: some View {
+        HStack(spacing: 6) {
+            ForEach(0...setupLast, id: \.self) { i in
+                Circle()
+                    .fill(i == setupPage ? ReffiColor.ink2 : ReffiColor.muted.opacity(0.3))
+                    .frame(width: 7, height: 7)
+            }
+        }
+        .frame(maxWidth: .infinity)               // 가로 가운데 정렬
+        .padding(.bottom, ReffiSpace.s4)
+        .animation(motion, value: setupPage)
+        .accessibilityElement()
+        .accessibilityLabel("Setup \(setupPage + 1) of \(setupLast + 1)")
+    }
+
+    /// 셋업 하단 — 마지막(알림)에서만 시작 버튼, 그 전엔 Next.
+    @ViewBuilder private var setupButton: some View {
+        VStack(spacing: ReffiSpace.s1) {
+            if setupPage == setupLast {
                 PaperButton(title: "Turn on alerts & start", seed: 2) { requestNotifications() }
                 QuietButton(title: "Maybe later", tint: ReffiColor.ink2) {
                     // 알림 SSOT = ExpiryNotifier 키. 프로필 토글이 같은 키를 읽는다.
                     UserDefaults.standard.set(false, forKey: ExpiryNotifier.enabledKey)
-                    onFinish()
+                    finishWithStamp()
                 }
                 .frame(maxWidth: .infinity)
             } else {
                 PaperButton(title: "Next", seed: 2) {
-                    withAnimation(motion) { page += 1 }
+                    withAnimation(motion) { setupPage += 1 }
                 }
             }
         }
@@ -316,7 +430,7 @@ struct OnboardingView: View {
                 // 알림 SSOT = ExpiryNotifier 키. 권한이 나면 임박 알림을 켜고 재스케줄한다.
                 UserDefaults.standard.set(granted, forKey: ExpiryNotifier.enabledKey)
                 if granted { ExpiryNotifier.reschedule(for: store.ingredients) }
-                onFinish()
+                finishWithStamp()
             }
         }
     }
