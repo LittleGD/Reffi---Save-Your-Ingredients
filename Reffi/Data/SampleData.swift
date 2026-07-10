@@ -9,6 +9,7 @@ enum SampleData {
         Ingredient(name: "Beef",     category: "Meat · Beef",     daysLeft: 0, quantity: Quantity(value: 300, unit: .gram),  glyph: .meat,     place: "Costco",      boughtDaysAgo: 2),
         Ingredient(name: "Spinach",  category: "Veg · Leafy",     daysLeft: 1, quantity: Quantity(value: 1, unit: .bunch),   glyph: .leaf,     place: "Emart",       boughtDaysAgo: 3),
         Ingredient(name: "Salmon",   category: "Seafood · Fish",  daysLeft: 1, quantity: Quantity(value: 1, unit: .piece),   glyph: .fish,     place: "Costco",      boughtDaysAgo: 1),
+        Ingredient(name: "Dumplings", category: "Frozen · Mandu", daysLeft: 30, quantity: Quantity(value: 1, unit: .pack),  glyph: .meat,     place: "Costco",      storage: .freezer, boughtDaysAgo: 10),
         Ingredient(name: "Mushroom", category: "Veg · Fungi",     daysLeft: 2, quantity: Quantity(value: 1, unit: .pack),    glyph: .mushroom, place: "Emart",       boughtDaysAgo: 2),
         Ingredient(name: "Eggs",     category: "Dairy · Eggs",    daysLeft: 2, quantity: Quantity(value: 4, unit: .piece),   glyph: .egg,      place: "Emart",       boughtDaysAgo: 4),
         Ingredient(name: "Tomato",   category: "Veg · Fruit",     daysLeft: 3, quantity: Quantity(value: 3, unit: .piece),   glyph: .tomato,   place: "Hanaro Mart", storage: .room,   boughtDaysAgo: 3),
