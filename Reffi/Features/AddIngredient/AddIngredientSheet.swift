@@ -35,6 +35,7 @@ struct ManualAddForm: View {
     @State private var name = ""
     @State private var expiresAt = Ingredient.day(offset: 3)
     @State private var expiryTouched = false     // 사용자가 날짜를 만졌으면 스마트 기본값 중지
+    @State private var lastProgrammaticExpiry: Date?   // applySmartExpiry가 마지막으로 대입한 값 — 자동채움 식별용
     @State private var quantityValue: Double = 1
     @State private var unit: IngredientUnit = .piece
     @State private var place = ""
@@ -54,12 +55,18 @@ struct ManualAddForm: View {
     /// 재입고(쇼핑리스트) 진입 — 단건 의도라 저장 후 시트를 닫는다.
     private var isRestock: Bool { !prefillName.isEmpty }
 
+    /// 첫 사용자 시드 칩 — '재료 지식'이 아니라 온보딩 UX 순서(무엇을 먼저 보여줄지)라 코드 상수로 둔다.
+    /// 재료 자체의 사실(글리프·기한 등)은 여전히 IngredientLexicon(JSON)에서만 나온다.
+    private static let seedCanonicalIDs = ["egg", "milk", "onion", "green-onion", "tofu", "kimchi", "potato", "apple"]
+
     /// 제안 칩 — 입력 중엔 사전 매칭, 비어 있으면 자주 쓰는 이력(재구매 패턴).
+    /// 이력조차 없는 첫 사용자는 사전 대표 재료(seedCanonicalIDs)로 폴백해 빈 화면을 피한다.
     private var suggestions: [String] {
         if trimmedName.isEmpty {
             var seen = Set<String>()
-            return store.toBuy.map(\.name).filter { seen.insert($0.lowercased()).inserted }
-                .prefix(6).map { $0 }
+            let history = store.toBuy.map(\.name).filter { seen.insert($0.lowercased()).inserted }
+            if !history.isEmpty { return Array(history.prefix(6)) }
+            return Self.seedCanonicalIDs.compactMap { IngredientLexicon.shared.entry(id: $0)?.displayName }
         }
         let fromLexicon = IngredientLexicon.shared.suggestions(matching: trimmedName)
             .map(\.displayName)
@@ -186,12 +193,32 @@ struct ManualAddForm: View {
                         .labelsHidden()
                         .datePickerStyle(.compact)
                         .tint(ReffiColor.blue)
-                        .onChange(of: expiresAt) { _, _ in
-                            // 프로그램이 바꾼 게 아니라면(플래그) 사용자의 선택으로 간주.
-                            if !applyingSmartExpiry { expiryTouched = true }
+                        .onChange(of: expiresAt) { _, newValue in
+                            // 값 비교로 자동채움과 사용자 선택을 구분 — 플래그·DispatchQueue.async 없이 결정론적.
+                            // applySmartExpiry가 직전에 기록한 값과 같으면 프로그램 변경, 아니면 사용자 터치.
+                            // 우연히 자동값과 같은 날짜를 고르면 touched가 안 서지만, 값이 동일하므로 실해 없음.
+                            if newValue != lastProgrammaticExpiry { expiryTouched = true }
                         }
                 }
                 .frame(minHeight: 44)
+
+                expiryHintCaption
+            }
+        }
+    }
+
+    /// Use by 아래 상태 캡션 — 사전 매칭+해당 보관 기본값 존재는 실제 일수와 함께 조용히,
+    /// 미매칭(D+3 폴백)은 확인을 유도하는 톤. 사용자가 날짜를 만지면(expiryTouched) 간섭하지 않게 숨긴다.
+    /// 저장 로직은 건드리지 않는 순수 파생 표시 — applySmartExpiry/lastProgrammaticExpiry를 읽기만 한다.
+    @ViewBuilder
+    private var expiryHintCaption: some View {
+        if !expiryTouched, !trimmedName.isEmpty {
+            if let days = IngredientLexicon.shared.shelfLifeDays(for: trimmedName, storage: storage) {
+                Text("\(storage.label) default · \(days)d")
+                    .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
+            } else {
+                Text("Not in the dictionary — please check the date")
+                    .reffiType(.caption).foregroundStyle(ReffiColor.soonDark)
             }
         }
     }
@@ -330,15 +357,15 @@ struct ManualAddForm: View {
 
     // MARK: - 스마트 기본값
 
-    @State private var applyingSmartExpiry = false
-
     /// 사전 기반 기본 소비기한 — 이름·보관이 바뀔 때마다, 사용자가 날짜를 만지기 전까지만.
+    /// 대입 전에 값을 `lastProgrammaticExpiry`에 기록해, onChange(expiresAt)가 이 자동채움을
+    /// 사용자 터치로 오기록하지 않게 한다(플래그·async 실행 순서 의존 제거).
     private func applySmartExpiry() {
         guard !expiryTouched else { return }
         let smart = IngredientLexicon.shared.defaultExpiry(for: trimmedName, storage: storage)
-        applyingSmartExpiry = true
-        expiresAt = smart ?? Ingredient.day(offset: 3)
-        DispatchQueue.main.async { applyingSmartExpiry = false }
+            ?? Ingredient.day(offset: 3)
+        lastProgrammaticExpiry = smart   // 대입 전 기록 — onChange가 프로그램 변경으로 식별
+        expiresAt = smart
     }
 
     /// 첫 표시 구성 — 프로필 기본 수량/단위를 깔고, 재입고면 이름 + 직전 이력 스냅샷

@@ -60,6 +60,7 @@ struct Ingredient: Identifiable, Codable, Equatable {
     var id: UUID
     var name: String              // "연두부"
     var category: String          // 글리프에서 파생된 카테고리 라벨
+    var canonicalID: String?      // 정본 사전 캐논 ID — 표기 무관 매칭 키. nil = 미해석·사전 밖(스토어가 해석·승격)
     var expiresAt: Date           // 소비기한(자정 기준 일 단위) — 냉동해도 불변(원본)
     var quantity: Quantity        // 수량 — 수치 + 단위(부분 소비·환산 가능)
     var glyph: FoodGlyph
@@ -74,10 +75,12 @@ struct Ingredient: Identifiable, Codable, Equatable {
     init(id: UUID = UUID(), name: String, category: String, expiresAt: Date,
          quantity: Quantity = Quantity(value: 1, unit: .piece),
          glyph: FoodGlyph? = nil, place: String = "",
-         storage: StorageLocation = .fridge, purchasedAt: Date? = nil, frozenAt: Date? = nil) {
+         storage: StorageLocation = .fridge, purchasedAt: Date? = nil, frozenAt: Date? = nil,
+         canonicalID: String? = nil) {
         self.id = id
         self.name = name
         self.category = category
+        self.canonicalID = canonicalID
         self.expiresAt = expiresAt
         self.quantity = quantity
         self.glyph = glyph ?? FoodGlyph.match(name)
@@ -99,7 +102,7 @@ struct Ingredient: Identifiable, Codable, Equatable {
     // MARK: - Codable (v1 마이그레이션)
 
     private enum CodingKeys: String, CodingKey {
-        case id, name, category, expiresAt, quantity, glyph, place, storage, purchasedAt, frozenAt
+        case id, name, category, canonicalID, expiresAt, quantity, glyph, place, storage, purchasedAt, frozenAt
         case amount   // v1 레거시(자유 문자열) — 읽기 전용
     }
 
@@ -108,6 +111,7 @@ struct Ingredient: Identifiable, Codable, Equatable {
         id = try c.decode(UUID.self, forKey: .id)
         name = try c.decode(String.self, forKey: .name)
         category = try c.decode(String.self, forKey: .category)
+        canonicalID = try c.decodeIfPresent(String.self, forKey: .canonicalID)   // 레거시 파일엔 없음 → nil(로드 시 승격)
         expiresAt = try c.decode(Date.self, forKey: .expiresAt)
         glyph = try c.decode(FoodGlyph.self, forKey: .glyph)
         place = try c.decode(String.self, forKey: .place)
@@ -128,6 +132,7 @@ struct Ingredient: Identifiable, Codable, Equatable {
         try c.encode(id, forKey: .id)
         try c.encode(name, forKey: .name)
         try c.encode(category, forKey: .category)
+        try c.encode(canonicalID, forKey: .canonicalID)   // 항상 기록(nil이면 null) — 해석 결과를 영속화
         try c.encode(expiresAt, forKey: .expiresAt)
         try c.encode(quantity, forKey: .quantity)
         try c.encode(glyph, forKey: .glyph)
@@ -136,6 +141,10 @@ struct Ingredient: Identifiable, Codable, Equatable {
         try c.encode(purchasedAt, forKey: .purchasedAt)
         try c.encodeIfPresent(frozenAt, forKey: .frozenAt)
     }
+
+    /// 재료 동일성 키 — 표기(양파/onion) 무관. 캐논 ID가 있으면 그것, 없으면 이름 소문자(사전 밖·미해석).
+    /// 중복 판정·쇼핑리스트·재입고 조회의 공통 기준(§개발규칙 — 정규화 키로 저장, 표시만 로케일).
+    var matchKey: String { canonicalID ?? name.lowercased() }
 
     // MARK: - 시간 모델 (asOf 주입 — 테스트에서 자정 경계·타임존 검증 가능)
 

@@ -79,6 +79,7 @@ final class FridgeStore {
         counterIDs = snap?.counterIDs ?? []
         activeCook = snap?.activeCook
         userRecipes = snap?.userRecipes ?? []
+        resolveCanonicalIDs()   // 레거시 데이터 승격(nil→사전) — persist는 다음 변이 때 자연 기록
         let have = Set(ingredients.map(\.id))
         counterIDs.removeAll { !have.contains($0) }   // 스테일 정리
         replenishCounter()
@@ -97,7 +98,28 @@ final class FridgeStore {
         archivedTossed = 0
         dismissedToBuy = []
         counterIDs = []
+        resolveCanonicalIDs()   // 메모리 스토어도 로드 규칙과 일관되게 해석(프리뷰·테스트)
         replenishCounter()
+    }
+
+    /// nil canonicalID를 사전으로 1회 해석 — 재료·이력 모두 승격(표기 무관 매칭의 전제).
+    /// 레거시 파일·샘플 데이터는 캐논 키가 없어, 로드 시 한 번 채워야 교차 표기(양파↔onion) 매칭이 산다.
+    private func resolveCanonicalIDs() {
+        let lex = IngredientLexicon.shared
+        for i in ingredients.indices where ingredients[i].canonicalID == nil {
+            ingredients[i].canonicalID = lex.canonicalID(for: ingredients[i].name)
+        }
+        for i in history.indices where history[i].canonicalID == nil {
+            history[i].canonicalID = lex.canonicalID(for: history[i].name)
+        }
+    }
+
+    /// dismissedToBuy 저장값 → matchKey 정규화. 캐논 ID로 저장된 값은 그대로, 그 외는 이름으로 해석
+    /// (레거시 저장값=원문 이름 호환). 캐논 ID를 name 조회에 넣으면 포함 매칭 오탐이 나므로 먼저 ID 판별.
+    private func dismissKey(_ stored: String) -> String {
+        let lex = IngredientLexicon.shared
+        if lex.entry(id: stored) != nil { return stored }
+        return lex.canonicalID(for: stored) ?? stored.lowercased()
     }
 
     struct Snapshot: Codable {
@@ -221,11 +243,17 @@ final class FridgeStore {
     /// 일괄 추가(영수증 스캔) — N개를 넣어도 스냅샷 기록·알림 재스케줄은 1회만.
     func add(contentsOf newItems: [Ingredient]) {
         guard !newItems.isEmpty else { return }
-        for ingredient in newItems {
+        let lex = IngredientLexicon.shared
+        for item in newItems {
+            var ingredient = item
+            if ingredient.canonicalID == nil {   // 해석 시점 — 미해석 재료를 캐논 키로 승격
+                ingredient.canonicalID = lex.canonicalID(for: ingredient.name)
+            }
             ingredients.append(ingredient)
             if !counterIDs.contains(ingredient.id) { counterIDs.append(ingredient.id) }
-            let key = ingredient.name.lowercased()
-            dismissedToBuy = Set(dismissedToBuy.filter { $0.lowercased() != key })
+            // 재입고면 '이번엔 안 사기'를 해제 — matchKey(캐논/이름) 기준으로 비교.
+            let key = ingredient.matchKey
+            dismissedToBuy = dismissedToBuy.filter { dismissKey($0) != key }
         }
         persist()
     }
@@ -237,6 +265,7 @@ final class FridgeStore {
         if ingredients[i].name != ingredient.name {
             updated.glyph = FoodGlyph.match(ingredient.name)
             updated.category = updated.glyph.categoryLabel
+            updated.canonicalID = IngredientLexicon.shared.canonicalID(for: ingredient.name)   // 이름 바뀌면 캐논 키 재해석
         }
         ingredients[i] = updated
         persist()
@@ -358,7 +387,8 @@ final class FridgeStore {
     /// (Fridge 탭에서 예약 재료를 판정해도 'N used' 카운트·완료 시트가 어긋나지 않게).
     @discardableResult
     private func removeLogging(_ ing: Ingredient, wasted: Bool, via: String?) -> RemovalLog {
-        let log = RemovalLog(name: ing.name, glyph: ing.glyph, wasted: wasted, via: via, snapshot: ing)
+        let log = RemovalLog(name: ing.name, glyph: ing.glyph, canonicalID: ing.canonicalID,
+                             wasted: wasted, via: via, snapshot: ing)
         history.insert(log, at: 0)
         ingredients.removeAll { $0.id == ing.id }
         counterIDs.removeAll { $0 == ing.id }
@@ -505,11 +535,12 @@ final class FridgeStore {
     // MARK: - 사야 할 식재료(쇼핑 리스트)
 
     /// 자주 쓰는데(이력에 있는데) 지금 냉장고엔 없는 = 사야 할 식재료. 빈도 많은 순.
-    /// 비교는 전부 소문자 정규화 — 표기(Milk/milk)가 달라도 한 품목으로 묶인다. 표시는 최근 로그의 원문.
+    /// 비교는 전부 matchKey(캐논 ID 우선) — 표기(Milk/milk, 양파/onion)가 달라도 한 품목으로 묶인다.
+    /// 표시는 최근 로그의 원문.
     var toBuy: [(name: String, glyph: FoodGlyph)] {
-        let inStock = Set(ingredients.map { $0.name.lowercased() })
-        let dismissed = Set(dismissedToBuy.map { $0.lowercased() })
-        let grouped = Dictionary(grouping: history) { $0.name.lowercased() }
+        let inStock = Set(ingredients.map(\.matchKey))
+        let dismissed = Set(dismissedToBuy.map(dismissKey))
+        let grouped = Dictionary(grouping: history) { $0.matchKey }
         return grouped
             .compactMap { key, logs -> (name: String, glyph: FoodGlyph, count: Int)? in
                 guard let first = logs.first,   // history는 최신이 앞 → 최근 표기
@@ -521,16 +552,16 @@ final class FridgeStore {
             .map { (name: $0.name, glyph: $0.glyph) }
     }
 
-    /// 이번엔 안 사기 — 쇼핑 리스트에서 제외.
+    /// 이번엔 안 사기 — 쇼핑 리스트에서 제외. 캐논 키(없으면 이름 소문자)로 저장해 표기 무관 비교.
     func skipBuy(_ name: String) {
-        dismissedToBuy.insert(name)
+        dismissedToBuy.insert(IngredientLexicon.shared.canonicalID(for: name) ?? name.lowercased())
         persist(reschedulesAlerts: false)   // 재료 불변
     }
 
-    /// 이름으로 최근 이력 스냅샷 조회 — 재입고 프리필(보관·구매처·수량 복원)용.
+    /// 이름으로 최근 이력 스냅샷 조회 — 재입고 프리필(보관·구매처·수량 복원)용. matchKey로 교차 표기 조회.
     func lastSnapshot(named name: String) -> Ingredient? {
-        let key = name.lowercased()
-        return history.first { $0.name.lowercased() == key && $0.snapshot != nil }?.snapshot
+        let key = IngredientLexicon.shared.canonicalID(for: name) ?? name.lowercased()
+        return history.first { $0.matchKey == key && $0.snapshot != nil }?.snapshot
     }
 
     // MARK: - 데이터 관리 (MyPage)
@@ -545,6 +576,7 @@ final class FridgeStore {
         counterIDs = []
         pendingUndo = nil
         activeCook = nil
+        resolveCanonicalIDs()   // 샘플 데이터도 캐논 키 승격(매칭 일관성)
         replenishCounter()
         persist()
     }

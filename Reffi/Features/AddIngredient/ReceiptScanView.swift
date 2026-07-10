@@ -13,13 +13,15 @@ struct ReceiptScanView: View {
     enum Phase {
         case pick                          // 소스 선택(카메라/사진)
         case processing                    // OCR 진행
-        case review([ReceiptParser.Candidate])
+        case review                        // 확인 리스트(후보는 `candidates` 상태)
     }
 
     @State private var phase: Phase = .pick
     @State private var showCamera = false
     @State private var photoItems: [PhotosPickerItem] = []
+    @State private var candidates: [EditableCandidate] = []
     @State private var selected: Set<UUID> = []
+    @State private var editingCandidate: EditableCandidate?   // 인라인 편집 시트 대상(연필 아이콘)
     @State private var addedHaptic = 0
 
     private var cameraAvailable: Bool { VNDocumentCameraViewController.isSupported }
@@ -39,6 +41,13 @@ struct ReceiptScanView: View {
             }
             .ignoresSafeArea()
         }
+        .sheet(item: $editingCandidate) { candidate in
+            CandidateEditSheet(candidate: candidate) { updated in
+                if let idx = candidates.firstIndex(where: { $0.id == updated.id }) {
+                    candidates[idx] = updated
+                }
+            }
+        }
         .onChange(of: photoItems) { _, items in
             guard !items.isEmpty else { return }
             Task { await loadPhotos(items) }
@@ -49,7 +58,7 @@ struct ReceiptScanView: View {
         switch phase {
         case .pick: pickSource
         case .processing: processing
-        case .review(let candidates): review(candidates)
+        case .review: review
         }
     }
 
@@ -121,7 +130,7 @@ struct ReceiptScanView: View {
 
     // MARK: - 확인 리스트
 
-    @ViewBuilder private func review(_ candidates: [ReceiptParser.Candidate]) -> some View {
+    @ViewBuilder private var review: some View {
         if candidates.isEmpty {
             VStack(spacing: ReffiSpace.s3) {
                 Text("Nothing recognized").reffiType(.subhead).foregroundStyle(ReffiColor.ink)
@@ -149,7 +158,7 @@ struct ReceiptScanView: View {
                 }
                 .listStyle(.plain)
                 .scrollContentBackground(.hidden)
-                PaperButton(title: "Add \(selected.count) items") { add(candidates) }
+                PaperButton(title: "Add \(selected.count) items") { add() }
                     .padding(.horizontal, ReffiGrid.margin)
                     .padding(.vertical, ReffiSpace.s3)
                     .disabled(selected.isEmpty)
@@ -158,27 +167,73 @@ struct ReceiptScanView: View {
         }
     }
 
-    private func candidateRow(_ c: ReceiptParser.Candidate) -> some View {
+    /// 후보 행 — 좌: 선택 체크(44pt), 가운데: 이름(+추정 배지)·원문·수량, 우: 편집 진입 연필(44pt).
+    /// 체크와 연필은 각각 독립 버튼(중첩 Button 대신 분리)이라 VoiceOver·탭 판정이 서로 간섭하지 않는다.
+    private func candidateRow(_ c: EditableCandidate) -> some View {
         let isOn = selected.contains(c.id)
-        return Button {
-            if isOn { selected.remove(c.id) } else { selected.insert(c.id) }
-        } label: {
-            HStack(spacing: ReffiSpace.s3) {
+        return HStack(spacing: ReffiSpace.s2) {
+            Button {
+                toggleSelection(c.id)
+            } label: {
                 Image(systemName: isOn ? "checkmark.circle.fill" : "circle")
                     .foregroundStyle(isOn ? ReffiColor.blue : ReffiColor.muted)
-                VStack(alignment: .leading, spacing: 1) {
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(Text(verbatim: c.name))
+            .accessibilityValue(isOn ? Text("Selected") : Text(verbatim: ""))
+
+            VStack(alignment: .leading, spacing: 1) {
+                HStack(spacing: ReffiSpace.s2) {
                     Text(verbatim: c.name).reffiType(.body).foregroundStyle(ReffiColor.ink)
-                    Text(verbatim: c.rawLine).reffiType(.caption).foregroundStyle(ReffiColor.muted)
-                        .lineLimit(1)
+                    if c.showsEstimateBadge { estimateBadge }
                 }
-                Spacer()
-                Text(verbatim: c.quantity.text)
-                    .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
+                Text(verbatim: c.rawLine).reffiType(.caption).foregroundStyle(ReffiColor.muted)
+                    .lineLimit(1)
             }
             .contentShape(Rectangle())
+            .onTapGesture { toggleSelection(c.id) }
+
+            Spacer(minLength: ReffiSpace.s2)
+
+            Text(verbatim: c.quantity.text)
+                .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
+
+            Button {
+                editingCandidate = c
+            } label: {
+                ReffiIcon.manual.reffi(14)
+                    .foregroundStyle(ReffiColor.ink2)
+                    .frame(width: 34, height: 34)
+                    .background {
+                        let s = PaperRect(cornerRadius: ReffiRadius.sm, seed: 3)
+                        s.fill(ReffiColor.paper).paperEdge(s)
+                    }
+                    .frame(minWidth: 44, minHeight: 44)   // §7.3 터치 타깃
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(Text("Edit \(c.name)"))
         }
-        .buttonStyle(.plain)
-        .accessibilityValue(isOn ? Text("Selected") : Text(verbatim: ""))
+    }
+
+    /// 추정 기한 배지 — 사전 미매칭(D+3 폴백) 또는 매칭돼도 해당 보관 shelfLife 데이터가 없는 항목.
+    /// soonDark 톤 캡슐(§2.6 신선도 팔레트 재사용) — 새 컴포넌트가 아니라 기존 언어의 조합.
+    private var estimateBadge: some View {
+        Text("Est. date — check")
+            .font(.custom("Pretendard-SemiBold", size: 10, relativeTo: .caption2))
+            .tracking(0.1)
+            .foregroundStyle(ReffiColor.soonDark)
+            .padding(.horizontal, ReffiSpace.s2)
+            .padding(.vertical, 2)
+            .background(ReffiColor.soonLight, in: Capsule())
+            .lineLimit(1)
+            .fixedSize()
+    }
+
+    private func toggleSelection(_ id: UUID) {
+        if selected.contains(id) { selected.remove(id) } else { selected.insert(id) }
     }
 
     // MARK: - OCR 파이프라인
@@ -196,7 +251,7 @@ struct ReceiptScanView: View {
         recognize(images)
     }
 
-    /// Vision OCR(ko+en, 온디바이스) → ReceiptParser 후보. 무거운 인식은 백그라운드에서.
+    /// Vision OCR(ko+en, 온디바이스) → ReceiptParser 후보(+ 상호명). 무거운 인식은 백그라운드에서.
     private func recognize(_ images: [UIImage]) {
         phase = .processing
         Task.detached(priority: .userInitiated) {
@@ -215,30 +270,217 @@ struct ReceiptScanView: View {
                 lines.append(contentsOf: observed)
             }
             let found = ReceiptParser.candidates(from: lines)
+            let placeGuess = ReceiptParser.storeName(from: lines) ?? ""
             await MainActor.run {
-                selected = Set(found.map(\.id))   // 기본 전체 선택 — 빼는 쪽이 마찰이 적다
-                phase = .review(found)
+                candidates = found.map { EditableCandidate($0, place: placeGuess) }
+                selected = Set(candidates.map(\.id))   // 기본 전체 선택 — 빼는 쪽이 마찰이 적다
+                phase = .review
             }
         }
     }
 
-    /// 선택 항목 일괄 등록 — 소비기한은 사전 기본값(냉장), 없으면 D+3.
-    /// 배치 API로 스냅샷 기록·알림 재스케줄을 1회만 수행한다.
-    private func add(_ candidates: [ReceiptParser.Candidate]) {
-        let lexicon = IngredientLexicon.shared
-        let items = candidates.filter { selected.contains($0.id) }.map { c in
-            let glyph = FoodGlyph.match(c.name)
-            let expiry = lexicon.defaultExpiry(for: c.name, storage: .fridge)
-                ?? Ingredient.day(offset: 3)
+    /// 선택 항목 일괄 등록 — 소비기한·보관·구매처는 각 후보의 편집 상태(기본 사전값 또는 사용자 편집)를
+    /// 그대로 쓴다. 배치 API로 스냅샷 기록·알림 재스케줄을 1회만 수행한다.
+    private func add() {
+        let items = candidates.filter { selected.contains($0.id) }.map { c -> Ingredient in
+            let glyph = FoodGlyph.match(c.name)   // 편집으로 이름이 바뀌었으면 여기서 새로 해석
             return Ingredient(name: c.name,
                               category: glyph.categoryLabel,
-                              expiresAt: expiry,
+                              expiresAt: c.expiresAt,
                               quantity: c.quantity,
-                              glyph: glyph)
+                              glyph: glyph,
+                              place: c.place,
+                              storage: c.storage,
+                              canonicalID: c.canonicalID)
         }
         store.add(contentsOf: items)
         addedHaptic += 1
         dismiss()
+    }
+}
+
+/// 스캔 후보의 편집 가능한 래퍼 — `ReceiptParser.Candidate`는 순수 파서 산출물로 그대로 두고,
+/// 뷰 쪽 상태(보관·소비기한·구매처·사용자 편집 여부)만 여기서 얹는다(파서 시그니처 불변).
+private struct EditableCandidate: Identifiable {
+    let id: UUID
+    var rawLine: String
+    var name: String
+    var canonicalID: String?
+    var quantity: Quantity
+    var storage: StorageLocation = .fridge
+    var expiresAt: Date
+    var place: String
+    var expiryTouched = false   // 편집 시트에서 소비기한을 직접 만졌으면 재계산·배지를 멈춘다.
+
+    init(_ c: ReceiptParser.Candidate, place: String) {
+        id = c.id
+        rawLine = c.rawLine
+        name = c.name
+        canonicalID = c.canonicalID
+        quantity = c.quantity
+        self.place = place
+        expiresAt = IngredientLexicon.shared.defaultExpiry(for: c.name, storage: .fridge)
+            ?? Ingredient.day(offset: 3)
+    }
+
+    /// 추정 기한 배지 노출 조건 — 미매칭(D+3 폴백) 또는 매칭돼도 해당 보관 shelfLife 데이터가 전혀 없음.
+    /// 사용자가 날짜를 직접 편집하면 더는 "추정"이 아니므로 숨긴다.
+    var showsEstimateBadge: Bool {
+        !expiryTouched && IngredientLexicon.shared.shelfLifeDays(for: name, storage: storage) == nil
+    }
+}
+
+/// 후보 한 건만 고치는 컴팩트 편집 시트 — 종이 언어 재사용(크림 캔버스 + 흰 영수증 카드 + DashedRule +
+/// 모노 라벨 없이 라벨 좌/컨트롤 우 행). 새 컴포넌트가 아니라 `AddIngredientSheet`와 같은 문법.
+private struct CandidateEditSheet: View {
+    @State var candidate: EditableCandidate
+    var onSave: (EditableCandidate) -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    /// applySmartExpiry와 같은 결정론 가드 — 대입 전 기록한 값과 다르면만 사용자 터치로 인정.
+    @State private var lastProgrammaticExpiry: Date?
+
+    var body: some View {
+        VStack(spacing: 0) {
+            header
+            ScrollView {
+                fieldsCard
+                    .padding(.horizontal, ReffiGrid.margin)
+                    .padding(.top, ReffiSpace.s3)
+                    .padding(.bottom, ReffiSpace.s4)
+            }
+            actionBar
+        }
+        .background(ReffiColor.canvas)
+        .presentationDetents([.medium])
+        .presentationDragIndicator(.visible)
+        .presentationBackground(ReffiColor.canvas)
+        .onChange(of: candidate.name) { _, newName in
+            candidate.canonicalID = IngredientLexicon.shared.canonicalID(for: newName)
+            recomputeExpiryIfNeeded()
+        }
+        .onChange(of: candidate.storage) { _, _ in recomputeExpiryIfNeeded() }
+        .onChange(of: candidate.expiresAt) { _, newValue in
+            if newValue != lastProgrammaticExpiry { candidate.expiryTouched = true }
+        }
+    }
+
+    private var header: some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text("Edit item").reffiType(.subhead).foregroundStyle(ReffiColor.ink)
+            Spacer()
+            Button { dismiss() } label: {
+                ReffiIcon.close.reffi(14, .bold)
+                    .foregroundStyle(ReffiColor.ink)
+                    .frame(width: 34, height: 34)
+                    .background {
+                        let s = PaperRect(cornerRadius: ReffiRadius.md, seed: 4)
+                        s.fill(ReffiColor.paper).paperEdge(s)
+                    }
+                    .reffiShadow1()
+                    .frame(minWidth: 44, minHeight: 44)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.paperPress)
+            .accessibilityLabel("Close")
+        }
+        .padding(.horizontal, ReffiGrid.margin)
+        .padding(.top, ReffiSpace.s4)
+        .padding(.bottom, ReffiSpace.s2)
+    }
+
+    private var fieldsCard: some View {
+        let shape = ReceiptShape(tooth: 7)
+        return VStack(alignment: .leading, spacing: ReffiSpace.s3) {
+            TextField("Name", text: $candidate.name,
+                      prompt: Text("Name").foregroundStyle(ReffiColor.ink2))
+                .reffiType(.body).foregroundStyle(ReffiColor.ink)
+                .frame(minHeight: 44)
+
+            DashedRule()
+
+            HStack {
+                Text("Quantity").reffiType(.body).foregroundStyle(ReffiColor.ink)
+                Spacer()
+                TextField("1", value: $candidate.quantity.value, format: .number)
+                    .keyboardType(.decimalPad)
+                    .multilineTextAlignment(.trailing)
+                    .reffiType(.body).foregroundStyle(ReffiColor.ink)
+                    .frame(width: 64)
+                Picker("Unit", selection: $candidate.quantity.unit) {
+                    ForEach(IngredientUnit.allCases) { u in
+                        Text(verbatim: u.label).tag(u)
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .tint(ReffiColor.blue)
+            }
+            .frame(minHeight: 44)
+
+            DashedRule()
+
+            HStack {
+                Text("Storage").reffiType(.body).foregroundStyle(ReffiColor.ink)
+                Spacer()
+                Picker("Storage", selection: $candidate.storage) {
+                    ForEach(StorageLocation.allCases) { s in
+                        Text(LocalizedStringKey(s.rawValue)).tag(s)
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .tint(ReffiColor.blue)
+            }
+            .frame(minHeight: 44)
+
+            DashedRule()
+
+            HStack {
+                Text("Use by").reffiType(.body).foregroundStyle(ReffiColor.ink)
+                Spacer()
+                DatePicker("", selection: $candidate.expiresAt,
+                           in: Ingredient.day(offset: -30)...Ingredient.day(offset: 365),
+                           displayedComponents: .date)
+                    .labelsHidden()
+                    .datePickerStyle(.compact)
+                    .tint(ReffiColor.blue)
+            }
+            .frame(minHeight: 44)
+
+            DashedRule()
+
+            TextField("Where you bought it", text: $candidate.place,
+                      prompt: Text("Where you bought it").foregroundStyle(ReffiColor.ink2))
+                .reffiType(.body).foregroundStyle(ReffiColor.ink)
+                .frame(minHeight: 44)
+        }
+        .padding(.horizontal, ReffiSpace.s5)
+        .padding(.vertical, ReffiSpace.s5 + 3)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(ReffiColor.oklch(0.985, 0.004, 90), in: shape)
+        .paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
+        .shadow(color: ReffiColor.ink.opacity(0.06), radius: 5, x: 0, y: 2)
+    }
+
+    private var actionBar: some View {
+        PaperButton(title: "Save") {
+            onSave(candidate)
+            dismiss()
+        }
+        .padding(.horizontal, ReffiGrid.margin)
+        .padding(.top, ReffiSpace.s3)
+        .padding(.bottom, ReffiSpace.s3)
+    }
+
+    /// 이름·보관이 바뀔 때마다, 사용자가 날짜를 만지기 전까지만 사전 기본값으로 재계산.
+    /// AddIngredientSheet.applySmartExpiry와 같은 결 — 값 비교로 자동채움/사용자 터치를 구분한다.
+    private func recomputeExpiryIfNeeded() {
+        guard !candidate.expiryTouched else { return }
+        let smart = IngredientLexicon.shared.defaultExpiry(for: candidate.name, storage: candidate.storage)
+            ?? Ingredient.day(offset: 3)
+        lastProgrammaticExpiry = smart
+        candidate.expiresAt = smart
     }
 }
 

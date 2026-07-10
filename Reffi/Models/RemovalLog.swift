@@ -7,16 +7,18 @@ struct RemovalLog: Identifiable, Codable {
     var id: UUID
     var name: String
     var glyph: FoodGlyph
+    var canonicalID: String?    // 정본 사전 캐논 ID — removeLogging에서 재료 값을 복사(표기 무관 매칭). 레거시=nil(로드 시 승격)
     var removedAt: Date
     var wasted: Bool            // true = 버림(Tossed), false = 먹음(Ate)
     var via: String?            // 발주 레시피명(직접 판정이면 nil)
     var snapshot: Ingredient?   // undo 복원용(샘플 이력엔 없음)
 
-    init(id: UUID = UUID(), name: String, glyph: FoodGlyph, removedAt: Date = Date(),
-         wasted: Bool, via: String? = nil, snapshot: Ingredient? = nil) {
+    init(id: UUID = UUID(), name: String, glyph: FoodGlyph, canonicalID: String? = nil,
+         removedAt: Date = Date(), wasted: Bool, via: String? = nil, snapshot: Ingredient? = nil) {
         self.id = id
         self.name = name
         self.glyph = glyph
+        self.canonicalID = canonicalID
         self.removedAt = removedAt
         self.wasted = wasted
         self.via = via
@@ -27,6 +29,9 @@ struct RemovalLog: Identifiable, Codable {
     init(name: String, glyph: FoodGlyph, daysAgo: Int, wasted: Bool) {
         self.init(name: name, glyph: glyph, removedAt: Ingredient.day(offset: -daysAgo), wasted: wasted)
     }
+
+    /// 재료 동일성 키 — 표기 무관(Ingredient.matchKey와 같은 규칙). 쇼핑리스트 그룹핑·재입고 조회의 기준.
+    var matchKey: String { canonicalID ?? name.lowercased() }
 
     /// 처리 후 경과 일수(자정 기준).
     var daysAgo: Int {

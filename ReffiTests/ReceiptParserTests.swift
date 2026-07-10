@@ -53,4 +53,16 @@ struct ReceiptParserTests {
         let found = ReceiptParser.candidates(from: lines)
         #expect(found.filter { $0.canonicalID == "milk" }.count == 1)
     }
+
+    // MARK: 상호(구매처) 추출
+
+    @Test func extractsStoreNameFromTopLine() {
+        #expect(ReceiptParser.storeName(from: receipt) == "이마트 성수점")
+    }
+
+    @Test func storeNameNilWhenAbsent() {
+        // 상단 몇 줄이 전부 날짜/소음/가격뿐 — 상호 후보가 없다.
+        let lines = ["2026-07-02 21:11", "합계             19,400", "카드승인 12345678"]
+        #expect(ReceiptParser.storeName(from: lines) == nil)
+    }
 }

@@ -1,6 +1,16 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "%@ default · %lldd": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 기본값 · %lld일"
+          }
+        }
+      }
+    },
     "%@ — eaten": {
       "localizations": {
         "ko": {
@@ -1041,6 +1051,16 @@
         }
       }
     },
+    "Edit item": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "항목 편집"
+          }
+        }
+      }
+    },
     "Edit nickname": {
       "localizations": {
         "ko": {
@@ -1087,6 +1107,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "직접 입력"
+          }
+        }
+      }
+    },
+    "Est. date — check": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "추정 날짜 — 확인 필요"
           }
         }
       }
@@ -1737,6 +1767,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "아직 없어요"
+          }
+        }
+      }
+    },
+    "Not in the dictionary — please check the date": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "사전에 없는 재료예요 — 날짜를 확인해주세요"
           }
         }
       }

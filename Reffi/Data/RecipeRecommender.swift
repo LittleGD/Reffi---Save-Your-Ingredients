@@ -41,7 +41,8 @@ enum RecipeRecommender {
     static func matches(_ ing: Ingredient, _ item: Recipe.Item) -> Bool {
         let ingName = norm(ing.name)
         guard !ingName.isEmpty else { return false }
-        let ingID = IngredientLexicon.shared.canonicalID(for: ing.name)
+        // 저장된 캐논 ID를 fast path로(해석 완료 재료) — nil이면 사전 조회(캐시)로 폴백.
+        let ingID = ing.canonicalID ?? IngredientLexicon.shared.canonicalID(for: ing.name)
         let itemID = canonicalID(of: item)
         if let a = ingID, let b = itemID { return a == b }
         // 둘 중 하나라도 사전 밖(사용자 커스텀 표기) — 정확 일치만 허용, 부분문자열 금지.
