@@ -72,8 +72,9 @@ struct FridgeView: View {
                 .allowsHitTesting(false)
             }
         }
-        .sheet(isPresented: $showHistory) { HistoryView() }
-        .sheet(isPresented: $showShopping) { ShoppingListView() }
+        // History·To buy도 Start cooking처럼 하단에서 올라와 전체를 덮는 풀스크린 커버.
+        .fullScreenCover(isPresented: $showHistory) { HistoryView() }
+        .fullScreenCover(isPresented: $showShopping) { ShoppingListView() }
         .sheet(item: $editing) { IngredientEditView(ingredient: $0) }
         // 자정 경과 — 탭을 띄워둔 채 날이 바뀌어도 D-day 도장·정렬이 갱신되게(메인과 동일 패턴).
         .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged)) { _ in
