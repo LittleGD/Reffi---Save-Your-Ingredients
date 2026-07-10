@@ -365,7 +365,7 @@ struct OnboardingView: View {
     private var startStamp: some View {
         ZStack {
             Color.black.opacity(0.10).ignoresSafeArea()
-            DDayStamp(text: "Start", color: ReffiColor.blueDark, size: 46)
+            DDayStamp(text: String(localized: "Start"), color: ReffiColor.blueDark, size: 46)
                 .scaleEffect(stampScale)
                 .opacity(stampOpacity)
                 .shadow(color: .black.opacity(0.18), radius: 14, y: 8)
