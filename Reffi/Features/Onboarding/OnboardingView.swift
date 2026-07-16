@@ -46,15 +46,15 @@ struct OnboardingView: View {
             VStack(spacing: 0) {
                 topBar
                 TabView(selection: $page) {
-                    valuePage(hero: { recordHero },
+                    valuePage(hero: { recordHero(active: page == 0) },
                               title: "Log your fridge\nlike a receipt",
                               body: "Add what you buy — we'll count down the expiry dates.")
                         .tag(0)
-                    valuePage(hero: { recipeHero },
+                    valuePage(hero: { recipeHero(active: page == 1) },
                               title: "Today's recipes,\nfrom what expires first",
                               body: "Eat the most urgent ingredients first, top to bottom.")
                         .tag(1)
-                    valuePage(hero: { reportHero },
+                    valuePage(hero: { reportHero(active: page == 2) },
                               title: "Days without waste\nadd up to a report",
                               body: "Watch your no-waste streak and savings grow.")
                         .tag(2)
@@ -105,6 +105,7 @@ struct OnboardingView: View {
             Spacer(minLength: 0)
             hero()
                 .frame(maxWidth: .infinity)
+                .frame(height: 292)               // 고정 히어로 슬롯 — 3페이지 타이틀·본문 위치를 동일하게 고정
                 .padding(.bottom, ReffiSpace.s4)
 
             // 영문 디스플레이 = Story Script(§3.1 브랜드 모먼트 — 워드마크·온보딩 타이틀). 인트로 카피는 가운데 정렬.
@@ -125,8 +126,19 @@ struct OnboardingView: View {
 
     // MARK: 히어로 3종 — 각 페이지 카피를 시각적으로 재연(설명 일치)
 
-    /// ① "영수증처럼 기록" — 재료·D-day가 줄줄이 적힌 냉장고 영수증.
-    private var recordHero: some View {
+    /// ① "영수증을 찍어서 관리" — 장본 영수증을 카메라로 찍는 모먼트(뷰파인더+카메라 배지)가 먼저 떴다
+    ///    사라지고, 그 자리에 정리된 냉장고 영수증(재료·D-day)이 올라온다. 페이지2와 동일한 "찍힘→정리" 패턴.
+    private func recordHero(active: Bool) -> some View {
+        ZStack {
+            captureMotif
+                .flashReveal(active: active)                      // ① 영수증 찍는 모먼트 — 떴다 사라짐
+            fridgeReceiptMini
+                .heroReveal(.riseUp, active: active, delay: 1.05)  // ② 정리된 영수증이 올라옴
+        }
+    }
+
+    /// 정리된 냉장고 영수증 — recordHero가 올리는 결과물(재료·D-day).
+    private var fridgeReceiptMini: some View {
         miniReceipt(seed: 0) {
             VStack(spacing: ReffiSpace.s3) {
                 heroHeader("REFFI · FRIDGE")
@@ -139,36 +151,148 @@ struct OnboardingView: View {
         }
     }
 
-    /// ② "임박 재료 → 오늘의 레시피" — 큰 재료 일러스트(Today 도장) + 레시피 추천 예시 칩.
-    private var recipeHero: some View {
-        VStack(spacing: ReffiSpace.s4) {
-            ZStack(alignment: .topTrailing) {
-                PaperSilhouette(glyph: .egg, fresh: .fresh)
-                    .frame(width: 150, height: 150)
-                DDayStamp(text: String(localized: "Today"), color: ReffiColor.urgentDark, size: 15)
-                    .offset(x: 14, y: -6)
+    /// 영수증 찍는 모먼트 — 장본 영수증 + 카메라 뷰파인더 코너 + 카메라 배지("찍는다").
+    private var captureMotif: some View {
+        VStack(alignment: .leading, spacing: ReffiSpace.s2) {
+            heroHeader("GROCERY · RECEIPT")
+            captureRow("Tomato", "$2")
+            captureRow("Spinach", "$3")
+            captureRow("Milk", "$4")
+        }
+        .padding(.horizontal, ReffiSpace.s4)
+        .padding(.vertical, ReffiSpace.s3 + 2)
+        .frame(width: 170)
+        .background(ReffiColor.paper, in: ReceiptShape(tooth: 6))
+        .reffiShadow1()
+        // 카메라 뷰파인더 — 종이 바깥으로 코너 브래킷.
+        .overlay(ViewfinderBrackets()
+            .stroke(ReffiColor.blueDark, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+            .padding(-12))
+        // 카메라 배지 — "찍는" 행위.
+        .overlay(alignment: .bottomTrailing) {
+            ReffiIcon.camera.reffi(18, .fill).foregroundStyle(.white)
+                .frame(width: 40, height: 40)
+                .background(ReffiColor.blue, in: Circle())
+                .overlay(Circle().stroke(ReffiColor.paper, lineWidth: 2.5))
+                .offset(x: 16, y: 16)
+        }
+    }
+
+    private func captureRow(_ name: LocalizedStringKey, _ price: String) -> some View {
+        HStack {
+            Text(name).font(.custom("Pretendard-Medium", size: 13, relativeTo: .caption))
+                .foregroundStyle(ReffiColor.ink2)
+            Spacer(minLength: ReffiSpace.s3)
+            Text(verbatim: price).font(.reffiNum(12, relativeTo: .caption)).foregroundStyle(ReffiColor.ink2)
+        }
+    }
+
+    /// ② "임박 재료 → 오늘의 레시피" — 접시(달걀+Today 도장)가 먼저 떴다 사라지고, 그 자리에 레시피 주문서가 올라옴.
+    private func recipeHero(active: Bool) -> some View {
+        ZStack {
+            eggDish
+                .flashReveal(active: active)                      // ① 접시 — 떴다 사라짐
+            orderTicketMini
+                .heroReveal(.riseUp, active: active, delay: 1.05)  // ② 주문서가 그 자리에 올라옴
+        }
+    }
+
+    /// 오늘의 접시 — 달걀 실루엣 + Today 도장.
+    private var eggDish: some View {
+        ZStack(alignment: .topTrailing) {
+            PaperSilhouette(glyph: .egg, fresh: .fresh)
+                .frame(width: 132, height: 132)
+            DDayStamp(text: String(localized: "Today"), color: ReffiColor.urgentDark, size: 15)
+                .offset(x: 14, y: -6)
+        }
+    }
+
+    /// 레시피 주문서 미니 — §13 OrderMemoCard의 시각을 축약한 정적 티켓(온보딩 히어로용).
+    /// 실제 카드는 풀스크린 덱·발주 부작용이 있어 그대로 못 넣으므로, 폰트·색·종이 문법만 재사용해 재연.
+    private var orderTicketMini: some View {
+        let shape = ReceiptShape(tooth: 8)
+        return VStack(alignment: .leading, spacing: ReffiSpace.s2) {
+            // 헤더 — 주방 오더 티켓
+            HStack(alignment: .firstTextBaseline) {
+                Text("ORDER").font(.custom("Pretendard-Bold", size: 12, relativeTo: .caption))
+                    .tracking(2.5).foregroundStyle(ReffiColor.ink)
+                Spacer(minLength: 0)
+                Text(verbatim: "#01").font(.reffiNum(13, relativeTo: .caption)).foregroundStyle(ReffiColor.ink2)
             }
-            // 레시피 추천 예시 — AI(§2.4 Blue) 칩. 틴트 면 위 ink(§2.6 AAA).
-            HStack(spacing: ReffiSpace.s2) {
-                ReffiIcon.ai.reffi(15, .bold).foregroundStyle(ReffiColor.blueDark)
-                Text("Today's recipe · Tomato frittata")
-                    .font(.custom("Pretendard-SemiBold", size: 14, relativeTo: .caption))
-                    .foregroundStyle(ReffiColor.ink)
-                    .lineLimit(1)
+            Text("TABLE · REFFI KITCHEN")
+                .font(.custom("Pretendard-Medium", size: 9, relativeTo: .caption2))
+                .tracking(1.5).foregroundStyle(ReffiColor.ink2)
+            DashedRule()
+            // 판정문(임박 소진) + 메뉴 + 시간
+            Text("Saves 1 expiring today")
+                .font(.custom("Pretendard-Bold", size: 11, relativeTo: .caption2))
+                .tracking(0.2).foregroundStyle(ReffiColor.urgentDark)
+            HStack(alignment: .firstTextBaseline, spacing: ReffiSpace.s2) {
+                Text("Bibimbap")
+                    .font(.custom("Pretendard-Bold", size: 20, relativeTo: .title3))
+                    .tracking(-0.3).foregroundStyle(ReffiColor.ink)
+                Spacer(minLength: 0)
+                HStack(spacing: 3) {
+                    ReffiIcon.time.reffi(11).foregroundStyle(ReffiColor.ink2)
+                    Text(verbatim: "35 min").font(.custom("Pretendard-Medium", size: 11, relativeTo: .caption))
+                        .foregroundStyle(ReffiColor.ink2)
+                }
             }
-            .padding(.horizontal, ReffiSpace.s4)
-            .padding(.vertical, ReffiSpace.s2 + 2)
-            .background(ReffiColor.blueLight, in: Capsule())
+            DashedRule()
+            Text("ON THE TICKET")
+                .font(.custom("Pretendard-SemiBold", size: 10, relativeTo: .caption2))
+                .tracking(1.4).foregroundStyle(ReffiColor.ink2)
+            ticketMiniRow("Beef", "Today", ReffiColor.urgentDark)
+            ticketMiniRow("Spinach", "1d", ReffiColor.soonDark)
+            ticketMiniRow("Eggs", "2d", ReffiColor.soonDark)
+            // Cook this 밴드(정적) — 실제 카드의 blue 발주 CTA를 종이컷+그레인으로 그대로 재연.
+            Text("Cook this")
+                .font(ReffiTextRole.subhead.font).tracking(ReffiTextRole.subhead.tracking)
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, ReffiSpace.s2 + 1)
+                .background {
+                    let band = PaperCutRect(seed: 1)
+                    band.fill(ReffiColor.blue)
+                        .overlay(PaperGrain(seed: 5).clipShape(band))
+                        .paperEdge(band, tint: ReffiColor.paperEdgeOnFill)
+                }
+                .padding(.top, 2)
+        }
+        .padding(.horizontal, ReffiSpace.s4 + 2)
+        .padding(.vertical, ReffiSpace.s3)
+        .frame(width: 250)
+        .background(shape.fill(ReffiColor.paper))
+        .overlay(shape.stroke(ReffiColor.ink.opacity(0.07), lineWidth: 1))
+        .reffiShadow1()
+    }
+
+    /// 티켓 한 줄(축약) — 체크박스 + 이름 + D-N.
+    private func ticketMiniRow(_ name: LocalizedStringKey, _ dDay: String, _ color: Color) -> some View {
+        HStack(spacing: ReffiSpace.s2) {
+            RoundedRectangle(cornerRadius: 3, style: .continuous)
+                .stroke(color.opacity(0.7), lineWidth: 1.5)
+                .frame(width: 13, height: 13)
+            Text(name)
+                .font(.custom("Pretendard-SemiBold", size: 15, relativeTo: .subheadline))
+                .foregroundStyle(ReffiColor.ink)
+            Spacer(minLength: ReffiSpace.s2)
+            Text(verbatim: dDay)
+                .font(.reffiNum(12, relativeTo: .caption))
+                .foregroundStyle(color)
         }
     }
 
     /// ③ "리포트로 쌓여요" — 큰 일러스트 + 무낭비 스트릭 도장(이전 버전 문법).
-    private var reportHero: some View {
+    /// 연출: 실루엣 pop → DAY 도장 슬램(②와 리듬 통일).
+    private func reportHero(active: Bool) -> some View {
         ZStack(alignment: .topTrailing) {
             PaperSilhouette(glyph: .leaf, fresh: .fresh)
                 .frame(width: 168, height: 168)
+                .heroReveal(.pop, active: active, delay: 0)
             DDayStamp(text: String(localized: "DAY \(12)"), color: ReffiColor.freshDark, size: 15)
                 .offset(x: 14, y: -6)
+                .heroReveal(.stamp, active: active, delay: 0.25)
         }
     }
 
@@ -433,5 +557,107 @@ struct OnboardingView: View {
                 finishWithStamp()
             }
         }
+    }
+}
+
+// MARK: - 히어로 진입 연출 — 인트로 페이지가 활성화될 때 재생(스와이프 재방문 시에도)
+
+/// 히어로 요소 등장 연출(§7 — transform·opacity만). 이탈 시 즉시 리셋해 재방문마다 다시 재생.
+/// reduce-motion(§7.4)이면 연출 없이 최종 상태로 즉시 표시.
+private struct HeroReveal: ViewModifier {
+    enum Kind {
+        case pop     // 살짝 오버슈트 등장 — 실루엣·도장
+        case stamp   // 도장 슬램 — 큰 상태에서 쾅 내려앉음(셋업 Start 도장과 같은 문법)
+        case riseUp  // 하단에서 스르륵 올라옴 — 영수증·주문서 카드
+    }
+    let kind: Kind
+    let active: Bool
+    let delay: Double
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var visible = false
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(visible ? 1 : 0)
+            .scaleEffect(visible ? 1 : hiddenScale)
+            .offset(y: visible ? 0 : hiddenOffset)
+            .onAppear { if active { reveal() } }   // 첫 페이지는 onChange가 없어 여기서 재생
+            .onChange(of: active) { _, now in
+                if now { reveal() } else { visible = false }   // 이탈은 애니메이션 없이 리셋
+            }
+    }
+
+    private func reveal() {
+        withAnimation(reduceMotion ? nil : animation.delay(delay)) { visible = true }
+    }
+
+    private var hiddenScale: CGFloat {
+        switch kind {
+        case .riseUp: 1
+        case .pop: 0.9
+        case .stamp: 2.0
+        }
+    }
+    private var hiddenOffset: CGFloat { kind == .riseUp ? 150 : 0 }   // 아래(화면 밖)에서 올라옴
+    private var animation: Animation {
+        switch kind {
+        case .pop: ReffiMotion.pop
+        case .stamp: .spring(response: 0.26, dampingFraction: 0.5)   // 오버슈트 = 쾅
+        case .riseUp: .spring(response: 0.55, dampingFraction: 0.72) // 스르륵 올라와 살짝 정착
+        }
+    }
+}
+
+private extension View {
+    func heroReveal(_ kind: HeroReveal.Kind, active: Bool, delay: Double) -> some View {
+        modifier(HeroReveal(kind: kind, active: active, delay: delay))
+    }
+    func flashReveal(active: Bool) -> some View {
+        modifier(FlashReveal(active: active))
+    }
+}
+
+/// 오브젝트가 떴다 사라지는 연출(§7 — opacity·scale만) — 페이지1 "찍힘"·페이지2 "접시".
+/// 페이드 인 → 잠깐 유지 → 페이드 아웃. 그 자리에 뒤이어 카드(riseUp)가 올라온다.
+/// reduce-motion(§7.4)이면 오브젝트를 생략(뒤 카드는 즉시 표시).
+private struct FlashReveal: ViewModifier {
+    let active: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var shown = false
+    @State private var token = 0   // 재생 세대 — 재방문 시 이전 asyncAfter 무효화
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(shown ? 1 : 0)
+            .scaleEffect(shown ? 1 : 0.92)
+            .onAppear { if active { play() } }
+            .onChange(of: active) { _, now in
+                if now { play() } else { shown = false }   // 이탈은 즉시 숨김
+            }
+    }
+
+    private func play() {
+        guard !reduceMotion else { shown = false; return }   // reduce: 오브젝트 생략
+        token += 1
+        let gen = token
+        shown = false
+        withAnimation(.easeOut(duration: 0.42)) { shown = true }      // 페이드 인
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) {
+            guard gen == token, active else { return }               // 최신 재생만 사라지게
+            withAnimation(.easeIn(duration: 0.33)) { shown = false }  // 페이드 아웃
+        }
+    }
+}
+
+/// 카메라 뷰파인더 코너 브래킷 4개 — "찍는" 프레임.
+private struct ViewfinderBrackets: Shape {
+    var len: CGFloat = 22
+    func path(in r: CGRect) -> Path {
+        var p = Path()
+        p.move(to: CGPoint(x: r.minX, y: r.minY + len)); p.addLine(to: CGPoint(x: r.minX, y: r.minY)); p.addLine(to: CGPoint(x: r.minX + len, y: r.minY))
+        p.move(to: CGPoint(x: r.maxX - len, y: r.minY)); p.addLine(to: CGPoint(x: r.maxX, y: r.minY)); p.addLine(to: CGPoint(x: r.maxX, y: r.minY + len))
+        p.move(to: CGPoint(x: r.minX, y: r.maxY - len)); p.addLine(to: CGPoint(x: r.minX, y: r.maxY)); p.addLine(to: CGPoint(x: r.minX + len, y: r.maxY))
+        p.move(to: CGPoint(x: r.maxX - len, y: r.maxY)); p.addLine(to: CGPoint(x: r.maxX, y: r.maxY)); p.addLine(to: CGPoint(x: r.maxX, y: r.maxY - len))
+        return p
     }
 }
