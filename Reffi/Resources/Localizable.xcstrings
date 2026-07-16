@@ -621,6 +621,26 @@
         }
       }
     },
+    "Beef": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "소고기"
+          }
+        }
+      }
+    },
+    "Bibimbap": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "비빔밥"
+          }
+        }
+      }
+    },
     "Brazilian": {
       "localizations": {
         "ko": {
@@ -1107,6 +1127,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "레시피 수정"
+          }
+        }
+      }
+    },
+    "Eggs": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "계란"
           }
         }
       }

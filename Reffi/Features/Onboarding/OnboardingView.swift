@@ -224,7 +224,7 @@ struct OnboardingView: View {
                 .tracking(1.5).foregroundStyle(ReffiColor.ink2)
             DashedRule()
             // 판정문(임박 소진) + 메뉴 + 시간
-            Text("Saves 1 expiring today")
+            Text("Saves \(1) expiring today")   // 기존 포맷 키 재사용 — ko 번역이 이미 존재
                 .font(.custom("Pretendard-Bold", size: 11, relativeTo: .caption2))
                 .tracking(0.2).foregroundStyle(ReffiColor.urgentDark)
             HStack(alignment: .firstTextBaseline, spacing: ReffiSpace.s2) {
