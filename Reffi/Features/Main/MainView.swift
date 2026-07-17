@@ -9,6 +9,7 @@ import PhosphorSwift
 /// 작업대·되돌리기 상태는 store에 살아 탭을 오가도 유지된다(undo 토스트는 RootTabView 공통).
 struct MainView: View {
     @Environment(FridgeStore.self) private var store
+    @Environment(ProfileStore.self) private var profile
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     // 알림 유도(프리퍼미션) — 첫 임박 재료가 생긴 순간이 가치가 증명되는 순간이다.
@@ -41,7 +42,8 @@ struct MainView: View {
     private var carouselResults: [RecipeRecommender.Result] {
         // 소비 후보 = 전체 가용 재고(예약 제외) — 티켓이 쓰는 재료가 작업대 밖에 있어도
         // 함께 소비 처리돼 '실제로 썼는데 재고에 남는' 유령 재고가 생기지 않는다.
-        Array(store.rankedRecipes.prefix(3))
+        // 프로필 취향(§5.2)을 랭킹에 실배선 — 알레르기 하드 필터·선호/기피/요리스타일 보정.
+        Array(store.rankedRecipes(preferences: RecipePreferences(profile: profile)).prefix(3))
     }
     private var topF: Freshness { counter.first?.freshness ?? .fresh }
     private var urgentCount: Int { counter.lazy.filter { $0.freshness == .urgent }.count }

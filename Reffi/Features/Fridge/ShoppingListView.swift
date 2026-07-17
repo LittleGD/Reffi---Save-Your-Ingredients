@@ -5,6 +5,7 @@ import SwiftUI
 /// 사전 기본 기한으로 바로 store에 채워 넣는다(§13.6 재입고 경로 — AddIngredientSheet 의존 없음).
 struct ShoppingListView: View {
     @Environment(FridgeStore.self) private var store
+    @Environment(ProfileStore.self) private var profile
     @Environment(\.dismiss) private var dismiss
 
     @State private var restockHaptic = 0
@@ -34,6 +35,8 @@ struct ShoppingListView: View {
 
     /// 직전 이력 스냅샷이 있으면 보관·구매처·수량을 복원(냉동이었다면 냉장으로 — 재구매는 냉동 상태가
     /// 아니다), 없으면 사전 기본값으로 새로 채운다. 소비기한은 항상 그 보관의 사전 기본값으로 재계산.
+    /// 가구 인원 배율은 **스냅샷이 없는 폴백 경로에만** 적용한다 — 스냅샷이 있으면 사용자가 이미 그
+    /// 수량을 한 번 결정한 값이라 존중하고 그대로 복원한다(재입고 때마다 배율이 누적되지 않게).
     private func restock(name: String, glyph: FoodGlyph) {
         let lex = IngredientLexicon.shared
         if let last = store.lastSnapshot(named: name) {
@@ -43,7 +46,10 @@ struct ShoppingListView: View {
                                  quantity: last.quantity, glyph: glyph, place: last.place, storage: storage))
         } else {
             let expiresAt = lex.defaultExpiry(for: name, storage: .fridge) ?? Ingredient.day(offset: 3)
-            store.add(Ingredient(name: name, category: glyph.categoryLabel, expiresAt: expiresAt, glyph: glyph))
+            // 폴백 기본 수량(1개)은 개수 차원이라 가구 인원 배율을 그대로 곱한다.
+            let quantity = Quantity(value: max(1, profile.household.quantityMultiplier.rounded()), unit: .piece)
+            store.add(Ingredient(name: name, category: glyph.categoryLabel, expiresAt: expiresAt,
+                                 quantity: quantity, glyph: glyph))
         }
         restockHaptic += 1
     }

@@ -567,7 +567,7 @@ struct ExpandedFridgeCard: View {
 
             dashRule
             HStack {
-                Text("REFFI · KEEP IT FRESH")
+                Text(verbatim: "REFFI · KEEP IT FRESH")
                     .font(.custom("Pretendard-Bold", size: 10, relativeTo: .caption2)).tracking(1.2)
                     .foregroundStyle(ReffiColor.muted)
                 Spacer()

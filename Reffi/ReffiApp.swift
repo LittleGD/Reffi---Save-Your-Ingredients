@@ -109,7 +109,7 @@ private struct RootGateView: View {
     private var splash: some View {
         ZStack {
             ReffiColor.canvas.ignoresSafeArea()
-            Text("Reffi").reffiType(.display).foregroundStyle(ReffiColor.blueDark)
+            Text(verbatim: "Reffi").reffiType(.display).foregroundStyle(ReffiColor.blueDark)
         }
     }
 }

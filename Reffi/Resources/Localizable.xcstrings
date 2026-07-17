@@ -283,16 +283,6 @@
         }
       }
     },
-    "3 days before · 8 AM": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "3일 전 · 오전 8시"
-          }
-        }
-      }
-    },
     "3–4": {
       "localizations": {
         "ko": {
@@ -617,16 +607,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "바코드/사진 인식"
-          }
-        }
-      }
-    },
-    "Brazilian": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "브라질리안"
           }
         }
       }
@@ -1397,16 +1377,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "몇 명이서 드세요?"
-          }
-        }
-      }
-    },
-    "How many servings should we plan for?": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "몇 인분 기준으로 준비할까요?"
           }
         }
       }
@@ -2751,6 +2721,16 @@
         }
       }
     },
+    "Today & tomorrow · 9 AM": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "오늘·내일 · 오전 9시"
+          }
+        }
+      }
+    },
     "Today's recipe · Tomato frittata": {
       "localizations": {
         "ko": {
@@ -3011,22 +2991,22 @@
         }
       }
     },
-    "Watch your no-waste streak and savings grow.": {
+    "Watch your no-waste streak grow, day by day.": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "무낭비 스트릭과 절약이 늘어나는 걸 지켜보세요."
+            "value": "무낭비 스트릭이 하루하루 쌓이는 걸 지켜보세요."
           }
         }
       }
     },
-    "We'll size recipes and shopping lists to match.": {
+    "We'll size your restock amounts to match.": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "레시피와 쇼핑리스트 양을 거기에 맞출게요."
+            "value": "재입고 수량을 거기에 맞출게요."
           }
         }
       }

@@ -27,10 +27,14 @@ Apple/Google 로그인은 아래 콘솔 설정(개발자 계정 필요)을 마�
 ## 2. Apple 로그인 (콘솔 설정 필요)
 앱은 네이티브 Sign in with Apple 시트(ID 토큰 + nonce)를 띄워 Supabase로 교환한다.
 1. Apple Developer(유료 계정) → Identifiers → App ID `com.reffi.app`에 **Sign in with Apple** capability 추가.
-2. Xcode 타깃에 Sign in with Apple entitlement 추가 + 코드사이닝 활성화
-   (현재 project.yml은 `CODE_SIGNING_ALLOWED: NO` — 시뮬레이터 전용이라 실기기 배포 시 팀 설정 필요).
+2. ~~Xcode 타깃에 Sign in with Apple entitlement 추가~~ → **완료(2026-07-16)**:
+   `Reffi/Reffi.entitlements`(`com.apple.developer.applesignin: Default`)가 저장소에 있고
+   project.yml `CODE_SIGN_ENTITLEMENTS`로 배선됨. 서명 없는 시뮬레이터 빌드에선 무시되고,
+   실기기/배포 서명 시 자동 임베드 — 남은 건 서명 팀 설정뿐.
 3. Supabase Dashboard → Authentication → Sign In / Up → Apple 활성화 →
    **Client IDs에 `com.reffi.app` 추가** (네이티브 플로우는 Service ID·Secret 불필요).
+   ⚠️ 이 프로젝트(`itianwvwbeixfarblqzy`)는 프로젝트 생성자 계정 소유라 **대시보드 접근 권한이
+   있는 사람이 직접** 켜야 한다(2026-07-16 확인 — 자동화 불가).
 
 ## 3. Google 로그인 (콘솔 설정 필요)
 앱은 시스템 브라우저(ASWebAuthenticationSession) OAuth 플로우를 쓴다.

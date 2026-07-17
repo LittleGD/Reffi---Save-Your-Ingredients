@@ -219,7 +219,7 @@ struct ProfileView: View {
     private var householdReceipt: some View {
         ReceiptCard(title: String(localized: "Household")) {
             VStack(alignment: .leading, spacing: ReffiSpace.s3) {
-                Text("How many servings should we plan for?")
+                Text("We'll size your restock amounts to match.")
                     .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
                 HStack(spacing: ReffiSpace.s2) {
                     ForEach(HouseholdSize.allCases) { h in

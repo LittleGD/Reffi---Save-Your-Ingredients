@@ -144,7 +144,7 @@ struct OrderMemoCard: View {
                 Text(String(format: "#%02d", number))
                     .font(.reffiNum(14, relativeTo: .caption)).foregroundStyle(ReffiColor.ink2)
             }
-            Text("TABLE · REFFI KITCHEN")
+            Text(verbatim: "TABLE · REFFI KITCHEN")
                 .font(.custom("Pretendard-Medium", size: 10, relativeTo: .caption2))
                 .tracking(1.6).foregroundStyle(ReffiColor.ink2)   // §2.6 — 소형 텍스트 대비
         }

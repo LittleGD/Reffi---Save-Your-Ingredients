@@ -56,7 +56,7 @@ struct OnboardingView: View {
                         .tag(1)
                     valuePage(hero: { reportHero(active: page == 2) },
                               title: "Days without waste\nadd up to a report",
-                              body: "Watch your no-waste streak and savings grow.")
+                              body: "Watch your no-waste streak grow, day by day.")
                         .tag(2)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
@@ -88,7 +88,7 @@ struct OnboardingView: View {
 
     private var topBar: some View {
         HStack {
-            Text("Reffi").reffiType(.display).foregroundStyle(ReffiColor.blueDark)
+            Text(verbatim: "Reffi").reffiType(.display).foregroundStyle(ReffiColor.blueDark)
                 .scaleEffect(0.62, anchor: .leading)   // 워드마크 축소 배치(위계는 페이지 타이틀에)
             Spacer()
             QuietButton(title: "Skip", tint: ReffiColor.ink2) { onFinish() }
@@ -240,7 +240,7 @@ struct OnboardingView: View {
                 Spacer(minLength: 0)
                 Text(verbatim: "#01").font(.reffiNum(13, relativeTo: .caption)).foregroundStyle(ReffiColor.ink2)
             }
-            Text("TABLE · REFFI KITCHEN")
+            Text(verbatim: "TABLE · REFFI KITCHEN")
                 .font(.custom("Pretendard-Medium", size: 9, relativeTo: .caption2))
                 .tracking(1.5).foregroundStyle(ReffiColor.ink2)
             DashedRule()
@@ -402,7 +402,7 @@ struct OnboardingView: View {
 
     private var householdPage: some View {
         questionPage(title: "How many are eating?",
-                     body: "We'll size recipes and shopping lists to match.") {
+                     body: "We'll size your restock amounts to match.") {
             // 칩은 내용 크기(fullWidth false) — 균등 4등분은 "2 people" 등을 말줄임시킨다.
             HStack(spacing: ReffiSpace.s2) {
                 ForEach(HouseholdSize.allCases) { h in
@@ -447,7 +447,7 @@ struct OnboardingView: View {
                 }
                 HStack(spacing: ReffiSpace.s2) {
                     ReffiIcon.countdown.reffi(18, .bold).foregroundStyle(ReffiColor.blueDark)
-                    Text("3 days before · 8 AM")
+                    Text("Today & tomorrow · 9 AM")
                         .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
                 }
             }

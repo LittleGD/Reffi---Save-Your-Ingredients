@@ -92,7 +92,7 @@ struct HistoryView: View {
                 HLine().stroke(ReffiColor.ink.opacity(0.16), style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
                     .frame(height: 1)
                 HStack {
-                    Text("REFFI · PAST 30 DAYS")
+                    Text(verbatim: "REFFI · PAST 30 DAYS")
                         .font(.custom("Pretendard-Bold", size: 10, relativeTo: .caption2)).tracking(1.2)
                         .foregroundStyle(ReffiColor.muted)
                     Spacer()

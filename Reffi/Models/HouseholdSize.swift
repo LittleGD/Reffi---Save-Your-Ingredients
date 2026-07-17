@@ -26,4 +26,17 @@ enum HouseholdSize: String, CaseIterable, Identifiable, Codable {
         case .large: 6
         }
     }
+
+    /// 재입고 기본 수량 배율 — **개수 차원 단위(개·팩·묶음 등)에만** 적용하는 결정적 정수 배율.
+    /// 인원수 그대로의 선형 스케일(1/2/4/6)이 아니라 완만한 계단(1/1/2/3)이다 — 한 탭 추가·재입고가
+    /// 등록 폼 없이 즉시 반영되는 경로라, 인원이 늘어도 g/ml 같은 연속 단위나 과도한 개수로 튀지 않게
+    /// 보수적으로 잡았다(실제 필요량은 재료마다 달라 이 배율은 "대략의 방향"만 맞춘다).
+    var quantityMultiplier: Double {
+        switch self {
+        case .one: 1
+        case .two: 1
+        case .family: 2
+        case .large: 3
+        }
+    }
 }

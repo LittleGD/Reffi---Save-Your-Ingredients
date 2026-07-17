@@ -228,8 +228,10 @@ final class FridgeStore {
 
     /// 스와이프 덱 — 점수순 추천. 후보는 **전체 가용 재고**(작업대 6개 한정 아님) — 티켓이 쓰는
     /// 재료가 냉장고에 있으면 함께 소비 처리돼 유령 재고가 남지 않는다.
-    var rankedRecipes: [RecipeRecommender.Result] {
-        RecipeRecommender.rank(for: available, from: recipes)
+    /// `preferences`(프로필 취향)를 넘기면 알레르기 하드 필터·선호/기피/요리스타일 보정이 적용된다
+    /// (기본 `.none`은 순수 freshness — FridgeStore는 ProfileStore에 결합하지 않고 호출부가 주입).
+    func rankedRecipes(preferences: RecipePreferences = .none) -> [RecipeRecommender.Result] {
+        RecipeRecommender.rank(for: available, from: recipes, preferences: preferences)
     }
 
     // MARK: - 추가/편집/삭제

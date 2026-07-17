@@ -21,6 +21,7 @@ struct AddIngredientSheet: View {
 /// 하단 피드백 스트립의 이름과 Edit 진입(사후 정정)이 책임진다.
 struct IngredientPickerSheet: View {
     @Environment(FridgeStore.self) private var store
+    @Environment(ProfileStore.self) private var profile
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -360,13 +361,21 @@ struct IngredientPickerSheet: View {
             ?? Ingredient.day(offset: 3)
         let unit = IngredientUnit(rawValue: defaultQuantityUnit) ?? .piece
         let ingredient = Ingredient(name: name, category: glyph.categoryLabel, expiresAt: expiresAt,
-                                    quantity: Quantity(value: defaultQuantityValue, unit: unit),
+                                    quantity: Quantity(value: householdScaledQuantity(unit), unit: unit),
                                     glyph: glyph, storage: storage, canonicalID: resolvedID)
         store.add(ingredient)
         withAnimation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion)) {
             lastAdded = ingredient
         }
         savedCount += 1
+    }
+
+    /// 가구 인원 배율 적용 — **개수 차원(piece/pack/bunch 등)일 때만** 기본 수량에 곱한다.
+    /// g/ml 같은 연속 단위는 "1인분=1kg"처럼 단순 비례하지 않아(레시피별로 다름) 배율을 적용하지 않고
+    /// 프로필 기본값을 그대로 쓴다. 반올림 후 최소 1 보장(0으로 떨어지지 않게).
+    private func householdScaledQuantity(_ unit: IngredientUnit) -> Double {
+        guard unit.dimension == .count else { return defaultQuantityValue }
+        return max(1, (defaultQuantityValue * profile.household.quantityMultiplier).rounded())
     }
 
     private func defaultStorage(for canonicalID: String?) -> StorageLocation {
