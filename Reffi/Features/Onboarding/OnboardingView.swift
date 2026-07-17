@@ -137,17 +137,36 @@ struct OnboardingView: View {
         }
     }
 
-    /// 정리된 냉장고 영수증 — recordHero가 올리는 결과물(재료·D-day).
+    /// 정리된 냉장고 영수증 — recordHero가 올리는 결과물(재료·D-day). 재료명은 정본 사전(entry.displayName)에서
+    /// 결정적으로 조회(receiptRows) — D-day는 장식이므로 재료 순서 기반 고정값을 유지한다.
     private var fridgeReceiptMini: some View {
         miniReceipt(seed: 0) {
             VStack(spacing: ReffiSpace.s3) {
                 heroHeader("REFFI · FRIDGE")
-                heroRow(.tomato, "Tomato", "D-2", ReffiColor.soonDark)
-                heroDash
-                heroRow(.leaf, "Spinach", "D-1", ReffiColor.soonDark)
-                heroDash
-                heroRow(.milk, "Milk", "D-5", ReffiColor.freshDark)
+                ForEach(Array(receiptRows.enumerated()), id: \.offset) { i, row in
+                    if i > 0 { heroDash }
+                    heroRow(row.glyph, row.name, row.dDay, row.color)
+                }
             }
+        }
+    }
+
+    /// 캡처→정리 히어로 3종("찍힘"의 영수증 ↔ "정리"의 냉장고 영수증에 같은 재료가 등장)이 공유하는 조회 결과 —
+    /// 정본 사전에서 id로 결정적으로 조회(랜덤 금지). id 조회가 실패하면(사전 로드 실패 등 극단 상황) 사전의
+    /// 다른 엔트리로 개수를 채워 소스코드 리터럴 재료명이 남지 않게 한다.
+    private static let receiptEntryIDs = ["tomato", "spinach", "milk"]
+
+    private var receiptRows: [(glyph: FoodGlyph, name: String, dDay: String, color: Color)] {
+        let lex = IngredientLexicon.shared
+        var entries = Self.receiptEntryIDs.compactMap { lex.entry(id: $0) }
+        if entries.count < Self.receiptEntryIDs.count {
+            let extra = lex.entries.filter { e in !entries.contains { $0.id == e.id } }
+            entries.append(contentsOf: extra.prefix(Self.receiptEntryIDs.count - entries.count))
+        }
+        let dDays = ["D-2", "D-1", "D-5"]                                             // 장식 — 재료 순서 기반 고정값
+        let colors = [ReffiColor.soonDark, ReffiColor.soonDark, ReffiColor.freshDark]
+        return zip(entries, zip(dDays, colors)).map { entry, meta in
+            (glyph: FoodGlyph(rawValue: entry.glyph) ?? .generic, name: entry.displayName, dDay: meta.0, color: meta.1)
         }
     }
 
@@ -155,9 +174,9 @@ struct OnboardingView: View {
     private var captureMotif: some View {
         VStack(alignment: .leading, spacing: ReffiSpace.s2) {
             heroHeader("GROCERY · RECEIPT")
-            captureRow("Tomato", "$2")
-            captureRow("Spinach", "$3")
-            captureRow("Milk", "$4")
+            ForEach(Array(receiptRows.enumerated()), id: \.offset) { _, row in
+                captureRow(row.name)
+            }
         }
         .padding(.horizontal, ReffiSpace.s4)
         .padding(.vertical, ReffiSpace.s3 + 2)
@@ -178,13 +197,13 @@ struct OnboardingView: View {
         }
     }
 
-    private func captureRow(_ name: LocalizedStringKey, _ price: String) -> some View {
-        HStack {
-            Text(name).font(.custom("Pretendard-Medium", size: 13, relativeTo: .caption))
-                .foregroundStyle(ReffiColor.ink2)
-            Spacer(minLength: ReffiSpace.s3)
-            Text(verbatim: price).font(.reffiNum(12, relativeTo: .caption)).foregroundStyle(ReffiColor.ink2)
-        }
+    /// 가격 표기는 제거 — 앱에 재료 가격 데이터 소스가 없어(장바구니 금액 미추적) 실데이터화할 수 없다.
+    private func captureRow(_ name: String) -> some View {
+        Text(verbatim: name)                               // 사전 표시명 — 데이터 verbatim(§i18n)
+            .font(.custom("Pretendard-Medium", size: 13, relativeTo: .caption))
+            .foregroundStyle(ReffiColor.ink2)
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
     }
 
     /// ② "임박 재료 → 오늘의 레시피" — 접시(달걀+Today 도장)가 먼저 떴다 사라지고, 그 자리에 레시피 주문서가 올라옴.
@@ -209,8 +228,10 @@ struct OnboardingView: View {
 
     /// 레시피 주문서 미니 — §13 OrderMemoCard의 시각을 축약한 정적 티켓(온보딩 히어로용).
     /// 실제 카드는 풀스크린 덱·발주 부작용이 있어 그대로 못 넣으므로, 폰트·색·종이 문법만 재사용해 재연.
+    /// 레시피명·재료명·조리 시간은 heroTicket()(RecipeCatalog 시드 우선, 폴백은 사전)에서 온다 — 리터럴 금지.
     private var orderTicketMini: some View {
         let shape = ReceiptShape(tooth: 8)
+        let ticket = Self.heroTicket()
         return VStack(alignment: .leading, spacing: ReffiSpace.s2) {
             // 헤더 — 주방 오더 티켓
             HStack(alignment: .firstTextBaseline) {
@@ -223,28 +244,32 @@ struct OnboardingView: View {
                 .font(.custom("Pretendard-Medium", size: 9, relativeTo: .caption2))
                 .tracking(1.5).foregroundStyle(ReffiColor.ink2)
             DashedRule()
-            // 판정문(임박 소진) + 메뉴 + 시간
+            // 판정문(임박 소진) + 메뉴 + 시간 — "1"은 아래 D-day 중 "Today" 1건과 짝지어진 장식 표기.
             Text("Saves \(1) expiring today")   // 기존 포맷 키 재사용 — ko 번역이 이미 존재
                 .font(.custom("Pretendard-Bold", size: 11, relativeTo: .caption2))
                 .tracking(0.2).foregroundStyle(ReffiColor.urgentDark)
             HStack(alignment: .firstTextBaseline, spacing: ReffiSpace.s2) {
-                Text("Bibimbap")
+                Text(verbatim: ticket.name)                // 시드 레시피명 — 데이터 verbatim(§i18n)
                     .font(.custom("Pretendard-Bold", size: 20, relativeTo: .title3))
                     .tracking(-0.3).foregroundStyle(ReffiColor.ink)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.7)
                 Spacer(minLength: 0)
-                HStack(spacing: 3) {
-                    ReffiIcon.time.reffi(11).foregroundStyle(ReffiColor.ink2)
-                    Text(verbatim: "35 min").font(.custom("Pretendard-Medium", size: 11, relativeTo: .caption))
-                        .foregroundStyle(ReffiColor.ink2)
+                if let minutes = ticket.minutes {
+                    HStack(spacing: 3) {
+                        ReffiIcon.time.reffi(11).foregroundStyle(ReffiColor.ink2)
+                        Text(verbatim: "\(minutes) min").font(.custom("Pretendard-Medium", size: 11, relativeTo: .caption))
+                            .foregroundStyle(ReffiColor.ink2)
+                    }
                 }
             }
             DashedRule()
             Text("ON THE TICKET")
                 .font(.custom("Pretendard-SemiBold", size: 10, relativeTo: .caption2))
                 .tracking(1.4).foregroundStyle(ReffiColor.ink2)
-            ticketMiniRow("Beef", "Today", ReffiColor.urgentDark)
-            ticketMiniRow("Spinach", "1d", ReffiColor.soonDark)
-            ticketMiniRow("Eggs", "2d", ReffiColor.soonDark)
+            ForEach(Array(ticket.rows.enumerated()), id: \.offset) { _, row in
+                ticketMiniRow(row.name, row.dDay, row.color)
+            }
             // Cook this 밴드(정적) — 실제 카드의 blue 발주 CTA를 종이컷+그레인으로 그대로 재연.
             Text("Cook this")
                 .font(ReffiTextRole.subhead.font).tracking(ReffiTextRole.subhead.tracking)
@@ -265,22 +290,56 @@ struct OnboardingView: View {
         .background(shape.fill(ReffiColor.paper))
         .overlay(shape.stroke(ReffiColor.ink.opacity(0.07), lineWidth: 1))
         .reffiShadow1()
+        .clipped()   // 데이터 길이 방어(리뷰 P2-2) — 레시피명 2줄 등으로 늘어나도 카드 밖으로 넘치지 않게
     }
 
     /// 티켓 한 줄(축약) — 체크박스 + 이름 + D-N.
-    private func ticketMiniRow(_ name: LocalizedStringKey, _ dDay: String, _ color: Color) -> some View {
+    private func ticketMiniRow(_ name: String, _ dDay: String, _ color: Color) -> some View {
         HStack(spacing: ReffiSpace.s2) {
             RoundedRectangle(cornerRadius: 3, style: .continuous)
                 .stroke(color.opacity(0.7), lineWidth: 1.5)
                 .frame(width: 13, height: 13)
-            Text(name)
+            Text(verbatim: name)                           // 시드 재료명 — 데이터 verbatim(§i18n)
                 .font(.custom("Pretendard-SemiBold", size: 15, relativeTo: .subheadline))
                 .foregroundStyle(ReffiColor.ink)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
             Spacer(minLength: ReffiSpace.s2)
             Text(verbatim: dDay)
                 .font(.reffiNum(12, relativeTo: .caption))
                 .foregroundStyle(color)
         }
+    }
+
+    /// 히어로 티켓 표시 데이터.
+    private struct HeroTicket {
+        struct Row { let name: String; let dDay: String; let color: Color }
+        let name: String
+        let minutes: Int?
+        let rows: [Row]
+    }
+
+    /// 히어로 티켓 선택 — RecipeCatalog 시드에서 결정적으로 고른다(랜덤·Date 금지 — 프리뷰 불안정).
+    /// 우선순위: id == "bibimbap" → 재료 2개+ 첫 한식(cuisine == "korean") → 첫 레시피.
+    /// 시드 로드 실패(빈 카탈로그) 폴백: 히어로를 숨기지 않고 사전(IngredientLexicon) 첫 엔트리들로 구성해
+    /// 어떤 경로에도 소스코드 리터럴 레시피명이 남지 않게 한다.
+    private static func heroTicket() -> HeroTicket {
+        let dDayMeta: [(String, Color)] = [("Today", ReffiColor.urgentDark),
+                                            ("1d", ReffiColor.soonDark),
+                                            ("2d", ReffiColor.soonDark)]
+        let seed = RecipeCatalog.loadSeed()
+        if let recipe = seed.first(where: { $0.id == "bibimbap" })
+            ?? seed.first(where: { $0.cuisine == "korean" && $0.ingredients.count >= 2 })
+            ?? seed.first {
+            let names = recipe.ingredients.prefix(3).map(\.displayName)
+            let rows = zip(names, dDayMeta).map { HeroTicket.Row(name: $0, dDay: $1.0, color: $1.1) }
+            return HeroTicket(name: recipe.displayName, minutes: recipe.minutes, rows: rows)
+        }
+        // 극단 폴백 — 시드 카탈로그가 비어도 사전 엔트리로 티켓을 채운다(조리 시간 데이터는 없어 시간 칩은 생략).
+        let entries = IngredientLexicon.shared.entries
+        let names = entries.dropFirst().prefix(3).map(\.displayName)
+        let rows = zip(names, dDayMeta).map { HeroTicket.Row(name: $0, dDay: $1.0, color: $1.1) }
+        return HeroTicket(name: entries.first?.displayName ?? "", minutes: nil, rows: rows)
     }
 
     /// ③ "리포트로 쌓여요" — 큰 일러스트 + 무낭비 스트릭 도장(이전 버전 문법).
@@ -323,13 +382,15 @@ struct OnboardingView: View {
             .frame(height: 1)
     }
 
-    private func heroRow(_ glyph: FoodGlyph, _ name: LocalizedStringKey, _ dDay: String, _ color: Color) -> some View {
+    private func heroRow(_ glyph: FoodGlyph, _ name: String, _ dDay: String, _ color: Color) -> some View {
         HStack(spacing: ReffiSpace.s3) {
             PaperSilhouette(glyph: glyph, fresh: .fresh)
                 .frame(width: 28, height: 28)
-            Text(name)
+            Text(verbatim: name)                           // 사전 표시명 — 데이터 verbatim(§i18n)
                 .font(.custom("Pretendard-SemiBold", size: 15, relativeTo: .subheadline))
                 .foregroundStyle(ReffiColor.ink)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
             Spacer(minLength: 0)
             Text(dDay)
                 .font(.reffiNum(14, relativeTo: .subheadline))

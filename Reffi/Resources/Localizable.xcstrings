@@ -621,26 +621,6 @@
         }
       }
     },
-    "Beef": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "소고기"
-          }
-        }
-      }
-    },
-    "Bibimbap": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "비빔밥"
-          }
-        }
-      }
-    },
     "Brazilian": {
       "localizations": {
         "ko": {
@@ -1127,16 +1107,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "레시피 수정"
-          }
-        }
-      }
-    },
-    "Eggs": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "계란"
           }
         }
       }
@@ -1717,16 +1687,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "멕시칸"
-          }
-        }
-      }
-    },
-    "Milk": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "우유"
           }
         }
       }
@@ -2581,16 +2541,6 @@
         }
       }
     },
-    "Spinach": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "시금치"
-          }
-        }
-      }
-    },
     "Start": {
       "localizations": {
         "ko": {
@@ -2837,16 +2787,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "남았는지 여부를 전환해요"
-          }
-        }
-      }
-    },
-    "Tomato": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "토마토"
           }
         }
       }
