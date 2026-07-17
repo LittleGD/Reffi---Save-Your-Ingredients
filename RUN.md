@@ -42,8 +42,11 @@ xcrun simctl io booted screenshot reffi-home.png
 ### QA 런치 인자 (DEBUG)
 `-glyphGallery` `-buttonGallery` 갤러리 · `-profileTab` `-fridgeTab` 탭 직행 ·
 `-showHistory` History 시트 · `-authView` 로그인 화면 · `-onboarding` 온보딩(+`-onboardingPage N`) ·
-`-resetOnboarding` 온보딩 초기화 · `-skipAuth` 게스트로 게이트 통과 · `-authGate` 게스트 해제 ·
-`-fridge.compact YES` 간편보기 · `-fridge.sort recent|freshest|expiry` 정렬
+`-resetOnboarding` 온보딩 초기화 · `-skipOnboarding` 온보딩 건너뛰고 곧장 게이트 통과 ·
+`-skipAuth` 게스트로 게이트 통과 · `-authGate` 게스트 해제 ·
+`-fridge.compact YES` 간편보기 · `-fridge.sort recent|freshest|expiry` 정렬 ·
+`-loadSample` 샘플 시드 · `-previewCarousel` 캐러셀 바로 열기(`-previewAIBadge` 동시 지정 시 AI 배지 티켓도 얹음) ·
+`-profileAI` Profile을 AI recipes 영수증까지 스크롤
 (인증 콘솔 설정은 `docs/AUTH_SETUP.md`)
 
 ## 기술 스택

@@ -17,6 +17,8 @@ struct ProfileView: View {
     // 등록 폼 기본값 — 수량·단위(AddIngredientSheet가 소비).
     @AppStorage("defaultQuantityValue") private var defaultQuantityValue = 1.0
     @AppStorage("defaultQuantityUnit") private var defaultQuantityUnit = IngredientUnit.piece.rawValue
+    // AI 클라우드 생성 동의 SSOT — AIConsent.cloudEnabled와 같은 키(Apple 5.1.2(i), 토글=명시 동의 UI).
+    @AppStorage(AIConsent.cloudConsentKey) private var cloudAIEnabled = false
 
     @State private var sheet: Sheet?
     @State private var showLogout = false
@@ -33,7 +35,7 @@ struct ProfileView: View {
     }
 
     /// 스크롤 앵커 id — 하단 섹션까지 프로그램 스크롤(QA 스크린샷)용.
-    private enum Anchor: Hashable { case bottom }
+    private enum Anchor: Hashable { case bottom, ai }
 
     /// 영수증 인셋 — Fridge cardInset처럼 페이지 마진 위에 추가로 좁혀 영수증 폭을 만든다.
     private let receiptInset: CGFloat = 6
@@ -51,6 +53,7 @@ struct ProfileView: View {
                 notifyReceipt
                 defaultsReceipt
                 recipesReceipt
+                aiReceipt.id(Anchor.ai)
                 dataReceipt
                 accountReceipt
                 Color.clear.frame(height: 1).id(Anchor.bottom)   // 스크롤 하단 앵커(QA 스크린샷)
@@ -65,6 +68,12 @@ struct ProfileView: View {
             if ProcessInfo.processInfo.arguments.contains("-profileBottom") {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
                     proxy.scrollTo(Anchor.bottom, anchor: .bottom)
+                }
+            }
+            // AI recipes 영수증 스크린샷 검증용.
+            if ProcessInfo.processInfo.arguments.contains("-profileAI") {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                    proxy.scrollTo(Anchor.ai, anchor: .center)
                 }
             }
         }
@@ -327,6 +336,45 @@ struct ProfileView: View {
                 showMyRecipes = true
             }
         }
+    }
+
+    // MARK: - AI 레시피 영수증 (클라우드 동의 SSOT — Apple 5.1.2(i), 토글 자체가 명시 동의 UI)
+    private var aiReceipt: some View {
+        ReceiptCard(title: String(localized: "AI recipes")) {
+            Toggle(isOn: $cloudAIEnabled) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Cloud recipe generation").reffiType(.body).foregroundStyle(ReffiColor.ink)
+                    // 켜는 순간이 동의 시점 — 고지는 켜기 전에도 상시 표시된다(토글=명시 동의 UI).
+                    Text("When on, your ingredient names and food preferences are sent to Reffi's recipe service to generate ideas. Nothing is stored on the server.")
+                        .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
+                }
+            }
+            .tint(ReffiColor.blue)
+            .accessibilityLabel("Cloud recipe generation")
+            .padding(.horizontal, ReffiSpace.s5)
+            .padding(.vertical, ReffiSpace.s4)
+
+            ReceiptRule()
+            VStack(alignment: .leading, spacing: ReffiSpace.s1) {
+                Text("On-device generation runs only on this device — nothing leaves your phone.")
+                    .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
+                // 일일 캡의 클라이언트 미러(AIConsent) — 정직한 잔여 표시.
+                Text(remainingGenerationsText)
+                    .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
+                if OnDeviceModelRecipeSource().isAvailable {
+                    Text("This device supports on-device generation — it's tried first, before the cloud.")
+                        .reffiType(.caption).foregroundStyle(ReffiColor.muted)
+                }
+            }
+            .padding(.horizontal, ReffiSpace.s5)
+            .padding(.vertical, ReffiSpace.s3)
+        }
+    }
+
+    /// 오늘 남은 생성 횟수 — "Today X of Y generations left" 형태. Y(일일 캡)가 고정 상수(현재 5)라
+    /// "of Y generations"의 복수형은 X 값과 무관하게 항상 성립해(문법상 옳음) 별도 ICU 복수 변형이 불필요하다.
+    private var remainingGenerationsText: String {
+        String(localized: "Today \(AIConsent.remainingToday) of \(AIConsent.dailyCap) generations left")
     }
 
     // MARK: - 데이터 관리 영수증 (샘플 불러오기·전체 초기화)

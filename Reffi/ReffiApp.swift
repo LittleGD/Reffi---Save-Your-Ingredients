@@ -17,6 +17,11 @@ struct ReffiApp: App {
         if args.contains("-resetOnboarding") || args.contains("-onboarding") {
             UserDefaults.standard.removeObject(forKey: "onboarding.done")
         }
+        // 스크린샷·QA용 — 온보딩을 건너뛰고 곧장 게이트 통과(컨테이너가 새로 생성된 설치 직후에도
+        // 결정적으로 메인까지 도달하게). -resetOnboarding/-onboarding과 상충하지 않도록 별도 플래그.
+        if args.contains("-skipOnboarding") {
+            UserDefaults.standard.set(true, forKey: "onboarding.done")
+        }
         #endif
     }
 

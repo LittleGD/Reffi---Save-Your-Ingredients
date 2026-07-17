@@ -571,6 +571,10 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
 .memo::after  { bottom: -9px; }
 .memo .ticket-head { display: flex; justify-content: space-between; align-items: baseline;
   font-weight: 700; letter-spacing: 2.5px; font-size: 13px; }
+.memo .ticket-head .right { display: flex; align-items: baseline; gap: 8px; letter-spacing: 0; }
+.memo .ai-badge { display: inline-flex; align-items: center; gap: 3px; background: var(--color-blue-light);
+  color: var(--color-blue-dark); font-size: 10px; font-weight: 600; letter-spacing: 1.2px;
+  padding: 3px 7px; border-radius: var(--radius-xs); }
 .memo .rule { height: 1px; margin: 12px 0; background: repeating-linear-gradient(90deg,
   oklch(25% 0.012 80 / 0.22) 0 4px, transparent 4px 8px); }
 .memo .menu { font-weight: 700; font-size: 26px; letter-spacing: -0.3px; }
@@ -1206,9 +1210,9 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
 
           <div class="demo-pane" style="grid-column: 1 / -1;">
             <p class="subhead text">오더 메모 카드 (추천 캐러셀)</p>
-            <p class="lbl">주방 오더 티켓: 상·하 톱니 절취 + 모노 헤더 + 점선 룰 + 판정문 키커 + 메뉴/시간 + 재료 체크리스트(최대 5줄 + N more) + PREP 조리 메모(최대 3단계 미리보기 + N more, 전체 단계는 발주 후 단계별 조리 화면이 정본) + "이걸로 요리" 발주 CTA(발주 시 START 스탬프 슬램). 덱은 풀스크린·네비 없음 — 뒤에 겹친 종이가 실제 다음 티켓이며(가장 깊은 티켓만 머리 렌더 — 바로 뒤는 풀 렌더라 플릭 승격이 매끄럽다), 맨 앞을 튕겨(플릭) 넘긴다(순환). 카드는 화면 높이에 캡되고 중간 섹션은 필요 시 카드 안에서 스크롤(큰 글씨 안전망). <strong>발주 = 예약</strong>(START 슬램은 연출, 재고 차감·이력은 <strong>요리 완료에서 확정</strong> — 재료별 "다 썼어요/조금 남았어요" 원탭, 조리 취소는 예약 해제). 발주는 커버당 1회 + 6초 되돌리기 → 곧장 단계별 조리 화면(체크리스트), 메인의 Cooking now 카드로 복귀. 판정 커버엔 urgent 한정 <strong>Freeze</strong> 3번째 선택지 — 얼리면 유예 14일의 새 D-day(재냉동 불가), 냉장고 카드엔 FROZEN 도장.</p>
+            <p class="lbl">주방 오더 티켓: 상·하 톱니 절취 + 모노 헤더 + 점선 룰 + 판정문 키커 + 메뉴/시간 + 재료 체크리스트(최대 5줄 + N more) + PREP 조리 메모(최대 3단계 미리보기 + N more, 전체 단계는 발주 후 단계별 조리 화면이 정본) + "이걸로 요리" 발주 CTA(발주 시 START 스탬프 슬램). 덱은 풀스크린·네비 없음 — 뒤에 겹친 종이가 실제 다음 티켓이며(가장 깊은 티켓만 머리 렌더 — 바로 뒤는 풀 렌더라 플릭 승격이 매끄럽다), 맨 앞을 튕겨(플릭) 넘긴다(순환). 카드는 화면 높이에 캡되고 중간 섹션은 필요 시 카드 안에서 스크롤(큰 글씨 안전망). <strong>발주 = 예약</strong>(START 슬램은 연출, 재고 차감·이력은 <strong>요리 완료에서 확정</strong> — 재료별 "다 썼어요/조금 남았어요" 원탭, 조리 취소는 예약 해제). 발주는 커버당 1회 + 6초 되돌리기 → 곧장 단계별 조리 화면(체크리스트), 메인의 Cooking now 카드로 복귀. 판정 커버엔 urgent 한정 <strong>Freeze</strong> 3번째 선택지 — 얼리면 유예 14일의 새 D-day(재냉동 불가), 냉장고 카드엔 FROZEN 도장. <strong>발주 덱은 시드·커스텀·AI 생성 티켓이 한 덱</strong> — AI 생성 레시피는 별도 트레이 없이 "#NN" 왼쪽 <strong>sparkle + AI 미니 배지</strong>로만 구분한다. 캐러셀이 열리면 재고 기준으로 생성을 트리거해, 끝나는 대로 아직 덱에 없는 AI 티켓을 최대 2장 뒤에 조용히 이어붙인다(기존 카드 순서·정체성 불변, 진행 중엔 상단에 작은 힌트, 실패해도 문구 없이 사라짐).</p>
             <div class="memo">
-              <div class="ticket-head"><span>ORDER</span><span class="num">#01</span></div>
+              <div class="ticket-head"><span>ORDER</span><span class="right"><span class="ai-badge">✦ AI</span><span class="num">#01</span></span></div>
               <div class="rule"></div>
               <div class="menu text">순두부 찌개</div>
               <div class="line"><span class="box"></span><span class="text">연두부</span><span class="dn num">D-0</span></div>

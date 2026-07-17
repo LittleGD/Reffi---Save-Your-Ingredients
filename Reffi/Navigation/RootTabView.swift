@@ -58,6 +58,11 @@ struct RootTabView: View {
                 UserDefaults.standard.set(false, forKey: "fridge.compact")
                 UserDefaults.standard.set(FridgeSort.expiry.rawValue, forKey: "fridge.sort")
             }
+            // 탭 직행 보강 — 위 @State 초기값 클로저와 같은 조건을 onAppear에서도 한 번 더 확인해
+            // 스크린샷·QA 자동화가 launch 인자 하나만으로 안정적으로 목표 탭에 도달하게 한다.
+            let args = ProcessInfo.processInfo.arguments
+            if args.contains("-profileTab") { tab = .profile }
+            else if args.contains("-fridgeTab") { tab = .fridge }
         }
         #endif
         .sheet(isPresented: $showAdd) {

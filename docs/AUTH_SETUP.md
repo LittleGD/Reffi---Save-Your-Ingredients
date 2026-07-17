@@ -4,8 +4,8 @@
 Apple/Google 로그인은 아래 콘솔 설정(개발자 계정 필요)을 마쳐야 실제로 성공한다 — 앱 코드는 이미 완성돼 있어 설정만 하면 켜진다.
 
 ## 프로젝트 정보
-- Supabase 프로젝트: `reffi` (ref: `itianwvwbeixfarblqzy`, 리전 ap-northeast-2 서울)
-- 대시보드: https://supabase.com/dashboard/project/itianwvwbeixfarblqzy
+- Supabase 프로젝트: `iwannalaunchmyapp` (ref: `bzzpmaeitfbbunsmjvmd`, 리전 ap-northeast-2 서울)
+- 대시보드: https://supabase.com/dashboard/project/bzzpmaeitfbbunsmjvmd
 - API URL·publishable key: `Reffi/Data/AuthStore.swift`에 임베드(공개 키라 안전, 데이터 보호는 RLS로)
 - OAuth 콜백 스킴: `reffi://auth-callback` (Info.plist `CFBundleURLTypes`, project.yml에서 생성)
 
@@ -33,13 +33,14 @@ Apple/Google 로그인은 아래 콘솔 설정(개발자 계정 필요)을 마�
    실기기/배포 서명 시 자동 임베드 — 남은 건 서명 팀 설정뿐.
 3. Supabase Dashboard → Authentication → Sign In / Up → Apple 활성화 →
    **Client IDs에 `com.reffi.app` 추가** (네이티브 플로우는 Service ID·Secret 불필요).
-   ⚠️ 이 프로젝트(`itianwvwbeixfarblqzy`)는 프로젝트 생성자 계정 소유라 **대시보드 접근 권한이
-   있는 사람이 직접** 켜야 한다(2026-07-16 확인 — 자동화 불가).
+   ℹ️ 2026-07-16 프로젝트를 소유 계정(`bzzpmaeitfbbunsmjvmd`, iwannalaunchmyapp)으로 전환 —
+   대시보드에서 직접 설정 가능. **익명 로그인(Anonymous sign-ins)도 이 프로젝트에서 다시 켜야
+   게스트 진입이 서버 익명 세션으로 동작한다**(안 켜면 로컬 게스트 폴백).
 
 ## 3. Google 로그인 (콘솔 설정 필요)
 앱은 시스템 브라우저(ASWebAuthenticationSession) OAuth 플로우를 쓴다.
 1. Google Cloud Console → OAuth 동의 화면 구성 → **웹 애플리케이션** OAuth Client ID 생성.
-   - 승인된 리디렉션 URI: `https://itianwvwbeixfarblqzy.supabase.co/auth/v1/callback`
+   - 승인된 리디렉션 URI: `https://bzzpmaeitfbbunsmjvmd.supabase.co/auth/v1/callback`
 2. Supabase Dashboard → Authentication → Sign In / Up → Google 활성화 →
    Client ID / Client Secret 입력.
 3. (선택) Dashboard → Authentication → URL Configuration → Redirect URLs에

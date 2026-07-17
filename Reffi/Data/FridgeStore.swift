@@ -15,8 +15,10 @@ final class FridgeStore {
     private let seedRecipes: [Recipe]
     /// 사용자 커스텀 레시피 — 스냅샷에 영속화.
     private(set) var userRecipes: [Recipe]
-    /// 추천 풀 = 시드 + 커스텀(커스텀 우선 — 내가 만든 레시피가 위로).
-    var recipes: [Recipe] { userRecipes + seedRecipes }
+    /// AI 생성 레시피 캐시(오프라인 재사용) — 스냅샷에 영속화. `refreshAIRecipes`가 채운다.
+    private(set) var aiRecipes: [Recipe] = []
+    /// 추천 풀 = 커스텀 + AI + 시드(커스텀·AI 우선 — 내가 만든/생성한 레시피가 위로).
+    var recipes: [Recipe] { userRecipes + aiRecipes + seedRecipes }
     /// 소비/버림 이력 — History·낭비율의 소스(최신이 앞).
     private(set) var history: [RemovalLog]
     /// 이력 트림으로 접힌 과거 누계(전체 Ate/Tossed 카운트 보존용).
@@ -54,6 +56,12 @@ final class FridgeStore {
     private let historyCap = 2000
     /// undo 창이 한참 지난 로그의 복원 스냅샷은 비워 파일을 가볍게(60일).
     private let snapshotRetentionDays = 60
+    /// AI 캐시 상한 — 초과 시 오래된(뒤) 것부터 제거.
+    private let aiRecipeCap = 30
+    /// AI 생성 진행 중(재진입 방지) — 메모리만.
+    private var isRefreshingAI = false
+    /// 직전 생성에 쓴 available 재료 집합 해시(메모리만) — 같은 집합이면 재생성 스킵(불필요 호출 방지).
+    private var lastAIIngredientHash: Int?
 
     static let currentSchemaVersion = 2
     static let log = Logger(subsystem: "com.reffi.app", category: "store")
@@ -79,6 +87,7 @@ final class FridgeStore {
         counterIDs = snap?.counterIDs ?? []
         activeCook = snap?.activeCook
         userRecipes = snap?.userRecipes ?? []
+        aiRecipes = snap?.aiRecipes ?? []   // 레거시 파일엔 없음 → 빈 캐시(안전)
         resolveCanonicalIDs()   // 레거시 데이터 승격(nil→사전) — persist는 다음 변이 때 자연 기록
         let have = Set(ingredients.map(\.id))
         counterIDs.removeAll { !have.contains($0) }   // 스테일 정리
@@ -88,10 +97,12 @@ final class FridgeStore {
     /// 프리뷰·테스트용 — 메모리 전용(저장 안 함, 알림 재스케줄도 안 함).
     init(ingredients: [Ingredient],
          recipes: [Recipe]? = nil,
-         history: [RemovalLog] = []) {
+         history: [RemovalLog] = [],
+         aiRecipes: [Recipe] = []) {
         persists = false
         seedRecipes = recipes ?? RecipeCatalog.loadSeed()
         userRecipes = []
+        self.aiRecipes = aiRecipes
         self.ingredients = ingredients
         self.history = history
         archivedAte = 0
@@ -132,6 +143,7 @@ final class FridgeStore {
         var userRecipes: [Recipe]?         // v2
         var archivedAte: Int?              // v2
         var archivedTossed: Int?           // v2
+        var aiRecipes: [Recipe]? = nil     // v2 — 기본 nil이라 기존 memberwise 호출·레거시 파일 안전
     }
 
     static var storeURL: URL {
@@ -179,7 +191,8 @@ final class FridgeStore {
                             ingredients: ingredients, history: history,
                             dismissedToBuy: dismissedToBuy, counterIDs: counterIDs,
                             activeCook: activeCook, userRecipes: userRecipes,
-                            archivedAte: archivedAte, archivedTossed: archivedTossed)
+                            archivedAte: archivedAte, archivedTossed: archivedTossed,
+                            aiRecipes: aiRecipes)
         do {
             let data = try JSONEncoder().encode(snap)
             let url = Self.storeURL
@@ -514,6 +527,67 @@ final class FridgeStore {
         persist(reschedulesAlerts: false)
     }
 
+    // MARK: - AI 레시피 캐시(증강)
+
+    /// 보유 재료로 AI 레시피를 생성해 캐시에 얹는다. 스토어는 ProfileStore에 결합하지 않고 호출부(UI)가
+    /// `AIRecipePreferences(profile:)`와 로케일("ko"/"en")을 주입한다(`rankedRecipes`와 같은 패턴).
+    ///
+    /// 방어: ① 이미 진행 중이면 스킵(재진입) ② 일일 캡 초과면 엔진 호출 자체 스킵 ③ 직전과 같은
+    /// available 재료 집합이면 재생성 스킵(불필요 호출) ④ 실패는 조용히(로그만) — 시드/커스텀이 폴백.
+    /// 성공분만 중복 제거 후 prepend(캡 30), 사용량 1회 기록, persist(알림 불변).
+    func refreshAIRecipes(preferences: AIRecipePreferences, locale: String) async {
+        guard !isRefreshingAI else { return }
+        guard AIConsent.canGenerateToday else { return }
+        let candidates = available
+        guard !candidates.isEmpty else { return }
+        let hash = Self.ingredientSetHash(candidates)
+        guard hash != lastAIIngredientHash else { return }
+
+        isRefreshingAI = true
+        defer { isRefreshingAI = false }
+        lastAIIngredientHash = hash   // 성공/실패 무관 — 같은 재료 집합 재호출을 막는다(냉장고가 바뀌면 재시도)
+
+        let request = RecipeGenerationRequest(ingredients: candidates, preferences: preferences,
+                                              count: 2, locale: locale)
+        let generated = await RecipeEngine.standard.recipes(for: request)
+        guard !generated.isEmpty else {
+            Self.log.info("AI recipe refresh produced nothing (unavailable sources / offline).")
+            return
+        }
+        let merged = Self.mergedAIRecipes(existing: aiRecipes, incoming: generated,
+                                          others: userRecipes + seedRecipes, cap: aiRecipeCap)
+        guard merged != aiRecipes else { return }   // 전부 중복 — 상태·사용량 변화 없음
+        aiRecipes = merged
+        AIConsent.recordUsage()
+        persist(reschedulesAlerts: false)
+    }
+
+    /// AI 캐시 병합 규칙(순수·테스트 가능) — incoming을 정규화 이름 기준 중복 제거(others=시드/커스텀,
+    /// existing=기존 AI와 이름 충돌 폐기) 후 existing 앞에 prepend, cap 초과분은 뒤(오래된 것)에서 제거.
+    static func mergedAIRecipes(existing: [Recipe], incoming: [Recipe],
+                                others: [Recipe], cap: Int) -> [Recipe] {
+        var seen = Set((others + existing).map(normRecipeName))
+        var fresh: [Recipe] = []
+        for recipe in incoming where seen.insert(normRecipeName(recipe)).inserted {
+            fresh.append(recipe)
+        }
+        var merged = fresh + existing
+        if merged.count > cap { merged.removeLast(merged.count - cap) }
+        return merged
+    }
+
+    /// 레시피 이름 정규화 키(중복 판정) — en 이름 소문자 트림.
+    static func normRecipeName(_ recipe: Recipe) -> String {
+        recipe.name.en.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    }
+
+    /// available 재료 집합의 순서 무관 해시 — matchKey(표기 무관) 기준. 프로세스 내 안정(메모리 가드용).
+    static func ingredientSetHash(_ ingredients: [Ingredient]) -> Int {
+        var hasher = Hasher()
+        for key in ingredients.map(\.matchKey).sorted() { hasher.combine(key) }
+        return hasher.finalize()
+    }
+
     // MARK: - 통계 (이력 단일 장부 + 접힌 누계)
 
     /// 누계 — 헤더의 Ate/Tossed 카운트(트림으로 접힌 과거분 포함).
@@ -578,6 +652,8 @@ final class FridgeStore {
         counterIDs = []
         pendingUndo = nil
         activeCook = nil
+        aiRecipes = []                // 이전 냉장고 기준 생성물 — 샘플로 교체 시 무효
+        lastAIIngredientHash = nil
         resolveCanonicalIDs()   // 샘플 데이터도 캐논 키 승격(매칭 일관성)
         replenishCounter()
         persist()
@@ -594,6 +670,8 @@ final class FridgeStore {
         pendingUndo = nil
         activeCook = nil
         userRecipes = []
+        aiRecipes = []
+        lastAIIngredientHash = nil
         persist()
     }
 }
