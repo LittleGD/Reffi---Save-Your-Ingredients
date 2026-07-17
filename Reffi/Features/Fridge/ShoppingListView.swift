@@ -63,7 +63,7 @@ struct ShoppingListView: View {
     private var listCard: some View {
         let shape = ReceiptShape(tooth: 7)
         return VStack(alignment: .leading, spacing: ReffiSpace.s3) {
-            Text("Ran out — based on what you use often")
+            Text("Ran out, based on what you use often")
                 .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
             ForEach(items, id: \.name) { item in
                 HStack(spacing: ReffiSpace.s3) {
@@ -74,7 +74,7 @@ struct ShoppingListView: View {
                         withAnimation(ReffiMotion.settle) { restock(name: item.name, glyph: item.glyph) }
                     } label: {
                         Text("Add")
-                            .font(.custom("Pretendard-SemiBold", size: 14, relativeTo: .subheadline))
+                            .reffiType(.pillLabel)
                             .foregroundStyle(ReffiColor.blueDark)
                             .padding(.horizontal, ReffiSpace.s3 + 2)
                             .padding(.vertical, ReffiSpace.s1 + 1)
@@ -91,7 +91,7 @@ struct ShoppingListView: View {
                         withAnimation(ReffiMotion.settle) { store.skipBuy(item.name) }
                     } label: {
                         Text("Skip")
-                            .font(.custom("Pretendard-SemiBold", size: 14, relativeTo: .subheadline))
+                            .reffiType(.pillLabel)
                             .foregroundStyle(ReffiColor.ink2)
                             .padding(.horizontal, ReffiSpace.s3 + 2)
                             .padding(.vertical, ReffiSpace.s1 + 1)

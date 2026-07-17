@@ -242,7 +242,7 @@ struct Ingredient: Identifiable, Codable, Equatable {
 
     var purchasedText: String { purchasedAt.formatted(date: .abbreviated, time: .omitted) }
     var expiresText: String { effectiveExpiresAt.formatted(date: .abbreviated, time: .omitted) }
-    var placeText: String { place.isEmpty ? "—" : place }
+    var placeText: String { place.isEmpty ? "–" : place }
     var quantityText: String { quantity.text }
 
     /// 오늘 자정 기준 `offset`일 후의 자정 시각.

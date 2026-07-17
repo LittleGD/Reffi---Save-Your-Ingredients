@@ -81,7 +81,7 @@ final class AuthStore {
                 try await Self.client.auth.update(
                     user: UserAttributes(email: email, password: password)
                 )
-                self.notice = String(localized: "Check your inbox — once verified, your guest data carries over.")
+                self.notice = String(localized: "Check your inbox. Once verified, your guest data carries over.")
             } else {
                 let res = try await Self.client.auth.signUp(email: email, password: password)
                 if res.session == nil {
@@ -183,7 +183,7 @@ final class AuthStore {
         let raw = error.localizedDescription
         let lower = raw.lowercased()
         if lower.contains("invalid login credentials") { return String(localized: "Email or password doesn't match.") }
-        if lower.contains("email not confirmed") { return String(localized: "Please verify your email first — check your inbox.") }
+        if lower.contains("email not confirmed") { return String(localized: "Please verify your email first. Check your inbox.") }
         if lower.contains("already registered") { return String(localized: "This email is already registered. Try logging in.") }
         if lower.contains("at least 6 characters") || lower.contains("password should")
             { return String(localized: "Password must be at least 6 characters.") }

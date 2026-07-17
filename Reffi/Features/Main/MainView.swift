@@ -188,9 +188,9 @@ struct MainView: View {
 
     private var missionText: Text {
         if counter.isEmpty { return Text("Fill the counter, then cook") }
-        if urgentCount > 0 { return Text("\(urgentCount) at risk today — cook one?") }
-        if soonCount > 0 { return Text("\(soonCount) to eat soon — plan tonight?") }
-        return Text("All fresh — get ahead of it.")
+        if urgentCount > 0 { return Text("\(urgentCount) at risk today. Cook one?") }
+        if soonCount > 0 { return Text("\(soonCount) to eat soon. Plan tonight?") }
+        return Text("All fresh. Get ahead of it.")
     }
 
     // MARK: - 알림 유도 배너 (프리퍼미션)
@@ -205,17 +205,16 @@ struct MainView: View {
         HStack(spacing: ReffiSpace.s3) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(verbatim: "MORNING ALERTS")
-                    .font(.custom("Pretendard-Bold", size: 10, relativeTo: .caption2))
-                    .tracking(1.6).foregroundStyle(ReffiColor.blueDark)
+                    .reffiType(.monoEyebrow).foregroundStyle(ReffiColor.blueDark)
                 Text("Know before food turns")
-                    .font(.custom("Pretendard-Bold", size: 14, relativeTo: .subheadline))
+                    .reffiType(.badgeLabel)
                     .foregroundStyle(ReffiColor.ink).lineLimit(1)
                     .minimumScaleFactor(0.8)
             }
             Spacer(minLength: ReffiSpace.s2)
             Button { enableAlerts() } label: {
                 Text("Turn on")
-                    .font(.custom("Pretendard-SemiBold", size: 13, relativeTo: .caption))
+                    .reffiType(.pillLabel)
                     .foregroundStyle(.white)
                     .padding(.horizontal, ReffiSpace.s3 + 2)
                     .padding(.vertical, ReffiSpace.s1 + 2)
@@ -226,7 +225,7 @@ struct MainView: View {
             .buttonStyle(.reffiPress)
             Button { withAnimation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion)) { alertPromptSeen = true } } label: {
                 Text("Later")
-                    .font(.custom("Pretendard-SemiBold", size: 13, relativeTo: .caption))
+                    .reffiType(.pillLabel)
                     .foregroundStyle(ReffiColor.ink2)
                     .frame(minWidth: 44, minHeight: 44)
                     .contentShape(Rectangle())
@@ -265,14 +264,13 @@ struct MainView: View {
             HStack(spacing: ReffiSpace.s3) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(verbatim: "COOKING NOW")
-                        .font(.custom("Pretendard-Bold", size: 10, relativeTo: .caption2))
-                        .tracking(1.6).foregroundStyle(ReffiColor.blueDark)
+                        .reffiType(.monoEyebrow).foregroundStyle(ReffiColor.blueDark)
                     HStack(spacing: 6) {
                         Text(verbatim: cook.recipeName)
-                            .font(.custom("Pretendard-Bold", size: 15, relativeTo: .subheadline))
+                            .reffiType(.badgeLabel)
                             .foregroundStyle(ReffiColor.ink).lineLimit(1)
                         Text(cook.startedAt, style: .relative)
-                            .font(.custom("Pretendard-Medium", size: 11, relativeTo: .caption2))
+                            .reffiType(.metaText)
                             .foregroundStyle(ReffiColor.ink2)
                     }
                 }
@@ -339,7 +337,7 @@ struct MainView: View {
             if store.isPristine {
                 VStack(spacing: ReffiSpace.s1) {
                     Text("What's in your fridge?").reffiType(.subhead).foregroundStyle(ReffiColor.ink)
-                    Text("Add a few ingredients — Reffi tells you\nwhat to cook before they turn.")
+                    Text("Add a few ingredients. Reffi tells you\nwhat to cook before they turn.")
                         .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
                         .multilineTextAlignment(.center)
                 }

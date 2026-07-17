@@ -245,4 +245,45 @@ struct FridgeStoreAIRecipesTests {
         let decoded = try #require(FridgeStore.decodeSnapshot(json))
         #expect(decoded.aiRecipes == nil)
     }
+
+    // MARK: 재시도 시그니처 (동의 토글 후 AI 재생성 — 시임 수정 Fix2)
+
+    @Test func refreshSignatureShiftsWhenSourceStateChanges() {
+        let ings = [Ingredient(name: "tofu", category: "Protein", daysLeft: 2,
+                               quantity: Quantity(value: 1, unit: .piece), glyph: .tofu)]
+        let base = FridgeStore.refreshSignature(ingredients: ings, cloudEnabled: false, onDeviceAvailable: false)
+        // (a) 같은 재료·같은 소스 상태 → 시그니처 동일(스킵).
+        #expect(FridgeStore.refreshSignature(ingredients: ings, cloudEnabled: false, onDeviceAvailable: false) == base)
+        // (b) cloudEnabled 토글 → 시그니처 변동(같은 냉장고여도 재시도).
+        #expect(FridgeStore.refreshSignature(ingredients: ings, cloudEnabled: true, onDeviceAvailable: false) != base)
+        // 온디바이스 지원 변동도 재시도 유발.
+        #expect(FridgeStore.refreshSignature(ingredients: ings, cloudEnabled: false, onDeviceAvailable: true) != base)
+    }
+}
+
+// MARK: - AIConsent 리셋 (계정 전환·탈퇴 와이프 — 시임 수정 Fix1)
+
+/// 동의·사용량이 계정 귀속으로 원자적으로 초기화되는지. AIConsent는 UserDefaults.standard를 쓰므로
+/// (suite 주입 불가) 원상복구 방식으로 격리한다(기존 값 저장 → 검증 → 복원).
+struct AIConsentResetTests {
+    @Test func resetAllClearsConsentAndUsage() {
+        let defaults = UserDefaults.standard
+        let savedConsent = AIConsent.cloudEnabled
+        let savedCount = defaults.object(forKey: "ai.usageCount")
+        let savedDay = defaults.object(forKey: "ai.usageDay")
+        defer {
+            AIConsent.cloudEnabled = savedConsent
+            defaults.set(savedCount, forKey: "ai.usageCount")   // nil이면 키 제거(원상복구)
+            defaults.set(savedDay, forKey: "ai.usageDay")
+        }
+
+        AIConsent.cloudEnabled = true
+        AIConsent.recordUsage()
+        AIConsent.recordUsage()
+        #expect(AIConsent.remainingToday < AIConsent.dailyCap)
+
+        AIConsent.resetAll()
+        #expect(AIConsent.cloudEnabled == false)                 // 클라우드 동의 해제
+        #expect(AIConsent.remainingToday == AIConsent.dailyCap)  // 사용량 리셋
+    }
 }

@@ -38,7 +38,10 @@ struct ReffiApp: App {
                 // 알림은 앞으로 30일 치만 등록되므로, 포그라운드 복귀 때마다 창을 앞으로 민다
                 // (스토어 변이 없이 오래 방치해도 그 이후 재료를 놓치지 않게).
                 .onChange(of: scenePhase) { _, phase in
-                    if phase == .active { ExpiryNotifier.reschedule(for: store.ingredients) }
+                    if phase == .active {
+                        ExpiryNotifier.reschedule(for: store.ingredients)
+                        store.promoteUrgent()   // 포그라운드 정렬 — 알림이 가리키는 임박 재료를 작업대로 승격
+                    }
                 }
         }
     }
@@ -105,6 +108,7 @@ private struct RootGateView: View {
             // 다른 계정으로 전환 — 이전 소유자 데이터 제거.
             store.resetAllData()
             profile.resetAll()
+            AIConsent.resetAll()   // 동의는 계정 귀속 — 소유자 와이프와 원자적으로 초기화
         }
         // previous == nil: 최초 기록(와이프 없음). 어느 경우든 소유자 확정.
         UserDefaults.standard.set(newID, forKey: Self.ownerKey)

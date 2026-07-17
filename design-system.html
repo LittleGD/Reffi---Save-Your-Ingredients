@@ -573,7 +573,7 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
   font-weight: 700; letter-spacing: 2.5px; font-size: 13px; }
 .memo .ticket-head .right { display: flex; align-items: baseline; gap: 8px; letter-spacing: 0; }
 .memo .ai-badge { display: inline-flex; align-items: center; gap: 3px; background: var(--color-blue-light);
-  color: var(--color-blue-dark); font-size: 10px; font-weight: 600; letter-spacing: 1.2px;
+  color: var(--color-blue-dark); font-size: 10px; font-weight: 700; letter-spacing: 1.6px;
   padding: 3px 7px; border-radius: var(--radius-xs); }
 .memo .rule { height: 1px; margin: 12px 0; background: repeating-linear-gradient(90deg,
   oklch(25% 0.012 80 / 0.22) 0 4px, transparent 4px 8px); }
@@ -848,6 +848,24 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
             <p class="t-caption text" style="color:var(--color-ink-2);margin-top:var(--space-2)">한글은 어절 경계에서만 줄바꿈하고, 마지막 줄에 단어 하나만 남기지 않는다.</p>
           </div>
         </div>
+
+        <p class="subhead text" style="margin-top:var(--space-6)">보조 스케일 (행동 표면) — §3.5, 5단계 밖 9종</p>
+        <p class="t-caption text" style="color:var(--color-ink-2)">위 5단계는 <strong>정보 표면</strong> 전용. 재료·버튼·티켓 등 "지금 행동"하는 <strong>행동 표면</strong>(§13)은 이 9종만 쓴다 — 정보 표면엔 쓰지 않는다. iOS 구현은 <code class="inline">ReffiActionRole</code>.</p>
+        <table class="tbl" style="margin-top:var(--space-3)">
+          <thead><tr><th>role</th><th>스펙</th><th>용도</th></tr></thead>
+          <tbody>
+            <tr><td><code class="inline">monoTicketLabel</code></td><td class="num">Bold 13 / t2.5 / caption</td><td>오더 티켓 모노 헤더 — "ORDER"·"ORDER · FIRED"</td></tr>
+            <tr><td><code class="inline">monoEyebrow</code></td><td class="num">Bold 10 / t1.6 / caption2</td><td>초소형 올캡 라벨 — "TABLE · REFFI KITCHEN"·"MORNING ALERTS"·AI 미니 배지·영수증 푸터</td></tr>
+            <tr><td><code class="inline">sectionLabel</code></td><td class="num">SemiBold 11 / t1.4 / caption2</td><td>섹션/픽커 라벨 — "ON THE TICKET"·"PREP"·"FREQUENT"·카테고리</td></tr>
+            <tr><td><code class="inline">menuName</code></td><td class="num">Bold 26 / t−0.3 / title2</td><td>티켓·레시피 메뉴명</td></tr>
+            <tr><td><code class="inline">metaText</code></td><td class="num">Medium 13 / caption</td><td>보조 메타 — 시간·개수·설명·힌트</td></tr>
+            <tr><td><code class="inline">pillLabel</code></td><td class="num">SemiBold 13 / caption</td><td>필/버튼 라벨 — Undo·Add·Skip·Turn on·Later·판정 키커</td></tr>
+            <tr><td><code class="inline">badgeLabel</code></td><td class="num">SemiBold 15 / t−0.15 / subheadline</td><td>뱃지·아이콘버튼·칩 라벨</td></tr>
+            <tr><td><code class="inline">checklistItem</code></td><td class="num">SemiBold 16 / body</td><td>체크리스트·재료 리스트 항목명</td></tr>
+            <tr><td><code class="inline">stampLabel</code></td><td class="num">Bold 34 / t3 / largeTitle</td><td>START 등 도장 텍스트(고정 34pt)</td></tr>
+          </tbody>
+        </table>
+        <div class="note" style="margin-top:var(--space-4)"><strong>화면당 텍스트 계층 상한: 정보 표면 4 · 행동 표면 7.</strong> <code class="inline">DDayStamp</code>처럼 같은 문법을 가변 크기로 재사용하는 컴포넌트는 role이 아니라 <code class="inline">Font.reffiStamp(size:relativeTo:)</code>(<code class="inline">reffiNum</code>과 동일 패턴)를 쓴다 — <code class="inline">stampLabel</code>은 그 34pt 고정 인스턴스다.</div>
       </section>
 
       <!-- 4. Spacing & Radius -->
@@ -1126,6 +1144,8 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">파스텔 면 위 글자는 ink, Blue 면 위 글자는 white인가</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">파스텔 카드 경계를 색이 아니라 스택 그림자·여백으로 만들었는가</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">화면 내 타이포 위계 ≤ 3, 브랜드 색 ≤ 3인가</span></li>
+          <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">화면당 텍스트 계층이 상한(정보 표면 4·행동 표면 7)을 넘지 않는가</span></li>
+          <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">행동 표면 텍스트가 §3.2 5단계가 아니라 §3.5 보조 스케일 9종(<code class="inline">ReffiActionRole</code>)에서만 왔는가</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">Display=Story Script(영문)/Pretendard(한글), 그 외 GSF(영문)/Pretendard(한글)인가</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">데이터성 숫자에 <code class="inline">.num</code>(tabular)을 적용했는가</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">모든 텍스트가 <code class="inline">word-break:keep-all</code> + orphan 방지를 따르는가</span></li>

@@ -353,4 +353,42 @@ struct FridgeStoreTests {
         // 재고가 생겼고 스킵도 풀렸다 — 캐논(onion) 기준.
         #expect(store.ingredients.contains { $0.canonicalID == "onion" })
     }
+
+    // MARK: 스캔 일괄 추가 상한 + 임박 승격 (시임 수정 Fix3·Fix4)
+
+    @Test func batchAddCapsCounterToCapacityMostUrgentFirst() {
+        let store = FridgeStore(ingredients: [], recipes: [], history: [])
+        // day 15..1 (i=14가 가장 임박) — 15개 일괄(스캔) 추가.
+        let items = (0..<15).map { i in
+            Ingredient(name: "Item\(i)", category: "Veg", daysLeft: 15 - i,
+                       quantity: Quantity(value: 1, unit: .piece), glyph: .generic)
+        }
+        store.add(contentsOf: items)
+        #expect(store.ingredients.count == 15)
+        #expect(store.counterIngredients.count <= 6)                    // 상한 준수
+        // 최임박 6개(day 1..6)만 작업대에 — counterIngredients는 임박순.
+        #expect(store.counterIngredients.map(\.effectiveDaysLeft) == [1, 2, 3, 4, 5, 6])
+    }
+
+    @Test func promoteUrgentSwapsInMoreUrgentWhenCounterFull() {
+        // day 10..15 fresh 6개 — init에서 작업대가 이 6개로 찬다.
+        let fresh = (0..<6).map { i in
+            Ingredient(name: "Fresh\(i)", category: "Veg", daysLeft: 10 + i,
+                       quantity: Quantity(value: 1, unit: .piece), glyph: .generic)
+        }
+        let store = FridgeStore(ingredients: fresh, recipes: [], history: [])
+        #expect(store.counterIngredients.count == 6)
+
+        // 스캔으로 더 임박한 재료 추가 — 작업대가 이미 6개라 등재 안 되고 냉장고에만(Fix3).
+        let urgent = Ingredient(name: "Urgent", category: "Veg", daysLeft: 1,
+                                quantity: Quantity(value: 1, unit: .piece), glyph: .generic)
+        store.add(contentsOf: [urgent])
+        #expect(!store.counterIngredients.contains { $0.id == urgent.id })
+
+        store.promoteUrgent()
+        #expect(store.counterIngredients.contains { $0.id == urgent.id })   // 승격됨
+        #expect(store.counterIngredients.count == 6)                        // 총원 유지(교체)
+        // 교체 수 ≤ 2 — 가장 여유로운 fresh 하나(day 15)만 빠진다.
+        #expect(store.counterIngredients.filter { $0.name.hasPrefix("Fresh") }.count == 5)
+    }
 }

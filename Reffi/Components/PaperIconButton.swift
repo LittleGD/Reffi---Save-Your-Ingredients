@@ -47,7 +47,7 @@ struct PaperIconButton: View {
                 .reffiShadow1()
                 if let label {
                     Text(label)
-                        .font(.custom("Pretendard-SemiBold", size: 15, relativeTo: .subheadline))
+                        .reffiType(.badgeLabel)
                         .foregroundStyle(ReffiColor.ink)
                 }
             }

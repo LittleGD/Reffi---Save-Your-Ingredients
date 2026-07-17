@@ -50,6 +50,14 @@ enum AIConsent {
         defaults.removeObject(forKey: usageDayKey)
     }
 
+    /// 동의·사용량 전면 리셋 — 계정 전환·탈퇴 시 소유자 데이터 와이프와 **원자적으로** 호출한다.
+    /// 클라우드 동의(cloudEnabled)와 일일 사용량은 계정에 귀속되므로(다른 사용자에게 새면 안 됨),
+    /// 냉장고·프로필 초기화와 한 묶음으로 되돌린다. 이 진입점을 두 와이프 호출부가 공유한다.
+    static func resetAll() {
+        cloudEnabled = false
+        resetUsage()
+    }
+
     /// 로컬 달력 기준 일련 일자(yyyyMMdd 정수) — 자정 롤오버 판정 키.
     private static var today: Int {
         let c = Calendar.current.dateComponents([.year, .month, .day], from: Date())

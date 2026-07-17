@@ -94,7 +94,7 @@ struct ReceiptScanView: View {
     private var pickSource: some View {
         VStack(spacing: ReffiSpace.s4) {
             ReffiIcon.receipt.reffi(44).foregroundStyle(ReffiColor.blueDark)
-            Text("Snap the receipt — groceries land in your fridge.")
+            Text("Snap the receipt. Groceries land in your fridge.")
                 .reffiType(.body).foregroundStyle(ReffiColor.ink2)
                 .multilineTextAlignment(.center)
 
@@ -111,7 +111,7 @@ struct ReceiptScanView: View {
                         s.fill(ReffiColor.blueLight).paperEdge(s, tint: ReffiColor.ink.opacity(0.06))
                     }
             }
-            Text("Everything is read on this device — nothing is uploaded.")
+            Text("Everything is read on this device. Nothing is uploaded.")
                 .reffiType(.caption).foregroundStyle(ReffiColor.muted)
         }
         .padding(ReffiSpace.s6)
@@ -152,7 +152,7 @@ struct ReceiptScanView: View {
                                 .listRowSeparatorTint(ReffiColor.ink.opacity(0.06))
                         }
                     } footer: {
-                        Text("Use-by dates are filled from the ingredient dictionary — adjust anytime in Fridge.")
+                        Text("Use-by dates are filled from the ingredient dictionary. Adjust anytime in Fridge.")
                             .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
                     }
                 }
@@ -221,9 +221,8 @@ struct ReceiptScanView: View {
     /// 추정 기한 배지 — 사전 미매칭(D+3 폴백) 또는 매칭돼도 해당 보관 shelfLife 데이터가 없는 항목.
     /// soonDark 톤 캡슐(§2.6 신선도 팔레트 재사용) — 새 컴포넌트가 아니라 기존 언어의 조합.
     private var estimateBadge: some View {
-        Text("Est. date — check")
-            .font(.custom("Pretendard-SemiBold", size: 10, relativeTo: .caption2))
-            .tracking(0.1)
+        Text("Est. date: check")
+            .reffiType(.pillLabel)
             .foregroundStyle(ReffiColor.soonDark)
             .padding(.horizontal, ReffiSpace.s2)
             .padding(.vertical, 2)

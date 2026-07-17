@@ -196,7 +196,7 @@ struct AuthView: View {
         HStack(spacing: ReffiSpace.s3) {
             line
             Text("OR")
-                .font(.custom("Pretendard-Bold", size: 10, relativeTo: .caption2)).tracking(1.2)
+                .reffiType(.monoEyebrow)
                 .foregroundStyle(ReffiColor.muted)
             line
         }
@@ -237,7 +237,7 @@ struct AuthView: View {
 
     private var footer: some View {
         Text(verbatim: "REFFI · KEEP IT FRESH")
-            .font(.custom("Pretendard-Bold", size: 10, relativeTo: .caption2)).tracking(1.2)
+            .reffiType(.monoEyebrow)
             .foregroundStyle(ReffiColor.muted)
             .frame(maxWidth: .infinity)
             .padding(.top, ReffiSpace.s1)

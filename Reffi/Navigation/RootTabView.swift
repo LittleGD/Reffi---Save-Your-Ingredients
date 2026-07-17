@@ -120,7 +120,7 @@ private struct CapsuleNav: View {
             VStack(spacing: 3) {
                 icon.reffi(23, weight)
                 Text(label)
-                    .font(.custom("Pretendard-Medium", size: 11, relativeTo: .caption2))
+                    .reffiType(.metaText)
             }
             .foregroundStyle(tint)
             .frame(minWidth: 52, minHeight: 48)

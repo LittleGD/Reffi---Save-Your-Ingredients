@@ -174,6 +174,7 @@
 
 ### 3.3 운용 규칙
 - **화면당 위계 ≤ 3.** 예: Heading + Body + Caption. Display는 표지/온보딩/빈 상태에서 단독 주인공으로.
+- **화면당 텍스트 계층 상한: 정보 표면 4 · 행동 표면 7.** 정보 표면은 §3.2의 5단계 중 최대 4종(위 규칙과 동일 취지), 행동 표면(§3.5)은 §3.2 잔존 1~2종 + §3.5 9종 중 화면에 실제 쓰인 조합을 합쳐 최대 7종 — 한 화면에 인접한 텍스트가 서로 구분 안 될 만큼 촘촘한 계단을 쌓지 않는다.
 - **줄바꿈은 어절 경계에서만, 고아 단어 금지.**
   ```css
   word-break: keep-all;     /* 한글: 어절(공백) 경계에서만 줄바꿈 */
@@ -189,6 +190,24 @@
 .num { font-variant-numeric: tabular-nums lining-nums; font-feature-settings: "tnum" 1, "lnum" 1; }
 ```
 - 의무: 카드의 "D-2", 수량·날짜, 카운트다운, 표/대시보드 수치. 문장 속 숫자는 비례숫자(기본).
+
+### 3.5 보조 스케일 (행동 표면) — §3.2 5단계 밖, 9종
+
+§3.2의 5단계는 **정보 표면**(카드 스택·리스트·설정 등 "읽는" 화면) 전용이다. **행동 표면**(재료·버튼·티켓 등 "지금 행동"하는 §13 표면)은 별도 보조 스케일 9종만 쓴다 — 정보 표면에는 쓰지 않는다(§3.3). iOS 구현은 `ReffiActionRole`(`ReffiTypography.swift`) — `ReffiTextRole`과 동일 패턴(`reffiType(_:)` 오버로드)으로 폰트·자간을 role에 내장한다.
+
+| role | 스펙 (family·size·tracking·relativeTo) | 용도 |
+|---|---|---|
+| `monoTicketLabel` | Pretendard Bold 13 / 자간 2.5 / `.caption` | 오더 티켓 모노 헤더 — "ORDER"·"ORDER · FIRED" |
+| `monoEyebrow` | Pretendard Bold 10 / 자간 1.6 / `.caption2` | 초소형 올캡 라벨 — "TABLE · REFFI KITCHEN"·"MORNING ALERTS"·AI 미니 배지·영수증 푸터 |
+| `sectionLabel` | Pretendard SemiBold 11 / 자간 1.4 / `.caption2` | 섹션/픽커 라벨 — "ON THE TICKET"·"PREP"·"FREQUENT"·카테고리 |
+| `menuName` | Pretendard Bold 26 / 자간 −0.3 / `.title2` | 티켓·레시피 메뉴명 |
+| `metaText` | Pretendard Medium 13 / `.caption` | 보조 메타 — 시간·개수·설명·힌트 |
+| `pillLabel` | Pretendard SemiBold 13 / `.caption` | 필/버튼 라벨 — Undo·Add·Skip·Turn on·Later·판정 키커 |
+| `badgeLabel` | Pretendard SemiBold 15 / 자간 −0.15 / `.subheadline` | 뱃지·아이콘버튼·칩 라벨(`PaperIconButton`·`IngredientBadge`·`AddBadge`) |
+| `checklistItem` | Pretendard SemiBold 16 / `.body` | 체크리스트·재료 리스트 항목명 |
+| `stampLabel` | Pretendard Bold 34 / 자간 3 / `.largeTitle` | START 등 도장 텍스트(고정 34pt) |
+
+`DDayStamp`처럼 같은 문법을 **가변 크기**로 재사용하는 컴포넌트는 role이 아니라 `Font.reffiStamp(size:relativeTo:)`(=Pretendard Bold, `reffiNum`과 동일한 파라미터화 패턴)를 쓴다 — `stampLabel`은 그 34pt 고정 인스턴스다.
 
 ---
 
@@ -404,6 +423,8 @@
 - [ ] 불투명도로 글자색을 만들지 않았는가(neutral-700 솔리드)
 - [ ] 페이지 색이 60 : 30(신선도 ≤3색) : 5(Blue) : 5(긴급 강조)인가
 - [ ] 화면 내 타이포 위계 ≤ 3, 브랜드 색 ≤ 3인가
+- [ ] 화면당 텍스트 계층이 상한(정보 표면 4·행동 표면 7, §3.3)을 넘지 않는가
+- [ ] 행동 표면 텍스트가 §3.2 5단계가 아니라 §3.5 보조 스케일 9종(`ReffiActionRole`)에서만 왔는가
 - [ ] Display=Story Script(영문)/Pretendard(한글), 그 외 GSF(영문)/Pretendard(한글)인가
 - [ ] 데이터성 숫자에 `.num`(tabular)을 적용했는가
 - [ ] 텍스트가 `word-break:keep-all` + orphan 방지를 따르는가
@@ -612,7 +633,7 @@
 
 **오더 메모 카드(`OrderMemoCard`)** — 주방 오더 티켓: 크림 종이(`ReceiptShape` 상·하 톱니 절취, `--paper-surface`) + 모노 "ORDER" 헤더 + 점선 룰 + **판정문 키커**(이 티켓이 구하는 임박 재료 수) + 메뉴명/시간 + 재료 체크리스트(신선도, 최대 5줄 미리보기 + N more) + **PREP 조리 메모**(`Recipe.steps`, **최대 3단계 미리보기(+N more)** — 발주 전부터 payoff가 보이게, 전체 단계는 발주 후 단계별 조리 화면(`CookingStepsView`)이 정본) + **"이걸로 요리" 발주 CTA**. 발주(Fire the Ticket)하면 START 스탬프가 쾅 찍히고 체크리스트에 줄이 그어진다. AI 생성 레시피(`Recipe.isAI`)는 헤더 "ORDER" 줄의 "#NN" 왼쪽에 **sparkle + "AI" 미니 배지**(`blue-light` 종이 칩, `blue-dark` 잉크)로 구분한다 — 헤더 콘텐츠 분기라 카드 컨테이너 자체의 단일 정체성(§13.5 주석 참고)엔 영향 없다.
 
-**타이포(행동 표면).** §3의 5단계 밖 보조 스케일을 **행동 표면에만** 쓴다: **액션/뱃지 라벨 = Pretendard SemiBold 15 / 자간 −0.15**(`PaperIconButton`·`IngredientBadge`·`AddBadge`), **오더 티켓** = 모노풍 헤더(Pretendard Bold 13 / 자간 2.5, 서브 Medium 10 / 1.6) + 메뉴명(Bold 26) + 체크리스트(SemiBold 16) + START 스탬프(Bold 15). 정보 표면엔 쓰지 않는다(§3.3).
+**타이포(행동 표면).** §3의 5단계 밖 보조 스케일 9종(§3.5 표 정본)을 **행동 표면에만** 쓴다: **뱃지·아이콘버튼 라벨 = `badgeLabel`**(Pretendard SemiBold 15 / 자간 −0.15 — `PaperIconButton`·`IngredientBadge`·`AddBadge`), **오더 티켓** = 모노 헤더 `monoTicketLabel`(Bold 13 / 자간 2.5) + 서브 `monoEyebrow`(Bold 10 / 자간 1.6) + 메뉴명 `menuName`(Bold 26) + 체크리스트 `checklistItem`(SemiBold 16) + START 스탬프 `stampLabel`(Bold 34). 정보 표면엔 쓰지 않는다(§3.3).
 
 **입력 시트도 행동표면 언어를 따른다 — 그리고 재료 추가는 폼이 아니라 픽커다.** 사용자 결정: 타이핑으로 임의 재료를 만드는 직접 입력 폼은 주 추가 플로우에 없다 — **일러스트 사전 픽커 + 영수증 스캔**이 전부다. `AddIngredientSheet`(`IngredientPickerSheet`)는 크림 캔버스(`--color-canvas`) + 흰 영수증 카드(`ReceiptShape`, 스캔 카드) + **검색 필드**(`IngredientLexicon.suggestions(matching:)` 필터 — 임의 생성용이 아니다) + **픽커 그리드**(`PaperSilhouette` 일러스트 + 흰 종이 타일 `PaperRect`, 최소 44pt 히트, 3~4열)로 짓는다. 그리드는 **FREQUENT**(이력 `toBuy` 기반, 없으면 사전 시드 8종) → **카테고리 섹션**(`categoryLabel` 그룹: Veg·Fruit·Meat·Seafood·Dairy·Protein·Grain·Bakery·Pantry·Other, 항목 있는 것만) 순. **탭 = 즉시 추가** — 사전 기본값(글리프·카테고리·보관은 shelfLife가 정의된 우선순위 fridge→pantry→room→freezer 중 첫 값, 기한은 그 보관의 사전 기본값, 수량은 프로필 기본값)으로 폼 없이 바로 저장한다. 일러스트는 카테고리를 대표할 뿐 사용자가 고른 재료와 **유연하게(1:1 아님)** 연결된다 — 정확한 표기·미세 조정은 하단 **피드백 스트립**("Added {name} · {n} this run" + **Edit** → `IngredientEditView`)이 책임진다. **검색이 사전에서 아무것도 못 찾을 때만** 폴백 행("Add “{입력}” as a custom item")이 컴팩트 **커스텀 시트**(이름 고정 + 기한 DatePicker + 수량 + 보관, 스마트 기한 힌트 캡션)를 연다 — 사전 밖 재료를 만드는 유일한 경로다. 이 커스텀 시트와 편집 시트(`IngredientEditView`)는 여전히 모노 섹션 라벨(오더 티켓 언어, 예: `ITEM`·`DETAILS · OPTIONAL`) + `DashedRule` + `PaperButton` 문법을 쓴다. **시스템 글래스 툴바·리퀴드글래스 배경 금지(입력 표면은 조용한 종이)** — 리퀴드글래스는 §13.2대로 네비·배경 시노·떠 있는 컨트롤에만. 상단은 **종이 X 닫기 헤더**(§13.5 아이콘 버튼 계열의 `PaperRect` 면). 검색 필드 포커스 시 시트를 큰 디텐트로 올려 그리드·피드백이 키보드에 가리지 않게 한다. 쇼핑리스트 **재입고**(`ShoppingListView`)는 시트조차 열지 않는다 — Add 탭이 직전 이력 스냅샷(보관·구매처·수량, 냉동이었다면 냉장으로) + 사전 기본 기한으로 곧장 재고에 채운다.
 

@@ -154,7 +154,7 @@ struct RecipeMemoCarousel: View {
             HStack(alignment: .center) {
                 VStack(alignment: .leading, spacing: 1) {
                     Text("Today's tickets").reffiType(.heading).foregroundStyle(ReffiColor.ink)
-                    Text("Flick a ticket for the next — ranked by what spoils first")
+                    Text("Flick a ticket for the next, ranked by what spoils first")
                         .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
                 }
                 Spacer()

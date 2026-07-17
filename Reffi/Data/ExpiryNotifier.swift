@@ -55,21 +55,21 @@ enum ExpiryNotifier {
                 let names = dueTomorrow.prefix(4).map(\.name).joined(separator: ", ")
                 content.title = String(localized: "Expiring tomorrow",
                                        comment: "Notification title when items expire tomorrow")
-                content.body = String(localized: "\(names) — plan a dish before they turn.",
+                content.body = String(localized: "\(names). Plan a dish before they turn.",
                                       comment: "Notification body listing items expiring tomorrow")
             } else if frozenDue.count == dueToday.count {
                 // 오늘 만료분이 전부 냉동 유예 — 해동 리드타임을 반영한 문구.
                 let names = frozenDue.prefix(4).map(\.name).joined(separator: ", ")
                 content.title = String(localized: "Freezer time's up",
                                        comment: "Notification title when frozen items reach grace deadline")
-                content.body = String(localized: "\(names) — thaw and cook them today.",
+                content.body = String(localized: "\(names). Thaw and cook them today.",
                                       comment: "Notification body listing frozen items to thaw today")
             } else {
                 // 제목 카운트와 본문 나열을 '오늘 만료'로 일치시키고, 내일 건은 별도 문장으로.
                 let names = dueToday.prefix(4).map(\.name).joined(separator: ", ")
                 content.title = String(localized: "Use \(dueToday.count) today",
                                        comment: "Notification title with count of items expiring today")
-                var body = String(localized: "\(names) — open Reffi and fire a ticket.",
+                var body = String(localized: "\(names). Open Reffi and fire a ticket.",
                                   comment: "Notification body listing expiring items")
                 if !dueTomorrow.isEmpty {
                     let tomorrowNames = dueTomorrow.prefix(3).map(\.name).joined(separator: ", ")

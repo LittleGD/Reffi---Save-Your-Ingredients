@@ -23,14 +23,14 @@ struct UndoToast: View {
             case .decision(let name, let wasted):
                 (wasted ? ReffiIcon.toss : ReffiIcon.ate).reffi(15, .fill)
                     .foregroundStyle(wasted ? ReffiColor.urgent : ReffiColor.fresh)
-                (wasted ? Text("\(name) — tossed") : Text("\(name) — eaten"))
+                (wasted ? Text("\(name) · tossed") : Text("\(name) · eaten"))
                     .reffiType(.caption).foregroundStyle(.white)
                     .lineLimit(1)
             }
             Spacer(minLength: ReffiSpace.s2)
             Button(action: onUndo) {
                 Text("Undo")
-                    .font(.custom("Pretendard-SemiBold", size: 14, relativeTo: .caption))
+                    .reffiType(.pillLabel)
                     .foregroundStyle(ReffiColor.blueLight)
                     .frame(minWidth: 44, minHeight: 44)
                     .contentShape(Rectangle())

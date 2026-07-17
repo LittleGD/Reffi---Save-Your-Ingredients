@@ -54,7 +54,7 @@ struct CookingStepsView: View {
             }
             Button("Keep cooking", role: .cancel) {}
         } message: {
-            Text("Nothing is logged — reserved ingredients return to the fridge.")
+            Text("Nothing is logged. Reserved ingredients return to the fridge.")
         }
     }
 
@@ -99,7 +99,7 @@ struct CookingStepsView: View {
                     .reffiType(.body).foregroundStyle(ReffiColor.ink).lineLimit(1)
                 Spacer(minLength: ReffiSpace.s2)
                 Text(left ? "Some left" : "Used it all")
-                    .font(.custom("Pretendard-SemiBold", size: 13, relativeTo: .caption))
+                    .reffiType(.pillLabel)
                     .foregroundStyle(left ? ReffiColor.soonDark : ReffiColor.freshDark)
                     .padding(.horizontal, ReffiSpace.s3)
                     .padding(.vertical, ReffiSpace.s1 + 1)
@@ -125,7 +125,7 @@ struct CookingStepsView: View {
                         Text("Started")
                             .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
                         Text(cook.startedAt, style: .relative)
-                            .font(.custom("Pretendard-Medium", size: 13, relativeTo: .caption))
+                            .reffiType(.metaText)
                             .foregroundStyle(ReffiColor.ink2)
                     }
                 }
@@ -158,27 +158,24 @@ struct CookingStepsView: View {
             // 헤더 — 오더 티켓과 같은 모노 크롬.
             HStack(alignment: .firstTextBaseline) {
                 Text(verbatim: "ORDER · FIRED")
-                    .font(.custom("Pretendard-Bold", size: 13, relativeTo: .caption))
-                    .tracking(2.5).foregroundStyle(ReffiColor.urgentDark)
+                    .reffiType(.monoTicketLabel).foregroundStyle(ReffiColor.urgentDark)
                 Spacer()
                 Text("\(cook.count) used")
-                    .font(.custom("Pretendard-Medium", size: 12, relativeTo: .caption))
+                    .reffiType(.metaText)
                     .foregroundStyle(ReffiColor.ink2)
             }
 
             Text(verbatim: cook.recipeName)
-                .font(.custom("Pretendard-Bold", size: 24, relativeTo: .title2))
-                .tracking(-0.3).foregroundStyle(ReffiColor.ink)
+                .reffiType(.menuName).foregroundStyle(ReffiColor.ink)
                 .fixedSize(horizontal: false, vertical: true)
 
             DashedRule()
 
             Text(verbatim: "STEPS")
-                .font(.custom("Pretendard-SemiBold", size: 11, relativeTo: .caption2))
-                .tracking(1.4).foregroundStyle(ReffiColor.ink2)
+                .reffiType(.sectionLabel).foregroundStyle(ReffiColor.ink2)
 
             if steps.isEmpty {
-                Text("No steps on this ticket — cook it your way.")
+                Text("No steps on this ticket. Cook it your way.")
                     .reffiType(.body).foregroundStyle(ReffiColor.ink2)
                     .padding(.vertical, ReffiSpace.s3)
             } else {
@@ -208,7 +205,7 @@ struct CookingStepsView: View {
 
             // 조리 포기 — 예약을 해제하고 재료를 되돌린다(기록 없음). fire의 안전한 반대 방향.
             Button { showCancelConfirm = true } label: {
-                Text("Cancel cooking — put ingredients back")
+                Text("Cancel cooking, put ingredients back")
                     .reffiType(.caption)
                     .foregroundStyle(ReffiColor.ink2)
                     .frame(maxWidth: .infinity, minHeight: 44)
@@ -245,7 +242,7 @@ struct CookingStepsView: View {
                 Text(verbatim: "\(index + 1).")
                     .font(.reffiNum(14, relativeTo: .body)).foregroundStyle(ReffiColor.ink2)
                 Text(verbatim: text)
-                    .font(.custom("Pretendard-Medium", size: 16, relativeTo: .body))
+                    .reffiType(.checklistItem)
                     .foregroundStyle(done ? ReffiColor.muted : ReffiColor.ink)
                     .strikethrough(done, color: ReffiColor.muted)
                     .multilineTextAlignment(.leading)

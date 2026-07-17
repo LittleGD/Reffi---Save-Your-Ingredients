@@ -106,6 +106,7 @@ struct ProfileView: View {
                     await auth.signOut()      // scope .local — 오프라인에서도 로그아웃
                     store.resetAllData()      // 이 기기 냉장고·이력 삭제
                     profile.resetAll()        // 프로필·취향 초기화
+                    AIConsent.resetAll()      // 동의는 계정 귀속 — 소유자 와이프와 원자적으로 초기화
                     // 온보딩 플래그는 유지 — 재온보딩을 강제하지 않는다.
                 }
             }
@@ -168,8 +169,10 @@ struct ProfileView: View {
                     } else {
                         Text(avatarInitial)
                             .font(avatarInitial.hasHangul
-                                  ? .custom("Pretendard-Bold", size: 28, relativeTo: .title)
+                                  ? ReffiTextRole.display.koreanDisplayFont
                                   : .custom("StoryScript-Regular", size: 30, relativeTo: .title))
+                            // 한글 아바타는 디스플레이 role(34) 재사용 + 28pt로 축소(전용 사이즈 신설 금지, 시각 동일).
+                            .scaleEffect(avatarInitial.hasHangul ? 28.0 / 34.0 : 1, anchor: .center)
                             .foregroundStyle(ReffiColor.blue)
                     }
                 }
@@ -356,13 +359,13 @@ struct ProfileView: View {
 
             ReceiptRule()
             VStack(alignment: .leading, spacing: ReffiSpace.s1) {
-                Text("On-device generation runs only on this device — nothing leaves your phone.")
+                Text("On-device generation runs only on this device. Nothing leaves your phone.")
                     .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
                 // 일일 캡의 클라이언트 미러(AIConsent) — 정직한 잔여 표시.
                 Text(remainingGenerationsText)
                     .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
                 if OnDeviceModelRecipeSource().isAvailable {
-                    Text("This device supports on-device generation — it's tried first, before the cloud.")
+                    Text("This device supports on-device generation. It's tried first, before the cloud.")
                         .reffiType(.caption).foregroundStyle(ReffiColor.muted)
                 }
             }
@@ -453,7 +456,7 @@ struct ReceiptCard<Content: View>: View {
         return VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .center) {
                 Text(title.uppercased())
-                    .font(.custom("Pretendard-Bold", size: 11, relativeTo: .caption2)).tracking(1.2)
+                    .reffiType(.monoEyebrow)
                     .foregroundStyle(ReffiColor.ink2)
                 if let stamp {
                     DDayStamp(text: stamp, color: ReffiColor.freshDark, size: 10)

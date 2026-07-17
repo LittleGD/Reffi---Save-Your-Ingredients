@@ -60,8 +60,10 @@ final class FridgeStore {
     private let aiRecipeCap = 30
     /// AI 생성 진행 중(재진입 방지) — 메모리만.
     private var isRefreshingAI = false
-    /// 직전 생성에 쓴 available 재료 집합 해시(메모리만) — 같은 집합이면 재생성 스킵(불필요 호출 방지).
-    private var lastAIIngredientHash: Int?
+    /// 직전 생성의 재시도 시그니처(메모리만) — available 재료 집합 + 가용 소스 상태(클라우드 동의·
+    /// 온디바이스 지원). 같은 시그니처면 재생성 스킵. 재료가 그대로여도 동의를 켜면 시그니처가 달라져
+    /// 다음 cook()에서 재시도된다(불필요 호출 방지 + 동의 토글 후 재시도 양립).
+    private var lastAIRefreshSignature: Int?
 
     static let currentSchemaVersion = 2
     static let log = Logger(subsystem: "com.reffi.app", category: "store")
@@ -92,6 +94,7 @@ final class FridgeStore {
         let have = Set(ingredients.map(\.id))
         counterIDs.removeAll { !have.contains($0) }   // 스테일 정리
         replenishCounter()
+        promoteUrgent()   // 콜드 오픈 정렬 — 저장된 작업대가 더 임박한 재료를 놓치고 있으면 승격(알림 정합)
     }
 
     /// 프리뷰·테스트용 — 메모리 전용(저장 안 함, 알림 재스케줄도 안 함).
@@ -250,13 +253,23 @@ final class FridgeStore {
     // MARK: - 추가/편집/삭제
 
     /// 재료 추가 — 어느 입구(메인 ＋, 네비 ＋, 재입고)로 들어와도 작업대에 함께 올라온다
-    /// (직접 추가는 보충 목표 6을 일시 초과할 수 있다). 재입고는 '이번엔 안 사기'를 해제한다.
+    /// (직접 추가는 보충 목표 6을 일시 초과할 수 있다 — 방금 넣은 한 개를 바로 작업대에서 보이게).
+    /// 재입고는 '이번엔 안 사기'를 해제한다.
     func add(_ ingredient: Ingredient) {
-        add(contentsOf: [ingredient])
+        insert([ingredient], capsCounter: false)
     }
 
-    /// 일괄 추가(영수증 스캔) — N개를 넣어도 스냅샷 기록·알림 재스케줄은 1회만.
+    /// 일괄 추가(영수증 스캔) — N개를 넣어도 스냅샷 기록·알림 재스케줄은 1회만. 직접 추가와 달리
+    /// 작업대는 상한(6)까지만 채운다 — 스캔 한 번에 15개가 쏟아져도 작업대가 넘치지 않게, 최임박 재료부터
+    /// 올리고 나머지는 냉장고에만 둔다(빈 자리가 나면 replenishCounter가 다음 임박 재료로 자연 보충).
     func add(contentsOf newItems: [Ingredient]) {
+        insert(newItems, capsCounter: true)
+    }
+
+    /// 추가 공통 — 캐논 승격·재입고 스킵 해제는 두 경로 동일. 작업대 등재만 다르다:
+    /// 직접 추가(`capsCounter=false`)는 일시 초과 허용(무조건 등재), 일괄 스캔(`capsCounter=true`)은
+    /// 상한까지만 — replenishCounter가 available(임박순, counterEligible 적용)로 빈 자리를 채운다.
+    private func insert(_ newItems: [Ingredient], capsCounter: Bool) {
         guard !newItems.isEmpty else { return }
         let lex = IngredientLexicon.shared
         for item in newItems {
@@ -265,11 +278,14 @@ final class FridgeStore {
                 ingredient.canonicalID = lex.canonicalID(for: ingredient.name)
             }
             ingredients.append(ingredient)
-            if !counterIDs.contains(ingredient.id) { counterIDs.append(ingredient.id) }
+            if !capsCounter, !counterIDs.contains(ingredient.id) {
+                counterIDs.append(ingredient.id)   // 직접 추가 — 일시 초과 허용
+            }
             // 재입고면 '이번엔 안 사기'를 해제 — matchKey(캐논/이름) 기준으로 비교.
             let key = ingredient.matchKey
             dismissedToBuy = dismissedToBuy.filter { dismissKey($0) != key }
         }
+        if capsCounter { replenishCounter() }   // 스캔 — 상한(6)까지 최임박 우선 등재, 나머지는 냉장고에
         persist()
     }
 
@@ -437,6 +453,36 @@ final class FridgeStore {
         }
     }
 
+    /// 임박 승격 — 작업대가 가득 찼을 때, 아직 올라오지 않은 더 임박한 재료를 작업대 내 '가장 여유로운'
+    /// 항목과 교체해 알림(오늘·내일 만료)이 가리키는 재료와 메인 작업대를 정합시킨다. 스캔 상한(§Fix3)으로
+    /// 냉장고에만 남은 임박 재료가 작업대에 못 오르는 구멍을 콜드 오픈/포그라운드에서 메운다.
+    ///
+    /// 규칙: 후보(비예약·counterEligible·작업대 밖)의 effectiveDaysLeft가 작업대 내 최대(가장 여유로운)보다
+    /// **엄격히 작을 때만** 교체. 회당 최대 2개 스왑(대량 교체로 물리 씬이 출렁이지 않게). 빈 자리는
+    /// replenishCounter 담당이라 여기선 '가득 찬' 경우만 손댄다. **라이브 변이 중엔 호출하지 않는다**
+    /// (작업대 sticky 유지 — 콜드 오픈/포그라운드에서만 정렬).
+    func promoteUrgent() {
+        guard counterIDs.count >= counterCapacity else { return }   // 빈 자리는 replenishCounter가 채운다
+        let maxSwaps = 2
+        var swaps = 0
+        while swaps < maxSwaps {
+            let byID = Dictionary(ingredients.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+            let onCounter = Set(counterIDs)
+            // 승격 후보 — 작업대 밖의 가장 임박한 available(available는 임박순·예약 제외).
+            guard let candidate = available.first(where: { !onCounter.contains($0.id) && counterEligible($0) })
+            else { break }
+            // 작업대 안에서 가장 여유로운(effectiveDaysLeft 최대) 항목.
+            guard let slack = counterIDs.compactMap({ byID[$0] })
+                .max(by: { $0.effectiveDaysLeft < $1.effectiveDaysLeft }),
+                  candidate.effectiveDaysLeft < slack.effectiveDaysLeft,   // 엄격히 더 임박할 때만
+                  let idx = counterIDs.firstIndex(of: slack.id)
+            else { break }
+            counterIDs[idx] = candidate.id
+            swaps += 1
+        }
+        if swaps > 0 { persist(reschedulesAlerts: false) }   // 재료 불변 — 알림 재구성 불필요
+    }
+
     // MARK: - 되돌리기 (통합 undo — 판정·발주 공통)
 
     struct PendingUndo: Equatable {
@@ -533,19 +579,26 @@ final class FridgeStore {
     /// `AIRecipePreferences(profile:)`와 로케일("ko"/"en")을 주입한다(`rankedRecipes`와 같은 패턴).
     ///
     /// 방어: ① 이미 진행 중이면 스킵(재진입) ② 일일 캡 초과면 엔진 호출 자체 스킵 ③ 직전과 같은
-    /// available 재료 집합이면 재생성 스킵(불필요 호출) ④ 실패는 조용히(로그만) — 시드/커스텀이 폴백.
-    /// 성공분만 중복 제거 후 prepend(캡 30), 사용량 1회 기록, persist(알림 불변).
-    func refreshAIRecipes(preferences: AIRecipePreferences, locale: String) async {
+    /// **시그니처**(재료 집합 + 가용 소스 상태)면 재생성 스킵(불필요 호출) ④ 실패는 조용히(로그만) —
+    /// 시드/커스텀이 폴백. 성공분만 중복 제거 후 prepend(캡 30), 사용량 1회 기록, persist(알림 불변).
+    ///
+    /// `onDeviceAvailable`은 온디바이스 소스의 실사용 가능 여부 — 기본값이 실소스를 조회한다(호출 저렴:
+    /// 시뮬레이터/미지원 기기는 즉시 false, 지원 기기는 캐시된 availability 열거값 읽기). 동의를 켜면
+    /// 같은 냉장고여도 시그니처가 달라져 재시도되고, 재료가 그대로면 다시 스킵된다.
+    func refreshAIRecipes(preferences: AIRecipePreferences, locale: String,
+                          onDeviceAvailable: Bool = OnDeviceModelRecipeSource().isAvailable) async {
         guard !isRefreshingAI else { return }
         guard AIConsent.canGenerateToday else { return }
         let candidates = available
         guard !candidates.isEmpty else { return }
-        let hash = Self.ingredientSetHash(candidates)
-        guard hash != lastAIIngredientHash else { return }
+        let signature = Self.refreshSignature(ingredients: candidates,
+                                              cloudEnabled: AIConsent.cloudEnabled,
+                                              onDeviceAvailable: onDeviceAvailable)
+        guard signature != lastAIRefreshSignature else { return }
 
         isRefreshingAI = true
         defer { isRefreshingAI = false }
-        lastAIIngredientHash = hash   // 성공/실패 무관 — 같은 재료 집합 재호출을 막는다(냉장고가 바뀌면 재시도)
+        lastAIRefreshSignature = signature   // 성공/실패 무관 — 같은 시그니처 재호출을 막는다(재료·소스 상태가 바뀌면 재시도)
 
         let request = RecipeGenerationRequest(ingredients: candidates, preferences: preferences,
                                               count: 2, locale: locale)
@@ -585,6 +638,17 @@ final class FridgeStore {
     static func ingredientSetHash(_ ingredients: [Ingredient]) -> Int {
         var hasher = Hasher()
         for key in ingredients.map(\.matchKey).sorted() { hasher.combine(key) }
+        return hasher.finalize()
+    }
+
+    /// 재생성 스킵 시그니처(순수·테스트 가능) — 재료 집합 해시 + 가용 소스 상태(클라우드 동의·온디바이스
+    /// 지원). 재료가 그대로여도 소스 상태(동의 켜짐 등)가 바뀌면 값이 달라져 재시도를 허용한다.
+    static func refreshSignature(ingredients: [Ingredient], cloudEnabled: Bool,
+                                 onDeviceAvailable: Bool) -> Int {
+        var hasher = Hasher()
+        hasher.combine(ingredientSetHash(ingredients))
+        hasher.combine(cloudEnabled)
+        hasher.combine(onDeviceAvailable)
         return hasher.finalize()
     }
 
@@ -653,7 +717,7 @@ final class FridgeStore {
         pendingUndo = nil
         activeCook = nil
         aiRecipes = []                // 이전 냉장고 기준 생성물 — 샘플로 교체 시 무효
-        lastAIIngredientHash = nil
+        lastAIRefreshSignature = nil
         resolveCanonicalIDs()   // 샘플 데이터도 캐논 키 승격(매칭 일관성)
         replenishCounter()
         persist()
@@ -671,7 +735,7 @@ final class FridgeStore {
         activeCook = nil
         userRecipes = []
         aiRecipes = []
-        lastAIIngredientHash = nil
+        lastAIRefreshSignature = nil
         persist()
     }
 }

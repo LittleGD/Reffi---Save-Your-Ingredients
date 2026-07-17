@@ -70,6 +70,66 @@ extension Font {
     static func reffiNum(_ size: CGFloat, relativeTo style: Font.TextStyle = .body) -> Font {
         .custom("GoogleSansFlex-Regular", size: size, relativeTo: style).monospacedDigit()
     }
+
+    /// 도장(Stamp) 계열 — Pretendard Bold, 크기 파라미터화(`reffiNum`과 동일 패턴). `DDayStamp`(§13.5)처럼
+    /// 같은 글자 성격을 여러 크기로 재사용하는 컴포넌트 전용 — `ReffiActionRole.stampLabel`(34)도 내부적으로 이걸 쓴다.
+    /// 16번째 역할이 아니라 헬퍼: 고정 9종 밖의 "동일 문법·가변 크기" 컴포넌트를 위한 탈출구.
+    static func reffiStamp(_ size: CGFloat, relativeTo style: Font.TextStyle = .subheadline) -> Font {
+        .custom("Pretendard-Bold", size: size, relativeTo: style)
+    }
+}
+
+/// 보조 스케일(행동 표면, §3.3 밖 · §13.5) — §3의 5단계 정보 위계에는 쓰지 않는다.
+/// 액션/뱃지·티켓·픽커 등 "지금 행동" 표면(재료·버튼·티켓)에만 쓰는 9종. `ReffiTextRole`과 동일 패턴
+/// (font/tracking + `reffiType` 오버로드)으로 raw `.custom("Pretendard-*")` 산발 지정을 대체한다.
+enum ReffiActionRole {
+    case monoTicketLabel   // 오더 티켓 모노 헤더 — "ORDER"·"ORDER · FIRED"
+    case monoEyebrow       // 초소형 올캡 라벨 — 서브헤더·배지 타이틀·구분선 문구
+    case sectionLabel      // 섹션/픽커 라벨 — "ON THE TICKET"·"PREP"·"FREQUENT"·카테고리
+    case menuName          // 티켓/레시피 메뉴명
+    case metaText          // 보조 메타 — 시간·개수·설명·힌트
+    case pillLabel         // 필/버튼 라벨 — Undo·Add·Skip·Turn on·Later 등
+    case badgeLabel        // 뱃지·아이콘버튼·칩 라벨
+    case checklistItem     // 체크리스트·재료 리스트 항목명
+    case stampLabel        // START 등 도장 텍스트(고정 34) — 가변 크기는 `Font.reffiStamp` 참고
+}
+
+extension ReffiActionRole {
+    var font: Font {
+        switch self {
+        case .monoTicketLabel: return .custom("Pretendard-Bold", size: 13, relativeTo: .caption)
+        case .monoEyebrow:     return .custom("Pretendard-Bold", size: 10, relativeTo: .caption2)
+        case .sectionLabel:    return .custom("Pretendard-SemiBold", size: 11, relativeTo: .caption2)
+        case .menuName:        return .custom("Pretendard-Bold", size: 26, relativeTo: .title2)
+        case .metaText:        return .custom("Pretendard-Medium", size: 13, relativeTo: .caption)
+        case .pillLabel:       return .custom("Pretendard-SemiBold", size: 13, relativeTo: .caption)
+        case .badgeLabel:      return .custom("Pretendard-SemiBold", size: 15, relativeTo: .subheadline)
+        case .checklistItem:   return .custom("Pretendard-SemiBold", size: 16, relativeTo: .body)
+        case .stampLabel:      return .reffiStamp(34, relativeTo: .largeTitle)
+        }
+    }
+
+    /// 자간 — 모노/올캡 라벨은 넓게(§13.5 헤더 문법), 그 외는 0 또는 살짝 좁게(badgeLabel).
+    var tracking: CGFloat {
+        switch self {
+        case .monoTicketLabel: return 2.5
+        case .monoEyebrow:     return 1.6
+        case .sectionLabel:    return 1.4
+        case .menuName:        return -0.3
+        case .metaText:        return 0
+        case .pillLabel:       return 0
+        case .badgeLabel:      return -0.15
+        case .checklistItem:   return 0
+        case .stampLabel:      return 3
+        }
+    }
+}
+
+extension View {
+    /// 보조 스케일(행동 표면) 적용(폰트+자간) — §13.5. 정보 표면에는 쓰지 않는다(§3.3, 화면당 상한 별도).
+    func reffiType(_ role: ReffiActionRole) -> some View {
+        self.font(role.font).tracking(role.tracking)
+    }
 }
 
 #if DEBUG

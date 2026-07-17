@@ -23,8 +23,7 @@ struct IngredientBadge: View {
                         .foregroundStyle(f.dark)
                 }
                 Text(verbatim: ingredient.name)
-                    .font(.custom("Pretendard-SemiBold", size: 15, relativeTo: .subheadline))
-                    .tracking(-0.15)
+                    .reffiType(.badgeLabel)
                     .foregroundStyle(ReffiColor.ink)
                     .lineLimit(1)
             }
@@ -59,7 +58,7 @@ struct AddBadge: View {
             HStack(spacing: ReffiSpace.s1) {
                 ReffiIcon.add.reffi(15, .bold)
                 Text("Add")
-                    .font(.custom("Pretendard-SemiBold", size: 15, relativeTo: .subheadline))
+                    .reffiType(.badgeLabel)
             }
             .foregroundStyle(ReffiColor.ink2)
             .padding(.horizontal, ReffiSpace.s3 + 2)

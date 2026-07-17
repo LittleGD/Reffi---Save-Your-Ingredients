@@ -67,12 +67,12 @@ struct HistoryView: View {
                     }
                     Spacer()
                     Text("\(eaten) ate · \(tossed) tossed")
-                        .font(.custom("Pretendard-Medium", size: 12, relativeTo: .caption2))
+                        .reffiType(.metaText)
                         .foregroundStyle(ReffiColor.ink2)
                 }
 
                 if wasteSegments.isEmpty {
-                    Text("No waste yet — nicely done.")
+                    Text("No waste yet. Nicely done.")
                         .reffiType(.body).foregroundStyle(ReffiColor.ink2)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.vertical, ReffiSpace.s5)
@@ -93,7 +93,7 @@ struct HistoryView: View {
                     .frame(height: 1)
                 HStack {
                     Text(verbatim: "REFFI · PAST 30 DAYS")
-                        .font(.custom("Pretendard-Bold", size: 10, relativeTo: .caption2)).tracking(1.2)
+                        .reffiType(.monoEyebrow)
                         .foregroundStyle(ReffiColor.muted)
                     Spacer()
                     Text(receiptNo)

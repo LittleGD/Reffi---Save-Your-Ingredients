@@ -243,8 +243,7 @@ struct IngredientPickerSheet: View {
         VStack(alignment: .leading, spacing: ReffiSpace.s2) {
             if localized {
                 Text("FREQUENT")
-                    .font(.custom("Pretendard-SemiBold", size: 11, relativeTo: .caption2))
-                    .tracking(1.4)
+                    .reffiType(.sectionLabel)
                     .foregroundStyle(ReffiColor.ink2)
             } else {
                 sectionLabel(label)
@@ -264,7 +263,7 @@ struct IngredientPickerSheet: View {
                 PaperSilhouette(glyph: item.glyph, fresh: .fresh)
                     .frame(width: 56, height: 56)
                 Text(verbatim: item.name)
-                    .font(.custom("Pretendard-Medium", size: 12, relativeTo: .caption2))
+                    .reffiType(.metaText)
                     .foregroundStyle(ReffiColor.ink)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
@@ -312,14 +311,14 @@ struct IngredientPickerSheet: View {
         if let lastAdded, savedCount > 0 {
             HStack(spacing: ReffiSpace.s3) {
                 Text("Added \(lastAdded.name) · \(savedCount) this run")
-                    .font(.custom("Pretendard-Medium", size: 13, relativeTo: .caption))
+                    .reffiType(.metaText)
                     .foregroundStyle(ReffiColor.ink2)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
                 Spacer(minLength: ReffiSpace.s2)
                 Button { editingIngredient = lastAdded } label: {
                     Text("Edit")
-                        .font(.custom("Pretendard-SemiBold", size: 13, relativeTo: .caption))
+                        .reffiType(.pillLabel)
                         .foregroundStyle(ReffiColor.blueDark)
                         .padding(.horizontal, ReffiSpace.s3)
                         .padding(.vertical, ReffiSpace.s1 + 2)
@@ -345,8 +344,7 @@ struct IngredientPickerSheet: View {
     /// 모노 섹션 라벨(오더 티켓 언어, §13.5) — 한/영 공통 영문 대문자(주방 패스 라벨).
     private func sectionLabel(_ text: String) -> some View {
         Text(verbatim: text)
-            .font(.custom("Pretendard-SemiBold", size: 11, relativeTo: .caption2))
-            .tracking(1.4)
+            .reffiType(.sectionLabel)
             .foregroundStyle(ReffiColor.ink2)
     }
 
@@ -536,7 +534,7 @@ private struct CustomItemSheet: View {
                 Text("\(storage.label) default · \(days)d")
                     .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
             } else {
-                Text("Not in the dictionary — please check the date")
+                Text("Not in the dictionary. Please check the date")
                     .reffiType(.caption).foregroundStyle(ReffiColor.soonDark)
             }
         }
@@ -551,8 +549,7 @@ private struct CustomItemSheet: View {
 
     private func sectionLabel(_ text: String) -> some View {
         Text(verbatim: text)
-            .font(.custom("Pretendard-SemiBold", size: 11, relativeTo: .caption2))
-            .tracking(1.4)
+            .reffiType(.sectionLabel)
             .foregroundStyle(ReffiColor.ink2)
     }
 

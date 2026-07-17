@@ -48,7 +48,7 @@ struct OnboardingView: View {
                 TabView(selection: $page) {
                     valuePage(hero: { recordHero(active: page == 0) },
                               title: "Log your fridge\nlike a receipt",
-                              body: "Add what you buy — we'll count down the expiry dates.")
+                              body: "Add what you buy. We'll count down the expiry dates.")
                         .tag(0)
                     valuePage(hero: { recipeHero(active: page == 1) },
                               title: "Today's recipes,\nfrom what expires first",
@@ -200,7 +200,7 @@ struct OnboardingView: View {
     /// 가격 표기는 제거 — 앱에 재료 가격 데이터 소스가 없어(장바구니 금액 미추적) 실데이터화할 수 없다.
     private func captureRow(_ name: String) -> some View {
         Text(verbatim: name)                               // 사전 표시명 — 데이터 verbatim(§i18n)
-            .font(.custom("Pretendard-Medium", size: 13, relativeTo: .caption))
+            .reffiType(.metaText)
             .foregroundStyle(ReffiColor.ink2)
             .lineLimit(1)
             .minimumScaleFactor(0.8)
@@ -235,38 +235,34 @@ struct OnboardingView: View {
         return VStack(alignment: .leading, spacing: ReffiSpace.s2) {
             // 헤더 — 주방 오더 티켓
             HStack(alignment: .firstTextBaseline) {
-                Text("ORDER").font(.custom("Pretendard-Bold", size: 12, relativeTo: .caption))
-                    .tracking(2.5).foregroundStyle(ReffiColor.ink)
+                Text("ORDER").reffiType(.monoTicketLabel).foregroundStyle(ReffiColor.ink)
                 Spacer(minLength: 0)
                 Text(verbatim: "#01").font(.reffiNum(13, relativeTo: .caption)).foregroundStyle(ReffiColor.ink2)
             }
             Text(verbatim: "TABLE · REFFI KITCHEN")
-                .font(.custom("Pretendard-Medium", size: 9, relativeTo: .caption2))
-                .tracking(1.5).foregroundStyle(ReffiColor.ink2)
+                .reffiType(.monoEyebrow).foregroundStyle(ReffiColor.ink2)
             DashedRule()
             // 판정문(임박 소진) + 메뉴 + 시간 — "1"은 아래 D-day 중 "Today" 1건과 짝지어진 장식 표기.
             Text("Saves \(1) expiring today")   // 기존 포맷 키 재사용 — ko 번역이 이미 존재
-                .font(.custom("Pretendard-Bold", size: 11, relativeTo: .caption2))
-                .tracking(0.2).foregroundStyle(ReffiColor.urgentDark)
+                .reffiType(.pillLabel).foregroundStyle(ReffiColor.urgentDark)
             HStack(alignment: .firstTextBaseline, spacing: ReffiSpace.s2) {
                 Text(verbatim: ticket.name)                // 시드 레시피명 — 데이터 verbatim(§i18n)
-                    .font(.custom("Pretendard-Bold", size: 20, relativeTo: .title3))
-                    .tracking(-0.3).foregroundStyle(ReffiColor.ink)
+                    .reffiType(.menuName).foregroundStyle(ReffiColor.ink)
+                    .scaleEffect(20.0 / 26.0, anchor: .leading)   // 미니 티켓 축소 — 전용 사이즈 신설 금지, menuName 재사용
                     .lineLimit(2)
                     .minimumScaleFactor(0.7)
                 Spacer(minLength: 0)
                 if let minutes = ticket.minutes {
                     HStack(spacing: 3) {
                         ReffiIcon.time.reffi(11).foregroundStyle(ReffiColor.ink2)
-                        Text(verbatim: "\(minutes) min").font(.custom("Pretendard-Medium", size: 11, relativeTo: .caption))
+                        Text(verbatim: "\(minutes) min").reffiType(.metaText)
                             .foregroundStyle(ReffiColor.ink2)
                     }
                 }
             }
             DashedRule()
             Text("ON THE TICKET")
-                .font(.custom("Pretendard-SemiBold", size: 10, relativeTo: .caption2))
-                .tracking(1.4).foregroundStyle(ReffiColor.ink2)
+                .reffiType(.sectionLabel).foregroundStyle(ReffiColor.ink2)
             ForEach(Array(ticket.rows.enumerated()), id: \.offset) { _, row in
                 ticketMiniRow(row.name, row.dDay, row.color)
             }
@@ -300,7 +296,7 @@ struct OnboardingView: View {
                 .stroke(color.opacity(0.7), lineWidth: 1.5)
                 .frame(width: 13, height: 13)
             Text(verbatim: name)                           // 시드 재료명 — 데이터 verbatim(§i18n)
-                .font(.custom("Pretendard-SemiBold", size: 15, relativeTo: .subheadline))
+                .reffiType(.badgeLabel)
                 .foregroundStyle(ReffiColor.ink)
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
@@ -371,7 +367,7 @@ struct OnboardingView: View {
     private func heroHeader(_ text: String) -> some View {
         HStack {
             Text(text)
-                .font(.custom("Pretendard-Bold", size: 10, relativeTo: .caption2)).tracking(1.2)
+                .reffiType(.monoEyebrow)
                 .foregroundStyle(ReffiColor.muted)
             Spacer(minLength: 0)
         }
@@ -387,7 +383,7 @@ struct OnboardingView: View {
             PaperSilhouette(glyph: glyph, fresh: .fresh)
                 .frame(width: 28, height: 28)
             Text(verbatim: name)                           // 사전 표시명 — 데이터 verbatim(§i18n)
-                .font(.custom("Pretendard-SemiBold", size: 15, relativeTo: .subheadline))
+                .reffiType(.badgeLabel)
                 .foregroundStyle(ReffiColor.ink)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
@@ -419,7 +415,7 @@ struct OnboardingView: View {
 
     private var cuisinePage: some View {
         questionPage(title: "What do you like to cook?",
-                     body: "Pick as many as you like — recipes will follow.") {
+                     body: "Pick as many as you like. Recipes will follow.") {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 92), spacing: ReffiSpace.s2)],
                       alignment: .leading, spacing: ReffiSpace.s2) {
                 ForEach(CuisineStyle.allCases) { c in
@@ -439,11 +435,20 @@ struct OnboardingView: View {
                      body: "Once a day, only when something's expiring.") {
             VStack(alignment: .leading, spacing: ReffiSpace.s3) {
                 // 개인화 payoff — 방금 답한 내용을 즉시 반영해 "맞춰졌다"는 신호(리서치: aha moment).
-                HStack(spacing: ReffiSpace.s2) {
+                // 실동작 정합: 레시피 튜닝은 요리 취향(cuisines)만, 가구 인원(household)은 재입고·수량
+                // 맥락이라 서로 다른 구로 분리한다. 취향 미선택이면 튜닝 구는 생략(빈 요약을 안 보이게).
+                HStack(alignment: .top, spacing: ReffiSpace.s2) {
                     ReffiIcon.ai.reffi(18, .bold).foregroundStyle(ReffiColor.blueDark)
-                    Text("Tuned for \(profile.cuisines.summaryText) · \(profile.household.label)")
-                        .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
-                        .lineLimit(1)
+                    VStack(alignment: .leading, spacing: 2) {
+                        if !profile.cuisines.isEmpty {
+                            Text("Tuned for \(profile.cuisines.summaryText)")
+                                .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
+                                .lineLimit(1)
+                        }
+                        Text("Restock sized for \(profile.household.label)")
+                            .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
+                            .lineLimit(1)
+                    }
                 }
                 HStack(spacing: ReffiSpace.s2) {
                     ReffiIcon.countdown.reffi(18, .bold).foregroundStyle(ReffiColor.blueDark)
@@ -462,7 +467,7 @@ struct OnboardingView: View {
             Spacer(minLength: 0)
             VStack(alignment: .leading, spacing: ReffiSpace.s4) {
                 Text(title)
-                    .font(.custom("Pretendard-Bold", size: 26, relativeTo: .title))
+                    .reffiType(.menuName)
                     .lineSpacing(3)
                     .foregroundStyle(ReffiColor.ink)
                 Text(copy).reffiType(.body).foregroundStyle(ReffiColor.ink2)
