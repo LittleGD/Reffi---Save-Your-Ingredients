@@ -17,6 +17,11 @@ struct ReffiApp: App {
         if args.contains("-resetOnboarding") || args.contains("-onboarding") {
             UserDefaults.standard.removeObject(forKey: "onboarding.done")
         }
+        // 스크린샷·QA용 — 온보딩을 건너뛰고 곧장 게이트 통과(컨테이너가 새로 생성된 설치 직후에도
+        // 결정적으로 메인까지 도달하게). -resetOnboarding/-onboarding과 상충하지 않도록 별도 플래그.
+        if args.contains("-skipOnboarding") {
+            UserDefaults.standard.set(true, forKey: "onboarding.done")
+        }
         #endif
     }
 
@@ -33,7 +38,10 @@ struct ReffiApp: App {
                 // 알림은 앞으로 30일 치만 등록되므로, 포그라운드 복귀 때마다 창을 앞으로 민다
                 // (스토어 변이 없이 오래 방치해도 그 이후 재료를 놓치지 않게).
                 .onChange(of: scenePhase) { _, phase in
-                    if phase == .active { ExpiryNotifier.reschedule(for: store.ingredients) }
+                    if phase == .active {
+                        ExpiryNotifier.reschedule(for: store.ingredients)
+                        store.promoteUrgent()   // 포그라운드 정렬 — 알림이 가리키는 임박 재료를 작업대로 승격
+                    }
                 }
         }
     }
@@ -42,6 +50,8 @@ struct ReffiApp: App {
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("-glyphGallery") {
             GlyphGalleryView()
+        } else if ProcessInfo.processInfo.arguments.contains("-glyphMetrics") {
+            GlyphMetricsView()
         } else if ProcessInfo.processInfo.arguments.contains("-buttonGallery") {
             ButtonGalleryView()
         } else if ProcessInfo.processInfo.arguments.contains("-authView") {
@@ -98,6 +108,7 @@ private struct RootGateView: View {
             // 다른 계정으로 전환 — 이전 소유자 데이터 제거.
             store.resetAllData()
             profile.resetAll()
+            AIConsent.resetAll()   // 동의는 계정 귀속 — 소유자 와이프와 원자적으로 초기화
         }
         // previous == nil: 최초 기록(와이프 없음). 어느 경우든 소유자 확정.
         UserDefaults.standard.set(newID, forKey: Self.ownerKey)
@@ -107,7 +118,7 @@ private struct RootGateView: View {
     private var splash: some View {
         ZStack {
             ReffiColor.canvas.ignoresSafeArea()
-            Text("Reffi").reffiType(.display).foregroundStyle(ReffiColor.blueDark)
+            Text(verbatim: "Reffi").reffiType(.display).foregroundStyle(ReffiColor.blueDark)
         }
     }
 }

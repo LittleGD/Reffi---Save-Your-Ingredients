@@ -11,11 +11,19 @@ import CryptoKit
 @MainActor
 final class AuthStore {
 
+    /// 프로젝트 URL·publishable(anon) key — 클라이언트 임베드용 공개 값(RLS로 보호).
+    /// Edge Function 호출부(CloudProxyRecipeSource)도 이 둘을 재사용한다(비밀 중복 금지).
+    static let supabaseURL = URL(string: "https://bzzpmaeitfbbunsmjvmd.supabase.co")!
+    static let anonKey = "sb_publishable_RolVTNQCWTf9t9XBEcCz1w_HcEeYquc"
+
     /// Supabase 클라이언트 — publishable key는 클라이언트 임베드용 공개 키(RLS로 보호).
-    static let client = SupabaseClient(
-        supabaseURL: URL(string: "https://itianwvwbeixfarblqzy.supabase.co")!,
-        supabaseKey: "sb_publishable_G0kaRfSEKwS-qW4hAOscKA_x5DXA_bV"
-    )
+    static let client = SupabaseClient(supabaseURL: supabaseURL, supabaseKey: anonKey)
+
+    /// 현재 세션의 액세스 토큰(익명 세션 포함) — Edge Function `Authorization: Bearer`용.
+    /// 세션이 없거나 갱신 실패면 nil(호출부가 클라우드 소스를 스킵).
+    static func currentAccessToken() async -> String? {
+        try? await client.auth.session.accessToken
+    }
 
     /// OAuth 콜백 — Info.plist의 `reffi` URL 스킴과 일치해야 한다.
     static let redirectURL = URL(string: "reffi://auth-callback")!
@@ -73,7 +81,7 @@ final class AuthStore {
                 try await Self.client.auth.update(
                     user: UserAttributes(email: email, password: password)
                 )
-                self.notice = String(localized: "Check your inbox — once verified, your guest data carries over.")
+                self.notice = String(localized: "Check your inbox. Once verified, your guest data carries over.")
             } else {
                 let res = try await Self.client.auth.signUp(email: email, password: password)
                 if res.session == nil {
@@ -175,7 +183,7 @@ final class AuthStore {
         let raw = error.localizedDescription
         let lower = raw.lowercased()
         if lower.contains("invalid login credentials") { return String(localized: "Email or password doesn't match.") }
-        if lower.contains("email not confirmed") { return String(localized: "Please verify your email first — check your inbox.") }
+        if lower.contains("email not confirmed") { return String(localized: "Please verify your email first. Check your inbox.") }
         if lower.contains("already registered") { return String(localized: "This email is already registered. Try logging in.") }
         if lower.contains("at least 6 characters") || lower.contains("password should")
             { return String(localized: "Password must be at least 6 characters.") }

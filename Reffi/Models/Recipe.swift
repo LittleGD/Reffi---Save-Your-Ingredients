@@ -24,6 +24,9 @@ struct Recipe: Identifiable, Codable, Equatable {
     var steps: LocalizedSteps
     /// 사용자 커스텀 여부 — 커스텀만 편집·삭제 가능(시드 생략 시 nil = false).
     var isUser: Bool?
+    /// 공급 출처 — AI 생성이면 "ai". 시드/레거시/커스텀은 nil(Codable-안전: 키 없으면 nil).
+    /// 기본값 nil이라 기존 memberwise 호출·시드 로더·userRecipe 팩토리는 불변으로 컴파일된다.
+    var origin: String? = nil
 
     struct LocalizedName: Codable, Equatable {
         var en: String
@@ -47,6 +50,8 @@ struct Recipe: Identifiable, Codable, Equatable {
         return steps.en
     }
     var isUserRecipe: Bool { isUser ?? false }
+    /// AI 생성 레시피 여부 — 배지·필터 배선용(후속 UI 에이전트).
+    var isAI: Bool { origin == "ai" }
 
     /// 히어로 대표 모티프 — 첫 번째 비상비 재료의 글리프에서 파생.
     var glyph: FoodGlyph {

@@ -20,3 +20,8 @@ Package.resolved
 .omc/
 build*.log
 build/
+
+# Supabase 로컬 개발 — 시크릿 담긴 env/임시 파일 커밋 금지(docs/AI_SETUP.md 5.1 참고)
+supabase/.env.local
+supabase/.temp/
+supabase/.branches/

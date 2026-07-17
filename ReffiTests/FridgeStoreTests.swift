@@ -288,4 +288,107 @@ struct FridgeStoreTests {
         #expect(names.count == 2)
         #expect(names.first == "Milk")   // 빈도 우선(2회), 표기는 최근 로그 원문
     }
+
+    // MARK: canonicalID 정규화 매칭 (교차 표기 — 양파↔onion)
+
+    private func ingredient(_ name: String, daysLeft: Int = 3, glyph: FoodGlyph = .generic) -> Ingredient {
+        Ingredient(name: name, category: "Veg", daysLeft: daysLeft,
+                   quantity: Quantity(value: 1, unit: .piece), glyph: glyph)
+    }
+
+    @Test func toBuyExcludesInStockAcrossLocaleNames() {
+        // '양파'로 소진한 이력 + 'onion' 재고 — 같은 캐논(onion)이므로 쇼핑리스트에 안 뜬다.
+        let store = FridgeStore(ingredients: [ingredient("onion", glyph: .onion)],
+                                recipes: [],
+                                history: [RemovalLog(name: "양파", glyph: .onion, daysAgo: 2, wasted: false)])
+        #expect(store.ingredients.first?.canonicalID == "onion")   // 로드 시 승격
+        #expect(store.history.first?.canonicalID == "onion")
+        #expect(store.toBuy.isEmpty)
+    }
+
+    @Test func skipBuyExcludesAcrossLocaleNames() {
+        // 재고 없이 '양파' 이력만 → 원래 쇼핑리스트에 뜬다. 'Onion'(영문)으로 스킵하면 같은 캐논으로 제외.
+        let store = FridgeStore(ingredients: [], recipes: [],
+                                history: [RemovalLog(name: "양파", glyph: .onion, daysAgo: 2, wasted: false)])
+        #expect(store.toBuy.contains { $0.glyph == .onion })
+        store.skipBuy("Onion")
+        #expect(!store.toBuy.contains { $0.glyph == .onion })
+    }
+
+    @Test func legacyDecodeResolvesCanonicalIDOnLoad() throws {
+        // canonicalID 필드가 없는 레거시 재료·이력 — 디코드 직후엔 nil, 스토어 로드(마이그레이션)에서 승격.
+        let legacy = """
+        {"ingredients":[{"id":"3E29D5C3-99D5-44A5-BB80-1E1B62F0A6E0","name":"onion","category":"Veg",
+        "expiresAt":773236800,"amount":"1","glyph":"onion","place":"","storage":"Fridge",
+        "purchasedAt":773100000}],
+        "history":[{"id":"3E29D5C3-99D5-44A5-BB80-1E1B62F0A6E1","name":"양파","glyph":"onion",
+        "removedAt":773100000,"wasted":false}],
+        "dismissedToBuy":[],"counterIDs":[]}
+        """.replacingOccurrences(of: "\n", with: "")
+        let snap = try #require(FridgeStore.decodeSnapshot(Data(legacy.utf8)))
+        #expect(snap.ingredients.first?.canonicalID == nil)   // 디코드 직후엔 미해석
+        #expect(snap.history.first?.canonicalID == nil)
+        // 스토어 로드 경로 통과 후 — 사전으로 캐논 키가 채워진다.
+        let store = FridgeStore(ingredients: snap.ingredients, recipes: [], history: snap.history)
+        #expect(store.ingredients.first?.canonicalID == "onion")
+        #expect(store.history.first?.canonicalID == "onion")
+    }
+
+    @Test func lastSnapshotFoundAcrossLocaleNames() {
+        // 'onion'을 소비 → removeLogging이 캐논을 이력에 복사. '양파'로 재입고 조회해도 스냅샷을 찾는다.
+        let store = FridgeStore(ingredients: [ingredient("onion", glyph: .onion)], recipes: [], history: [])
+        store.eat(store.ingredients.first { $0.name == "onion" }!)
+        let snap = store.lastSnapshot(named: "양파")
+        #expect(snap?.name == "onion")
+        #expect(snap?.canonicalID == "onion")
+    }
+
+    @Test func addReleasesDismissAcrossLocaleNames() {
+        // 'Onion' 스킵 후, '양파'를 추가하면 같은 캐논이라 '이번엔 안 사기'가 해제된다.
+        let store = FridgeStore(ingredients: [], recipes: [],
+                                history: [RemovalLog(name: "onion", glyph: .onion, daysAgo: 2, wasted: false)])
+        store.skipBuy("Onion")
+        #expect(!store.toBuy.contains { $0.glyph == .onion })
+        store.add(ingredient("양파", glyph: .onion))
+        // 재고가 생겼고 스킵도 풀렸다 — 캐논(onion) 기준.
+        #expect(store.ingredients.contains { $0.canonicalID == "onion" })
+    }
+
+    // MARK: 스캔 일괄 추가 상한 + 임박 승격 (시임 수정 Fix3·Fix4)
+
+    @Test func batchAddCapsCounterToCapacityMostUrgentFirst() {
+        let store = FridgeStore(ingredients: [], recipes: [], history: [])
+        // day 15..1 (i=14가 가장 임박) — 15개 일괄(스캔) 추가.
+        let items = (0..<15).map { i in
+            Ingredient(name: "Item\(i)", category: "Veg", daysLeft: 15 - i,
+                       quantity: Quantity(value: 1, unit: .piece), glyph: .generic)
+        }
+        store.add(contentsOf: items)
+        #expect(store.ingredients.count == 15)
+        #expect(store.counterIngredients.count <= 6)                    // 상한 준수
+        // 최임박 6개(day 1..6)만 작업대에 — counterIngredients는 임박순.
+        #expect(store.counterIngredients.map(\.effectiveDaysLeft) == [1, 2, 3, 4, 5, 6])
+    }
+
+    @Test func promoteUrgentSwapsInMoreUrgentWhenCounterFull() {
+        // day 10..15 fresh 6개 — init에서 작업대가 이 6개로 찬다.
+        let fresh = (0..<6).map { i in
+            Ingredient(name: "Fresh\(i)", category: "Veg", daysLeft: 10 + i,
+                       quantity: Quantity(value: 1, unit: .piece), glyph: .generic)
+        }
+        let store = FridgeStore(ingredients: fresh, recipes: [], history: [])
+        #expect(store.counterIngredients.count == 6)
+
+        // 스캔으로 더 임박한 재료 추가 — 작업대가 이미 6개라 등재 안 되고 냉장고에만(Fix3).
+        let urgent = Ingredient(name: "Urgent", category: "Veg", daysLeft: 1,
+                                quantity: Quantity(value: 1, unit: .piece), glyph: .generic)
+        store.add(contentsOf: [urgent])
+        #expect(!store.counterIngredients.contains { $0.id == urgent.id })
+
+        store.promoteUrgent()
+        #expect(store.counterIngredients.contains { $0.id == urgent.id })   // 승격됨
+        #expect(store.counterIngredients.count == 6)                        // 총원 유지(교체)
+        // 교체 수 ≤ 2 — 가장 여유로운 fresh 하나(day 15)만 빠진다.
+        #expect(store.counterIngredients.filter { $0.name.hasPrefix("Fresh") }.count == 5)
+    }
 }

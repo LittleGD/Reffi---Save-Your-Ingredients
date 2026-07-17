@@ -67,6 +67,8 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.reffi.app
+        # Sign in with Apple — 시뮬레이터(서명 없음)에선 무시되고, 실기기/배포 서명 시 임베드된다.
+        CODE_SIGN_ENTITLEMENTS: Reffi/Reffi.entitlements
         MARKETING_VERSION: "0.1.0"
         CURRENT_PROJECT_VERSION: "1"
         SWIFT_VERSION: "5.0"

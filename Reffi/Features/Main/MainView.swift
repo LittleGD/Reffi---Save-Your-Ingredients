@@ -9,6 +9,7 @@ import PhosphorSwift
 /// 작업대·되돌리기 상태는 store에 살아 탭을 오가도 유지된다(undo 토스트는 RootTabView 공통).
 struct MainView: View {
     @Environment(FridgeStore.self) private var store
+    @Environment(ProfileStore.self) private var profile
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     // 알림 유도(프리퍼미션) — 첫 임박 재료가 생긴 순간이 가치가 증명되는 순간이다.
@@ -31,6 +32,7 @@ struct MainView: View {
     @State private var carouselSnapshot: [RecipeRecommender.Result] = []   // 커버 입력 동결(발주 중 재랭크 방지)
     @State private var firedTicket = false         // 커버당 발주 1회 — 슬램 창의 더블 파이어 방지
     @State private var coverGeneration = 0         // 지연 닫기 타이머가 새로 연 커버를 닫지 못하게
+    @State private var aiGenerating = false        // AI 티켓 생성 Task 진행 중 — 캐러셀 힌트 표시용(store엔 진행 상태가 없음)
     @State private var fireHaptic = 0
     @State private var decisionHaptic = 0
 
@@ -41,7 +43,8 @@ struct MainView: View {
     private var carouselResults: [RecipeRecommender.Result] {
         // 소비 후보 = 전체 가용 재고(예약 제외) — 티켓이 쓰는 재료가 작업대 밖에 있어도
         // 함께 소비 처리돼 '실제로 썼는데 재고에 남는' 유령 재고가 생기지 않는다.
-        Array(store.rankedRecipes.prefix(3))
+        // 프로필 취향(§5.2)을 랭킹에 실배선 — 알레르기 하드 필터·선호/기피/요리스타일 보정.
+        Array(store.rankedRecipes(preferences: RecipePreferences(profile: profile)).prefix(3))
     }
     private var topF: Freshness { counter.first?.freshness ?? .fresh }
     private var urgentCount: Int { counter.lazy.filter { $0.freshness == .urgent }.count }
@@ -111,6 +114,7 @@ struct MainView: View {
         }) {
             RecipeMemoCarousel(results: carouselSnapshot,
                                hasIngredients: !store.ingredients.isEmpty,
+                               aiGenerating: aiGenerating,
                                onClose: { showCarousel = false },
                                onFire: fire)
         }
@@ -141,7 +145,18 @@ struct MainView: View {
                 store.loadSampleData()
             }
             if args.contains("-previewCarousel") {
-                carouselSnapshot = carouselResults
+                var snapshot = carouselResults
+                // AI 배지 스크린샷 검증용(-previewAIBadge 동시 지정) — 실 생성·store 변이 없이
+                // 최상위 랭크 레시피를 복제해(텍스트는 새로 짓지 않고 기존 시드에서 파생 —
+                // 하드코딩 금지 규칙 준수) 스냅샷 맨 앞에 직접 얹는다.
+                if args.contains("-previewAIBadge"), let base = snapshot.first?.recipe {
+                    var clone = base
+                    clone.id = "ai-preview-" + UUID().uuidString
+                    clone.origin = "ai"
+                    let result = RecipeRecommender.result(for: clone, ingredients: store.available)
+                    snapshot = [result] + snapshot
+                }
+                carouselSnapshot = snapshot
                 showCarousel = true
             }
             if args.contains("-previewAdd") { showAdd = true }   // 재료 추가 시트 스크린샷 검증용
@@ -173,9 +188,9 @@ struct MainView: View {
 
     private var missionText: Text {
         if counter.isEmpty { return Text("Fill the counter, then cook") }
-        if urgentCount > 0 { return Text("\(urgentCount) at risk today — cook one?") }
-        if soonCount > 0 { return Text("\(soonCount) to eat soon — plan tonight?") }
-        return Text("All fresh — get ahead of it.")
+        if urgentCount > 0 { return Text("\(urgentCount) at risk today. Cook one?") }
+        if soonCount > 0 { return Text("\(soonCount) to eat soon. Plan tonight?") }
+        return Text("All fresh. Get ahead of it.")
     }
 
     // MARK: - 알림 유도 배너 (프리퍼미션)
@@ -190,17 +205,16 @@ struct MainView: View {
         HStack(spacing: ReffiSpace.s3) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(verbatim: "MORNING ALERTS")
-                    .font(.custom("Pretendard-Bold", size: 10, relativeTo: .caption2))
-                    .tracking(1.6).foregroundStyle(ReffiColor.blueDark)
+                    .reffiType(.monoEyebrow).foregroundStyle(ReffiColor.blueDark)
                 Text("Know before food turns")
-                    .font(.custom("Pretendard-Bold", size: 14, relativeTo: .subheadline))
+                    .reffiType(.badgeLabel)
                     .foregroundStyle(ReffiColor.ink).lineLimit(1)
                     .minimumScaleFactor(0.8)
             }
             Spacer(minLength: ReffiSpace.s2)
             Button { enableAlerts() } label: {
                 Text("Turn on")
-                    .font(.custom("Pretendard-SemiBold", size: 13, relativeTo: .caption))
+                    .reffiType(.pillLabel)
                     .foregroundStyle(.white)
                     .padding(.horizontal, ReffiSpace.s3 + 2)
                     .padding(.vertical, ReffiSpace.s1 + 2)
@@ -211,7 +225,7 @@ struct MainView: View {
             .buttonStyle(.reffiPress)
             Button { withAnimation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion)) { alertPromptSeen = true } } label: {
                 Text("Later")
-                    .font(.custom("Pretendard-SemiBold", size: 13, relativeTo: .caption))
+                    .reffiType(.pillLabel)
                     .foregroundStyle(ReffiColor.ink2)
                     .frame(minWidth: 44, minHeight: 44)
                     .contentShape(Rectangle())
@@ -250,14 +264,13 @@ struct MainView: View {
             HStack(spacing: ReffiSpace.s3) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(verbatim: "COOKING NOW")
-                        .font(.custom("Pretendard-Bold", size: 10, relativeTo: .caption2))
-                        .tracking(1.6).foregroundStyle(ReffiColor.blueDark)
+                        .reffiType(.monoEyebrow).foregroundStyle(ReffiColor.blueDark)
                     HStack(spacing: 6) {
                         Text(verbatim: cook.recipeName)
-                            .font(.custom("Pretendard-Bold", size: 15, relativeTo: .subheadline))
+                            .reffiType(.badgeLabel)
                             .foregroundStyle(ReffiColor.ink).lineLimit(1)
                         Text(cook.startedAt, style: .relative)
-                            .font(.custom("Pretendard-Medium", size: 11, relativeTo: .caption2))
+                            .reffiType(.metaText)
                             .foregroundStyle(ReffiColor.ink2)
                     }
                 }
@@ -324,7 +337,7 @@ struct MainView: View {
             if store.isPristine {
                 VStack(spacing: ReffiSpace.s1) {
                     Text("What's in your fridge?").reffiType(.subhead).foregroundStyle(ReffiColor.ink)
-                    Text("Add a few ingredients — Reffi tells you\nwhat to cook before they turn.")
+                    Text("Add a few ingredients. Reffi tells you\nwhat to cook before they turn.")
                         .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
                         .multilineTextAlignment(.center)
                 }
@@ -413,6 +426,15 @@ struct MainView: View {
         // 커버 표시를 한 틱 지연 — 80레시피 스코어링(carouselResults)과 커버 첫 프레임이
         // 같은 틱에 겹쳐 프레임드롭 나지 않게 랭킹 계산 틱과 표시 틱을 분리한다.
         DispatchQueue.main.async { showCarousel = true }
+        // AI 티켓 생성 — refreshAIRecipes는 재진입 가드·해시 스킵이 내장돼 매 cook()마다 불러도 안전.
+        // 도착분은 store.aiRecipes 변화를 캐러셀이 직접 관찰해 합류한다(§13.6) — 여기선 진행 힌트만 켠다.
+        aiGenerating = true
+        let gen = coverGeneration
+        Task {
+            await store.refreshAIRecipes(preferences: AIRecipePreferences(profile: profile),
+                                         locale: Recipe.isKorean ? "ko" : "en")
+            if coverGeneration == gen { aiGenerating = false }   // 새 cook()이 이미 시작됐으면 그쪽 힌트를 끄지 않는다
+        }
     }
 
     /// 티켓 발주(Fire the Ticket) — used 재료를 이 레시피로 전량 소비 처리 → 슬램 본 뒤 커버 닫기.

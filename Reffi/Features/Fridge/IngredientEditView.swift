@@ -61,7 +61,7 @@ struct IngredientEditView: View {
                         Label { Text("Delete ingredient") } icon: { ReffiIcon.delete.reffi(15) }
                     }
                 } footer: {
-                    Text("Removes it without history — stats and the shopping list won't count it.")
+                    Text("Removes it without history. Stats and the shopping list won't count it.")
                 }
             }
             .navigationTitle(Text("Edit \(draft.name)"))
@@ -91,7 +91,7 @@ struct IngredientEditView: View {
                     dismiss()
                 }
             } message: {
-                Text("Removes it without history — stats and the shopping list won't count it.")
+                Text("Removes it without history. Stats and the shopping list won't count it.")
             }
         }
     }

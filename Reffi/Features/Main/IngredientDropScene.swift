@@ -123,10 +123,10 @@ final class IngredientDropScene: SKScene {
             highlight(ateZone, hovering: captured === ateZone)
             return   // 드래그 중엔 절대 휴면 안 함
         }
-        // 잔여 운동 능동 감쇠 — 오목 알파 바디 + 강한 중력의 접촉 해소 임펄스가 매 프레임
-        // 재주입돼 지터(v 40~57)가 calm 임계를 계속 넘나들며 스스로 안 죽는다. settleBand 미만
-        // (= 자유낙하·던지기 아님)만 프레임당 20% 곱셈 감쇠 → 지수 감쇠가 임펄스를 이겨 수 프레임
-        // 내 calm 대역으로 수렴한다. 고속 칩은 안 건드려 낙하·던지기의 묵직함(§13.4)은 그대로.
+        // 잔여 운동 능동 감쇠 — 볼록 폴리곤 바디라 오목 알파 지터는 없지만, 강한 중력의 접촉 해소
+        // 임펄스로 착지 직후 미세 요동이 남을 수 있다. settleBand 미만(= 자유낙하·던지기 아님)만
+        // 프레임당 20% 곱셈 감쇠 → 수 프레임 내 calm 대역으로 수렴. 고속 칩은 안 건드려 낙하·던지기의
+        // 묵직함(§13.4)은 그대로.
         for node in chips.values {
             guard let b = node.physicsBody else { continue }
             if hypot(b.velocity.dx, b.velocity.dy) < settleBand {
@@ -313,10 +313,8 @@ final class IngredientDropScene: SKScene {
         addChild(walls)
     }
 
-    /// 텍스처 두 종류를 캐시한다:
-    ///  - 표시용(shadowed): 화면에 그리는 종이 그림자 있는 실루엣.
-    ///  - 바디용(shadowless, "@…#body"): 그림자가 없어 알파 임계로 뜬 충돌체가 실제 글리프에 딱 맞는다.
-    ///    그림자 포함 텍스처로 바디를 만들면 충돌체가 글리프보다 커져 재료 사이 빈틈이 생긴다.
+    /// 표시용 실루엣 텍스처(종이 그림자 포함)를 캐시한다. 충돌체는 이 텍스처 알파가 아니라
+    /// 실측 폴리곤(`makeBody`)이라, 여기선 표시용(shadowed: true)만 쓴다(shadowless는 진단용 잔존).
     /// 캐시 키에 side가 들어가 리사이즈로 변이 달라지면 자동 무효(캐시 removeAll은 didChangeSize).
     private func texture(for ing: Ingredient, side: CGFloat, shadowed: Bool) -> SKTexture? {
         let key = "\(ing.glyph.rawValue)@\(Int(side))" + (shadowed ? "" : "#body")
@@ -375,17 +373,15 @@ final class IngredientDropScene: SKScene {
     private func addChip(_ ing: Ingredient, order: Int, count: Int) {
         let s = chipSide
         let node: SKSpriteNode
-        let body: SKPhysicsBody
         if let disp = texture(for: ing, side: s, shadowed: true) {
             node = SKSpriteNode(texture: disp, size: CGSize(width: s, height: s))
-            // 충돌체 = 실루엣 **실제 모양** — 그림자 없는 바디용 텍스처의 알파에서 뜬다.
-            // 그림자 텍스처로 뜨면 충돌체가 글리프보다 커져 재료 사이 빈틈이 생긴다.
-            let bodyTex = texture(for: ing, side: s, shadowed: false) ?? disp
-            body = SKPhysicsBody(texture: bodyTex, alphaThreshold: 0.5, size: CGSize(width: s, height: s))
         } else {
             node = SKSpriteNode(color: UIColor(ing.freshness.main), size: CGSize(width: s, height: s))
-            body = makeBody(for: ing.glyph, side: s)
         }
+        // 충돌체 = **실측 알파 bbox 기반 볼록 폴리곤**(makeBody). 오목 알파 텍스처 바디는 접촉 해소
+        // 지터가 영원히 안 죽고(브로콜리 겹침·요동의 원인) 비용도 크다 — 실측으로 실루엣에 딱 맞춘
+        // 볼록 바디가 겹침 없이 안정적으로 쌓인다.
+        let body = makeBody(for: ing.glyph, side: s)
         node.physicsBody = body
         node.name = "chip:\(ing.id.uuidString)"
         node.userData = ["name": ing.name]
@@ -414,28 +410,46 @@ final class IngredientDropScene: SKScene {
         chips[ing.id] = node
     }
 
-    /// 글리프별 근사 충돌체(볼록 타원) — 원 대신 재료 비율에 맞춰 자연스럽고 안정적으로 쌓이게.
+    /// 글리프별 볼록 폴리곤 충돌체 — **실측 알파 bbox 기반**(`GlyphBodyMetrics`, `-glyphMetrics`로 재측정).
+    /// (폭비·높이비) = 알파 bbox의 **90%**(시각보다 살짝 작게 → 겹쳐 보임 방지 + 아주 살짝 nestle),
+    /// dy = 그려진 영역(bbox) 중심의 **시각 정렬 오프셋**(+ = 위, side 프랙션) — 상/하로 치우친 글리프
+    /// (브로콜리·양파·국수 그릇 등)의 바디를 실제 그림에 맞춰 빈틈·겹침을 없앤다.
+    /// 오목 알파 바디가 아니라 **볼록 폴리곤**이라 접촉 해소 지터가 원천적으로 없다.
     private func makeBody(for glyph: FoodGlyph, side s: CGFloat) -> SKPhysicsBody {
-        let wf: CGFloat, hf: CGFloat
-        switch glyph {
-        case .root, .squash:                (wf, hf) = (0.46, 0.80)   // 길쭉 세로(당근·애호박)
-        case .milk:                         (wf, hf) = (0.52, 0.80)   // 우유팩
-        case .leaf:                         (wf, hf) = (0.54, 0.78)   // 잎
-        case .fish:                         (wf, hf) = (0.84, 0.52)   // 길쭉 가로(생선)
-        case .meat, .tofu, .cheese, .bread: (wf, hf) = (0.80, 0.60)   // 넓적(고기·두부·치즈·빵)
-        case .egg, .mushroom, .pepper, .poultry, .shrimp, .citrus:
-                                            (wf, hf) = (0.66, 0.74)   // 타원(달걀·버섯 등)
-        default:                            (wf, hf) = (0.74, 0.74)   // 둥근(토마토·양파·사과 등)
-        }
-        return Self.ovalBody(s * wf, s * hf)
+        let m = Self.bodyMetrics[glyph] ?? (0.62, 0.60, 0)
+        return Self.ovalBody(s * m.w, s * m.h, dy: s * m.dy)
     }
 
-    /// 볼록 N각형 타원 바디 — SpriteKit `polygonFrom`은 볼록만 허용해 끼임·진동이 없다.
-    private static func ovalBody(_ w: CGFloat, _ h: CGFloat, sides: Int = 14) -> SKPhysicsBody {
+    /// 실측 바디 파라미터 (폭비, 높이비, y오프셋[+위]) — `-glyphMetrics` 계측값(알파 bbox×0.9 + bbox중심 정렬).
+    private static let bodyMetrics: [FoodGlyph: (w: CGFloat, h: CGFloat, dy: CGFloat)] = [
+        .leaf: (0.52, 0.68, 0.00),  .root: (0.27, 0.67, -0.01), .squash: (0.35, 0.59, 0.03),
+        .onion: (0.52, 0.65, -0.05), .tomato: (0.56, 0.60, 0.00), .pepper: (0.55, 0.64, -0.01),
+        .mushroom: (0.59, 0.54, 0.02), .broccoli: (0.56, 0.62, 0.01), .potato: (0.59, 0.46, 0.00),
+        .garlic: (0.46, 0.58, -0.03), .cucumber: (0.60, 0.59, 0.01), .pea: (0.59, 0.36, 0.06),
+        .cabbage: (0.62, 0.59, -0.02), .chili: (0.30, 0.70, 0.00), .pumpkin: (0.60, 0.54, -0.02),
+        .apple: (0.61, 0.67, 0.02),  .citrus: (0.60, 0.45, 0.00), .berry: (0.46, 0.61, -0.01),
+        .avocado: (0.44, 0.62, 0.00), .banana: (0.61, 0.35, 0.05), .egg: (0.54, 0.59, 0.01),
+        .tofu: (0.68, 0.42, -0.02),  .meat: (0.62, 0.47, 0.01),  .poultry: (0.42, 0.59, 0.01),
+        .fish: (0.67, 0.40, 0.00),   .shrimp: (0.48, 0.57, -0.01), .milk: (0.41, 0.62, 0.00),
+        .cheese: (0.62, 0.45, -0.04), .bread: (0.56, 0.54, -0.03), .rice: (0.54, 0.49, -0.03),
+        .noodles: (0.56, 0.48, -0.06), .corn: (0.46, 0.59, 0.01), .sauceBottle: (0.30, 0.65, -0.01),
+        .can: (0.45, 0.47, 0.00),
+        // v2 신규 17종 — `-glyphMetrics` 실측(알파 bbox×0.9 + 질량중심 정렬).
+        .eggplant: (0.35, 0.63, 0.03), .sweetPotato: (0.55, 0.28, 0.01), .ginger: (0.49, 0.40, 0.03),
+        .seaweed: (0.51, 0.58, 0.00), .grape: (0.42, 0.54, 0.01), .watermelon: (0.63, 0.51, -0.02),
+        .pineapple: (0.38, 0.65, 0.04), .mango: (0.52, 0.48, 0.00), .sausage: (0.57, 0.52, -0.02),
+        .bacon: (0.67, 0.36, 0.00), .crab: (0.61, 0.54, 0.06), .squid: (0.29, 0.61, 0.03),
+        .clam: (0.56, 0.43, 0.09), .yogurt: (0.44, 0.61, 0.01), .butter: (0.64, 0.33, 0.07),
+        .honey: (0.43, 0.61, 0.07), .dumpling: (0.54, 0.32, 0.06),
+        .generic: (0.60, 0.56, 0.01),
+    ]
+
+    /// 볼록 N각형 타원 바디(dy로 중심 오프셋) — SpriteKit `polygonFrom`은 볼록만 허용해 끼임·진동이 없다.
+    private static func ovalBody(_ w: CGFloat, _ h: CGFloat, dy: CGFloat = 0, sides: Int = 14) -> SKPhysicsBody {
         let path = CGMutablePath()
         for i in 0..<sides {
             let a = CGFloat(i) / CGFloat(sides) * 2 * .pi
-            let p = CGPoint(x: cos(a) * w / 2, y: sin(a) * h / 2)
+            let p = CGPoint(x: cos(a) * w / 2, y: sin(a) * h / 2 + dy)
             if i == 0 { path.move(to: p) } else { path.addLine(to: p) }
         }
         path.closeSubpath()

@@ -57,4 +57,28 @@ enum ReceiptParser {
         }
         return Quantity.parseLegacy(String(line[match]))
     }
+
+    /// 상호(구매처) 추출 — **순수 함수**. 영수증 최상단 몇 줄 중, 소음 라인·날짜 라인·가격/숫자뿐인 라인·
+    /// 재료 사전에 매칭되는 라인(=상품명이지 상호가 아님)을 제외한 첫 텍스트 라인을 상호 후보로 본다.
+    /// 길이 2~20자 — 너무 짧은 토막(단위 등)이나 긴 안내문은 상호가 아닐 확률이 높아 배제.
+    static func storeName(from lines: [String], lexicon: IngredientLexicon = .shared) -> String? {
+        for raw in lines.prefix(5) {
+            let line = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard (2...20).contains(line.count) else { continue }
+            let lower = line.lowercased()
+            if noiseKeywords.contains(where: { lower.contains($0) }) { continue }
+            // 숫자·기호뿐인 라인(가격·바코드) 제외.
+            if line.allSatisfy({ $0.isNumber || $0.isPunctuation || $0.isWhitespace || $0.isSymbol }) {
+                continue
+            }
+            // 날짜/시각 라인("2026-07-02 21:11") 제외.
+            if line.range(of: #"^\d{4}[-./]\d{1,2}[-./]\d{1,2}"#, options: .regularExpression) != nil {
+                continue
+            }
+            // 재료 사전에 매칭되는 라인은 상품명 — 상호 후보에서 제외.
+            if lexicon.canonicalID(for: line) != nil { continue }
+            return line
+        }
+        return nil
+    }
 }

@@ -2,9 +2,11 @@ import Foundation
 
 /// 요리 스타일 선호(§5.2) — 프로필에서 멀티 선택, 추후 레시피 추천 가중치의 소스가 된다.
 /// rawValue는 UserDefaults 영속화용 안정 키(라벨 바뀌어도 저장값 유지).
+/// brazilian은 제거 — 시드 레시피에 대응 cuisine이 0건이라 어떤 실동작(가점)도 못 만드는
+/// 위약 옵션이었다(MVP 원칙). 저장된 rawValue는 ProfileStore가 compactMap으로 무시(안전 디코드).
 enum CuisineStyle: String, CaseIterable, Identifiable, Codable {
     case korean, western, japanese, chinese, italian, mexican
-    case brazilian, indian, thai, mediterranean, vietnamese, vegetarian
+    case indian, thai, mediterranean, vietnamese, vegetarian
 
     var id: String { rawValue }
 
@@ -17,7 +19,6 @@ enum CuisineStyle: String, CaseIterable, Identifiable, Codable {
         case .chinese:       String(localized: "Chinese")
         case .italian:       String(localized: "Italian")
         case .mexican:       String(localized: "Mexican")
-        case .brazilian:     String(localized: "Brazilian")
         case .indian:        String(localized: "Indian")
         case .thai:          String(localized: "Thai")
         case .mediterranean: String(localized: "Mediterranean")

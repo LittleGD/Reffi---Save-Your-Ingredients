@@ -328,7 +328,7 @@ struct FridgeView: View {
         HStack(spacing: ReffiSpace.s2) {
             icon.reffi(17, .bold).foregroundStyle(tint)
             Text(title)
-                .font(.custom("Pretendard-SemiBold", size: 16, relativeTo: .subheadline))
+                .reffiType(.checklistItem)
                 .foregroundStyle(ReffiColor.ink)
                 .lineLimit(1).fixedSize()   // 제목은 절대 말줄임하지 않는다
             Spacer(minLength: ReffiSpace.s1)
@@ -412,7 +412,7 @@ struct FridgeCompactRow: View {
                 .frame(width: 34, height: 34)
             VStack(alignment: .leading, spacing: 1) {
                 Text(ingredient.name)
-                    .font(.custom("Pretendard-SemiBold", size: 16, relativeTo: .body))
+                    .reffiType(.checklistItem)
                     .foregroundStyle(ReffiColor.ink).lineLimit(1)
                 Text(verbatim: ingredient.quantityText)
                     .reffiType(.caption).foregroundStyle(ReffiColor.ink2).lineLimit(1)
@@ -445,7 +445,7 @@ struct DDayStamp: View {
 
     var body: some View {
         Text(text.uppercased())
-            .font(.custom("Pretendard-Bold", size: size, relativeTo: .subheadline))
+            .font(.reffiStamp(size))
             .tracking(size * 0.06)
             .foregroundStyle(color)
             .padding(.horizontal, size * 0.7)
@@ -567,8 +567,8 @@ struct ExpandedFridgeCard: View {
 
             dashRule
             HStack {
-                Text("REFFI · KEEP IT FRESH")
-                    .font(.custom("Pretendard-Bold", size: 10, relativeTo: .caption2)).tracking(1.2)
+                Text(verbatim: "REFFI · KEEP IT FRESH")
+                    .reffiType(.monoEyebrow)
                     .foregroundStyle(ReffiColor.muted)
                 Spacer()
                 Text(receiptNo)

@@ -51,7 +51,7 @@ struct AuthView: View {
 
     private var wordmark: some View {
         VStack(spacing: ReffiSpace.s1) {
-            Text("Reffi")
+            Text(verbatim: "Reffi")
                 .reffiType(.display)
                 .foregroundStyle(ReffiColor.blueDark)
             Text("Eat it today, waste nothing")
@@ -196,7 +196,7 @@ struct AuthView: View {
         HStack(spacing: ReffiSpace.s3) {
             line
             Text("OR")
-                .font(.custom("Pretendard-Bold", size: 10, relativeTo: .caption2)).tracking(1.2)
+                .reffiType(.monoEyebrow)
                 .foregroundStyle(ReffiColor.muted)
             line
         }
@@ -236,8 +236,8 @@ struct AuthView: View {
     }
 
     private var footer: some View {
-        Text("REFFI · KEEP IT FRESH")
-            .font(.custom("Pretendard-Bold", size: 10, relativeTo: .caption2)).tracking(1.2)
+        Text(verbatim: "REFFI · KEEP IT FRESH")
+            .reffiType(.monoEyebrow)
             .foregroundStyle(ReffiColor.muted)
             .frame(maxWidth: .infinity)
             .padding(.top, ReffiSpace.s1)
