@@ -417,7 +417,7 @@ struct OnboardingView: View {
         questionPage(title: "What do you like to cook?",
                      body: "Pick as many as you like. Recipes will follow.") {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 92), spacing: ReffiSpace.s2)],
-                      alignment: .leading, spacing: ReffiSpace.s2) {
+                      alignment: .center, spacing: ReffiSpace.s2) {
                 ForEach(CuisineStyle.allCases) { c in
                     SelectableChip(text: c.label, selected: profile.cuisines.contains(c),
                                    fullWidth: false) {
@@ -433,7 +433,7 @@ struct OnboardingView: View {
     private var notifyPage: some View {
         questionPage(title: "A heads-up before\nfood goes bad?",
                      body: "Once a day, only when something's expiring.") {
-            VStack(alignment: .leading, spacing: ReffiSpace.s3) {
+            VStack(alignment: .center, spacing: ReffiSpace.s3) {
                 // 개인화 payoff — 방금 답한 내용을 즉시 반영해 "맞춰졌다"는 신호(리서치: aha moment).
                 // 실동작 정합: 레시피 튜닝은 요리 취향(cuisines)만, 가구 인원(household)은 재입고·수량
                 // 맥락이라 서로 다른 구로 분리한다. 취향 미선택이면 튜닝 구는 생략(빈 요약을 안 보이게).
@@ -459,24 +459,25 @@ struct OnboardingView: View {
         }
     }
 
-    /// 질문 페이지 공통 — 흰 영수증 카드에 질문 + 컨트롤.
+    /// 질문 페이지 공통 — 흰 영수증 카드에 질문 + 컨트롤. 셋업 3장은 전부 중앙정렬(§UX).
     private func questionPage<C: View>(title: LocalizedStringKey, body copy: LocalizedStringKey,
                                        @ViewBuilder control: () -> C) -> some View {
         let shape = ReceiptShape(tooth: 7)
         return VStack(spacing: 0) {
             Spacer(minLength: 0)
-            VStack(alignment: .leading, spacing: ReffiSpace.s4) {
+            VStack(alignment: .center, spacing: ReffiSpace.s4) {
                 Text(title)
                     .reffiType(.menuName)
                     .lineSpacing(3)
+                    .multilineTextAlignment(.center)
                     .foregroundStyle(ReffiColor.ink)
-                Text(copy).reffiType(.body).foregroundStyle(ReffiColor.ink2)
+                Text(copy).reffiType(.body).multilineTextAlignment(.center).foregroundStyle(ReffiColor.ink2)
                 control()
                     .padding(.top, ReffiSpace.s2)
             }
             .padding(.horizontal, ReffiSpace.s5)
             .padding(.vertical, ReffiSpace.s5 + 7)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: .center)
             .background(ReffiColor.oklch(0.985, 0.004, 90), in: shape)
             .paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
             .reffiShadow1()
@@ -526,6 +527,8 @@ struct OnboardingView: View {
             LiquidGlassBackground(accent: ReffiColor.blue)
             VStack(spacing: 0) {
                 // 상단 — 디스플레이 폰트(Story Script)로 현재 단계를 가운데 표기.
+                // 줄 끝 숫자 잘림 주의 — SwiftUI Text는 마지막 글리프를 advance에서 클리핑한다(UILabel은 무사).
+                // StoryScript 숫자 advance는 폰트에서 잉크 폭만큼 패치됨(§Fonts/StoryScript — `-titleClipLab` 실험 근거).
                 Text("Step \(setupPage + 1)")
                     .reffiType(.display)
                     .multilineTextAlignment(.center)
@@ -533,6 +536,8 @@ struct OnboardingView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.top, ReffiSpace.s5 + 20)              // 그래버 대신 상태바에서 ~20px 내림
                     .padding(.bottom, ReffiSpace.s2)
+                    // StoryScript 글리프가 폰트 메트릭(ascent)을 벗어나 크로스페이드 래스터라이즈 시 잘림(§버그) — 타이틀은 즉시 교체.
+                    .transaction { $0.animation = nil }
                     .accessibilityLabel("Step \(setupPage + 1) of \(setupLast + 1)")
 
                 TabView(selection: $setupPage) {
@@ -549,6 +554,16 @@ struct OnboardingView: View {
         }
         // 셋업 완료 시 "Start" 도장이 위에서 쾅 찍히는 연출.
         .overlay { if stamping { startStamp } }
+        .task {
+            #if DEBUG
+            // QA — `-onboardingSetupAutoAdvance`: 셋업 장을 자동 순환(전환 중 타이틀 캡처용).
+            guard ProcessInfo.processInfo.arguments.contains("-onboardingSetupAutoAdvance") else { return }
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(1.2))
+                withAnimation(motion) { setupPage = (setupPage + 1) % (setupLast + 1) }
+            }
+            #endif
+        }
     }
 
     /// "Start" 도장 슬램 — 큰 상태에서 스프링으로 내려앉으며(오버슈트) 임팩트 햅틱.
