@@ -13,6 +13,10 @@ struct FridgeView: View {
     @State private var showHistory = false
     @State private var showShopping = false
     @State private var editing: Ingredient?
+    /// 정렬 드롭다운 열림 — 앱 커스텀 `PaperDropdown`(스톡 Menu 대체). 세션 한정.
+    @State private var sortMenuOpen = false
+    /// 판정(Ate/Tossed) 햅틱 카운터 — `MainView.decisionHaptic`과 동일 트리거·weight(룰⑦: 같은 의미는 같은 햅틱).
+    @State private var decisionHaptic = 0
 
     /// 정렬·보기 선택 — 세션을 넘어 유지(리서치: 정렬 선택은 기억되어야 재방문 비용이 준다).
     @AppStorage("fridge.sort") private var sortRaw: String = FridgeSort.expiry.rawValue
@@ -72,6 +76,36 @@ struct FridgeView: View {
                 .allowsHitTesting(false)
             }
         }
+        // 정렬 드롭다운 — 트리거 칩 앵커 아래에 떠서(ScrollView 클리핑 밖, zIndex dropdown) 전체 콘텐츠 위를 덮는다.
+        // 딤 없는 투명 탭 캐처가 바깥 탭을 받아 닫는다(가벼운 드롭다운, 모달 아님 — scrim 금지).
+        .overlayPreferenceValue(DropdownAnchorKey.self) { anchor in
+            GeometryReader { proxy in
+                if sortMenuOpen, let anchor {
+                    let rect = proxy[anchor]
+                    let width: CGFloat = 220
+                    let x = min(max(ReffiGrid.margin, rect.maxX - width),
+                                max(ReffiGrid.margin, proxy.size.width - width - ReffiGrid.margin))
+                    ZStack(alignment: .topLeading) {
+                        Color.clear
+                            .contentShape(Rectangle())
+                            .ignoresSafeArea()
+                            .onTapGesture { closeSortMenu() }
+                        PaperDropdown(options: FridgeSort.allCases,
+                                      selected: sort,
+                                      label: { $0.label },
+                                      seed: 5) { newSort in
+                            sortRaw = newSort.rawValue
+                            closeSortMenu()
+                        }
+                        .frame(width: width)
+                        .offset(x: x, y: rect.maxY + ReffiSpace.s1)
+                        .transition(.scale(scale: 0.92, anchor: .topTrailing).combined(with: .opacity))
+                    }
+                    .zIndex(ReffiZ.dropdown)
+                }
+            }
+        }
+        .sensoryFeedback(.impact(weight: .light), trigger: decisionHaptic)
         // History·To buy도 Start cooking처럼 하단에서 올라와 전체를 덮는 풀스크린 커버.
         .fullScreenCover(isPresented: $showHistory) { HistoryView() }
         .fullScreenCover(isPresented: $showShopping) { ShoppingListView() }
@@ -84,6 +118,31 @@ struct FridgeView: View {
         // 스크린샷·QA용 — `-showHistory` 런치 인자로 History 시트 바로 열기(-previewCarousel 선례).
         .onAppear {
             if ProcessInfo.processInfo.arguments.contains("-showHistory") { showHistory = true }
+            // `-fridgeExpand` — 첫 재료를 바로 펼침(Ate/Tossed 버튼 QA용). 샘플 시드가 늦을 수 있어 지연 재시도.
+            if ProcessInfo.processInfo.arguments.contains("-fridgeExpand") {
+                selectedID = items.first?.id
+                if selectedID == nil {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { selectedID = items.first?.id }
+                }
+            }
+            // `-fridgeExpandSolo` — 재료 1개만 남기고 펼침(하단 스택 없는 레이아웃 QA용).
+            if ProcessInfo.processInfo.arguments.contains("-fridgeExpandSolo") {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                    items.dropFirst().forEach { store.toss($0) }
+                    selectedID = items.first?.id
+                }
+            }
+            // `-fridge.sortOpen` — 정렬 드롭다운 자동 오픈(스크린샷용).
+            if ProcessInfo.processInfo.arguments.contains("-fridge.sortOpen") {
+                sortMenuOpen = true
+            }
+            // `-fridgeEdit` — 첫 재료의 편집 시트 자동 표시(-loadSample과 함께). 시드가 늦으면 지연 재시도.
+            if ProcessInfo.processInfo.arguments.contains("-fridgeEdit") {
+                editing = items.first
+                if editing == nil {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { editing = items.first }
+                }
+            }
         }
         #endif
     }
@@ -143,38 +202,35 @@ struct FridgeView: View {
         return VStack(spacing: 0) {
             doneBar
             ScrollView {
-                ExpandedFridgeCard(ingredient: sel, onEdit: { editing = sel })
-                    .matchedGeometryEffect(id: sel.id, in: ns)
-                    .contentShape(Rectangle())
-                    .onTapGesture { deselect() }
-                    .padding(.horizontal, ReffiGrid.margin + cardInset)
-                    .padding(.top, ReffiSpace.s2)
-                    .padding(.bottom, ReffiSpace.s3)
+                // 버튼을 스크롤 콘텐츠로 — 영수증 끝에서 정확히 20px(s3+s2) 아래에 붙어 함께 흐른다.
+                // (기존: 스크롤 밖 하단 고정 → 영수증과 버튼 사이가 화면 크기만큼 벌어짐)
+                VStack(spacing: 0) {
+                    ExpandedFridgeCard(ingredient: sel, onEdit: { editing = sel })
+                        .matchedGeometryEffect(id: sel.id, in: ns)
+                        .contentShape(Rectangle())
+                        .onTapGesture { deselect() }
+                        .padding(.top, ReffiSpace.s2)
+                        .padding(.bottom, ReffiSpace.s3)
+                    outcomeButtons(sel)
+                        .padding(.top, ReffiSpace.s2)
+                }
+                .padding(.horizontal, ReffiGrid.margin + cardInset)
             }
-            outcomeButtons(sel)
-                .padding(.top, ReffiSpace.s2)
             Spacer(minLength: ReffiSpace.s2)
-            if !others.isEmpty { bottomStack(others) }
+            if !others.isEmpty {
+                bottomStack(others)
+            } else {
+                // 마지막 재료 — 하단 스택이 없으면 그 몫의 네비 클리어런스(96)도 사라져
+                // Ate/Tossed 버튼이 떠 있는 네비 밑에 깔린다. 스택 자리만큼 바닥을 비워둔다.
+                Color.clear.frame(height: 96)
+            }
         }
     }
 
     private var doneBar: some View {
         HStack {
             Spacer()
-            Button { deselect() } label: {
-                ReffiIcon.close.reffi(15, .bold)
-                    .foregroundStyle(ReffiColor.ink)
-                    .frame(width: 40, height: 40)
-                    .background {
-                        let s = PaperRect(cornerRadius: ReffiRadius.md, seed: 4)
-                        s.fill(ReffiColor.oklch(0.99, 0.006, 90)).paperEdge(s)
-                    }
-                    .reffiShadow1()
-                    .frame(minWidth: 44, minHeight: 44)   // §7.3 — 시각은 40, 히트는 44
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.paperPress)
-            .accessibilityLabel("Close")
+            PaperCloseButton(action: deselect)   // 룰① — 종이 X의 단일 공급원(시각40/히트44/paper)
         }
         .padding(.horizontal, ReffiGrid.margin)
         .padding(.top, ReffiSpace.s3)
@@ -237,15 +293,10 @@ struct FridgeView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// 정렬 메뉴 — 체크 그룹 하나만(모호함 제거). 라벨은 현재 정렬을 상시 노출. 종이컷 칩(§13.5).
+    /// 정렬 칩 — 현재 정렬 라벨을 상시 노출하는 종이컷 칩(§13.5). 비주얼은 그대로, 탭하면 스톡 Menu 대신
+    /// 앱 커스텀 `PaperDropdown`을 토글한다. 칩 바운드를 앵커로 올려 드롭다운을 바로 아래에 띄운다.
     private var sortMenu: some View {
-        Menu {
-            Picker("Sort", selection: $sortRaw) {
-                ForEach(FridgeSort.allCases) { s in
-                    Text(s.label).tag(s.rawValue)
-                }
-            }
-        } label: {
+        Button { toggleSortMenu() } label: {
             HStack(spacing: ReffiSpace.s1) {
                 ReffiIcon.sort.reffi(12, .bold)
                 Text(sort.label)
@@ -261,7 +312,9 @@ struct FridgeView: View {
             }
             .frame(minHeight: 44)   // §7.3 터치 타깃
             .contentShape(Rectangle())
+            .anchorPreference(key: DropdownAnchorKey.self, value: .bounds) { $0 }
         }
+        .buttonStyle(.paperPress)
         .accessibilityLabel("Sort: \(sort.label)")
     }
 
@@ -373,10 +426,20 @@ struct FridgeView: View {
         }
     }
 
+    // MARK: 정렬 드롭다운 — 진입 .pop / 이탈 .exit(§7.5), reduced-motion 존중.
+    private func toggleSortMenu() { sortMenuOpen ? closeSortMenu() : openSortMenu() }
+    private func openSortMenu() {
+        withAnimation(ReffiMotion.gated(ReffiMotion.pop, reduce: reduceMotion)) { sortMenuOpen = true }
+    }
+    private func closeSortMenu() {
+        withAnimation(ReffiMotion.gated(ReffiMotion.exit, reduce: reduceMotion)) { sortMenuOpen = false }
+    }
+
     // MARK: 액션
     private func select(_ ing: Ingredient) { withAnimation(motion) { selectedID = ing.id } }
     private func deselect() { withAnimation(motion) { selectedID = nil } }
     private func remove(_ ing: Ingredient, ate: Bool) {
+        decisionHaptic += 1
         withAnimation(motion) {
             selectedID = nil
             if ate { store.eat(ing) } else { store.toss(ing) }
