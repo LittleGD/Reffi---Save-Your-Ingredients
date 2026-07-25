@@ -28,6 +28,7 @@ struct ProfileView: View {
     @State private var showResetConfirm = false
     @State private var showSampleConfirm = false
     @State private var showDenied = false
+    @State private var destructiveHaptic = 0   // 룰⑦ — 계정삭제·전체초기화 확정 시 .warning 트리거
 
     private enum Sheet: String, Identifiable {
         case nickname, cuisines, favorites, disliked, allergies, time
@@ -96,12 +97,14 @@ struct ProfileView: View {
         }
         .sheet(isPresented: $showAuth) { AuthView() }
         .sheet(isPresented: $showMyRecipes) { MyRecipesView() }
-        .alert("Log out", isPresented: $showLogout) {
+        // 룰⑧ — 로그아웃은 데이터 삭제가 아니고 재로그인으로 복구 가능한 국소 액션 → confirmationDialog.
+        .confirmationDialog(Text("Log out of Reffi?"), isPresented: $showLogout, titleVisibility: .visible) {
             Button("Log out", role: .destructive) { Task { await auth.signOut() } }
-            Button("Cancel", role: .cancel) {}
-        } message: { Text("Log out of Reffi?") }
+        }
+        // 룰⑧ — 계정삭제는 복구 불가능 → alert(중앙 고정, 실수 방지) 유지.
         .alert("Delete account", isPresented: $showDelete) {
             Button("Delete", role: .destructive) {
+                destructiveHaptic += 1   // 룰⑦ — 파괴 확정(.warning)
                 Task {
                     await auth.signOut()      // scope .local — 오프라인에서도 로그아웃
                     store.resetAllData()      // 이 기기 냉장고·이력 삭제
@@ -115,11 +118,13 @@ struct ProfileView: View {
             // 정직한 카피 — 서버 계정 완전 삭제는 준비 중(AuthStore TODO: Edge Function).
             Text("This erases this device's data and signs you out. Full server account deletion is coming soon.")
         }
+        // 룰⑧ — 순수 알림성(권한 안내) → alert 유지.
         .alert(Text("Notifications are off"), isPresented: $showDenied) {
             Button("OK", role: .cancel) {}
         } message: {
             Text("Allow notifications for Reffi in Settings to get expiry alerts.")
         }
+        // 룰⑧ — 샘플 로드는 국소·되돌리기 가능(undo 토스트 있음) → confirmationDialog 유지.
         .confirmationDialog(Text("Load the sample fridge?"), isPresented: $showSampleConfirm, titleVisibility: .visible) {
             Button("Replace with sample data", role: .destructive) {
                 withAnimation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion)) {
@@ -129,15 +134,19 @@ struct ProfileView: View {
         } message: {
             Text("Your current ingredients and history will be replaced.")
         }
-        .confirmationDialog(Text("Reset all data?"), isPresented: $showResetConfirm, titleVisibility: .visible) {
+        // 룰⑧ — 전체초기화는 복구 불가능 → confirmationDialog에서 alert로 재분류.
+        .alert("Reset all data?", isPresented: $showResetConfirm) {
             Button("Reset everything", role: .destructive) {
+                destructiveHaptic += 1   // 룰⑦ — 파괴 확정(.warning)
                 withAnimation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion)) {
                     store.resetAllData()
                 }
             }
+            Button("Cancel", role: .cancel) {}
         } message: {
             Text("Ingredients and history will be deleted. This can't be undone.")
         }
+        .sensoryFeedback(.warning, trigger: destructiveHaptic)
         // 시스템 설정에서 권한을 나중에 회수한 경우 — 토글이 켜진 채 조용히 실패하지 않게 동기화.
         .task { await syncAuthorization() }
         .onChange(of: scenePhase) { _, phase in

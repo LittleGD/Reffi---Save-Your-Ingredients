@@ -158,18 +158,7 @@ struct RecipeMemoCarousel: View {
                         .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
                 }
                 Spacer()
-                Button(action: onClose) {
-                    ReffiIcon.close.reffi(18, .bold)
-                        .foregroundStyle(ReffiColor.ink)
-                        .frame(width: 40, height: 40)
-                        .background(.white.opacity(0.9), in: PaperRect(cornerRadius: ReffiRadius.md, seed: 1))
-                        .paperEdge(PaperRect(cornerRadius: ReffiRadius.md, seed: 1), tint: ReffiColor.ink.opacity(0.08))
-                        .reffiShadow1()
-                        .frame(minWidth: 44, minHeight: 44)   // §7.3 — 시각은 40, 히트는 44
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.paperPress)
-                .accessibilityLabel(Text("Close"))
+                PaperCloseButton(action: onClose)   // 룰① — 종이 X의 단일 공급원(시각40/히트44/paper)
             }
             // 생성 진행 힌트(§13.6) — 덱 하단(=이 상단 바 아래)에 조용히. 도착·실패 모두 사라진다(실패 문구 없음).
             if aiGenerating {

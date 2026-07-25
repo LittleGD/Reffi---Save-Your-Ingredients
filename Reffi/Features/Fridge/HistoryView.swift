@@ -240,31 +240,26 @@ struct HistoryView: View {
     }
 }
 
-/// 풀스크린 커버 공통 헤더 — 좌측 타이틀+서브타이틀 / 우측 흰 종이 X(§13, Today's tickets와 동일 배열).
+/// 풀스크린 커버 공통 헤더 — **중앙** 타이틀+서브타이틀 / 우측 종이 X(인터랙션 커먼 룰 ②③).
+/// 시트 헤더(`SheetHeader`)가 좌측 타이틀인 것과 의도적으로 대비된다(룰 ③: 커버=중앙 / 시트=좌측).
+/// 좌측에 X와 같은 폭(44)의 투명 균형자를 두어 타이틀을 진짜 중앙에 두고, 긴 텍스트가 X와 겹치지 않게 한다.
+/// 우측 종이 X는 단일 공급원 `PaperCloseButton`을 쓴다(룰 ①). 풀스크린 커버의 유일한 헤더 공급원.
 struct CoverHeader: View {
     let title: LocalizedStringKey
     let subtitle: LocalizedStringKey
     let onClose: () -> Void
 
     var body: some View {
-        HStack(alignment: .center) {
-            VStack(alignment: .leading, spacing: 1) {
+        HStack(alignment: .center, spacing: 0) {
+            Color.clear.frame(width: 44, height: 44)   // 우측 X(44)와 대칭 — 타이틀 진짜 중앙
+            Spacer(minLength: ReffiSpace.s2)
+            VStack(spacing: 1) {
                 Text(title).reffiType(.heading).foregroundStyle(ReffiColor.ink)
                 Text(subtitle).reffiType(.caption).foregroundStyle(ReffiColor.ink2)
             }
-            Spacer()
-            Button(action: onClose) {
-                ReffiIcon.close.reffi(18, .bold)
-                    .foregroundStyle(ReffiColor.ink)
-                    .frame(width: 40, height: 40)
-                    .background(.white.opacity(0.9), in: PaperRect(cornerRadius: ReffiRadius.md, seed: 1))
-                    .paperEdge(PaperRect(cornerRadius: ReffiRadius.md, seed: 1), tint: ReffiColor.ink.opacity(0.08))
-                    .reffiShadow1()
-                    .frame(minWidth: 44, minHeight: 44)   // §7.3 — 시각 40 / 히트 44
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.paperPress)
-            .accessibilityLabel(Text("Close"))
+            .multilineTextAlignment(.center)
+            Spacer(minLength: ReffiSpace.s2)
+            PaperCloseButton(action: onClose)
         }
         .padding(.horizontal, ReffiGrid.margin)
         .padding(.top, ReffiSpace.s4)

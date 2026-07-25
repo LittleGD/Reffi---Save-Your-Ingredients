@@ -7,6 +7,7 @@ import PhosphorSwift
 struct AuthView: View {
     @Environment(AuthStore.self) private var auth
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private enum Mode { case signIn, signUp }
     @State private var mode: Mode = .signIn
@@ -39,6 +40,9 @@ struct AuthView: View {
             }
             .scrollDismissesKeyboard(.interactively)
         }
+        // 프로필에서 시트로 띄운 경우의 닫기 신호(룰④) — 핸들 노출. 루트 게이트로 쓰일 땐
+        // 시트가 아니라 이 modifier가 무시되므로 무해하다.
+        .presentationDragIndicator(.visible)
         .onOpenURL { auth.handleOpenURL($0) }
         // 프로필에서 시트로 띄운 경우 — 정식(비익명) 세션이 생기면 자동 닫힘.
         // 게이트(루트)에서는 dismiss가 no-op이라 무해하다.
@@ -178,7 +182,7 @@ struct AuthView: View {
             Text(isSignIn ? "New here?" : "Already have an account?")
                 .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
             Button(isSignIn ? "Sign up" : "Log in") {
-                withAnimation(ReffiMotion.gated(.easeOut(duration: 0.18), reduce: false)) {
+                withAnimation(ReffiMotion.gated(.easeOut(duration: 0.18), reduce: reduceMotion)) {
                     mode = isSignIn ? .signUp : .signIn
                     auth.errorMessage = nil
                     auth.notice = nil

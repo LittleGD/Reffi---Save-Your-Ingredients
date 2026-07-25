@@ -1,0 +1,178 @@
+# Reffi 인터랙션 커먼 룰 (v1)
+
+> 2026-07-21 · `design_system.md`의 동반 스펙.
+> 목표: 화면마다 제각각으로 조립되던 **닫기·헤더·저장·피드백·전환** 인터랙션을, "다름에 이유가 있는" 커먼 룰로 수렴한다.
+> 이 문서는 3축 인터랙션 감사(시트/모달 · 내비게이션 · 버튼/피드백) 결과와, 그에 대한 12개 설계 결정을 정본으로 기록한다.
+
+---
+
+## 0. 배경과 감사 시점 주의
+
+- **감사 대상**: HEAD 커밋(`1cfa1de`) 스냅샷의 `Reffi/` 소스 55개.
+- **주의**: 저장소가 OneDrive 클라우드 폴더에 있어, 감사 도중 working tree가 HEAD보다 앞서 있었다. HEAD 기준으로 참이던 발견 일부(특히 `IngredientEditView`의 시스템 Form)는 이미 종이 문법으로 리팩터링되어 있었다. 아래 룰의 `file:line`은 **정의 시점(2026-07-21) working tree 기준으로 재검증한 값**이다. 구현 착수 시 실제 파일 상태를 다시 확인한다.
+- **근본 원인**: 편차 대부분의 뿌리는 하나 — "닫기 헤더"와 "편집 시트 셸"이 컴포넌트로 추출되지 않아, 매 화면이 종이 X·타이틀·detent·커밋 버튼을 손으로 다시 조립했다. `PaperButton`·`PaperIconButton`처럼 추출된 곳은 편차가 0이다. 문서 규칙이 틀린 게 아니라, **규칙을 강제하는 컴포넌트가 없어** 드리프트가 생겼다.
+
+---
+
+## A. 닫기(Close) 시스템
+
+### 룰 ① — 닫기 버튼 = `PaperCloseButton` 단일 컴포넌트
+- **현행 편차**: 종이 X 버튼이 4가지 스펙으로 파편화.
+  - 34 · `ReffiColor.paper` · seed 4 — `AddIngredientSheet.swift:144`, `:441`, `ReceiptScanView.swift:74`, `:374`
+  - 40 · `.white.opacity(0.9)` · seed 1 — `HistoryView.swift:259`(CoverHeader), `CookingStepsView.swift:138`, `RecipeMemoCarousel.swift:164`
+  - 40 · `ReffiColor.oklch(0.99, 0.006, 90)` · seed 4 — `FridgeView.swift:229`(doneBar)
+  - 44 · `ReffiColor.paper` · seed 4 — `ProfilePreferenceSheets.swift:44`(SheetShell)
+- **확정 룰**: **시각 40pt / 히트영역 44pt / 채움 `ReffiColor.paper` 단일 토큰**. `PaperRect(cornerRadius: .md)` 면 + `paperEdge` + `.paperPress` + `accessibilityLabel("Close")`.
+  - 시각과 히트를 분리한다: `PaperRect` 자체는 40, `.frame(minWidth:44, minHeight:44)` 또는 `.contentShape`로 탭 영역 44 확보(§7.3).
+  - `.white.opacity(0.9)`·`oklch(0.99)` 변형은 모두 `paper`로 흡수.
+- **적용**: 위 7개 인라인 구현을 `PaperCloseButton`으로 교체.
+
+### 룰 ② — 헤더 = 커버용·시트용 2개 컴포넌트
+- **현행 편차**: 공용 `CoverHeader`(`HistoryView.swift:244`)가 있는데도 `CookingStepsView`·`RecipeMemoCarousel`이 복붙. 시트 헤더는 화면마다 따로 조립.
+- **확정 룰**: 헤더를 **목적별 2개 컴포넌트로 분리**하고 각각 재사용을 강제한다.
+  - `CoverHeader` (풀스크린 커버용): 기존 컴포넌트 유지 + `CookingStepsView`·`RecipeMemoCarousel`이 복붙 대신 이걸 사용.
+  - `SheetHeader` (하단 시트용): **신설**. 좌측 타이틀 + `PaperCloseButton`(선택) + dragIndicator 전제.
+- **적용**: 복붙 2곳 → `CoverHeader` 호출로 교체. 시트 헤더 인라인들 → `SheetHeader`로 교체.
+
+### 룰 ③ — 헤더 타이틀 정렬·타이포
+- **현행 편차**: 정렬은 대부분 좌측인데 `ReceiptScanView`만 중앙(`ZStack`). 타이포는 대부분 `.heading`인데 스캔 계열 2종만 `.subhead`(`ReceiptScanView.swift:68`, `:369`).
+- **확정 룰**:
+  - **커버 헤더 = 중앙 타이틀**, **시트 헤더 = 좌측 타이틀**. ("2개 분리"의 의도적 차이를 정렬로 표현.)
+  - 타이포는 **커버·시트 모두 `.heading` 통일**. 스캔 계열의 `.subhead` 예외 제거.
+- **적용**: `ReceiptScanView`의 중앙 정렬·`.subhead`를 시트 규칙(좌측·`.heading`)으로 교정.
+
+### 룰 ④ — 닫기 방법 (모달 종류별)
+- **현행 편차**: 종이 X / 시스템 Cancel 텍스트 / 스와이프 전용 / scrim 탭 4개 idiom 혼재. `AuthView`(`:46`)·조리완료 시트는 X·dragIndicator 모두 없어 닫기 신호가 0.
+- **확정 룰**:
+  - **하단 시트 = dragIndicator(핸들) + 스와이프 다운**으로 닫는다. X 버튼은 선택(핸들이 주 신호).
+  - **풀스크린 커버 = 우상단/좌상단 `PaperCloseButton`(X)**로 닫는다.
+  - 시트는 dragIndicator **필수**(핸들 없는 시트 금지).
+- **적용**: `AuthView`·`CookingStepsView` finishSheet에 dragIndicator 추가. 시스템 Cancel 텍스트로 닫던 화면은 룰 ⑤/⑥에서 종이화되며 해소.
+
+---
+
+## B. 편집 크롬
+
+### 룰 ⑤ — 편집·목록 종이화
+- **현행 편차**: `IngredientEditView`는 종이 문법으로 리팩터링됨. 그러나 `RecipeEditorView`(`MyRecipesView.swift:74-97`)와 목록(`MyRecipesView.swift:13`)은 아직 `NavigationStack { Form } .toolbar`(시스템 Cancel/Save).
+- **확정 룰**: **커스텀 레시피 편집·목록을 모두 종이 문법으로 통일**한다 — 크림 캔버스(`--color-canvas`) + `SheetHeader` + 모노 섹션 라벨 + `DashedRule` + `PaperButton`. 시스템 `Form`·`NavigationStack`·글래스 툴바 제거.
+- **적용**: `RecipeEditorView`를 `IngredientEditView`와 동일 문법으로 재작성. `MyRecipesView` 목록은 종이 카드 리스트로.
+
+### 룰 ⑥ — 저장(커밋) = 성격별 2규칙
+- **현행 편차**: 명시적 Cancel+Save 툴바 / 단일 Save 버튼 / 자동저장(선택 즉시 반영) 3갈래.
+- **확정 룰**:
+  - **편집·생성 시트**(재료·레시피·커스텀·후보): 하단 도킹 `PaperButton`(Save/Add)으로 **명시적 커밋**. 취소는 스와이프/닫기(룰 ⑨의 미저장 보호 적용).
+  - **설정·선택 시트**(취향·알림시간 등 단일 선택): **자동저장** — 선택 즉시 반영, 저장 버튼 없이 닫기만.
+- **적용**: `RecipeEditorView`·`CustomItemSheet`·`CandidateEditSheet`·`IngredientEditView`는 도킹 Save. `CuisinePickerSheet`·`TagEditorSheet`·`NotifyTimeSheet`는 자동저장(현행 유지, 규칙으로 명문화).
+
+---
+
+## C. 피드백·안전
+
+### 룰 ⑦ — 햅틱 = 의미별 매핑 규칙 신설
+- **현행 편차**: 같은 판정(Ate/Tossed)이 `MainView`엔 `.impact(light)` 있고 `FridgeView.remove(ate:)`(`:447`)엔 없음. 로그아웃·삭제·초기화 등 파괴 액션엔 햅틱 전무. `design_system.md`에 햅틱 조항 자체가 없음.
+- **확정 룰**: `design_system.md` §7에 **햅틱 매핑 섹션을 신설**한다. 의미 → 트리거 매핑:
+  - **판정·확정**(Ate/Tossed/Freeze, 발주) = `.impact`
+  - **성공 완료**(저장·추가·재입고) = `.success`
+  - **파괴 확인**(삭제·초기화 확정) = `.warning`
+  - 같은 의미면 화면 불문 동일 햅틱.
+- **적용**: `FridgeView` 판정에 `.impact` 추가. 파괴 확인(ProfileView 로그아웃/삭제/초기화, IngredientEditView·MyRecipesView 삭제)에 `.warning` 추가.
+
+### 룰 ⑧ — 파괴 확인 = 심각도로 구분
+- **현행 편차**: `.alert`(로그아웃·계정삭제·알림안내)와 `.confirmationDialog`(샘플로드·초기화·조리취소·재료삭제)가 파괴성 동등한데 혼용(`ProfileView.swift:99,103,118,123,132`).
+- **확정 룰**:
+  - **복구 불가능**(계정삭제·전체초기화) = `.alert` (중앙 고정, 실수 방지).
+  - **국소·되돌리기 가능**(재료삭제·조리취소·샘플로드) = `.confirmationDialog` (트리거 근처). 앱에 undo 토스트가 있어 국소 파괴는 dialog로 충분.
+  - 순수 알림성(알림 꺼짐 안내)은 `.alert` 유지.
+- **적용**: 위 기준으로 각 호출부 재분류.
+
+### 룰 ⑨ — 미저장 보호 = 변경 시 Discard 확인
+- **현행 편차**: `interactiveDismissDisabled`가 앱 전체 0건. 편집 시트가 스와이프 실수로 닫히면 입력 유실.
+- **확정 룰**: **편집·생성 시트**에서 미저장 변경이 있을 때만, 스와이프/닫기 시 "변경을 취소할까요?" `confirmationDialog`(Discard Changes 패턴). 변경 없으면 자유 닫힘. 설정·선택 시트(자동저장)는 해당 없음.
+- **적용**: 편집·생성 시트에 `@State private var isDirty` 추적 + `interactiveDismissDisabled(isDirty)` + Discard 다이얼로그.
+
+---
+
+## D. 전환·정책
+
+### 룰 ⑩ — 전환 기표 = 위계로 구분
+- **현행 편차**: 동일 `chevron(>)`이 어디선 하단 시트, 어디선 풀스크린 커버를 엶(진짜 push는 0건). `>`만으로 전환 결과 예측 불가.
+- **확정 룰**: 전환 수단을 **시각 위계**로 예고한다.
+  - **몰입 커버 진입** = 눈에 띄는 CTA 버튼(요리시작 등).
+  - **시트 진입** = 조용한 `chevron` 행.
+  - `chevron` 자체는 양쪽에 허용하되, 위계 차이로 무게를 구분.
+- **적용**: 커버를 여는 진입점은 CTA 스타일로, 시트를 여는 진입점은 chevron 행으로 정렬. (감사 대상: `FridgeView` 요약카드, `MainView` cookingNow, `ProfileView` SettingsRow, `AddIngredientSheet` scanCard.)
+
+### 룰 ⑪ — 시트 높이(detent) = 콘텐츠 양별 3단
+- **현행 편차**: `.medium` / 고정높이(`.height(260/300)`) / 미설정(풀높이)이 기준 없이 혼재. `AuthView`·`RecipeEditor` 등은 detent 없이 무조건 풀높이.
+- **확정 룰**:
+  - **짧은 단일 입력**(닉네임·시간) = `.height(...)` 고정.
+  - **중간 목록·폼**(추가·편집) = `.medium` 진입, 키보드/긴 내용 시 `.large` 승격.
+  - **긴 목록**(레시피 목록 등) = `.large`.
+- **적용**: 미설정(풀높이) 시트들에 콘텐츠 분량에 맞는 detent 부여.
+
+### 룰 ⑫ — UndoToast 위치 = 상단 유지 + 문서 수정
+- **현행 편차**: `design_system.md`는 "하단 잉크 캡슐(네비 위)"로 규정하나 코드는 상단 overlay(`RootTabView.swift:37`). 코드 주석이 "하단 CTA·네비를 안 가리려 상단으로 옮겼다"고 밝힘.
+- **확정 룰**: **코드 현행(상단)을 정본으로 유지**하고, `design_system.md`의 토스트 위치 문구를 **상단으로 수정**한다. (하단 CTA·네비 겹침을 이미 회피한, 동작 검증된 상태.)
+- **적용**: `design_system.md` §13.6-5 및 토스트 관련 문구를 상단으로 정정. 코드 변경 없음.
+
+---
+
+## E. 문서 위반 수정 (질문 없이 수정 — 이미 규칙이 있는데 코드가 어긴 것)
+
+### E1 — reduced motion (§7.4 "필수")
+- `AuthView.swift:181`: `ReffiMotion.gated(..., reduce: false)` 하드코딩 → `@Environment(\.accessibilityReduceMotion)` 읽어 전달.
+- `ShoppingListView.swift:74`, `:91`: `withAnimation(ReffiMotion.settle)` 무조건 실행 → reduceMotion 게이팅 추가.
+
+### E2 — disabled opacity (§7.2 = 0.45 고정)
+- `MainView.swift:92`, `ReceiptScanView.swift:165`: `0.5` → `0.45`.
+- (구조적 개선 후보) `PaperPressStyle`/`ReffiPressStyle`이 `@Environment(\.isEnabled)`를 읽어 자동 dimming하도록 하면 호출부 드리프트 원천 차단. — 별도 검토.
+
+---
+
+## F. 신설 컴포넌트 스펙
+
+### `PaperCloseButton`
+```
+PaperCloseButton(seed: Int = 4, action: () -> Void)
+```
+- 시각 40 · 히트 44 · `ReffiColor.paper` 면 · `paperEdge` · `.paperPress` · `accessibilityLabel("Close")`.
+- 커버 헤더·시트 헤더·doneBar 등 모든 종이 X를 이 컴포넌트로 대체.
+
+### `SheetHeader`
+```
+SheetHeader(title: LocalizedStringKey, showsClose: Bool = false, onClose: (() -> Void)? = nil)
+```
+- 좌측 타이틀(`.heading`) + (선택)`PaperCloseButton`. dragIndicator는 시트 프레젠테이션 측에서 `.visible`.
+- 하단 시트 헤더의 유일한 공급원.
+
+### `CoverHeader` (기존, 재사용 강제)
+- 중앙 타이틀(`.heading`) + `PaperCloseButton`(X). 풀스크린 커버의 유일한 공급원.
+- `CookingStepsView`·`RecipeMemoCarousel`의 복붙 제거하고 이걸 호출.
+
+---
+
+## G. `design_system.md` 반영 목록
+1. **햅틱 매핑 섹션 신설**(§7 하위) — 룰 ⑦.
+2. **닫기 시스템 명문화** — 룰 ①②③④: `PaperCloseButton` 스펙, 헤더 2종, 정렬·타이포, 모달 종류별 닫기 방법.
+3. **저장 모델 명문화** — 룰 ⑥: 편집·생성=도킹 Save / 설정·선택=자동저장.
+4. **detent 정책 명문화** — 룰 ⑪: 콘텐츠 양별 3단.
+5. **미저장 보호 명문화** — 룰 ⑨.
+6. **UndoToast 위치 정정** — 룰 ⑫: 하단 → 상단.
+
+---
+
+## H. 범위 밖 (YAGNI — 이번에 하지 않음)
+- 다크 모드 토큰(현재 라이트 고정 — `design_system.md` §2.1).
+- 시스템 push 스택(`NavigationLink`) 도입 — 앱은 의도적으로 모달+상태스위칭 아키텍처. 유지.
+- 큰 플로우 전환 애니메이션(온보딩→메인, 로그아웃) — 낮음 심각도, 별도 과제.
+- `Menu`(sortMenu)의 눌림 피드백 — SwiftUI 플랫폼 제약, 손대지 않음.
+
+---
+
+## 구현 우선순위 (제안)
+1. **`PaperCloseButton` + 헤더 2종 추출·적용** (룰 ①②③) — 편차가 가장 많고, 한 번에 여러 화면 정리.
+2. **편집 크롬 종이화 + 저장/미저장 보호** (룰 ⑤⑥⑨) — 편집 언어 완전 통일.
+3. **햅틱·파괴 확인·닫기 방법** (룰 ④⑦⑧) — 피드백 일관성.
+4. **detent·전환 위계·문서 위반 수정** (룰 ⑩⑪ + E1·E2).
+5. **`design_system.md` 반영** (§G) + UndoToast 문구 정정(룰 ⑫).

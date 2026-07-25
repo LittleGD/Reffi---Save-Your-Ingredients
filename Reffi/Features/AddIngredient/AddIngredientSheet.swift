@@ -131,31 +131,11 @@ struct IngredientPickerSheet: View {
         }
     }
 
-    // MARK: - 헤더 (종이 X 닫기)
+    // MARK: - 헤더 (SheetHeader 공용 컴포넌트, 룰②③)
 
-    /// 좌측 타이틀 + 우측 종이 X 닫기(§7.3 — 시각 34, 히트 44). 시스템 글래스 툴바를 대체한다.
+    /// 좌측 타이틀(.heading) + PaperCloseButton — 시트 헤더의 단일 공급원(`SheetHeader`)을 사용한다.
     private var header: some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text("Add ingredient").reffiType(.heading).foregroundStyle(ReffiColor.ink)
-            Spacer()
-            Button { dismiss() } label: {
-                ReffiIcon.close.reffi(14, .bold)
-                    .foregroundStyle(ReffiColor.ink)
-                    .frame(width: 34, height: 34)
-                    .background {
-                        let s = PaperRect(cornerRadius: ReffiRadius.md, seed: 4)
-                        s.fill(ReffiColor.paper).paperEdge(s)
-                    }
-                    .reffiShadow1()
-                    .frame(minWidth: 44, minHeight: 44)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.paperPress)
-            .accessibilityLabel("Close")
-        }
-        .padding(.horizontal, margin)
-        .padding(.top, ReffiSpace.s5)
-        .padding(.bottom, ReffiSpace.s3)
+        SheetHeader(title: "Add ingredient", showsClose: true) { dismiss() }
     }
 
     // MARK: - 스캔 카드 (흰 영수증 종이)
@@ -406,6 +386,11 @@ private struct CustomItemSheet: View {
     @State private var storage: StorageLocation = .fridge
     @State private var savedHaptic = 0
 
+    // 미저장 보호(룰⑨) — 생성 시트라 입력이 하나라도 바뀌면 스와이프/닫기에 Discard 확인을 띄운다.
+    @State private var isDirty = false
+    @State private var isInitializing = true          // onAppear 기본값 채움을 사용자 입력으로 오인하지 않게 가드
+    @State private var showDiscardConfirm = false
+
     var body: some View {
         VStack(spacing: 0) {
             header
@@ -422,37 +407,39 @@ private struct CustomItemSheet: View {
         .presentationDetents([.medium])
         .presentationDragIndicator(.visible)
         .presentationBackground(ReffiColor.canvas)
+        .interactiveDismissDisabled(isDirty)
         .sensoryFeedback(.success, trigger: savedHaptic)
         .onAppear {
             quantityValue = defaultQuantityValue
             unit = IngredientUnit(rawValue: defaultQuantityUnit) ?? .piece
             applySmartExpiry()
+            DispatchQueue.main.async { isInitializing = false }
         }
-        .onChange(of: storage) { _, _ in applySmartExpiry() }
+        .onChange(of: storage) { _, _ in
+            applySmartExpiry()
+            if !isInitializing { isDirty = true }
+        }
+        .onChange(of: quantityValue) { _, _ in if !isInitializing { isDirty = true } }
+        .onChange(of: unit) { _, _ in if !isInitializing { isDirty = true } }
+        .confirmationDialog(Text("Discard this item?"), isPresented: $showDiscardConfirm,
+                            titleVisibility: .visible) {
+            Button("Discard", role: .destructive) { dismiss() }
+        } message: {
+            Text("Your changes won't be saved.")
+        }
     }
 
     private var header: some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text("Add ingredient").reffiType(.heading).foregroundStyle(ReffiColor.ink)
-            Spacer()
-            Button { dismiss() } label: {
-                ReffiIcon.close.reffi(14, .bold)
-                    .foregroundStyle(ReffiColor.ink)
-                    .frame(width: 34, height: 34)
-                    .background {
-                        let s = PaperRect(cornerRadius: ReffiRadius.md, seed: 4)
-                        s.fill(ReffiColor.paper).paperEdge(s)
-                    }
-                    .reffiShadow1()
-                    .frame(minWidth: 44, minHeight: 44)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.paperPress)
-            .accessibilityLabel("Close")
+        SheetHeader(title: "Add ingredient", showsClose: true) { requestClose() }
+    }
+
+    /// 미저장 변경이 있으면 즉시 닫지 않고 Discard 확인을 띄운다(룰⑨).
+    private func requestClose() {
+        if isDirty {
+            showDiscardConfirm = true
+        } else {
+            dismiss()
         }
-        .padding(.horizontal, ReffiGrid.margin)
-        .padding(.top, ReffiSpace.s5)
-        .padding(.bottom, ReffiSpace.s3)
     }
 
     private var fieldsCard: some View {
@@ -474,7 +461,10 @@ private struct CustomItemSheet: View {
                     .datePickerStyle(.compact)
                     .tint(ReffiColor.blue)
                     .onChange(of: expiresAt) { _, newValue in
-                        if newValue != lastProgrammaticExpiry { expiryTouched = true }
+                        if newValue != lastProgrammaticExpiry {
+                            expiryTouched = true
+                            isDirty = true
+                        }
                     }
             }
             .frame(minHeight: 44)
