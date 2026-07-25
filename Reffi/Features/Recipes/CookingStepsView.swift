@@ -1,5 +1,6 @@
 import SwiftUI
 import PhosphorSwift
+import UIKit
 
 /// 단계별 레시피(§13.6) — 발주 직후, 그리고 메인의 Cooking now 카드에서 열리는 조리 화면.
 /// 발주된 티켓 한 장이 그대로 조리 체크리스트가 된다: 단계를 탭해 체크, 완료로 세션을 닫는다.
@@ -7,6 +8,7 @@ import PhosphorSwift
 struct CookingStepsView: View {
     @Environment(FridgeStore.self) private var store
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.openURL) private var openURL
 
     var onClose: () -> Void
 
@@ -14,6 +16,7 @@ struct CookingStepsView: View {
     @State private var showFinishSheet = false
     @State private var showCancelConfirm = false
     @State private var leftovers: Set<UUID> = []   // '조금 남았어요'로 표시한 재료
+    @State private var shareImage: Image?   // 공유 카드 오프스크린 렌더 결과 — 세션당 1회(체크 상태와 무관)
 
     /// 예약된 재료(아직 냉장고에 있는 것) — 완료 확인 시트의 목록.
     private var reservedIngredients: [Ingredient] {
@@ -32,6 +35,10 @@ struct CookingStepsView: View {
                         .padding(.top, 104)
                         .padding(.bottom, ReffiSpace.s6)
                 }
+                // 공유 카드는 레시피+스텝 스냅샷이라 체크 상태와 무관 — recipeName이 바뀔 때(새 세션)만 다시 렌더.
+                .task(id: cook.recipeName) {
+                    shareImage = renderShareImage(for: cook)
+                }
             }
             topBar
         }
@@ -44,6 +51,7 @@ struct CookingStepsView: View {
         .sheet(isPresented: $showFinishSheet) {
             finishSheet
                 .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)   // 룰④ — 하단 시트는 dragIndicator(핸들) 필수, 닫기 신호 확보
         }
         .confirmationDialog(Text("Put ingredients back?"), isPresented: $showCancelConfirm,
                             titleVisibility: .visible) {
@@ -131,19 +139,8 @@ struct CookingStepsView: View {
                 }
             }
             Spacer()
-            Button(action: onClose) {
-                ReffiIcon.close.reffi(18, .bold)
-                    .foregroundStyle(ReffiColor.ink)
-                    .frame(width: 40, height: 40)
-                    .background(.white.opacity(0.9), in: PaperRect(cornerRadius: ReffiRadius.md, seed: 1))
-                    .paperEdge(PaperRect(cornerRadius: ReffiRadius.md, seed: 1), tint: ReffiColor.ink.opacity(0.08))
-                    .reffiShadow1()
-                    .frame(minWidth: 44, minHeight: 44)   // §7.3 — 시각은 40, 히트는 44
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.paperPress)
-            .accessibilityLabel(Text("Close"))
-            .accessibilityHint(Text("Keeps cooking in progress"))
+            PaperCloseButton(action: onClose)   // 룰① — 종이 X의 단일 공급원(시각40/히트44/paper)
+                .accessibilityHint(Text("Keeps cooking in progress"))
         }
         .padding(.horizontal, ReffiGrid.margin)
         .padding(.top, ReffiSpace.s4)
@@ -188,6 +185,33 @@ struct CookingStepsView: View {
 
             DashedRule()
                 .padding(.top, ReffiSpace.s2)
+
+            // 요리 예시 참고 — 레시피명으로 유튜브 검색을 열거나 레시피를 영수증 카드 이미지로 공유한다. 종이컷 아이콘 버튼 쌍(§13.5).
+            HStack(spacing: ReffiSpace.s5) {
+                PaperIconButton(icon: ReffiIcon.youtube, label: "YouTube", intent: .soft, size: 64, seed: 3) {
+                    openURL(youtubeSearchURL(for: cook.recipeName))
+                }
+                .accessibilityLabel(Text("Watch examples on YouTube"))
+                .accessibilityHint(Text("Opens YouTube in your browser"))
+
+                if let shareImage {
+                    ShareLink(
+                        item: shareImage,
+                        preview: SharePreview(Text(verbatim: cook.recipeName), image: shareImage)
+                    ) {
+                        PaperIconLabel(icon: ReffiIcon.share, label: "Share", intent: .neutral, size: 64, seed: 4)
+                    }
+                    .buttonStyle(.paperPress)
+                    .accessibilityLabel(Text("Share"))
+                    .accessibilityHint(Text("Opens the share sheet"))
+                } else {
+                    // 렌더 완료 전 짧은 순간의 비활성 플레이스홀더(크래시·빈 공유 방지) — 렌더는 즉시 끝나 실사용엔 티 안 남.
+                    PaperIconLabel(icon: ReffiIcon.share, label: "Share", intent: .neutral, size: 64, seed: 4)
+                        .opacity(0.4)
+                        .accessibilityHidden(true)
+                }
+            }
+            .frame(maxWidth: .infinity)
 
             PaperButton(title: "Finish cooking") {
                 // 예약 재료가 있으면 확인 시트에서 확정(남은 재료 원탭), 없으면(구버전 세션) 바로 종료.
@@ -256,5 +280,23 @@ struct CookingStepsView: View {
         .buttonStyle(.reffiPress)
         .accessibilityLabel(Text(verbatim: text))
         .accessibilityValue(done ? Text("Done") : Text(verbatim: ""))
+    }
+
+    /// 유튜브 검색 URL — 레시피명 + "recipe"를 퍼센트 인코딩. 인코딩·URL 생성 실패 시 유튜브 홈으로 폴백.
+    private func youtubeSearchURL(for recipeName: String) -> URL {
+        let fallback = URL(string: "https://www.youtube.com")!
+        guard let encoded = "\(recipeName) recipe"
+            .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else { return fallback }
+        return URL(string: "https://www.youtube.com/results?search_query=\(encoded)") ?? fallback
+    }
+
+    /// 공유 카드 이미지 렌더 — `RecipeShareCard`를 레티나 스케일로 오프스크린 래스터라이즈한다. 실패하면 nil.
+    @MainActor
+    private func renderShareImage(for cook: FridgeStore.CookSession) -> Image? {
+        let card = RecipeShareCard(recipeName: cook.recipeName, steps: cook.steps ?? [], count: cook.count)
+        let renderer = ImageRenderer(content: card)
+        renderer.scale = 3   // 레티나
+        guard let uiImage = renderer.uiImage else { return nil }
+        return Image(uiImage: uiImage)
     }
 }

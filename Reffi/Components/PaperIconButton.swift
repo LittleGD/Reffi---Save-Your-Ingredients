@@ -4,7 +4,7 @@ import PhosphorSwift
 /// 종이컷 아이콘 버튼(§13.5) — 첨부 레퍼런스(Tossed/Ate) 폼: **손으로 자른 종이 9각형**(`PaperBlob`) 면 +
 /// 가운데 채운 아이콘 + 아래 라벨. 솔리드(흰 아이콘) / 소프트 틴트(dark 아이콘). 통통 프레스.
 struct PaperIconButton: View {
-    enum Intent { case primary, soft, fresh, soon, urgent, neutral }
+    typealias Intent = PaperIconLabel.Intent
 
     let icon: Ph
     var label: LocalizedStringKey? = nil
@@ -12,6 +12,26 @@ struct PaperIconButton: View {
     var size: CGFloat = 88
     var seed: Int = 0
     let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            PaperIconLabel(icon: icon, label: label, intent: intent, size: size, seed: seed)
+        }
+        .buttonStyle(.paperPress)
+        .accessibilityLabel(label.map { Text($0) } ?? Text(verbatim: ""))
+    }
+}
+
+/// `PaperIconButton`의 비주얼(블롭+아이콘+라벨)만 떼어낸 뷰 — `Button`이 아닌 다른 탭 컨트롤(예: `ShareLink`)에
+/// 같은 종이컷 표면을 씌우고 싶을 때 재사용한다. `PaperIconButton`은 이 뷰를 `Button`으로 감싼 것과 같다.
+struct PaperIconLabel: View {
+    enum Intent { case primary, soft, fresh, soon, urgent, neutral }
+
+    let icon: Ph
+    var label: LocalizedStringKey? = nil
+    var intent: Intent = .primary
+    var size: CGFloat = 88
+    var seed: Int = 0
 
     private var fill: Color {
         switch intent {
@@ -34,25 +54,22 @@ struct PaperIconButton: View {
         case .neutral: ReffiColor.ink2
         }
     }
+
     var body: some View {
-        Button(action: action) {
-            VStack(spacing: ReffiSpace.s2) {
-                ZStack {
-                    let shape = PaperBlob(sides: 9, seed: seed)
-                    shape.fill(fill)                                              // 솔리드(그라데이션 없음)
-                    PaperGrain(seed: UInt64(seed) &+ 3, strength: 0.5).clipShape(shape)  // 종이 질감(옅게)
-                    icon.reffi(size * 0.42, .fill).foregroundStyle(iconColor)
-                }
-                .frame(width: size, height: size)
-                .reffiShadow1()
-                if let label {
-                    Text(label)
-                        .reffiType(.badgeLabel)
-                        .foregroundStyle(ReffiColor.ink)
-                }
+        VStack(spacing: ReffiSpace.s2) {
+            ZStack {
+                let shape = PaperBlob(sides: 9, seed: seed)
+                shape.fill(fill)                                              // 솔리드(그라데이션 없음)
+                PaperGrain(seed: UInt64(seed) &+ 3, strength: 0.5).clipShape(shape)  // 종이 질감(옅게)
+                icon.reffi(size * 0.42, .fill).foregroundStyle(iconColor)
+            }
+            .frame(width: size, height: size)
+            .reffiShadow1()
+            if let label {
+                Text(label)
+                    .reffiType(.badgeLabel)
+                    .foregroundStyle(ReffiColor.ink)
             }
         }
-        .buttonStyle(.paperPress)
-        .accessibilityLabel(label.map { Text($0) } ?? Text(verbatim: ""))
     }
 }

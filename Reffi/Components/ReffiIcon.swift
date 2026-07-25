@@ -21,6 +21,8 @@ enum ReffiIcon {
     static var time: Ph { .clock }
     static var countdown: Ph { .clockCountdown }
     static var undo: Ph { .arrowCounterClockwise }
+    static var youtube: Ph { .youtubeLogo }   // 조리 티켓 — 요리 예시 영상 링크(§13.6)
+    static var share: Ph { .shareFat }        // 조리 티켓 — 레시피 공유, 시스템 공유 시트(§13.6)
 
     // 냉장고 툴바 · 리포트
     static var sort: Ph { .arrowsDownUp }

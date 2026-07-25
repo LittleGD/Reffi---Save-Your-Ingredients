@@ -2001,6 +2001,26 @@
         }
       }
     },
+    "Opens YouTube in your browser": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "브라우저에서 유튜브가 열려요"
+          }
+        }
+      }
+    },
+    "Opens the share sheet": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "공유 시트가 열려요"
+          }
+        }
+      }
+    },
     "Or try a sample fridge": {
       "localizations": {
         "ko": {
@@ -2477,6 +2497,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "선택됨"
+          }
+        }
+      }
+    },
+    "Share": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "공유"
           }
         }
       }
@@ -3081,6 +3111,16 @@
         }
       }
     },
+    "Watch examples on YouTube": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "유튜브에서 예시 영상 보기"
+          }
+        }
+      }
+    },
     "Watch your no-waste streak grow, day by day.": {
       "localizations": {
         "ko": {
@@ -3177,6 +3217,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "구매처"
+          }
+        }
+      }
+    },
+    "YouTube": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "YouTube"
           }
         }
       }

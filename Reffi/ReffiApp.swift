@@ -50,6 +50,12 @@ struct ReffiApp: App {
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("-glyphGallery") {
             GlyphGalleryView()
+        } else if ProcessInfo.processInfo.arguments.contains("-titleClipLab") {
+            TitleClipLabView()
+        } else if ProcessInfo.processInfo.arguments.contains("-shareCardPreview") {
+            ShareCardPreviewView()
+        } else if ProcessInfo.processInfo.arguments.contains("-myRecipesPreview") {
+            MyRecipesView()   // QA·스크린샷용 — 커스텀 레시피 목록/편집 종이화 검증(-shareCardPreview 선례)
         } else if ProcessInfo.processInfo.arguments.contains("-glyphMetrics") {
             GlyphMetricsView()
         } else if ProcessInfo.processInfo.arguments.contains("-buttonGallery") {
