@@ -10,6 +10,7 @@ struct ProfileView: View {
     @Environment(AuthStore.self) private var auth
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.openURL) private var openURL
 
     // 알림 SSOT — ExpiryNotifier의 @AppStorage 키를 직접 읽어 실제 스케줄에 반영한다.
     @AppStorage(ExpiryNotifier.enabledKey) private var alertsEnabled = false
@@ -55,6 +56,7 @@ struct ProfileView: View {
                 defaultsReceipt
                 recipesReceipt
                 aiReceipt.id(Anchor.ai)
+                languageReceipt
                 dataReceipt
                 accountReceipt
                 Color.clear.frame(height: 1).id(Anchor.bottom)   // 스크롤 하단 앵커(QA 스크린샷)
@@ -397,6 +399,26 @@ struct ProfileView: View {
     }
 
     // MARK: - 데이터 관리 영수증 (샘플 불러오기·전체 초기화)
+    // MARK: - 언어 영수증 — 앱별 언어는 iOS 설정이 정본. 인앱 가짜 스위처(재시작 필요·번들 스위즐)
+    // 대신 설정 딥링크로 보낸다(위약 금지). en·ko .lproj가 둘 다 있어 설정에 언어 행이 항상 노출된다.
+    private var languageReceipt: some View {
+        ReceiptCard(title: String(localized: "Language")) {
+            SettingsRow(label: "App language", value: currentLanguageName) {
+                if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
+            }
+            Text("Switch between English and Korean in iOS Settings.")
+                .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
+                .padding(.horizontal, ReffiSpace.s5)
+                .padding(.bottom, ReffiSpace.s4)
+        }
+    }
+
+    /// 현재 앱 언어의 엔도님(English·한국어) — 로케일에서 파생한 데이터 값이라 xcstrings 등록 대상이 아니다.
+    private var currentLanguageName: String {
+        let code = Locale.current.language.languageCode?.identifier ?? "en"
+        return Locale(identifier: code).localizedString(forLanguageCode: code)?.capitalized ?? code
+    }
+
     private var dataReceipt: some View {
         ReceiptCard(title: String(localized: "Data")) {
             QuietButton(title: "Load the sample fridge", icon: ReffiIcon.fridge, tint: ReffiColor.blueDark) {

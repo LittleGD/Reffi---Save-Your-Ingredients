@@ -591,6 +591,16 @@
         }
       }
     },
+    "App language": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "앱 언어"
+          }
+        }
+      }
+    },
     "Ate": {
       "localizations": {
         "ko": {
@@ -1627,6 +1637,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "한식"
+          }
+        }
+      }
+    },
+    "Language": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "언어"
           }
         }
       }
@@ -2777,6 +2797,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "보관"
+          }
+        }
+      }
+    },
+    "Switch between English and Korean in iOS Settings.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iOS 설정에서 영어와 한국어를 바꿀 수 있어요."
           }
         }
       }
