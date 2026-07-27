@@ -20,7 +20,7 @@
 - **현행 편차**: 종이 X 버튼이 4가지 스펙으로 파편화.
   - 34 · `ReffiColor.paper` · seed 4 — `AddIngredientSheet.swift:144`, `:441`, `ReceiptScanView.swift:74`, `:374`
   - 40 · `.white.opacity(0.9)` · seed 1 — `HistoryView.swift:259`(CoverHeader), `CookingStepsView.swift:138`, `RecipeMemoCarousel.swift:164`
-  - 40 · `ReffiColor.oklch(0.99, 0.006, 90)` · seed 4 — `FridgeView.swift:229`(doneBar)
+  - 40 · `ReffiColor.oklch(0.99, 0.006, 90)` · seed 4 — `FridgeView.swift:161`(doneBar)
   - 44 · `ReffiColor.paper` · seed 4 — `ProfilePreferenceSheets.swift:44`(SheetShell)
 - **확정 룰**: **시각 40pt / 히트영역 44pt / 채움 `ReffiColor.paper` 단일 토큰**. `PaperRect(cornerRadius: .md)` 면 + `paperEdge` + `.paperPress` + `accessibilityLabel("Close")`.
   - 시각과 히트를 분리한다: `PaperRect` 자체는 40, `.frame(minWidth:44, minHeight:44)` 또는 `.contentShape`로 탭 영역 44 확보(§7.3).
@@ -70,21 +70,25 @@
 ## C. 피드백·안전
 
 ### 룰 ⑦ — 햅틱 = 의미별 매핑 규칙 신설
-- **현행 편차**: 같은 판정(Ate/Tossed)이 `MainView`엔 `.impact(light)` 있고 `FridgeView.remove(ate:)`(`:447`)엔 없음. 로그아웃·삭제·초기화 등 파괴 액션엔 햅틱 전무. `design_system.md`에 햅틱 조항 자체가 없음.
+- **현행 편차**: 같은 판정(Ate/Tossed)이 `MainView`엔 `.impact(light)` 있고 `FridgeView.remove(_:ate:)`(`:379`)엔 없음. 삭제·초기화 등 파괴 액션엔 햅틱 전무. `design_system.md`에 햅틱 조항 자체가 없음.
 - **확정 룰**: `design_system.md` §7에 **햅틱 매핑 섹션을 신설**한다. 의미 → 트리거 매핑:
   - **판정·확정**(Ate/Tossed/Freeze, 발주) = `.impact`
   - **성공 완료**(저장·추가·재입고) = `.success`
   - **파괴 확인**(삭제·초기화 확정) = `.warning`
   - 같은 의미면 화면 불문 동일 햅틱.
-- **적용**: `FridgeView` 판정에 `.impact` 추가. 파괴 확인(ProfileView 로그아웃/삭제/초기화, IngredientEditView·MyRecipesView 삭제)에 `.warning` 추가.
+- **적용**: `FridgeView` 판정에 `.impact` 추가. 파괴 확인(ProfileView 계정삭제·전체초기화, IngredientEditView·MyRecipesView 삭제)에 `.warning` 추가.
+  - **로그아웃은 제외**: 세션만 해지하고 로컬 데이터를 지우지 않는다(룰 ⑧ 분류 참조) → 파괴 햅틱 없음.
 
 ### 룰 ⑧ — 파괴 확인 = 심각도로 구분
 - **현행 편차**: `.alert`(로그아웃·계정삭제·알림안내)와 `.confirmationDialog`(샘플로드·초기화·조리취소·재료삭제)가 파괴성 동등한데 혼용(`ProfileView.swift:99,103,118,123,132`).
-- **확정 룰**:
-  - **복구 불가능**(계정삭제·전체초기화) = `.alert` (중앙 고정, 실수 방지).
-  - **국소·되돌리기 가능**(재료삭제·조리취소·샘플로드) = `.confirmationDialog` (트리거 근처). 앱에 undo 토스트가 있어 국소 파괴는 dialog로 충분.
+- **확정 룰**: 판정 축은 "undo 버튼이 있느냐"가 아니라 **확정 후 데이터를 되돌릴 수 있느냐**다.
+  - **복구 불가능**(계정삭제·전체초기화·**샘플로드**) = `.alert` (중앙 고정, 실수 방지).
+  - **국소·되돌리기 가능**(재료삭제·조리취소) = `.confirmationDialog` (트리거 근처). `FridgeStore.pendingUndo` 기반 undo 토스트가 떠서 dialog로 충분.
+  - **데이터를 지우지 않는 상태 전환**(**로그아웃**) = `.confirmationDialog`. 세션만 해지하고 냉장고·이력·프로필·AI 동의는 이 기기에 남는다. 소유자 키(`data.ownerUserID`)가 직전 계정 id로 유지되고 뒤이어 붙는 익명 게스트 세션은 소유자 대조 대상이 아니라(`AuthStore.accountUserID`가 nil), 콜드 런치를 거쳐 같은 계정으로 재로그인해도 와이프가 없다(`ReffiApp.reconcileDataOwner` 보장 ①). 룰 ⑦ 파괴 햅틱도 해당 없음.
   - 순수 알림성(알림 꺼짐 안내)은 `.alert` 유지.
+- **샘플로드 정정(2026-07-26)**: 최초 초안은 샘플로드를 "되돌리기 가능(undo 토스트 있음)"으로 분류했으나 사실이 아니다. `FridgeStore.loadSampleData()`는 `ingredients`·`history`를 샘플로 통째 대체하기 전에 `pendingUndo = nil`로 **undo를 먼저 지운다**(`FridgeStore.swift:717`) → 확정 후 복구 불가. 따라서 `.alert`로 분류를 옮긴다.
 - **적용**: 위 기준으로 각 호출부 재분류.
+  - 잔여(후속 과제): `ProfileView`의 샘플로드 호출부는 아직 `.confirmationDialog` + 결과 명시 메시지("Your current ingredients and history will be replaced.")로 남아 있다. 위 정정에 맞춰 `.alert` + 명시 Cancel + 룰 ⑦ `.warning` 햅틱으로 옮겨야 한다.
 
 ### 룰 ⑨ — 미저장 보호 = 변경 시 Discard 확인
 - **현행 편차**: `interactiveDismissDisabled`가 앱 전체 0건. 편집 시트가 스와이프 실수로 닫히면 입력 유실.
@@ -158,7 +162,8 @@ SheetHeader(title: LocalizedStringKey, showsClose: Bool = false, onClose: (() ->
 3. **저장 모델 명문화** — 룰 ⑥: 편집·생성=도킹 Save / 설정·선택=자동저장.
 4. **detent 정책 명문화** — 룰 ⑪: 콘텐츠 양별 3단.
 5. **미저장 보호 명문화** — 룰 ⑨.
-6. **UndoToast 위치 정정** — 룰 ⑫: 하단 → 상단.
+6. **파괴 확인 강도 명문화** — 룰 ⑧: 복구 불가능=`.alert` / 되돌리기 가능=`.confirmationDialog` / 데이터 미삭제 상태 전환(로그아웃)=`.confirmationDialog` / 순수 알림성=`.alert`.
+7. **UndoToast 위치 정정** — 룰 ⑫: 하단 → 상단.
 
 ---
 
@@ -166,7 +171,7 @@ SheetHeader(title: LocalizedStringKey, showsClose: Bool = false, onClose: (() ->
 - 다크 모드 토큰(현재 라이트 고정 — `design_system.md` §2.1).
 - 시스템 push 스택(`NavigationLink`) 도입 — 앱은 의도적으로 모달+상태스위칭 아키텍처. 유지.
 - 큰 플로우 전환 애니메이션(온보딩→메인, 로그아웃) — 낮음 심각도, 별도 과제.
-- `Menu`(sortMenu)의 눌림 피드백 — SwiftUI 플랫폼 제약, 손대지 않음.
+- ~~`Menu`(sortMenu)의 눌림 피드백 — SwiftUI 플랫폼 제약, 손대지 않음.~~ **철회(2026-07-26)**: 같은 작업에서 스톡 `Menu`를 앱 커스텀 `PaperDropdown`(`Reffi/Components/PaperDropdown.swift`)으로 전면 교체해, 눌림 피드백이 종이 문법(`.paperPress`)으로 들어왔다. 플랫폼 제약은 컴포넌트 교체로 해소됐고 이 항목은 더 이상 범위 밖이 아니다.
 
 ---
 

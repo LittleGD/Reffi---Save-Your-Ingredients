@@ -97,9 +97,16 @@ struct ProfileView: View {
         }
         .sheet(isPresented: $showAuth) { AuthView() }
         .sheet(isPresented: $showMyRecipes) { MyRecipesView() }
-        // 룰⑧ — 로그아웃은 데이터 삭제가 아니고 재로그인으로 복구 가능한 국소 액션 → confirmationDialog.
+        // 룰⑧ — 로그아웃은 세션만 해지하는 상태 전환이다. 냉장고·이력·프로필·AI 동의는 이 기기에
+        // 그대로 남고, 소유자 키도 직전 계정 id로 유지된다(AuthStore.signOut / accountUserID).
+        // 뒤이어 붙는 익명 게스트 세션은 소유자 대조 대상이 아니라 콜드 런치를 거쳐도 와이프가 없다
+        // (ReffiApp.reconcileDataOwner 보장 ①). → 파괴가 아니므로 confirmationDialog가 맞다.
+        // 룰⑦ 파괴 확인 햅틱(.warning)도 넣지 않는다 — 지우는 데이터가 없어 파괴 분류가 아니다.
         .confirmationDialog(Text("Log out of Reffi?"), isPresented: $showLogout, titleVisibility: .visible) {
             Button("Log out", role: .destructive) { Task { await auth.signOut() } }
+        } message: {
+            // 정직한 카피 — 확인 강도를 낮춘 만큼 결과를 명시한다(데이터는 남는다).
+            Text("Your fridge and history stay on this device. Log back in anytime.")
         }
         // 룰⑧ — 계정삭제는 복구 불가능 → alert(중앙 고정, 실수 방지) 유지.
         .alert("Delete account", isPresented: $showDelete) {

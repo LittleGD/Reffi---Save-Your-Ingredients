@@ -47,9 +47,15 @@ final class AuthStore {
     /// 앱 진입 가능 여부 — 세션(익명 포함)이 있거나 로컬 게스트.
     var isSignedIn: Bool { session != nil || localGuest }
     var userEmail: String? { session?.user.email }
-    /// 현재 세션의 서버 user id(익명 포함). 로컬 게스트·미로그인은 nil.
-    /// 계정 전환 감지(로컬 데이터 소유자 판별)에 쓴다 — 익명→가입 승계는 같은 id라 무사.
-    var userID: String? { session?.user.id.uuidString }
+    /// 정식(비익명) 계정의 서버 user id. 익명 세션·로컬 게스트·미로그인은 모두 nil.
+    /// 로컬 데이터 소유자 판별(ReffiApp.reconcileDataOwner) 전용 — 익명 세션을 소유자 후보에서
+    /// 제외하는 것이 핵심이다: 로그아웃 후 게이트가 자동 발급하는 익명 게스트(continueAsGuest)는
+    /// 같은 기기의 같은 사람인데, 그 새 uuid를 소유자로 세면 콜드 런치마다 로컬 데이터가 와이프된다.
+    /// 익명→가입 승계는 같은 user id가 비익명으로 바뀌는 것이라 nil→id(최초 기록) 전이가 되어 무사하다.
+    var accountUserID: String? {
+        guard let user = session?.user, !user.isAnonymous else { return nil }
+        return user.id.uuidString
+    }
 
     init() {
         var guest = UserDefaults.standard.bool(forKey: Key.guest)
@@ -145,6 +151,9 @@ final class AuthStore {
     /// 로그아웃 — `scope: .local`로 이 기기 세션만 해지한다(다른 기기 로그아웃 방지).
     /// supabase-swift는 네트워크 POST 이전에 로컬(Keychain) 세션을 먼저 제거하므로 오프라인에서도
     /// 로그아웃이 성립한다 → 서버 요청 실패는 조용히 무시(로컬 세션은 이미 사라졌다).
+    /// 로컬 데이터(냉장고·이력·프로필·AI 동의)는 건드리지 않는다. 소유자 키(`data.ownerUserID`)도
+    /// 직전 계정 id 그대로 남고, 뒤이어 붙는 익명 게스트 세션은 `accountUserID`가 nil이라
+    /// 소유자 대조를 트리거하지 않는다 → 같은 계정으로 다시 로그인하면 와이프 없이 이어진다.
     func signOut() async {
         errorMessage = nil
         notice = nil
