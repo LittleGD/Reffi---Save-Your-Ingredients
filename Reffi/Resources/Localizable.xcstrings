@@ -451,6 +451,16 @@
         }
       }
     },
+    "Add place": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "구매처 입력"
+          }
+        }
+      }
+    },
     "Add recipe": {
       "localizations": {
         "ko": {
@@ -1001,12 +1011,32 @@
         }
       }
     },
+    "Delete recipe": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "레시피 삭제"
+          }
+        }
+      }
+    },
     "Delete this ingredient?": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
             "value": "이 재료를 삭제할까요?"
+          }
+        }
+      }
+    },
+    "Delete this recipe?": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 레시피를 삭제할까요?"
           }
         }
       }
@@ -1037,6 +1067,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "먹었나요, 버렸나요?"
+          }
+        }
+      }
+    },
+    "Discard": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "저장 안 함"
+          }
+        }
+      }
+    },
+    "Discard changes?": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "저장하지 않고 닫을까요?"
+          }
+        }
+      }
+    },
+    "Discard this item?": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "추가하지 않고 닫을까요?"
           }
         }
       }
@@ -1981,6 +2041,16 @@
         }
       }
     },
+    "One step per line.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "한 줄에 한 단계씩 적어 주세요."
+          }
+        }
+      }
+    },
     "Onion, Egg, Rice…": {
       "localizations": {
         "ko": {
@@ -2291,6 +2361,16 @@
         }
       }
     },
+    "Removes it from your recipes. Built-in recipes stay.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "내 레시피에서만 지워져요. 기본 레시피는 그대로예요."
+          }
+        }
+      }
+    },
     "Removes it without history. Stats and the shopping list won't count it.": {
       "localizations": {
         "ko": {
@@ -2497,6 +2577,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "선택됨"
+          }
+        }
+      }
+    },
+    "Separate with commas.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "쉼표로 구분해 주세요."
           }
         }
       }
@@ -3231,12 +3321,42 @@
         }
       }
     },
+    "Your changes won't be saved.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "변경 내용은 저장되지 않아요."
+          }
+        }
+      }
+    },
     "Your current ingredients and history will be replaced.": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
             "value": "현재 재료와 기록이 샘플로 대체돼요."
+          }
+        }
+      }
+    },
+    "Your edits won't be saved.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "수정한 내용은 저장되지 않아요."
+          }
+        }
+      }
+    },
+    "Your fridge and history stay on this device. Log back in anytime.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "냉장고와 기록은 이 기기에 그대로 남아요. 언제든 다시 로그인할 수 있어요."
           }
         }
       }
