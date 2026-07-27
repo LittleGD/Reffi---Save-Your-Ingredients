@@ -326,7 +326,7 @@ struct RecipeEditorView: View {
 
     private var actionBar: some View {
         PaperButton(title: recipe == nil ? "Add" : "Save") { save() }
-            .disabled(!canSave)   // 이름·재료가 비면 커밋 불가 — PaperButton이 채도·투명도로 표시.
+            .disabled(!canSave)   // 이름·재료가 비면 커밋 불가 — PaperButton이 투명도로 표시(§7.2, 색 변경 X).
             .padding(.horizontal, ReffiGrid.margin)
             .padding(.top, ReffiSpace.s2)
             .padding(.bottom, ReffiSpace.s2)

@@ -236,7 +236,7 @@ struct IngredientEditView: View {
             store.update(draft)
             dismiss()
         }
-        .disabled(trimmedName.isEmpty)   // 이름이 비면 저장 불가 — PaperButton이 채도·투명도로 표시.
+        .disabled(trimmedName.isEmpty)   // 이름이 비면 저장 불가 — PaperButton이 투명도로 표시(§7.2, 색 변경 X).
         .padding(.horizontal, ReffiGrid.margin)
         .padding(.top, ReffiSpace.s2)
         .padding(.bottom, ReffiSpace.s2)
