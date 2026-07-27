@@ -17,6 +17,9 @@ struct FridgeView: View {
     @State private var sortMenuOpen = false
     /// 판정(Ate/Tossed) 햅틱 카운터 — `MainView.decisionHaptic`과 동일 트리거·weight(룰⑦: 같은 의미는 같은 햅틱).
     @State private var decisionHaptic = 0
+    /// 펼친 영수증의 실측 높이 — 스크롤 뷰가 콘텐츠보다 커지지 않게 묶는 캡(0이면 미측정 = 캡 없음).
+    /// 글자 크기·재료가 바뀌면 다시 측정된다.
+    @State private var receiptHeight: CGFloat = 0
 
     /// 정렬·보기 선택 — 세션을 넘어 유지(리서치: 정렬 선택은 기억되어야 재방문 비용이 준다).
     @AppStorage("fridge.sort") private var sortRaw: String = FridgeSort.expiry.rawValue
@@ -201,21 +204,29 @@ struct FridgeView: View {
         let others = items.filter { $0.id != sel.id }
         return VStack(spacing: 0) {
             doneBar
+            // 영수증만 스크롤하고 판정 버튼(Ate/Tossed)은 스크롤 **밖**에 둔다 — 이 화면의 유일한 1차 액션이라
+            // 어떤 글자 크기·재고 수에서도 잘리면 안 된다(§7.3). 버튼을 스크롤 콘텐츠 안에 넣으면 하단 스택(≤132)과
+            // 네비 클리어런스(96)가 먹은 만큼 뷰포트가 좁아져 기본 글자 크기에서도 라벨이 잘렸다.
+            //
+            // "영수증 끝에서 20 아래 부착"이라는 의도는 그대로 유지한다:
+            //   ① 콘텐츠 하단 s3(12) + ② 버튼 상단 s2(8) = 20
+            //   ③ 스크롤 높이를 콘텐츠 높이(receiptHeight)로 묶어, 영수증이 뷰포트보다 짧아도
+            //      스크롤 뷰가 남는 높이를 먹고 늘어나지 않게 한다(= 영수증과 버튼 사이가 벌어지지 않음).
             ScrollView {
-                // 버튼을 스크롤 콘텐츠로 — 영수증 끝에서 정확히 20px(s3+s2) 아래에 붙어 함께 흐른다.
-                // (기존: 스크롤 밖 하단 고정 → 영수증과 버튼 사이가 화면 크기만큼 벌어짐)
-                VStack(spacing: 0) {
-                    ExpandedFridgeCard(ingredient: sel, onEdit: { editing = sel })
-                        .matchedGeometryEffect(id: sel.id, in: ns)
-                        .contentShape(Rectangle())
-                        .onTapGesture { deselect() }
-                        .padding(.top, ReffiSpace.s2)
-                        .padding(.bottom, ReffiSpace.s3)
-                    outcomeButtons(sel)
-                        .padding(.top, ReffiSpace.s2)
-                }
-                .padding(.horizontal, ReffiGrid.margin + cardInset)
+                ExpandedFridgeCard(ingredient: sel, onEdit: { editing = sel })
+                    .matchedGeometryEffect(id: sel.id, in: ns)
+                    .contentShape(Rectangle())
+                    .onTapGesture { deselect() }
+                    .padding(.top, ReffiSpace.s2)
+                    .padding(.bottom, ReffiSpace.s3)
+                    .padding(.horizontal, ReffiGrid.margin + cardInset)
+                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { receiptHeight = $0 }
             }
+            .scrollBounceBehavior(.basedOnSize)   // 콘텐츠가 다 들어가면 바운스 없음(영수증이 버튼 위로 튀지 않게)
+            .frame(maxHeight: receiptHeight > 0 ? receiptHeight : CGFloat.infinity)
+            .layoutPriority(1)   // 남는 높이를 아래 Spacer와 반씩 나눠 갖지 않게 — 캡 안에서 먼저 배분
+            outcomeButtons(sel)
+                .padding(.top, ReffiSpace.s2)
             Spacer(minLength: ReffiSpace.s2)
             if !others.isEmpty {
                 bottomStack(others)
@@ -237,6 +248,7 @@ struct FridgeView: View {
     }
 
     /// 처리 — 먹음/버림. store에서 제거 + 카운트 후 복귀.
+    /// 스크롤 밖에 도킹되는 1차 액션 — 높이를 고정하지 마라(큰 글자에서 라벨이 잘린다). 블롭 88 ≥ 44(§7.3).
     private func outcomeButtons(_ sel: Ingredient) -> some View {
         // Main의 결정 오버레이와 동일한 종이컷 아이콘 버튼(기본 88 + s6 간격).
         HStack(spacing: ReffiSpace.s6) {
