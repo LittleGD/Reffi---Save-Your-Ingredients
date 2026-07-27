@@ -124,26 +124,22 @@ struct CookingStepsView: View {
         .accessibilityHint(Text("Toggles whether some is left over"))
     }
 
+    /// 커버 헤더 — 단일 공급원 `CoverHeader`(§14.2: 풀스크린 커버 = 중앙 타이틀 + 종이 X).
+    /// 경과 시간은 accessory 슬롯에 둔다 — `style: .relative`라 시스템이 알아서 라이브 갱신한다.
     private var topBar: some View {
-        HStack(alignment: .center) {
-            VStack(alignment: .leading, spacing: 1) {
-                Text("Cooking now").reffiType(.heading).foregroundStyle(ReffiColor.ink)
-                if let cook = store.activeCook {
-                    HStack(spacing: 4) {
-                        Text("Started")
-                            .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
-                        Text(cook.startedAt, style: .relative)
-                            .reffiType(.metaText)
-                            .foregroundStyle(ReffiColor.ink2)
-                    }
+        CoverHeader(title: "Cooking now",
+                    closeHint: "Keeps cooking in progress",   // 닫아도 세션은 남는다는 결과 예고
+                    onClose: onClose) {
+            if let cook = store.activeCook {
+                HStack(spacing: 4) {
+                    Text("Started")
+                        .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
+                    Text(cook.startedAt, style: .relative)
+                        .reffiType(.metaText)
+                        .foregroundStyle(ReffiColor.ink2)
                 }
             }
-            Spacer()
-            PaperCloseButton(action: onClose)   // 룰① — 종이 X의 단일 공급원(시각40/히트44/paper)
-                .accessibilityHint(Text("Keeps cooking in progress"))
         }
-        .padding(.horizontal, ReffiGrid.margin)
-        .padding(.top, ReffiSpace.s4)
     }
 
     // MARK: - 조리 티켓

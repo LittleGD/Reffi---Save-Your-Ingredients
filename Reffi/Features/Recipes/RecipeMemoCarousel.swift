@@ -149,17 +149,11 @@ struct RecipeMemoCarousel: View {
 
     // MARK: - 상단 바
 
+    /// 커버 헤더 — 단일 공급원 `CoverHeader`(§14.2: 풀스크린 커버 = 중앙 타이틀 + 종이 X).
     private var topBar: some View {
-        VStack(alignment: .leading, spacing: ReffiSpace.s2) {
-            HStack(alignment: .center) {
-                VStack(alignment: .leading, spacing: 1) {
-                    Text("Today's tickets").reffiType(.heading).foregroundStyle(ReffiColor.ink)
-                    Text("Flick a ticket for the next, ranked by what spoils first")
-                        .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
-                }
-                Spacer()
-                PaperCloseButton(action: onClose)   // 룰① — 종이 X의 단일 공급원(시각40/히트44/paper)
-            }
+        CoverHeader(title: "Today's tickets",
+                    subtitle: "Flick a ticket for the next, ranked by what spoils first",
+                    onClose: onClose) {
             // 생성 진행 힌트(§13.6) — 덱 하단(=이 상단 바 아래)에 조용히. 도착·실패 모두 사라진다(실패 문구 없음).
             if aiGenerating {
                 AIGeneratingHint(reduceMotion: reduceMotion)
@@ -167,8 +161,6 @@ struct RecipeMemoCarousel: View {
             }
         }
         .animation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion), value: aiGenerating)
-        .padding(.horizontal, ReffiGrid.margin)
-        .padding(.top, ReffiSpace.s4)
     }
 
     /// 빈 덱 — 원인 기반 안내: 재료가 있는데 매칭 0이면 이름 확인·커스텀 레시피를 유도한다.
