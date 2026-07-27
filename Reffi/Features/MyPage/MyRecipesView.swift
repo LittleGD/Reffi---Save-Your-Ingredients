@@ -6,12 +6,20 @@ import SwiftUI
 /// 인터랙션 커먼 룰 종이화(룰 ⑤): 시스템 `NavigationStack`+`List`+글래스 툴바를 걷어내고
 /// 크림 캔버스(`ReffiColor.canvas`) + `SheetHeader`(좌측 타이틀·X, 룰 ②③④) + 종이 카드 리스트로 재조립한다.
 /// ProfileView가 `.sheet`로 여는 하단 시트이므로 헤더는 `SheetHeader`(좌측), detent는 콘텐츠 많음 → `.large`(룰 ⑪).
+///
+/// 목록에서 바로 지우는 경로는 유지한다: `List`를 걷어내며 `.swipeActions`를 못 쓰게 됐으므로
+/// 카드 롱프레스 `.contextMenu` → 삭제로 대체한다(편집 시트를 거치지 않는 1스텝 경로).
+/// 확인·햅틱은 `RecipeEditorView`의 삭제와 **동일 문법**: 국소·정정 가능 → `.confirmationDialog`(룰 ⑧) + `.warning`(룰 ⑦).
 struct MyRecipesView: View {
     @Environment(FridgeStore.self) private var store
     @Environment(\.dismiss) private var dismiss
 
     @State private var editing: Recipe?
     @State private var creating = false
+
+    @State private var deleteTarget: Recipe?   // 롱프레스로 지목된 삭제 대상(확인 전).
+    @State private var showDeleteConfirm = false
+    @State private var deleteHaptic = 0        // 룰 ⑦: 파괴 확인 = .warning
 
     var body: some View {
         VStack(spacing: 0) {
@@ -40,6 +48,18 @@ struct MyRecipesView: View {
         .presentationDetents([.large])                    // 룰 ⑪: 긴 목록 → .large
         .presentationDragIndicator(.visible)              // 룰 ④: 핸들이 주 닫기 신호
         .presentationBackground(ReffiColor.canvas)
+        .sensoryFeedback(.warning, trigger: deleteHaptic)
+        .confirmationDialog(Text("Delete this recipe?"), isPresented: $showDeleteConfirm,
+                            titleVisibility: .visible) {
+            Button("Delete", role: .destructive) {
+                if let target = deleteTarget { store.deleteUserRecipe(id: target.id) }  // 스토어가 persist까지 수행.
+                deleteHaptic += 1
+                deleteTarget = nil
+            }
+            Button("Cancel", role: .cancel) { deleteTarget = nil }
+        } message: {
+            Text("Removes it from your recipes. Built-in recipes stay.")
+        }
         .sheet(isPresented: $creating) { RecipeEditorView(recipe: nil) }
         .sheet(item: $editing) { RecipeEditorView(recipe: $0) }
     }
@@ -94,6 +114,15 @@ struct MyRecipesView: View {
             .reffiShadow1()
         }
         .buttonStyle(.paperPress)
+        // main의 스와이프 삭제를 대체하는 목록 내 즉시 경로(롱프레스). 편집 시트 안 삭제는 그대로 둔다.
+        .contextMenu {
+            Button(role: .destructive) {
+                deleteTarget = recipe
+                showDeleteConfirm = true
+            } label: {
+                Label("Delete recipe", systemImage: "trash")
+            }
+        }
         .accessibilityLabel(Text(recipe.displayName))
         .accessibilityHint(Text("Edit recipe"))
     }
