@@ -209,7 +209,8 @@ struct FridgeView: View {
             // 네비 클리어런스(96)가 먹은 만큼 뷰포트가 좁아져 기본 글자 크기에서도 라벨이 잘렸다.
             //
             // "영수증 끝에서 20 아래 부착"이라는 의도는 그대로 유지한다:
-            //   ① 콘텐츠 하단 s3(12) + ② 버튼 상단 s2(8) = 20
+            //   ① 스크롤 밖 하단 s3(12) + ② 버튼 상단 s2(8) = 20 — 간격을 스크롤 밖에 둬서
+            //      영수증이 넘쳐 스크롤돼도 시각 간격 20이 변하지 않는다.
             //   ③ 스크롤 높이를 콘텐츠 높이(receiptHeight)로 묶어, 영수증이 뷰포트보다 짧아도
             //      스크롤 뷰가 남는 높이를 먹고 늘어나지 않게 한다(= 영수증과 버튼 사이가 벌어지지 않음).
             ScrollView {
@@ -218,13 +219,13 @@ struct FridgeView: View {
                     .contentShape(Rectangle())
                     .onTapGesture { deselect() }
                     .padding(.top, ReffiSpace.s2)
-                    .padding(.bottom, ReffiSpace.s3)
                     .padding(.horizontal, ReffiGrid.margin + cardInset)
                     .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { receiptHeight = $0 }
             }
             .scrollBounceBehavior(.basedOnSize)   // 콘텐츠가 다 들어가면 바운스 없음(영수증이 버튼 위로 튀지 않게)
             .frame(maxHeight: receiptHeight > 0 ? receiptHeight : CGFloat.infinity)
             .layoutPriority(1)   // 남는 높이를 아래 Spacer와 반씩 나눠 갖지 않게 — 캡 안에서 먼저 배분
+            .padding(.bottom, ReffiSpace.s3)
             outcomeButtons(sel)
                 .padding(.top, ReffiSpace.s2)
             Spacer(minLength: ReffiSpace.s2)
@@ -264,7 +265,9 @@ struct FridgeView: View {
 
     /// 하단 collapse 스택 — 나머지 영수증을 띠로 겹침. 탭 시 그 카드로 전환.
     private func bottomStack(_ others: [Ingredient]) -> some View {
-        let maxVisible: CGFloat = 132
+        // 112 = 종전 132에서 20 양보 — 펼침 화면의 주인공은 영수증이라, 기본 글자 크기에서
+        // 하단 톱니(ReceiptShape 절취선)까지 온전히 보이도록 배경 스택의 몫을 줄였다.
+        let maxVisible: CGFloat = 112
         let count = max(1, others.count)
         let peek = min(26, (maxVisible - 48) / CGFloat(max(1, count - 1)))
         let visible = CGFloat(count - 1) * peek + 48
