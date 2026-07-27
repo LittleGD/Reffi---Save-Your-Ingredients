@@ -585,6 +585,55 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
   color: var(--color-blue); font-weight: 700; letter-spacing: 2px; font-size: 14px;
   padding: 3px 10px; border: 2px solid oklch(51.4% 0.134 249.8 / 0.55); border-radius: 8px; opacity: .9; }
 
+/* ===== §13.5 PaperDropdown · §14 모달 · 시트 · 닫기 (showcase) ===== */
+/* 종이 면 공통 — PaperRect 면 + paperEdge 단면 헤어라인(분리 보더 아님, §13.1) + 옅은 그레인 + shadow-1 */
+.paper-face { position: relative; isolation: isolate; background: var(--paper-surface); color: var(--color-ink);
+  box-shadow: inset 0 0 0 1px var(--paper-edge), var(--shadow-1); }
+.paper-face::after { content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: inherit;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='90' height='90'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  mix-blend-mode: overlay; opacity: 0.10; }
+
+/* 절취선(DashedRule) — 행 구분은 보더가 아니라 점선 룰(§6 보더 금지) */
+.rule-dashed { height: 1px; background: repeating-linear-gradient(90deg,
+  oklch(25% 0.012 80 / 0.22) 0 4px, transparent 4px 8px); }
+
+/* 정렬 칩 + 커스텀 드롭다운(스톡 Menu/Picker 팝업 대체) */
+.sort-chip { display: inline-flex; align-items: center; gap: var(--space-1); min-height: var(--tap-min);
+  padding: 0 var(--space-3); border: 0; cursor: pointer; border-radius: var(--radius-sm);
+  font: 500 14px/1 var(--font); letter-spacing: 0.01em;
+  transition: transform var(--dur-2) var(--ease-bounce); }
+.sort-chip:active { transform: scale(0.96); }
+.sort-chip svg { width: 14px; height: 14px; }
+.dropdown { width: 232px; max-width: 100%; border-radius: var(--radius-md); padding: var(--space-1) 0; }
+.dropdown__row { display: flex; align-items: center; gap: var(--space-3); min-height: var(--tap-min);
+  padding: 0 var(--space-4); font-size: 15px; font-weight: 500; }
+.dropdown__row .check { margin-left: auto; display: flex; color: var(--color-blue-dark); }
+.dropdown__row .check.is-off { visibility: hidden; }
+.dropdown .rule-dashed { margin: 0 var(--space-3); }
+
+/* 종이 X 닫기 — 시각 40 / 히트 44(§7.3): 히트 면은 시각 면보다 4pt 크다 */
+.close-demo { display: flex; align-items: center; gap: var(--space-6); flex-wrap: wrap; }
+.close-hit { width: var(--tap-min); height: var(--tap-min); flex: 0 0 auto; display: grid; place-items: center;
+  border-radius: var(--radius-md); background: var(--color-blue-light); }
+.paper-x { width: 40px; height: 40px; display: grid; place-items: center; border: 0; cursor: pointer;
+  border-radius: var(--radius-md); transition: transform var(--dur-2) var(--ease-bounce); }
+.paper-x:active { transform: scale(0.96); }
+.paper-x svg { width: 18px; height: 18px; }
+
+/* 헤더 2종 목업 — 면은 틴트 차이로 분리(보더 없음) */
+.mock { background: var(--neutral-200); border-radius: var(--radius-lg);
+  padding: var(--space-3) var(--space-4) var(--space-5); }
+.mock__grab { width: 36px; height: 5px; margin: 0 auto var(--space-4); border-radius: var(--radius-pill);
+  background: var(--color-muted); opacity: 0.55; }
+.mock__body { margin-top: var(--space-4); display: flex; flex-direction: column; gap: var(--space-2); }
+.mock__line { height: 12px; border-radius: var(--radius-xs); background: var(--neutral-50); }
+.mock__line.short { width: 56%; }
+.hdr-sheet { display: flex; align-items: center; gap: var(--space-3); }
+.hdr-sheet .ttl { margin-right: auto; }
+.hdr-cover { display: grid; grid-template-columns: var(--tap-min) 1fr var(--tap-min); align-items: center; gap: var(--space-3); }
+.hdr-cover .ttl { text-align: center; }
+.hdr-cover .spacer { width: var(--tap-min); }
+
 /* mobile nav collapse */
 @media (max-width: 1199.98px) {
   .shell { flex-direction: column; }
@@ -623,6 +672,7 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
       <li><a href="#grid"><span class="idx num">09</span>그리드 &amp; 반응형</a></li>
       <li><a href="#checklist"><span class="idx num">10</span>적용 체크리스트</a></li>
       <li><a href="#paper"><span class="idx num">11</span>종이 · 글래스 · 모션</a></li>
+      <li><a href="#modal"><span class="idx num">12</span>모달 · 시트 · 닫기</a></li>
     </ul>
   </nav>
 
@@ -1017,6 +1067,18 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
           <div class="motion-card"><div class="dur num">0.25 / 0.55</div><div class="lbl">spring-press — 종이 버튼·뱃지 누름 (Swift: bouncyPress)</div></div>
         </div>
 
+        <p class="subhead text">햅틱 (§7.6) — 의미별 매핑</p>
+        <p class="t-caption text" style="color:var(--color-ink-2);margin-bottom:var(--space-3)">같은 의미의 액션은 화면이 달라도 항상 같은 햅틱을 낸다 — 트리거가 속한 <strong>화면</strong>이 아니라 <strong>의미</strong>가 매핑 기준이다. 판정 로직을 화면마다 복붙하며 햅틱 유무가 갈리지 않도록, 판정·저장·파괴 확인 <strong>핸들러 레벨</strong>에서 매핑을 강제한다 (Swift <code class="inline">sensoryFeedback</code>).</p>
+        <table class="tbl">
+          <thead><tr><th>의미</th><th>트리거 예시</th><th>햅틱</th></tr></thead>
+          <tbody>
+            <tr><td>판정 · 확정</td><td>Ate / Tossed / Freeze 판정, 레시피 발주(Fire the Ticket)</td><td><code class="inline">.impact</code></td></tr>
+            <tr><td>성공 완료</td><td>저장 · 추가 · 재입고</td><td><code class="inline">.success</code></td></tr>
+            <tr><td>파괴 확인</td><td>삭제 · 초기화 확정(로그아웃 · 계정삭제 · 전체초기화 등)</td><td><code class="inline">.warning</code></td></tr>
+          </tbody>
+        </table>
+        <div class="note" style="margin-top:var(--space-3)"><strong>정보성 전환엔 햅틱 금지.</strong> 탭 전환 · 스크롤처럼 순수 정보성 전환에는 햅틱을 쓰지 않는다. 파괴 확인 햅틱은 <strong>확정 시점</strong>(다이얼로그의 파괴 버튼)에 울린다 — 다이얼로그를 여는 순간이 아니다.</div>
+
         <p class="subhead text">시스템 적용 예시 — 재료 리스트</p>
         <div class="product">
           <div class="product__head">
@@ -1156,6 +1218,9 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">보더·이모지·순백배경·순흑텍스트·네온을 쓰지 않았는가 · 1200px 분기로 함께 전환되는가</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">(행동 표면) 종이컷 셰이프에 완벽한 원·사각·캡슐을 쓰지 않고, 종이 헤어라인을 분리 보더로 오용하지 않았는가 (§13)</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">통통 스프링을 행동 표면에만 쓰고 정보 표면(카드 스택)엔 남용하지 않았는가 · 추천 캐러셀에 네비 없이 닫기(X)가 있는가 (§7.5/§13)</span></li>
+          <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">종이 X 닫기가 <code class="inline">PaperCloseButton</code>인가 (시각 40 · 히트 44 · <code class="inline">paper</code> 단일 토큰, 인라인 재조립 금지 §14)</span></li>
+          <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">시트에 dragIndicator(핸들)와 콘텐츠 양에 맞는 detent가 있는가 (§14)</span></li>
+          <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">판정·확정은 <code class="inline">.impact</code>, 성공 완료는 <code class="inline">.success</code>, 파괴 확인은 <code class="inline">.warning</code>인가 · 정보성 전환에 햅틱을 넣지 않았는가 (§7.6)</span></li>
         </ul>
       </section>
 
@@ -1212,6 +1277,24 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
           </div>
 
           <div class="demo-pane">
+            <p class="subhead text">정렬 칩 · PaperDropdown (§13.5)</p>
+            <p class="lbl">스톡 <code class="inline">Menu</code>/<code class="inline">Picker</code> 팝업(흰 시스템 라운드 렉트) 대신 <strong>앱 최초 커스텀 드롭다운</strong>. PaperRect 면 + paperEdge 헤어라인 + 옅은 그레인 + <code class="inline">--shadow-1</code>, 행마다 라벨(좌) + <strong>선택 행에만 체크 글리프</strong>(우, blue-dark), 행 사이 DashedRule 절취선, 최소 44pt 히트 + 통통 프레스. 트리거 칩 앵커 아래에 루트 오버레이로 띄워 스크롤에 클리핑되지 않고(<code class="inline">--z-dropdown</code>), 딤 없는 투명 탭 캐처가 바깥 탭을 받아 닫는다 — 가벼운 드롭다운이지 모달이 아니다(<code class="inline">--scrim</code> 없음). 진입 spring-pop, 이탈은 더 빠르게.</p>
+            <div>
+              <button class="sort-chip paper-face" aria-expanded="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M6 12h12M9 17h6"/></svg>
+                임박순
+              </button>
+              <div class="dropdown paper-face" style="margin-top:var(--space-2)">
+                <div class="dropdown__row"><span class="text">임박순</span><span class="check"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span></div>
+                <div class="rule-dashed"></div>
+                <div class="dropdown__row"><span class="text">신선한순</span><span class="check is-off"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span></div>
+                <div class="rule-dashed"></div>
+                <div class="dropdown__row"><span class="text">최근 등록순</span><span class="check is-off"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="demo-pane">
             <p class="subhead text">리퀴드글래스 네비</p>
             <p class="lbl">색면 위를 떠 있는 캡슐 네비만 글래스 머티리얼(블러+투과). 버튼은 색을 살리고 시노만.</p>
             <div class="glass-stage">
@@ -1230,7 +1313,7 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
 
           <div class="demo-pane" style="grid-column: 1 / -1;">
             <p class="subhead text">오더 메모 카드 (추천 캐러셀)</p>
-            <p class="lbl">주방 오더 티켓: 상·하 톱니 절취 + 모노 헤더 + 점선 룰 + 판정문 키커 + 메뉴/시간 + 재료 체크리스트(최대 5줄 + N more) + PREP 조리 메모(최대 3단계 미리보기 + N more, 전체 단계는 발주 후 단계별 조리 화면이 정본) + "이걸로 요리" 발주 CTA(발주 시 START 스탬프 슬램). 덱은 풀스크린·네비 없음 — 뒤에 겹친 종이가 실제 다음 티켓이며(가장 깊은 티켓만 머리 렌더 — 바로 뒤는 풀 렌더라 플릭 승격이 매끄럽다), 맨 앞을 튕겨(플릭) 넘긴다(순환). 카드는 화면 높이에 캡되고 중간 섹션은 필요 시 카드 안에서 스크롤(큰 글씨 안전망). <strong>발주 = 예약</strong>(START 슬램은 연출, 재고 차감·이력은 <strong>요리 완료에서 확정</strong> — 재료별 "다 썼어요/조금 남았어요" 원탭, 조리 취소는 예약 해제). 발주는 커버당 1회 + 6초 되돌리기 → 곧장 단계별 조리 화면(체크리스트), 메인의 Cooking now 카드로 복귀. 판정 커버엔 urgent 한정 <strong>Freeze</strong> 3번째 선택지 — 얼리면 유예 14일의 새 D-day(재냉동 불가), 냉장고 카드엔 FROZEN 도장. <strong>발주 덱은 시드·커스텀·AI 생성 티켓이 한 덱</strong> — AI 생성 레시피는 별도 트레이 없이 "#NN" 왼쪽 <strong>sparkle + AI 미니 배지</strong>로만 구분한다. 캐러셀이 열리면 재고 기준으로 생성을 트리거해, 끝나는 대로 아직 덱에 없는 AI 티켓을 최대 2장 뒤에 조용히 이어붙인다(기존 카드 순서·정체성 불변, 진행 중엔 상단에 작은 힌트, 실패해도 문구 없이 사라짐).</p>
+            <p class="lbl">주방 오더 티켓: 상·하 톱니 절취 + 모노 헤더 + 점선 룰 + 판정문 키커 + 메뉴/시간 + 재료 체크리스트(최대 5줄 + N more) + PREP 조리 메모(최대 3단계 미리보기 + N more, 전체 단계는 발주 후 단계별 조리 화면이 정본) + "이걸로 요리" 발주 CTA(발주 시 START 스탬프 슬램). 덱은 풀스크린·네비 없음 — 뒤에 겹친 종이가 실제 다음 티켓이며(가장 깊은 티켓만 머리 렌더 — 바로 뒤는 풀 렌더라 플릭 승격이 매끄럽다), 맨 앞을 튕겨(플릭) 넘긴다(순환). 카드는 화면 높이에 캡되고 중간 섹션은 필요 시 카드 안에서 스크롤(큰 글씨 안전망). <strong>발주 = 예약</strong>(START 슬램은 연출, 재고 차감·이력은 <strong>요리 완료에서 확정</strong> — 재료별 "다 썼어요/조금 남았어요" 원탭, 조리 취소는 예약 해제). 발주는 커버당 1회 + 6초 되돌리기(<strong>상단</strong> 잉크 캡슐 토스트 — 탭 공통, 하단 CTA·네비를 가리지 않는다) → 곧장 단계별 조리 화면(체크리스트), 메인의 Cooking now 카드로 복귀. 판정 커버엔 urgent 한정 <strong>Freeze</strong> 3번째 선택지 — 얼리면 유예 14일의 새 D-day(재냉동 불가), 냉장고 카드엔 FROZEN 도장. <strong>발주 덱은 시드·커스텀·AI 생성 티켓이 한 덱</strong> — AI 생성 레시피는 별도 트레이 없이 "#NN" 왼쪽 <strong>sparkle + AI 미니 배지</strong>로만 구분한다. 캐러셀이 열리면 재고 기준으로 생성을 트리거해, 끝나는 대로 아직 덱에 없는 AI 티켓을 최대 2장 뒤에 조용히 이어붙인다(기존 카드 순서·정체성 불변, 진행 중엔 상단에 작은 힌트, 실패해도 문구 없이 사라짐).</p>
             <div class="memo">
               <div class="ticket-head"><span>ORDER</span><span class="right"><span class="ai-badge">✦ AI</span><span class="num">#01</span></span></div>
               <div class="rule"></div>
@@ -1245,9 +1328,108 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
 
         <div class="note" style="margin-top:var(--space-5)"><strong>입력 시트도 행동표면 언어를 따른다 — 재료 추가는 폼이 아니라 픽커다.</strong> 타이핑으로 임의 재료를 만드는 직접 입력 폼은 주 추가 플로우에 없다 — <strong>일러스트 사전 픽커 + 영수증 스캔</strong>이 전부. 크림 캔버스 + 흰 영수증 카드(스캔 카드) + <strong>검색 필드</strong>(사전 필터, 임의 생성용 아님) + <strong>픽커 그리드</strong>(PaperSilhouette 일러스트 + 흰 종이 타일, 3~4열 — FREQUENT 이력/시드 → 카테고리 섹션)로 짓는다. <strong>탭 = 즉시 추가</strong>(사전 기본값으로 폼 없이 저장) — 일러스트는 카테고리를 대표할 뿐 고른 재료와 1:1이 아니다, 정확한 표기는 하단 피드백 스트립("Added {name} · {n} this run" + Edit)이 책임진다. 검색이 사전에서 못 찾을 때만 컴팩트 <strong>커스텀 시트</strong>(이름 고정 + 기한·수량·보관)로 폴백한다 — 사전 밖 재료를 만드는 유일한 경로. 커스텀·편집 시트는 여전히 모노 섹션 라벨(ITEM·DETAILS · OPTIONAL) + DashedRule + PaperButton 문법. 시스템 글래스 툴바·리퀴드글래스 배경 금지(입력 표면은 조용한 종이) — 상단은 종이 X 닫기 헤더. 쇼핑리스트 재입고는 시트조차 열지 않고 이력 스냅샷 + 사전 기본 기한으로 곧장 채운다.</div>
 
-        <div class="note" style="margin-top:var(--space-5)"><strong>냉장고 요약·정렬도 §13 문법을 공유한다.</strong> 헤더 아래 요약 페이저(장보기 · 무낭비 리포트, 한 장씩 스와이프)는 PaperCutRect 종이컷 버튼 면 + 옅은 그레인 + 점 인디케이터로 짓는다. 정렬 메뉴 칩과 간편보기 원탭 토글은 둘 다 PaperRect 종이 면(히트 44pt), 간편보기 행은 틸트·겹침 없는 납작한 흰 영수증 한 조각 — 실루엣 + 이름 + 수량 + D-day(냉동이면 + FROZEN 도장)를 한 줄로 훑어보기에 최적화한다.</div>
+        <div class="note" style="margin-top:var(--space-5)"><strong>냉장고 요약·정렬도 §13 문법을 공유한다.</strong> 헤더 아래 요약 페이저(장보기 · 무낭비 리포트, 한 장씩 스와이프)는 PaperCutRect 종이컷 버튼 면 + 옅은 그레인 + 점 인디케이터로 짓는다. <strong>정렬 칩</strong>(현재 정렬 라벨을 상시 노출)과 간편보기 원탭 토글은 둘 다 PaperRect 종이 면 + paperEdge(히트 44pt). 정렬 칩을 탭하면 스톡 <code class="inline">Menu</code>/<code class="inline">Picker</code> 팝업 대신 <strong>커스텀 PaperDropdown</strong>이 칩 바로 아래에 뜬다 — 스펙과 실제 렌더는 위 "정렬 칩 · PaperDropdown" 데모. 간편보기 행은 틸트·겹침 없는 납작한 흰 영수증 한 조각 — 실루엣 + 이름 + 수량 + D-day(냉동이면 + FROZEN 도장)를 한 줄로 훑어보기에 최적화한다.</div>
 
         <div class="note" style="margin-top:var(--space-5)"><strong>경계.</strong> 이 레이어는 메인·캐러셀의 행동 표면에 한정한다. 냉장고 목록·카드 스택(§08)·일반 정보 화면은 §02~§09 규율(파스텔 색-블로킹·보더 금지·평소 그림자 금지)을 그대로 따른다.</div>
+      </section>
+
+      <!-- 12. Modal · Sheet · Close (§14) -->
+      <section class="section" id="modal">
+        <span class="section__num num">12</span>
+        <h2 class="text">모달 · 시트 · 닫기 <span class="t-caption" style="color:var(--color-muted)">— MD §14</span></h2>
+        <p class="section__lead text">화면마다 손으로 다시 조립하던 닫기·헤더·저장·detent를 컴포넌트와 규칙으로 수렴한다. §11(종이·글래스·모션)이 행동 표면에 한정되는 것과 달리, 이 절은 표면 종류와 무관하게 <strong>앱 전체</strong>에 적용된다 — 다만 종이 X의 시각 언어는 §11의 어휘를 그대로 쓴다.</p>
+
+        <p class="subhead text">닫기 버튼 — <code class="inline">PaperCloseButton</code> (시각 40 · 히트 44)</p>
+        <p class="t-caption text" style="color:var(--color-ink-2);margin-bottom:var(--space-4)">앱 전역의 종이 X는 <strong>단일 컴포넌트</strong>다 — 화면마다 다른 크기·색으로 다시 조립하지 않는다. 시각과 히트를 분리해(§7.3) 종이 면은 40pt로 그리고 탭 영역만 44pt를 확보한다. 채움은 <code class="inline">--paper-surface</code> <strong>단일 토큰</strong> — <code class="inline">white/0.9</code>·<code class="inline">oklch(0.99)</code> 같은 변형은 쓰지 않는다. 면은 <code class="inline">radius-md</code> 종이 사각 + paperEdge 단면 헤어라인(분리 보더 아님) + 통통 프레스, 접근성 라벨은 "Close".</p>
+        <div class="demo-pane" style="gap:var(--space-4)">
+          <div class="close-demo">
+            <span class="close-hit"><button class="paper-x paper-face" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></span>
+            <p class="lbl">파란 면 = <strong>히트 영역 44</strong> · 흰 종이 면 = <strong>시각 40</strong>. 눌러 보면 <code class="inline">scale(0.96)</code> 통통 프레스.</p>
+          </div>
+          <div class="rule-dashed"></div>
+          <p class="lbl">커버 헤더 · 시트 헤더 · doneBar 등 앱의 모든 종이 X가 이 하나로 대체된다(이전엔 34/40/44 · 채움 3갈래로 파편화).</p>
+        </div>
+
+        <p class="subhead text">헤더 — 목적별 2종</p>
+        <p class="t-caption text" style="color:var(--color-ink-2);margin-bottom:var(--space-4)">헤더는 목적에 따라 <strong>2개 컴포넌트로 분리</strong>하고, 화면마다 인라인으로 복붙하지 않는다. 두 헤더의 성격 차이는 <strong>정렬</strong>로 표현한다 — 커버는 중앙, 시트는 좌측. 타이포는 <strong>둘 다 <code class="inline">.heading</code>으로 통일</strong>하며 <code class="inline">.subhead</code> 예외를 두지 않는다.</p>
+        <div class="paper-demo">
+          <div class="demo-pane">
+            <p class="lbl"><code class="inline">SheetHeader</code> — 하단 시트. 좌측 타이틀 + (선택)X. dragIndicator(핸들)를 전제한다.</p>
+            <div class="mock">
+              <div class="mock__grab"></div>
+              <div class="hdr-sheet">
+                <span class="ttl t-heading text">재료 추가</span>
+                <span class="close-hit"><button class="paper-x paper-face" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></span>
+              </div>
+              <div class="mock__body"><div class="mock__line"></div><div class="mock__line short"></div></div>
+            </div>
+          </div>
+          <div class="demo-pane">
+            <p class="lbl"><code class="inline">CoverHeader</code> — 풀스크린 커버. 중앙 타이틀 + X가 유일한 닫기 신호다.</p>
+            <div class="mock">
+              <div class="hdr-cover" style="margin-top:var(--space-2)">
+                <span class="spacer"></span>
+                <span class="ttl t-heading text">히스토리</span>
+                <span class="close-hit"><button class="paper-x paper-face" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></span>
+              </div>
+              <div class="mock__body"><div class="mock__line"></div><div class="mock__line short"></div></div>
+            </div>
+          </div>
+        </div>
+        <table class="tbl" style="margin-top:var(--space-4)">
+          <thead><tr><th>컴포넌트</th><th>용도</th><th>타이틀 정렬</th><th>타이포</th><th>닫기</th></tr></thead>
+          <tbody>
+            <tr><td><code class="inline">CoverHeader</code></td><td>풀스크린 커버</td><td>중앙</td><td><code class="inline">.heading</code></td><td><code class="inline">PaperCloseButton</code>(X)</td></tr>
+            <tr><td><code class="inline">SheetHeader</code></td><td>하단 시트</td><td>좌측</td><td><code class="inline">.heading</code></td><td>선택적 X, dragIndicator 전제</td></tr>
+          </tbody>
+        </table>
+
+        <p class="subhead text">모달 종류별 닫기 신호</p>
+        <table class="tbl">
+          <thead><tr><th>모달 종류</th><th>헤더</th><th>닫는 방법</th></tr></thead>
+          <tbody>
+            <tr><td>하단 시트</td><td><code class="inline">SheetHeader</code></td><td><strong>dragIndicator(핸들) + 스와이프 다운</strong>이 주 신호. X 버튼은 선택</td></tr>
+            <tr><td>풀스크린 커버</td><td><code class="inline">CoverHeader</code></td><td><code class="inline">PaperCloseButton</code>(X)</td></tr>
+          </tbody>
+        </table>
+        <div class="note" style="margin-top:var(--space-3)"><strong>핸들 없는 시트는 두지 않는다.</strong> 시트는 dragIndicator가 필수다 — 닫기 신호가 0인 화면을 만들지 않는다. 편집·생성 시트에는 아래 미저장 보호가 추가로 걸린다.</div>
+
+        <p class="subhead text">저장 모델 — 성격별 2규칙</p>
+        <p class="t-caption text" style="color:var(--color-ink-2);margin-bottom:var(--space-4)">한 시트에 두 방식을 섞지 않는다.</p>
+        <div class="grid-cards cols-2">
+          <div class="card tint-blue">
+            <p class="t-subhead text">편집 · 생성 시트</p>
+            <p class="t-caption text" style="color:var(--color-ink-2);margin-top:var(--space-2)">재료 · 레시피 · 커스텀 아이템 · 후보. 하단에 도킹된 <code class="inline">PaperButton</code>(Save/Add)으로 <strong>명시적 커밋</strong>. 취소는 스와이프·닫기이며, 미저장 보호가 걸린다.</p>
+          </div>
+          <div class="card tint-fresh">
+            <p class="t-subhead text">설정 · 선택 시트</p>
+            <p class="t-caption text" style="color:var(--color-ink-2);margin-top:var(--space-2)">취향 · 알림 시간 등 단일 선택. <strong>자동저장</strong> — 선택 즉시 반영되고, 별도 저장 버튼 없이 닫기만 하면 된다.</p>
+          </div>
+        </div>
+
+        <p class="subhead text">시트 높이(detent) — 콘텐츠 양별 3단</p>
+        <p class="t-caption text" style="color:var(--color-ink-2);margin-bottom:var(--space-3)">미설정(무조건 풀높이) 상태로 두지 않는다.</p>
+        <table class="tbl">
+          <thead><tr><th>콘텐츠</th><th>detent</th></tr></thead>
+          <tbody>
+            <tr><td>짧은 단일 입력(닉네임 · 시간 등)</td><td>고정 높이 <code class="inline">.height(...)</code></td></tr>
+            <tr><td>중간 목록 · 폼(추가 · 편집)</td><td><code class="inline">.medium</code> 진입, 키보드·긴 내용 시 <code class="inline">.large</code>로 승격</td></tr>
+            <tr><td>긴 목록(레시피 목록 등)</td><td><code class="inline">.large</code></td></tr>
+          </tbody>
+        </table>
+
+        <p class="subhead text">파괴 확인 — 심각도로 구분</p>
+        <p class="t-caption text" style="color:var(--color-ink-2);margin-bottom:var(--space-3)">파괴성이 다른데 <code class="inline">.alert</code>와 <code class="inline">.confirmationDialog</code>를 섞어 쓰지 않는다 (커먼 룰 ⑧ · <code class="inline">docs/INTERACTION_COMMON_RULES.md</code>). 확정 버튼에는 <code class="inline">.warning</code> 햅틱(§7.6).</p>
+        <table class="tbl">
+          <thead><tr><th>성격</th><th>예시</th><th>표현</th></tr></thead>
+          <tbody>
+            <tr><td>복구 불가능</td><td>계정 삭제 · 전체 초기화</td><td><code class="inline">.alert</code> — 중앙 고정으로 실수를 막는다</td></tr>
+            <tr><td>국소 · 되돌리기 가능</td><td>재료 삭제 · 조리 취소 · 샘플 로드</td><td><code class="inline">.confirmationDialog</code> — 트리거 근처, 되돌리기 토스트가 안전망</td></tr>
+            <tr><td>순수 알림성</td><td>알림 꺼짐 안내</td><td><code class="inline">.alert</code> 유지</td></tr>
+          </tbody>
+        </table>
+
+        <div class="note" style="margin-top:var(--space-5)"><strong>미저장 보호 (Unsaved Changes Guard).</strong> 편집·생성 시트에서 변경 사항이 있는 채로 닫힘 제스처(스와이프·닫기)가 들어오면 "변경을 취소할까요?" 확인(<code class="inline">confirmationDialog</code>, Discard Changes 패턴)을 띄운다. 변경이 없으면 자유롭게 닫힌다. 구현은 <code class="inline">isDirty</code> 추적 + <code class="inline">interactiveDismissDisabled(isDirty)</code> + Discard 다이얼로그. <strong>설정·선택 시트(자동저장)는 해당 없음</strong> — 저장할 미확정 상태 자체가 없다.</div>
       </section>
 
     </div>
