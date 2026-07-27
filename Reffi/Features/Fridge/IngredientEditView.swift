@@ -4,95 +4,262 @@ import SwiftUI
 /// 소비기한·구매일은 날짜로 편집(시간 모델이 절대 날짜라 하루가 지나면 D-N도 함께 흐른다).
 /// 이름이 바뀌면 글리프·카테고리는 store가 다시 매칭한다.
 /// **삭제**는 이력 없는 제거 — 오입력·중복이 낭비율·쇼핑리스트를 오염시키지 않는 정정 경로.
+///
+/// 표면은 §13 행동표면 언어(`CandidateEditSheet`·`CustomItemSheet`와 같은 문법):
+/// 크림 캔버스(`--color-canvas`) + 흰 영수증 카드(`ReceiptShape`) + 모노 섹션 라벨(`ITEM`·`DETAILS`) +
+/// `DashedRule` + 종이 X 닫기 헤더 + 도킹된 `PaperButton`. 시스템 폼·글래스 툴바를 쓰지 않는다(조용한 종이).
 struct IngredientEditView: View {
     @Environment(FridgeStore.self) private var store
     @Environment(\.dismiss) private var dismiss
 
     @State private var draft: Ingredient
     @State private var showDeleteConfirm = false
+    @State private var showDiscardConfirm = false
+    @State private var deleteHaptic = 0
 
-    init(ingredient: Ingredient) { _draft = State(initialValue: ingredient) }
+    private let original: Ingredient
+
+    init(ingredient: Ingredient) {
+        original = ingredient
+        _draft = State(initialValue: ingredient)
+    }
 
     private var trimmedName: String { draft.name.trimmingCharacters(in: .whitespacesAndNewlines) }
 
+    /// 초안이 원본과 다르면(룰⑨) 스와이프/닫기 시 Discard 확인을 띄운다.
+    private var isDirty: Bool { draft != original }
+
     var body: some View {
-        NavigationStack {
-            Form {
-                Section("Item") {
-                    TextField("Name", text: $draft.name)
+        VStack(spacing: 0) {
+            header
+            ScrollView {
+                VStack(spacing: ReffiSpace.s3) {
+                    itemCard
+                    detailsCard
+                    deleteSection
                 }
-                Section("Details") {
-                    HStack {
-                        Text("Quantity")
-                        Spacer()
-                        TextField("1", value: $draft.quantity.value, format: .number)
-                            .keyboardType(.decimalPad)
-                            .multilineTextAlignment(.trailing)
-                            .frame(width: 72)
-                        Picker("Unit", selection: $draft.quantity.unit) {
-                            ForEach(IngredientUnit.allCases) { u in
-                                Text(verbatim: u.label).tag(u)
-                            }
-                        }
-                        .labelsHidden()
-                        .fixedSize()
-                    }
-                    TextField("Where", text: $draft.place)
-                    Picker("Storage", selection: $draft.storage) {
-                        // 저장값은 영문 식별자 그대로, 표시만 로컬라이즈.
-                        // 재냉동 금지: 이미 한 번 얼렸던 재료는 Freezer 재선택 불가.
-                        ForEach(StorageLocation.allCases) { s in
-                            if s != .freezer || draft.storage == .freezer || draft.frozenAt == nil {
-                                Text(LocalizedStringKey(s.rawValue)).tag(s)
-                            }
-                        }
-                    }
-                    DatePicker("Use by", selection: $draft.expiresAt,
-                               in: Ingredient.day(offset: -30)...Ingredient.day(offset: 365),
-                               displayedComponents: .date)
-                    DatePicker("Purchased", selection: $draft.purchasedAt,
-                               in: ...Date(),
-                               displayedComponents: .date)
-                }
-                Section {
-                    Button(role: .destructive) {
-                        showDeleteConfirm = true
-                    } label: {
-                        Label { Text("Delete ingredient") } icon: { ReffiIcon.delete.reffi(15) }
-                    }
-                } footer: {
-                    Text("Removes it without history. Stats and the shopping list won't count it.")
-                }
+                .padding(.horizontal, ReffiGrid.margin)
+                .padding(.top, ReffiSpace.s2)
+                .padding(.bottom, ReffiSpace.s3)
             }
-            .navigationTitle(Text("Edit \(draft.name)"))
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        draft.name = trimmedName
-                        // 폼에서 냉동으로 옮겼다면 전환 시점을 기록(유예 시계 시작 + 재냉동 방지).
-                        if draft.storage == .freezer, draft.frozenAt == nil {
-                            draft.frozenAt = Date()
-                        }
-                        store.update(draft)
-                        dismiss()
-                    }
-                    .tint(ReffiColor.blue)
-                    .disabled(trimmedName.isEmpty)
-                }
-            }
-            .confirmationDialog(Text("Delete this ingredient?"), isPresented: $showDeleteConfirm,
-                                titleVisibility: .visible) {
-                Button("Delete", role: .destructive) {
-                    store.remove(draft)
-                    dismiss()
-                }
-            } message: {
-                Text("Removes it without history. Stats and the shopping list won't count it.")
-            }
+            .scrollDismissesKeyboard(.interactively)
+            actionBar
         }
+        .background(ReffiColor.canvas)
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
+        .presentationBackground(ReffiColor.canvas)
+        .interactiveDismissDisabled(isDirty)
+        .sensoryFeedback(.warning, trigger: deleteHaptic)
+        .confirmationDialog(Text("Delete this ingredient?"), isPresented: $showDeleteConfirm,
+                            titleVisibility: .visible) {
+            Button("Delete", role: .destructive) {
+                store.remove(draft)
+                deleteHaptic += 1
+                dismiss()
+            }
+        } message: {
+            Text("Removes it without history. Stats and the shopping list won't count it.")
+        }
+        .confirmationDialog(Text("Discard changes?"), isPresented: $showDiscardConfirm,
+                            titleVisibility: .visible) {
+            Button("Discard", role: .destructive) { dismiss() }
+        } message: {
+            Text("Your changes won't be saved.")
+        }
+    }
+
+    // MARK: - 헤더 (좌측 타이틀 + PaperCloseButton, 룰①. 동적 타이틀 truncation 보호를 유지하려 커스텀 HStack은 유지)
+
+    private var header: some View {
+        HStack(alignment: .firstTextBaseline) {
+            // 이름이 길어도 헤더가 깨지지 않게 한 줄·말줄임(X 버튼은 항상 자리 유지).
+            Text("Edit \(draft.name)")
+                .reffiType(.heading).foregroundStyle(ReffiColor.ink)
+                .lineLimit(1).truncationMode(.tail)
+            Spacer(minLength: ReffiSpace.s3)
+            PaperCloseButton { requestClose() }
+        }
+        .padding(.horizontal, ReffiGrid.margin)
+        .padding(.top, ReffiSpace.s4)
+        .padding(.bottom, ReffiSpace.s2)
+    }
+
+    /// 미저장 변경이 있으면 즉시 닫지 않고 Discard 확인을 띄운다(룰⑨).
+    private func requestClose() {
+        if isDirty {
+            showDiscardConfirm = true
+        } else {
+            dismiss()
+        }
+    }
+
+    // MARK: - ITEM 카드 (이름)
+
+    private var itemCard: some View {
+        receiptCard {
+            sectionLabel("ITEM")
+            TextField("Name", text: $draft.name,
+                      prompt: Text("Name").foregroundStyle(ReffiColor.ink2))
+                .reffiType(.body).foregroundStyle(ReffiColor.ink)
+                .frame(minHeight: 40)
+        }
+    }
+
+    // MARK: - DETAILS 카드 (수량·구매처·보관·소비기한·구매일)
+
+    private var detailsCard: some View {
+        receiptCard {
+            sectionLabel("DETAILS")
+
+            HStack {
+                Text("Quantity").reffiType(.body).foregroundStyle(ReffiColor.ink)
+                Spacer()
+                TextField("1", value: $draft.quantity.value, format: .number)
+                    .keyboardType(.decimalPad)
+                    .multilineTextAlignment(.trailing)
+                    .font(.reffiNum(16, relativeTo: .body))
+                    .foregroundStyle(ReffiColor.ink)
+                    .frame(width: 64)
+                Picker("Unit", selection: $draft.quantity.unit) {
+                    ForEach(IngredientUnit.allCases) { u in
+                        Text(verbatim: u.label).tag(u)
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .tint(ReffiColor.blue)
+            }
+            .frame(minHeight: 40)
+
+            DashedRule()
+
+            HStack {
+                Text("Where").reffiType(.body).foregroundStyle(ReffiColor.ink)
+                Spacer(minLength: ReffiSpace.s4)
+                TextField("Add place", text: $draft.place,
+                          prompt: Text("Add place").foregroundStyle(ReffiColor.ink2))
+                    .multilineTextAlignment(.trailing)
+                    .reffiType(.body).foregroundStyle(ReffiColor.ink)
+            }
+            .frame(minHeight: 40)
+
+            DashedRule()
+
+            HStack {
+                Text("Storage").reffiType(.body).foregroundStyle(ReffiColor.ink)
+                Spacer()
+                Picker("Storage", selection: $draft.storage) {
+                    // 저장값은 영문 식별자 그대로, 표시만 로컬라이즈.
+                    // 재냉동 금지: 이미 한 번 얼렸던 재료는 Freezer 재선택 불가.
+                    ForEach(StorageLocation.allCases) { s in
+                        if s != .freezer || draft.storage == .freezer || draft.frozenAt == nil {
+                            Text(LocalizedStringKey(s.rawValue)).tag(s)
+                        }
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .tint(ReffiColor.blue)
+            }
+            .frame(minHeight: 40)
+
+            DashedRule()
+
+            HStack {
+                Text("Use by").reffiType(.body).foregroundStyle(ReffiColor.ink)
+                Spacer()
+                DatePicker("", selection: $draft.expiresAt,
+                           in: Ingredient.day(offset: -30)...Ingredient.day(offset: 365),
+                           displayedComponents: .date)
+                    .labelsHidden()
+                    .datePickerStyle(.compact)
+                    .tint(ReffiColor.blue)
+            }
+            .frame(minHeight: 40)
+
+            DashedRule()
+
+            HStack {
+                Text("Purchased").reffiType(.body).foregroundStyle(ReffiColor.ink)
+                Spacer()
+                DatePicker("", selection: $draft.purchasedAt,
+                           in: ...Date(),
+                           displayedComponents: .date)
+                    .labelsHidden()
+                    .datePickerStyle(.compact)
+                    .tint(ReffiColor.blue)
+            }
+            .frame(minHeight: 40)
+        }
+    }
+
+    // MARK: - 삭제 (이력 없는 정정 경로 — Save보다 조용한 면)
+
+    private var deleteSection: some View {
+        VStack(alignment: .leading, spacing: ReffiSpace.s2) {
+            Button { showDeleteConfirm = true } label: {
+                HStack(spacing: ReffiSpace.s2) {
+                    ReffiIcon.delete.reffi(15, .bold).foregroundStyle(ReffiColor.urgentDark)
+                    Text("Delete ingredient")
+                        .reffiType(.body).foregroundStyle(ReffiColor.urgentDark)
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, ReffiSpace.s5)
+                .frame(minHeight: 46)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+                .background {
+                    // 조용한 종이 면 + urgent 틴트 헤어라인(보더 아님) — 그림자 없이 Save보다 잔잔하게.
+                    let s = PaperRect(cornerRadius: ReffiRadius.md, seed: 9)
+                    s.fill(ReffiColor.paper).paperEdge(s, tint: ReffiColor.urgentDark.opacity(0.18))
+                }
+            }
+            .buttonStyle(.paperPress)
+            .accessibilityLabel("Delete ingredient")
+
+            Text("Removes it without history. Stats and the shopping list won't count it.")
+                .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
+                .padding(.horizontal, ReffiSpace.s2)
+        }
+    }
+
+    // MARK: - 저장 (도킹 CTA)
+
+    private var actionBar: some View {
+        PaperButton(title: "Save") {
+            draft.name = trimmedName
+            // 폼에서 냉동으로 옮겼다면 전환 시점을 기록(유예 시계 시작 + 재냉동 방지).
+            if draft.storage == .freezer, draft.frozenAt == nil {
+                draft.frozenAt = Date()
+            }
+            store.update(draft)
+            dismiss()
+        }
+        .disabled(trimmedName.isEmpty)   // 이름이 비면 저장 불가 — PaperButton이 투명도로 표시(§7.2, 색 변경 X).
+        .padding(.horizontal, ReffiGrid.margin)
+        .padding(.top, ReffiSpace.s2)
+        .padding(.bottom, ReffiSpace.s2)
+    }
+
+    // MARK: - 헬퍼
+
+    /// 흰 영수증 카드 — `CandidateEditSheet`·`CustomItemSheet`와 같은 면(오린 톱니 + 헤어라인 + 옅은 그림자).
+    private func receiptCard<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        let shape = ReceiptShape(tooth: 7)
+        return VStack(alignment: .leading, spacing: ReffiSpace.s3) { content() }
+            .padding(.horizontal, ReffiSpace.s5)
+            .padding(.vertical, ReffiSpace.s5 + 3)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(ReffiColor.oklch(0.985, 0.004, 90), in: shape)
+            .paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
+            .shadow(color: ReffiColor.ink.opacity(0.06), radius: 5, x: 0, y: 2)
+    }
+
+    /// 모노 올캡 섹션 라벨 — 오더 티켓 언어(§13.5). `CustomItemSheet`의 헬퍼와 동일 문법.
+    private func sectionLabel(_ text: String) -> some View {
+        Text(verbatim: text)
+            .reffiType(.sectionLabel)
+            .foregroundStyle(ReffiColor.ink2)
     }
 }

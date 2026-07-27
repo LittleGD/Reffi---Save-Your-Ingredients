@@ -27,33 +27,21 @@ struct SelectableChip: View {
     }
 }
 
-/// 시트 공통 셸 — 크림 캔버스 + 타이틀 헤더 + 우상단 닫기. 편집 시트를 통일한다.
+/// 시트 공통 셸 — 크림 캔버스 + `SheetHeader`(좌측 타이틀 + 종이 X) + 콘텐츠. 편집 시트를 통일한다.
+/// 헤더는 인터랙션 커먼 룰 ②③의 단일 공급원 `SheetHeader`에 위임 — 인라인 종이 X 조립을 제거했다.
 private struct SheetShell<Content: View>: View {
     let title: LocalizedStringKey
     let onClose: () -> Void
     @ViewBuilder var content: Content
 
     var body: some View {
-        VStack(alignment: .leading, spacing: ReffiSpace.s5) {
-            HStack {
-                Text(title).reffiType(.heading).foregroundStyle(ReffiColor.ink)
-                Spacer()
-                Button(action: onClose) {
-                    ReffiIcon.close.reffi(15, .bold)
-                        .foregroundStyle(ReffiColor.ink)
-                        .frame(width: 44, height: 44)   // §7.3 터치 타깃
-                        .background {
-                            let s = PaperRect(cornerRadius: ReffiRadius.md, seed: 4)
-                            s.fill(ReffiColor.paper).paperEdge(s)
-                        }
-                }
-                .buttonStyle(.paperPress)
-                .accessibilityLabel("Close")
-            }
+        VStack(alignment: .leading, spacing: 0) {
+            SheetHeader(title: title, showsClose: true, onClose: onClose)
             content
+                .padding(.horizontal, ReffiGrid.margin)
             Spacer(minLength: 0)
         }
-        .padding(ReffiSpace.s5)
+        .padding(.bottom, ReffiSpace.s5)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(ReffiColor.canvas.ignoresSafeArea())
     }

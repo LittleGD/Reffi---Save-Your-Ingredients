@@ -10,6 +10,7 @@ struct ProfileView: View {
     @Environment(AuthStore.self) private var auth
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.openURL) private var openURL
 
     // 알림 SSOT — ExpiryNotifier의 @AppStorage 키를 직접 읽어 실제 스케줄에 반영한다.
     @AppStorage(ExpiryNotifier.enabledKey) private var alertsEnabled = false
@@ -28,6 +29,7 @@ struct ProfileView: View {
     @State private var showResetConfirm = false
     @State private var showSampleConfirm = false
     @State private var showDenied = false
+    @State private var destructiveHaptic = 0   // 룰⑦ — 계정삭제·전체초기화 확정 시 .warning 트리거
 
     private enum Sheet: String, Identifiable {
         case nickname, cuisines, favorites, disliked, allergies, time
@@ -54,6 +56,7 @@ struct ProfileView: View {
                 defaultsReceipt
                 recipesReceipt
                 aiReceipt.id(Anchor.ai)
+                languageReceipt
                 dataReceipt
                 accountReceipt
                 Color.clear.frame(height: 1).id(Anchor.bottom)   // 스크롤 하단 앵커(QA 스크린샷)
@@ -96,17 +99,29 @@ struct ProfileView: View {
         }
         .sheet(isPresented: $showAuth) { AuthView() }
         .sheet(isPresented: $showMyRecipes) { MyRecipesView() }
-        .alert("Log out", isPresented: $showLogout) {
+        // 룰⑧ — 로그아웃은 세션만 해지하는 상태 전환이다. 냉장고·이력·프로필·AI 동의는 이 기기에
+        // 그대로 남고, 소유자 키도 직전 계정 id로 유지된다(AuthStore.signOut / accountUserID).
+        // 뒤이어 붙는 익명 게스트 세션은 소유자 대조 대상이 아니라 콜드 런치를 거쳐도 와이프가 없다
+        // (ReffiApp.reconcileDataOwner 보장 ①). → 파괴가 아니므로 confirmationDialog가 맞다.
+        // 룰⑦ 파괴 확인 햅틱(.warning)도 넣지 않는다 — 지우는 데이터가 없어 파괴 분류가 아니다.
+        .confirmationDialog(Text("Log out of Reffi?"), isPresented: $showLogout, titleVisibility: .visible) {
             Button("Log out", role: .destructive) { Task { await auth.signOut() } }
-            Button("Cancel", role: .cancel) {}
-        } message: { Text("Log out of Reffi?") }
+        } message: {
+            // 정직한 카피 — 확인 강도를 낮춘 만큼 결과를 명시한다(데이터는 남는다).
+            Text("Your fridge and history stay on this device. Log back in anytime.")
+        }
+        // 룰⑧ — 계정삭제는 복구 불가능 → alert(중앙 고정, 실수 방지) 유지.
         .alert("Delete account", isPresented: $showDelete) {
             Button("Delete", role: .destructive) {
+                destructiveHaptic += 1   // 룰⑦ — 파괴 확정(.warning)
                 Task {
                     await auth.signOut()      // scope .local — 오프라인에서도 로그아웃
                     store.resetAllData()      // 이 기기 냉장고·이력 삭제
                     profile.resetAll()        // 프로필·취향 초기화
                     AIConsent.resetAll()      // 동의는 계정 귀속 — 소유자 와이프와 원자적으로 초기화
+                    // 소유자 키도 함께 해제 — 남겨두면 이후 게스트 구간에 새로 쌓은 데이터가
+                    // 다음 가입 시 '다른 계정 전환'으로 오인돼 조용히 와이프된다(승계 안내와 모순).
+                    UserDefaults.standard.removeObject(forKey: DataOwner.key)
                     // 온보딩 플래그는 유지 — 재온보딩을 강제하지 않는다.
                 }
             }
@@ -115,29 +130,37 @@ struct ProfileView: View {
             // 정직한 카피 — 서버 계정 완전 삭제는 준비 중(AuthStore TODO: Edge Function).
             Text("This erases this device's data and signs you out. Full server account deletion is coming soon.")
         }
+        // 룰⑧ — 순수 알림성(권한 안내) → alert 유지.
         .alert(Text("Notifications are off"), isPresented: $showDenied) {
             Button("OK", role: .cancel) {}
         } message: {
             Text("Allow notifications for Reffi in Settings to get expiry alerts.")
         }
-        .confirmationDialog(Text("Load the sample fridge?"), isPresented: $showSampleConfirm, titleVisibility: .visible) {
+        // 룰⑧ — 샘플 로드는 복구 불가능(loadSampleData가 pendingUndo를 먼저 지운다) → alert.
+        .alert("Load the sample fridge?", isPresented: $showSampleConfirm) {
             Button("Replace with sample data", role: .destructive) {
+                destructiveHaptic += 1   // 룰⑦ — 파괴 확정(.warning)
                 withAnimation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion)) {
                     store.loadSampleData()
                 }
             }
+            Button("Cancel", role: .cancel) {}
         } message: {
             Text("Your current ingredients and history will be replaced.")
         }
-        .confirmationDialog(Text("Reset all data?"), isPresented: $showResetConfirm, titleVisibility: .visible) {
+        // 룰⑧ — 전체초기화는 복구 불가능 → confirmationDialog에서 alert로 재분류.
+        .alert("Reset all data?", isPresented: $showResetConfirm) {
             Button("Reset everything", role: .destructive) {
+                destructiveHaptic += 1   // 룰⑦ — 파괴 확정(.warning)
                 withAnimation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion)) {
                     store.resetAllData()
                 }
             }
+            Button("Cancel", role: .cancel) {}
         } message: {
             Text("Ingredients and history will be deleted. This can't be undone.")
         }
+        .sensoryFeedback(.warning, trigger: destructiveHaptic)
         // 시스템 설정에서 권한을 나중에 회수한 경우 — 토글이 켜진 채 조용히 실패하지 않게 동기화.
         .task { await syncAuthorization() }
         .onChange(of: scenePhase) { _, phase in
@@ -378,6 +401,27 @@ struct ProfileView: View {
     /// "of Y generations"의 복수형은 X 값과 무관하게 항상 성립해(문법상 옳음) 별도 ICU 복수 변형이 불필요하다.
     private var remainingGenerationsText: String {
         String(localized: "Today \(AIConsent.remainingToday) of \(AIConsent.dailyCap) generations left")
+    }
+
+    // MARK: - 언어 영수증 — 앱별 언어는 iOS 설정이 정본. 인앱 가짜 스위처(재시작 필요·번들 스위즐)
+    // 대신 설정 딥링크로 보낸다(위약 금지). en·ko .lproj가 둘 다 있어 설정에 언어 행이 항상 노출된다.
+    private var languageReceipt: some View {
+        ReceiptCard(title: String(localized: "Language")) {
+            SettingsRow(label: "App language", value: currentLanguageName) {
+                if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
+            }
+            ReceiptRule()
+            Text("Switch between English and Korean in iOS Settings.")
+                .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
+                .padding(.horizontal, ReffiSpace.s5)
+                .padding(.vertical, ReffiSpace.s3)
+        }
+    }
+
+    /// 현재 앱 언어의 엔도님(English·한국어) — 로케일에서 파생한 데이터 값이라 xcstrings 등록 대상이 아니다.
+    private var currentLanguageName: String {
+        let code = Locale.current.language.languageCode?.identifier ?? "en"
+        return Locale(identifier: code).localizedString(forLanguageCode: code)?.capitalized ?? code
     }
 
     // MARK: - 데이터 관리 영수증 (샘플 불러오기·전체 초기화)

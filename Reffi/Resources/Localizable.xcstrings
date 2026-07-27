@@ -451,6 +451,16 @@
         }
       }
     },
+    "Add place": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "구매처 입력"
+          }
+        }
+      }
+    },
     "Add recipe": {
       "localizations": {
         "ko": {
@@ -577,6 +587,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "남은 재료가 있나요?"
+          }
+        }
+      }
+    },
+    "App language": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "앱 언어"
           }
         }
       }
@@ -1001,12 +1021,32 @@
         }
       }
     },
+    "Delete recipe": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "레시피 삭제"
+          }
+        }
+      }
+    },
     "Delete this ingredient?": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
             "value": "이 재료를 삭제할까요?"
+          }
+        }
+      }
+    },
+    "Delete this recipe?": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 레시피를 삭제할까요?"
           }
         }
       }
@@ -1037,6 +1077,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "먹었나요, 버렸나요?"
+          }
+        }
+      }
+    },
+    "Discard": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "저장 안 함"
+          }
+        }
+      }
+    },
+    "Discard changes?": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "저장하지 않고 닫을까요?"
+          }
+        }
+      }
+    },
+    "Discard this item?": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "추가하지 않고 닫을까요?"
           }
         }
       }
@@ -1571,6 +1641,16 @@
         }
       }
     },
+    "Language": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "언어"
+          }
+        }
+      }
+    },
     "Later": {
       "localizations": {
         "ko": {
@@ -1981,6 +2061,16 @@
         }
       }
     },
+    "One step per line.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "한 줄에 한 단계씩 적어 주세요."
+          }
+        }
+      }
+    },
     "Onion, Egg, Rice…": {
       "localizations": {
         "ko": {
@@ -1997,6 +2087,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "무낭비 리포트 열기, %lld퍼센트 낭비"
+          }
+        }
+      }
+    },
+    "Opens YouTube in your browser": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "브라우저에서 유튜브가 열려요"
+          }
+        }
+      }
+    },
+    "Opens the share sheet": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "공유 시트가 열려요"
           }
         }
       }
@@ -2271,6 +2381,16 @@
         }
       }
     },
+    "Removes it from your recipes. Built-in recipes stay.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "내 레시피에서만 지워져요. 기본 레시피는 그대로예요."
+          }
+        }
+      }
+    },
     "Removes it without history. Stats and the shopping list won't count it.": {
       "localizations": {
         "ko": {
@@ -2481,6 +2601,26 @@
         }
       }
     },
+    "Separate with commas.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "쉼표로 구분해 주세요."
+          }
+        }
+      }
+    },
+    "Share": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "공유"
+          }
+        }
+      }
+    },
     "Shopping list, %lld items": {
       "localizations": {
         "ko": {
@@ -2657,6 +2797,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "보관"
+          }
+        }
+      }
+    },
+    "Switch between English and Korean in iOS Settings.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iOS 설정에서 영어와 한국어를 바꿀 수 있어요."
           }
         }
       }
@@ -3081,6 +3231,16 @@
         }
       }
     },
+    "Watch examples on YouTube": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "유튜브에서 예시 영상 보기"
+          }
+        }
+      }
+    },
     "Watch your no-waste streak grow, day by day.": {
       "localizations": {
         "ko": {
@@ -3181,12 +3341,52 @@
         }
       }
     },
+    "YouTube": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "YouTube"
+          }
+        }
+      }
+    },
+    "Your changes won't be saved.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "변경 내용은 저장되지 않아요."
+          }
+        }
+      }
+    },
     "Your current ingredients and history will be replaced.": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
             "value": "현재 재료와 기록이 샘플로 대체돼요."
+          }
+        }
+      }
+    },
+    "Your edits won't be saved.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "수정한 내용은 저장되지 않아요."
+          }
+        }
+      }
+    },
+    "Your fridge and history stay on this device. Log back in anytime.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "냉장고와 기록은 이 기기에 그대로 남아요. 언제든 다시 로그인할 수 있어요."
           }
         }
       }

@@ -42,10 +42,17 @@ xcrun simctl io booted screenshot reffi-home.png
 ### QA 런치 인자 (DEBUG)
 `-glyphGallery` `-buttonGallery` 갤러리 · `-profileTab` `-fridgeTab` 탭 직행 ·
 `-showHistory` History 시트 · `-authView` 로그인 화면 · `-onboarding` 온보딩(+`-onboardingPage N`) ·
+`-onboardingSetup` 셋업 시트 바로 열기 · `-onboardingSetupPage N` 셋업 시트 특정 장 직행 ·
+`-onboardingSetupAutoAdvance` 셋업 시트 장 자동 순환(전환 QA용) ·
+`-titleClipLab` StoryScript 줄 끝 글리프 클리핑 실험실(폰트 advance 패치 회귀 검증용) ·
+`-fridgeExpand` 냉장고 첫 재료 펼침 · `-fridgeExpandSolo` 재료 1개만 남기고 펼침(네비 클리어런스 QA) ·
+`-fridge.sortOpen` 정렬 드롭다운(`PaperDropdown`) 자동 오픈(스크린샷용) · `-fridgeEdit` 첫 재료 편집 시트 자동 표시(+`-loadSample`) ·
 `-resetOnboarding` 온보딩 초기화 · `-skipOnboarding` 온보딩 건너뛰고 곧장 게이트 통과 ·
 `-skipAuth` 게스트로 게이트 통과 · `-authGate` 게스트 해제 ·
 `-fridge.compact YES` 간편보기 · `-fridge.sort recent|freshest|expiry` 정렬 ·
 `-loadSample` 샘플 시드 · `-previewCarousel` 캐러셀 바로 열기(`-previewAIBadge` 동시 지정 시 AI 배지 티켓도 얹음) ·
+`-cookTicket` 샘플로 강제 발주 후 조리 티켓(CookingStepsView) 바로 열기 ·
+`-shareCardPreview` 공유용 레시피 영수증 카드(RecipeShareCard) 미리보기 ·
 `-profileAI` Profile을 AI recipes 영수증까지 스크롤
 (인증 콘솔 설정은 `docs/AUTH_SETUP.md`)
 

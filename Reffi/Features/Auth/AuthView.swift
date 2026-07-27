@@ -7,6 +7,7 @@ import PhosphorSwift
 struct AuthView: View {
     @Environment(AuthStore.self) private var auth
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private enum Mode { case signIn, signUp }
     @State private var mode: Mode = .signIn
@@ -39,6 +40,9 @@ struct AuthView: View {
             }
             .scrollDismissesKeyboard(.interactively)
         }
+        // 프로필에서 시트로 띄운 경우의 닫기 신호(룰④) — 핸들 노출. 루트 게이트로 쓰일 땐
+        // 시트가 아니라 이 modifier가 무시되므로 무해하다.
+        .presentationDragIndicator(.visible)
         .onOpenURL { auth.handleOpenURL($0) }
         // 프로필에서 시트로 띄운 경우 — 정식(비익명) 세션이 생기면 자동 닫힘.
         // 게이트(루트)에서는 dismiss가 no-op이라 무해하다.
@@ -102,8 +106,7 @@ struct AuthView: View {
             feedback
 
             PaperButton(title: LocalizedStringKey(primaryTitle), seed: 1, action: submit)
-                .disabled(!canSubmit)
-                .opacity(canSubmit ? 1 : 0.45)   // §7.2 disabled
+                .disabled(!canSubmit)   // 디밍은 PaperButton이 §7.2로 처리 — 여기서 겹치면 곱해진다.
 
             modeToggle
 
@@ -178,7 +181,7 @@ struct AuthView: View {
             Text(isSignIn ? "New here?" : "Already have an account?")
                 .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
             Button(isSignIn ? "Sign up" : "Log in") {
-                withAnimation(ReffiMotion.gated(.easeOut(duration: 0.18), reduce: false)) {
+                withAnimation(ReffiMotion.gated(.easeOut(duration: 0.18), reduce: reduceMotion)) {
                     mode = isSignIn ? .signUp : .signIn
                     auth.errorMessage = nil
                     auth.notice = nil
@@ -232,7 +235,8 @@ struct AuthView: View {
         }
         .buttonStyle(.paperPress)
         .disabled(auth.busy)
-        .opacity(auth.busy ? 0.45 : 1)
+        // PaperButton이 아닌 자체 표면이라 디밍이 겹치지 않는다 — 여기가 §7.2 디밍의 유일한 지점.
+        .opacity(auth.busy ? ReffiOpacity.disabled : 1)
     }
 
     private var footer: some View {

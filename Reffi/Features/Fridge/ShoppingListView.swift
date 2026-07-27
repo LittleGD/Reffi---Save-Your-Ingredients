@@ -7,6 +7,7 @@ struct ShoppingListView: View {
     @Environment(FridgeStore.self) private var store
     @Environment(ProfileStore.self) private var profile
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var restockHaptic = 0
 
@@ -71,7 +72,9 @@ struct ShoppingListView: View {
                     Text(verbatim: item.name).reffiType(.body).foregroundStyle(ReffiColor.ink)
                     Spacer()
                     Button {
-                        withAnimation(ReffiMotion.settle) { restock(name: item.name, glyph: item.glyph) }
+                        withAnimation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion)) {
+                            restock(name: item.name, glyph: item.glyph)
+                        }
                     } label: {
                         Text("Add")
                             .reffiType(.pillLabel)
@@ -88,7 +91,9 @@ struct ShoppingListView: View {
                     .buttonStyle(.paperPress)
                     .accessibilityLabel(Text("Restock \(item.name)"))
                     Button {
-                        withAnimation(ReffiMotion.settle) { store.skipBuy(item.name) }
+                        withAnimation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion)) {
+                            store.skipBuy(item.name)
+                        }
                     } label: {
                         Text("Skip")
                             .reffiType(.pillLabel)

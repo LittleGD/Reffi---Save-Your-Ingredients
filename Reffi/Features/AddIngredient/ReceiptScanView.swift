@@ -62,31 +62,9 @@ struct ReceiptScanView: View {
         }
     }
 
-    /// 커스텀 헤더 — 가운데 타이틀 + 오른쪽 종이 X(§7.3 시각 34·히트 44). Add 시트와 같은 종이 X 패턴.
+    /// 시트 헤더 — SheetHeader 공용 컴포넌트(좌측 타이틀·.heading, 룰②③). 이전 중앙정렬·.subhead ZStack을 통일했다.
     private var header: some View {
-        ZStack {
-            Text("Scan a receipt").reffiType(.subhead).foregroundStyle(ReffiColor.ink)
-            HStack {
-                Spacer()
-                Button { dismiss() } label: {
-                    ReffiIcon.close.reffi(14, .bold)
-                        .foregroundStyle(ReffiColor.ink)
-                        .frame(width: 34, height: 34)
-                        .background {
-                            let s = PaperRect(cornerRadius: ReffiRadius.md, seed: 4)
-                            s.fill(ReffiColor.paper).paperEdge(s)
-                        }
-                        .reffiShadow1()
-                        .frame(minWidth: 44, minHeight: 44)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.paperPress)
-                .accessibilityLabel("Close")
-            }
-        }
-        .padding(.horizontal, ReffiGrid.margin)
-        .padding(.top, ReffiSpace.s4)
-        .padding(.bottom, ReffiSpace.s3)
+        SheetHeader(title: "Scan a receipt", showsClose: true) { dismiss() }
     }
 
     // MARK: - 소스 선택
@@ -161,8 +139,7 @@ struct ReceiptScanView: View {
                 PaperButton(title: "Add \(selected.count) items") { add() }
                     .padding(.horizontal, ReffiGrid.margin)
                     .padding(.vertical, ReffiSpace.s3)
-                    .disabled(selected.isEmpty)
-                    .opacity(selected.isEmpty ? 0.5 : 1)
+                    .disabled(selected.isEmpty)   // 디밍은 PaperButton이 §7.2로 처리 — 여기서 겹치면 곱해진다.
             }
         }
     }
@@ -339,6 +316,10 @@ private struct CandidateEditSheet: View {
     /// applySmartExpiry와 같은 결정론 가드 — 대입 전 기록한 값과 다르면만 사용자 터치로 인정.
     @State private var lastProgrammaticExpiry: Date?
 
+    // 미저장 보호(룰⑨) — 편집 시트라 값이 하나라도 바뀌면 스와이프/닫기에 Discard 확인을 띄운다.
+    @State private var isDirty = false
+    @State private var showDiscardConfirm = false
+
     var body: some View {
         VStack(spacing: 0) {
             header
@@ -354,38 +335,44 @@ private struct CandidateEditSheet: View {
         .presentationDetents([.medium])
         .presentationDragIndicator(.visible)
         .presentationBackground(ReffiColor.canvas)
+        .interactiveDismissDisabled(isDirty)
         .onChange(of: candidate.name) { _, newName in
             candidate.canonicalID = IngredientLexicon.shared.canonicalID(for: newName)
             recomputeExpiryIfNeeded()
+            isDirty = true
         }
-        .onChange(of: candidate.storage) { _, _ in recomputeExpiryIfNeeded() }
+        .onChange(of: candidate.storage) { _, _ in
+            recomputeExpiryIfNeeded()
+            isDirty = true
+        }
         .onChange(of: candidate.expiresAt) { _, newValue in
-            if newValue != lastProgrammaticExpiry { candidate.expiryTouched = true }
+            if newValue != lastProgrammaticExpiry {
+                candidate.expiryTouched = true
+                isDirty = true
+            }
+        }
+        .onChange(of: candidate.quantity.value) { _, _ in isDirty = true }
+        .onChange(of: candidate.quantity.unit) { _, _ in isDirty = true }
+        .onChange(of: candidate.place) { _, _ in isDirty = true }
+        .confirmationDialog(Text("Discard changes?"), isPresented: $showDiscardConfirm,
+                            titleVisibility: .visible) {
+            Button("Discard", role: .destructive) { dismiss() }
+        } message: {
+            Text("Your changes won't be saved.")
         }
     }
 
     private var header: some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text("Edit item").reffiType(.subhead).foregroundStyle(ReffiColor.ink)
-            Spacer()
-            Button { dismiss() } label: {
-                ReffiIcon.close.reffi(14, .bold)
-                    .foregroundStyle(ReffiColor.ink)
-                    .frame(width: 34, height: 34)
-                    .background {
-                        let s = PaperRect(cornerRadius: ReffiRadius.md, seed: 4)
-                        s.fill(ReffiColor.paper).paperEdge(s)
-                    }
-                    .reffiShadow1()
-                    .frame(minWidth: 44, minHeight: 44)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.paperPress)
-            .accessibilityLabel("Close")
+        SheetHeader(title: "Edit item", showsClose: true) { requestClose() }
+    }
+
+    /// 미저장 변경이 있으면 즉시 닫지 않고 Discard 확인을 띄운다(룰⑨).
+    private func requestClose() {
+        if isDirty {
+            showDiscardConfirm = true
+        } else {
+            dismiss()
         }
-        .padding(.horizontal, ReffiGrid.margin)
-        .padding(.top, ReffiSpace.s4)
-        .padding(.bottom, ReffiSpace.s2)
     }
 
     private var fieldsCard: some View {

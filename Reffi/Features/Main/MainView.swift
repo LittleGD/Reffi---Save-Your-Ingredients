@@ -88,8 +88,7 @@ struct MainView: View {
                 .padding(.horizontal, margin)
                 .padding(.top, ReffiSpace.s3)
                 .padding(.bottom, navClearance)
-                .disabled(counter.isEmpty)
-                .opacity(counter.isEmpty ? 0.5 : 1)
+                .disabled(counter.isEmpty)   // 디밍은 PaperButton이 §7.2로 처리 — 여기서 겹치면 곱해진다.
         }
         .animation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion), value: store.activeCook)
         .background {
@@ -160,6 +159,16 @@ struct MainView: View {
                 showCarousel = true
             }
             if args.contains("-previewAdd") { showAdd = true }   // 재료 추가 시트 스크린샷 검증용
+            // `-cookTicket` — 조리 티켓은 fire 없인 열리지 않아 스크린샷 QA가 막힌다.
+            // 진행 중 세션이 없으면 샘플로 강제 발주한 뒤 곧장 CookingStepsView를 연다.
+            if args.contains("-cookTicket") {
+                if store.activeCook == nil {
+                    store.loadSampleData()
+                    if let top = carouselResults.first { store.cook(top) }
+                }
+                // fire 직후 같은 프레임의 커버 프레젠테이션은 씹힌다(-fridgeExpand 선례) — 한 박자 늦게 연다.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { showSteps = true }
+            }
         }
         #endif
     }

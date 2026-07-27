@@ -49,7 +49,7 @@ struct HistoryView: View {
         }
     }
 
-    /// 커버 헤더 — 좌측 타이틀+서브 / 우측 흰 종이 X(Today's tickets와 동일 배열).
+    /// 커버 헤더 — 단일 공급원 `CoverHeader`(§14.2 중앙 타이틀+서브 / 우측 종이 X).
     private var header: some View {
         CoverHeader(title: "History",
                     subtitle: "What you ate and what you tossed",
@@ -237,37 +237,5 @@ struct HistoryView: View {
             .background(ReffiColor.oklch(0.985, 0.004, 90), in: shape)
             .paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
             .shadow(color: ReffiColor.ink.opacity(0.06), radius: 5, x: 0, y: 2)
-    }
-}
-
-/// 풀스크린 커버 공통 헤더 — 좌측 타이틀+서브타이틀 / 우측 흰 종이 X(§13, Today's tickets와 동일 배열).
-struct CoverHeader: View {
-    let title: LocalizedStringKey
-    let subtitle: LocalizedStringKey
-    let onClose: () -> Void
-
-    var body: some View {
-        HStack(alignment: .center) {
-            VStack(alignment: .leading, spacing: 1) {
-                Text(title).reffiType(.heading).foregroundStyle(ReffiColor.ink)
-                Text(subtitle).reffiType(.caption).foregroundStyle(ReffiColor.ink2)
-            }
-            Spacer()
-            Button(action: onClose) {
-                ReffiIcon.close.reffi(18, .bold)
-                    .foregroundStyle(ReffiColor.ink)
-                    .frame(width: 40, height: 40)
-                    .background(.white.opacity(0.9), in: PaperRect(cornerRadius: ReffiRadius.md, seed: 1))
-                    .paperEdge(PaperRect(cornerRadius: ReffiRadius.md, seed: 1), tint: ReffiColor.ink.opacity(0.08))
-                    .reffiShadow1()
-                    .frame(minWidth: 44, minHeight: 44)   // §7.3 — 시각 40 / 히트 44
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.paperPress)
-            .accessibilityLabel(Text("Close"))
-        }
-        .padding(.horizontal, ReffiGrid.margin)
-        .padding(.top, ReffiSpace.s4)
-        .padding(.bottom, ReffiSpace.s3)
     }
 }
