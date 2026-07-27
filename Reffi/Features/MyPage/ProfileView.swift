@@ -119,6 +119,9 @@ struct ProfileView: View {
                     store.resetAllData()      // 이 기기 냉장고·이력 삭제
                     profile.resetAll()        // 프로필·취향 초기화
                     AIConsent.resetAll()      // 동의는 계정 귀속 — 소유자 와이프와 원자적으로 초기화
+                    // 소유자 키도 함께 해제 — 남겨두면 이후 게스트 구간에 새로 쌓은 데이터가
+                    // 다음 가입 시 '다른 계정 전환'으로 오인돼 조용히 와이프된다(승계 안내와 모순).
+                    UserDefaults.standard.removeObject(forKey: DataOwner.key)
                     // 온보딩 플래그는 유지 — 재온보딩을 강제하지 않는다.
                 }
             }
@@ -133,13 +136,15 @@ struct ProfileView: View {
         } message: {
             Text("Allow notifications for Reffi in Settings to get expiry alerts.")
         }
-        // 룰⑧ — 샘플 로드는 국소·되돌리기 가능(undo 토스트 있음) → confirmationDialog 유지.
-        .confirmationDialog(Text("Load the sample fridge?"), isPresented: $showSampleConfirm, titleVisibility: .visible) {
+        // 룰⑧ — 샘플 로드는 복구 불가능(loadSampleData가 pendingUndo를 먼저 지운다) → alert.
+        .alert("Load the sample fridge?", isPresented: $showSampleConfirm) {
             Button("Replace with sample data", role: .destructive) {
+                destructiveHaptic += 1   // 룰⑦ — 파괴 확정(.warning)
                 withAnimation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion)) {
                     store.loadSampleData()
                 }
             }
+            Button("Cancel", role: .cancel) {}
         } message: {
             Text("Your current ingredients and history will be replaced.")
         }
@@ -398,7 +403,6 @@ struct ProfileView: View {
         String(localized: "Today \(AIConsent.remainingToday) of \(AIConsent.dailyCap) generations left")
     }
 
-    // MARK: - 데이터 관리 영수증 (샘플 불러오기·전체 초기화)
     // MARK: - 언어 영수증 — 앱별 언어는 iOS 설정이 정본. 인앱 가짜 스위처(재시작 필요·번들 스위즐)
     // 대신 설정 딥링크로 보낸다(위약 금지). en·ko .lproj가 둘 다 있어 설정에 언어 행이 항상 노출된다.
     private var languageReceipt: some View {
@@ -406,10 +410,11 @@ struct ProfileView: View {
             SettingsRow(label: "App language", value: currentLanguageName) {
                 if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
             }
+            ReceiptRule()
             Text("Switch between English and Korean in iOS Settings.")
                 .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
                 .padding(.horizontal, ReffiSpace.s5)
-                .padding(.bottom, ReffiSpace.s4)
+                .padding(.vertical, ReffiSpace.s3)
         }
     }
 
@@ -419,6 +424,7 @@ struct ProfileView: View {
         return Locale(identifier: code).localizedString(forLanguageCode: code)?.capitalized ?? code
     }
 
+    // MARK: - 데이터 관리 영수증 (샘플 불러오기·전체 초기화)
     private var dataReceipt: some View {
         ReceiptCard(title: String(localized: "Data")) {
             QuietButton(title: "Load the sample fridge", icon: ReffiIcon.fridge, tint: ReffiColor.blueDark) {

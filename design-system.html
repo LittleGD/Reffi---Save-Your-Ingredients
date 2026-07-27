@@ -1074,7 +1074,7 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
           <tbody>
             <tr><td>판정 · 확정</td><td>Ate / Tossed / Freeze 판정, 레시피 발주(Fire the Ticket)</td><td><code class="inline">.impact</code></td></tr>
             <tr><td>성공 완료</td><td>저장 · 추가 · 재입고</td><td><code class="inline">.success</code></td></tr>
-            <tr><td>파괴 확인</td><td>삭제 · 초기화 확정(로그아웃 · 계정삭제 · 전체초기화 등)</td><td><code class="inline">.warning</code></td></tr>
+            <tr><td>파괴 확인</td><td>삭제 · 초기화 확정(계정삭제 · 전체초기화 · 재료/레시피 삭제 등)</td><td><code class="inline">.warning</code></td></tr>
           </tbody>
         </table>
         <div class="note" style="margin-top:var(--space-3)"><strong>정보성 전환엔 햅틱 금지.</strong> 탭 전환 · 스크롤처럼 순수 정보성 전환에는 햅틱을 쓰지 않는다. 파괴 확인 햅틱은 <strong>확정 시점</strong>(다이얼로그의 파괴 버튼)에 울린다 — 다이얼로그를 여는 순간이 아니다.</div>
@@ -1423,8 +1423,9 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
         <table class="tbl">
           <thead><tr><th>성격</th><th>예시</th><th>표현</th></tr></thead>
           <tbody>
-            <tr><td>복구 불가능</td><td>계정 삭제 · 전체 초기화</td><td><code class="inline">.alert</code> — 중앙 고정으로 실수를 막는다</td></tr>
-            <tr><td>국소 · 되돌리기 가능</td><td>재료 삭제 · 조리 취소 · 샘플 로드</td><td><code class="inline">.confirmationDialog</code> — 트리거 근처, 되돌리기 토스트가 안전망</td></tr>
+            <tr><td>복구 불가능</td><td>계정 삭제 · 전체 초기화 · 샘플 로드</td><td><code class="inline">.alert</code> — 중앙 고정으로 실수를 막는다</td></tr>
+            <tr><td>국소 · 되돌리기 가능</td><td>재료 삭제 · 조리 취소</td><td><code class="inline">.confirmationDialog</code> — 트리거 근처, 되돌리기 토스트가 안전망</td></tr>
+            <tr><td>데이터를 지우지 않는 상태 전환</td><td>로그아웃</td><td><code class="inline">.confirmationDialog</code> — 파괴 아님, 파괴 햅틱 없음</td></tr>
             <tr><td>순수 알림성</td><td>알림 꺼짐 안내</td><td><code class="inline">.alert</code> 유지</td></tr>
           </tbody>
         </table>

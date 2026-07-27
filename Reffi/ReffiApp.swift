@@ -9,6 +9,7 @@ struct ReffiApp: App {
 
     init() {
         NotificationPresenter.shared.install()   // 포그라운드에서도 알림 배너 표시
+        DataOwner.migrateIfNeeded()              // v2 이전 익명 uuid 소유자 기록 1회 정리
         #if DEBUG
         ReffiFontCheck.dump()
         // 스크린샷·QA용 — 온보딩 처음부터 다시(-onboarding은 초기화 + 정상 게이트 진입.
@@ -73,14 +74,29 @@ struct ReffiApp: App {
 
 /// 진입 게이트 — 온보딩(기기당 1회) → 로그인(세션/게스트 없으면) → 메인.
 /// App이 아닌 View에 두어 @AppStorage 변경이 확실히 리렌더를 트리거하게 한다.
+/// 로컬 데이터 소유자 키 — RootGateView(대조·기록)와 ProfileView(계정삭제 시 해제)가 공유한다.
+enum DataOwner {
+    /// 마지막으로 이 기기 로컬 데이터를 소유한 정식(비익명) 서버 user id.
+    static let key = "data.ownerUserID"
+    private static let migratedKey = "data.ownerUserID.migrated.v2"
+
+    /// 1회성 마이그레이션 — `accountUserID`(비익명 전용) 도입 전 버전은 익명 uuid도 소유자로
+    /// 기록했다. 그 기록이 남으면 익명 게스트로 쓰던 기존 설치가 가입하는 순간 '다른 계정'으로
+    /// 오인돼 로컬 데이터가 와이프된다 → 키를 한 번 비워 previous == nil(최초 기록)에서 다시
+    /// 시작한다. 부작용은 마이그레이션 경계에서 계정 전환 와이프 1회를 건너뛸 수 있다는 것뿐.
+    static func migrateIfNeeded() {
+        let d = UserDefaults.standard
+        guard !d.bool(forKey: migratedKey) else { return }
+        d.removeObject(forKey: key)
+        d.set(true, forKey: migratedKey)
+    }
+}
+
 private struct RootGateView: View {
     @Environment(AuthStore.self) private var auth
     @Environment(FridgeStore.self) private var store
     @Environment(ProfileStore.self) private var profile
     @AppStorage("onboarding.done") private var onboardingDone = false
-
-    /// 마지막으로 이 기기 로컬 데이터를 소유한 서버 user id.
-    private static let ownerKey = "data.ownerUserID"
 
     var body: some View {
         gate
@@ -111,10 +127,11 @@ private struct RootGateView: View {
     /// 소유자를 그대로 유지한다. 세 경로 보장:
     ///   ① 같은 계정 재로그인 = previous == newID → 와이프 없음(콜드 런치로 익명 게스트를 거쳐도 동일)
     ///   ② 익명→가입 승계 = 익명 구간엔 기록이 없고 가입 후 previous == nil → 최초 기록, 와이프 없음
+    ///      (v2 이전 설치가 남긴 익명 uuid 기록은 DataOwner.migrateIfNeeded()가 1회 정리)
     ///   ③ 다른 계정 로그인 = previous != nil && previous != newID → 와이프
     private func reconcileDataOwner(_ newID: String?) {
         guard let newID else { return }
-        let previous = UserDefaults.standard.string(forKey: Self.ownerKey)
+        let previous = UserDefaults.standard.string(forKey: DataOwner.key)
         guard previous != newID else { return }   // 같은 소유자(익명→가입 승계 포함) — 변화 없음
         if previous != nil {
             // 다른 계정으로 전환 — 이전 소유자 데이터 제거.
@@ -123,7 +140,7 @@ private struct RootGateView: View {
             AIConsent.resetAll()   // 동의는 계정 귀속 — 소유자 와이프와 원자적으로 초기화
         }
         // previous == nil: 최초 기록(와이프 없음). 어느 경우든 소유자 확정.
-        UserDefaults.standard.set(newID, forKey: Self.ownerKey)
+        UserDefaults.standard.set(newID, forKey: DataOwner.key)
     }
 
     /// 세션 복원 동안의 정적 스플래시 — 런치 스크린과 같은 크림 + 워드마크(깜빡임 방지).

@@ -88,7 +88,7 @@
   - 순수 알림성(알림 꺼짐 안내)은 `.alert` 유지.
 - **샘플로드 정정(2026-07-26)**: 최초 초안은 샘플로드를 "되돌리기 가능(undo 토스트 있음)"으로 분류했으나 사실이 아니다. `FridgeStore.loadSampleData()`는 `ingredients`·`history`를 샘플로 통째 대체하기 전에 `pendingUndo = nil`로 **undo를 먼저 지운다**(`FridgeStore.swift:717`) → 확정 후 복구 불가. 따라서 `.alert`로 분류를 옮긴다.
 - **적용**: 위 기준으로 각 호출부 재분류.
-  - 잔여(후속 과제): `ProfileView`의 샘플로드 호출부는 아직 `.confirmationDialog` + 결과 명시 메시지("Your current ingredients and history will be replaced.")로 남아 있다. 위 정정에 맞춰 `.alert` + 명시 Cancel + 룰 ⑦ `.warning` 햅틱으로 옮겨야 한다.
+  - 반영 완료(2026-07-26): `ProfileView`의 샘플로드 호출부를 `.alert` + 명시 Cancel + 룰 ⑦ `.warning` 햅틱으로 이관했다(결과 명시 메시지는 유지).
 
 ### 룰 ⑨ — 미저장 보호 = 변경 시 Discard 확인
 - **현행 편차**: `interactiveDismissDisabled`가 앱 전체 0건. 편집 시트가 스와이프 실수로 닫히면 입력 유실.
