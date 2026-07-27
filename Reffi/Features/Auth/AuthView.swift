@@ -106,8 +106,7 @@ struct AuthView: View {
             feedback
 
             PaperButton(title: LocalizedStringKey(primaryTitle), seed: 1, action: submit)
-                .disabled(!canSubmit)
-                .opacity(canSubmit ? 1 : 0.45)   // §7.2 disabled
+                .disabled(!canSubmit)   // 디밍은 PaperButton이 §7.2로 처리 — 여기서 겹치면 곱해진다.
 
             modeToggle
 
@@ -236,7 +235,8 @@ struct AuthView: View {
         }
         .buttonStyle(.paperPress)
         .disabled(auth.busy)
-        .opacity(auth.busy ? 0.45 : 1)
+        // PaperButton이 아닌 자체 표면이라 디밍이 겹치지 않는다 — 여기가 §7.2 디밍의 유일한 지점.
+        .opacity(auth.busy ? ReffiOpacity.disabled : 1)
     }
 
     private var footer: some View {

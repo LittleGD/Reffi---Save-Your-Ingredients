@@ -88,8 +88,7 @@ struct MainView: View {
                 .padding(.horizontal, margin)
                 .padding(.top, ReffiSpace.s3)
                 .padding(.bottom, navClearance)
-                .disabled(counter.isEmpty)
-                .opacity(counter.isEmpty ? 0.45 : 1)
+                .disabled(counter.isEmpty)   // 디밍은 PaperButton이 §7.2로 처리 — 여기서 겹치면 곱해진다.
         }
         .animation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion), value: store.activeCook)
         .background {

@@ -139,8 +139,7 @@ struct ReceiptScanView: View {
                 PaperButton(title: "Add \(selected.count) items") { add() }
                     .padding(.horizontal, ReffiGrid.margin)
                     .padding(.vertical, ReffiSpace.s3)
-                    .disabled(selected.isEmpty)
-                    .opacity(selected.isEmpty ? 0.45 : 1)
+                    .disabled(selected.isEmpty)   // 디밍은 PaperButton이 §7.2로 처리 — 여기서 겹치면 곱해진다.
             }
         }
     }
