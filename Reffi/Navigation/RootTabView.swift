@@ -94,7 +94,7 @@ private struct CapsuleNav: View {
         .padding(.horizontal, ReffiSpace.s5)
         .frame(height: 58)
         .navGlass()
-        .shadow(color: ReffiColor.ink.opacity(0.06), radius: 6, x: 0, y: 2)   // 약한 드롭섀도
+        .shadow(color: ReffiColor.shadowTint.opacity(0.06), radius: 6, x: 0, y: 2)   // 약한 드롭섀도
         .padding(.bottom, 2)   // 더 아래로 — 홈 인디케이터 근처
     }
 

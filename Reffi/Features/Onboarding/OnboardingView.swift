@@ -358,7 +358,7 @@ struct OnboardingView: View {
             .padding(.horizontal, ReffiSpace.s5)
             .padding(.vertical, ReffiSpace.s4 + 6)
             .frame(width: 272)
-            .background(ReffiColor.oklch(0.985, 0.004, 90), in: shape)
+            .background(ReffiColor.receipt, in: shape)
             .paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
             .reffiShadow1()
             .rotationEffect(.degrees(seed % 2 == 0 ? -2 : 2))
@@ -478,7 +478,7 @@ struct OnboardingView: View {
             .padding(.horizontal, ReffiSpace.s5)
             .padding(.vertical, ReffiSpace.s5 + 7)
             .frame(maxWidth: .infinity, alignment: .center)
-            .background(ReffiColor.oklch(0.985, 0.004, 90), in: shape)
+            .background(ReffiColor.receipt, in: shape)
             .paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
             .reffiShadow1()
             .padding(.horizontal, ReffiGrid.margin)
@@ -569,11 +569,13 @@ struct OnboardingView: View {
     /// "Start" 도장 슬램 — 큰 상태에서 스프링으로 내려앉으며(오버슈트) 임팩트 햅틱.
     private var startStamp: some View {
         ZStack {
+            // 스크림은 양 모드 자연스러운 고정 검정 유지(순검정 딤).
             Color.black.opacity(0.10).ignoresSafeArea()
             DDayStamp(text: String(localized: "Start"), color: ReffiColor.blueDark, size: 46)
                 .scaleEffect(stampScale)
                 .opacity(stampOpacity)
-                .shadow(color: .black.opacity(0.18), radius: 14, y: 8)
+                // 그림자는 shadowTint로 일관화(다크에서 ink가 크림으로 뒤집혀 밝아지는 문제 방지).
+                .shadow(color: ReffiColor.shadowTint.opacity(0.18), radius: 14, y: 8)
         }
         .sensoryFeedback(.impact(weight: .heavy), trigger: stamping)
         .onAppear {

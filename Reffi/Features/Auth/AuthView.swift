@@ -81,8 +81,9 @@ struct AuthView: View {
             }
 
             // 소셜 우선 — Apple/Google을 기본 이메일 로그인보다 위에 배치.
+            // fg는 onInk — ink 면이 다크에서 크림으로 뒤집히므로 흰 리터럴이 아닌 ink 대응 콘텐츠 토큰을 쓴다.
             socialButton(icon: .appleLogo, title: "Continue with Apple",
-                         fill: ReffiColor.ink, fg: .white, seed: 5) { startApple() }
+                         fill: ReffiColor.ink, fg: ReffiColor.onInk, seed: 5) { startApple() }
             socialButton(icon: .googleLogo, title: "Continue with Google",
                          fill: ReffiColor.paper, fg: ReffiColor.ink, seed: 6) {
                 Task { await auth.signInWithGoogle() }
@@ -115,7 +116,7 @@ struct AuthView: View {
         .padding(.horizontal, ReffiSpace.s5)
         .padding(.vertical, ReffiSpace.s5 + 7)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(ReffiColor.oklch(0.985, 0.004, 90), in: shape)
+        .background(ReffiColor.receipt, in: shape)
         .paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
         .reffiShadow1()
     }

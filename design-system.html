@@ -16,7 +16,7 @@
   --color-fresh-dark:   oklch(50%   0.115 142);  /* #387332 */
   --color-fresh-light:  oklch(95%   0.040 132);  /* #E5F5D9 */
   --color-soon:         oklch(85%   0.125 84);   /* #F4C767 곧 */
-  --color-soon-dark:    oklch(54%   0.120 71);   /* #996000 */
+  --color-soon-dark:    oklch(53%   0.120 71);   /* #965D00 */
   --color-soon-light:   oklch(95%   0.045 84);   /* #FDEDCD */
   --color-urgent:       oklch(75%   0.135 36);   /* #F68D70 오늘 */
   --color-urgent-dark:  oklch(52%   0.150 32);   /* #AE3F2C */
@@ -79,6 +79,12 @@
   --paper-edge-onfill: oklch(100% 0 0 / 0.14);       /* 채도 면(버튼) 위 흰 종이 헤어라인 */
   --bg-sheen:          oklch(100% 0 0 / 0.22);        /* 메인 배경(리퀴드글래스) 상단 흰 시노 */
   --glass-tint:        oklch(85% 0.04 242 / 0.30);    /* 네이티브 글래스 틴트(네비) */
+  --receipt:           oklch(98.5% 0.004 90);         /* "흰 영수증" 면(§2.7 신규) */
+
+  /* ---- Dark-only surfaces (§2.8), 라이트 스킴 기본값 — 다크 오버라이드에서 값이 뒤집힌다 ---- */
+  --shadow-tint: oklch(25% 0.012 80);  /* 그림자 전용 — 다크에서 순검정으로 뒤집혀야 ink 위 밝은 글로우를 피한다 */
+  --toast:       oklch(25% 0.012 80);  /* 잉크 토스트 캡슐 면(= 라이트 ink). 위 텍스트는 항상 고정 white */
+  --on-ink:      white;                /* ink로 채운 면 위 콘텐츠. 다크에서 어두운 값으로 뒤집힘 */
 
   /* ---- Interaction ---- */
   --tap-min: 44px;
@@ -99,6 +105,82 @@
   --bp: 1200px;
   --grid-margin-mobile: 16px; --grid-gutter-mobile: 8px;
   --grid-gutter-desktop: 24px;
+}
+
+/* ---- Dark scheme (§2.8) — "밤의 주방 패스": 웜 차콜, 순검정 없음(예외: shadow-tint·scrim).
+   :root[data-theme] 오버라이드가 미디어쿼리보다 우선하도록 뒤에 두고, 라이트 강제 토글은
+   :not([data-theme="light"])로 media query 쪽을 막는다. ---- */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-fresh:        oklch(42%   0.075 138);
+    --color-fresh-dark:   oklch(74%   0.105 140);
+    --color-fresh-light:  oklch(30%   0.035 136);
+    --color-soon:         oklch(44%   0.080 82);
+    --color-soon-dark:    oklch(78%   0.110 76);
+    --color-soon-light:   oklch(31%   0.038 82);
+    --color-urgent:       oklch(45%   0.095 34);
+    --color-urgent-dark:  oklch(74%   0.130 34);
+    --color-urgent-light: oklch(30%   0.042 33);
+    --color-blue:         oklch(56%   0.115 250);
+    --color-blue-dark:    oklch(76%   0.095 250);
+    --color-blue-light:   oklch(30%   0.045 250);
+    --neutral-900: oklch(93%   0.010 85);
+    --neutral-700: oklch(76%   0.012 82);
+    --neutral-500: oklch(60%   0.012 80);
+    --neutral-200: oklch(30%   0.008 80);
+    --neutral-50:  oklch(21.5% 0.010 78);
+    --paper-surface:     oklch(28.5% 0.008 82);
+    --paper-pass:        oklch(25.5% 0.010 84);
+    --paper-edge:        oklch(93% 0.010 85 / 0.07);
+    --paper-edge-onfill: oklch(100% 0 0 / 0.10);
+    --bg-sheen:          oklch(100% 0 0 / 0.045);
+    --receipt:           oklch(29%   0.007 83);
+    --scrim:             oklch(0% 0 0 / 0.55);
+    --shadow-tint:       oklch(0% 0 0);
+    --toast:             oklch(33% 0.010 80);
+    --on-ink:            oklch(22% 0.010 78);
+    --shadow-1:
+      0 1px 3px        oklch(0% 0 0 / 0.10),
+      0 10px 24px -6px oklch(0% 0 0 / 0.05);
+    --shadow-stack:
+      0 -2px 6px       oklch(0% 0 0 / 0.10),
+      0 -8px 20px -4px oklch(0% 0 0 / 0.05);
+  }
+}
+:root[data-theme="dark"] {
+  --color-fresh:        oklch(42%   0.075 138);
+  --color-fresh-dark:   oklch(74%   0.105 140);
+  --color-fresh-light:  oklch(30%   0.035 136);
+  --color-soon:         oklch(44%   0.080 82);
+  --color-soon-dark:    oklch(78%   0.110 76);
+  --color-soon-light:   oklch(31%   0.038 82);
+  --color-urgent:       oklch(45%   0.095 34);
+  --color-urgent-dark:  oklch(74%   0.130 34);
+  --color-urgent-light: oklch(30%   0.042 33);
+  --color-blue:         oklch(56%   0.115 250);
+  --color-blue-dark:    oklch(76%   0.095 250);
+  --color-blue-light:   oklch(30%   0.045 250);
+  --neutral-900: oklch(93%   0.010 85);
+  --neutral-700: oklch(76%   0.012 82);
+  --neutral-500: oklch(60%   0.012 80);
+  --neutral-200: oklch(30%   0.008 80);
+  --neutral-50:  oklch(21.5% 0.010 78);
+  --paper-surface:     oklch(28.5% 0.008 82);
+  --paper-pass:        oklch(25.5% 0.010 84);
+  --paper-edge:        oklch(93% 0.010 85 / 0.07);
+  --paper-edge-onfill: oklch(100% 0 0 / 0.10);
+  --bg-sheen:          oklch(100% 0 0 / 0.045);
+  --receipt:           oklch(29%   0.007 83);
+  --scrim:             oklch(0% 0 0 / 0.55);
+  --shadow-tint:       oklch(0% 0 0);
+  --toast:             oklch(33% 0.010 80);
+  --on-ink:            oklch(22% 0.010 78);
+  --shadow-1:
+    0 1px 3px        oklch(0% 0 0 / 0.10),
+    0 10px 24px -6px oklch(0% 0 0 / 0.05);
+  --shadow-stack:
+    0 -2px 6px       oklch(0% 0 0 / 0.10),
+    0 -8px 20px -4px oklch(0% 0 0 / 0.05);
 }
 
 @media (max-width: 1199.98px) {
@@ -164,6 +246,21 @@ h1, h2, h3 { text-wrap: balance; }
   z-index: var(--z-sticky);
 }
 .nav__brand { display: flex; align-items: baseline; gap: var(--space-2); margin-bottom: var(--space-2); }
+.theme-toggle {
+  margin-left: auto; align-self: center; display: grid; place-items: center;
+  width: var(--tap-min); height: var(--tap-min); border: 0; cursor: pointer; padding: 0;
+  border-radius: var(--radius-pill); background: var(--color-blue-dark); color: #fff;
+  transition: transform var(--dur-2) var(--ease-std);
+}
+.theme-toggle:active { transform: scale(0.92); }
+.theme-toggle svg { width: 18px; height: 18px; grid-area: 1 / 1; }
+.theme-toggle .i-moon { display: none; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .theme-toggle .i-sun { display: none; }
+  :root:not([data-theme="light"]) .theme-toggle .i-moon { display: block; }
+}
+:root[data-theme="dark"] .theme-toggle .i-sun { display: none; }
+:root[data-theme="dark"] .theme-toggle .i-moon { display: block; }
 .nav__logo { font-family: var(--font-display); font-weight: 400; font-size: 34px; line-height: 1; letter-spacing: 0; }
 .nav__tag { font-size: 13px; color: var(--color-blue-light); letter-spacing: 0.01em; }
 .nav__desc { font-size: 13px; line-height: 1.5; color: var(--color-blue-light); margin: 0 0 var(--space-5); }
@@ -658,8 +755,12 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
     <div class="nav__brand">
       <span class="nav__logo">Reffi</span>
       <span class="nav__tag">Design System</span>
+      <button id="theme-toggle" class="theme-toggle" type="button" aria-label="라이트/다크 전환" aria-pressed="false">
+        <svg class="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+        <svg class="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z"/></svg>
+      </button>
     </div>
-    <p class="nav__desc">색은 신선도. 파스텔 색 블로킹과 카드 스택으로, 버리기 전에 먹게 만든다.</p>
+    <p class="nav__desc">색은 신선도. 파스텔 색 블로킹과 카드 스택으로, 버리기 전에 먹게 만든다. 다크는 §2.8 "밤의 주방 패스".</p>
     <ul class="nav__list">
       <li><a href="#principles"><span class="idx num">01</span>디자인 원칙</a></li>
       <li><a href="#color"><span class="idx num">02</span>컬러</a></li>
@@ -722,7 +823,7 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
       <section class="section" id="color">
         <span class="section__num num">02</span>
         <h2 class="text">컬러</h2>
-        <p class="section__lead text">모든 색은 OKLCH. 신선도 3색(Sage·Amber·Terracotta)을 파스텔로 보정해 가져오고 Lilac은 제외, 네 번째는 Reffi Blue(레시피·AI·기본 액션). 각각 main / dark / light. <strong>컬러 스킴은 현재 라이트 고정</strong>(<code class="inline">preferredColorScheme(.light)</code>) — 다크 토큰 램프가 정의되기 전까지 고정 크림 팔레트와 적응형 머티리얼(글래스)이 다크에서 어긋나는 중간 상태를 막는다.</p>
+        <p class="section__lead text">모든 색은 OKLCH. 신선도 3색(Sage·Amber·Terracotta)을 파스텔로 보정해 가져오고 Lilac은 제외, 네 번째는 Reffi Blue(레시피·AI·기본 액션). 각각 main / dark / light. <strong>시맨틱 토큰은 전량 라이트/다크 적응형</strong>(<code class="inline">ReffiColor.dynamic(light:dark:)</code>) — 앱은 시스템 스킴을 그대로 따른다. 다크 컨셉·전체 병기 표·실측 대비는 아래 <a href="#dark">2.8 다크 모드</a>. 우측 상단 토글로 이 페이지도 라이트/다크를 바꿔볼 수 있다.</p>
 
         <p class="subhead text">브랜드 컬러 (4)</p>
         <div class="swatch-row">
@@ -849,6 +950,50 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
           </tbody>
         </table>
         <div class="note" style="margin-top:var(--space-4)"><strong>파스텔 면 위 글자는 ink, Blue 면 위는 white.</strong> 파스텔은 크림 캔버스와 명도차(1.4~2.2:1)가 작아 면 경계는 색이 아니라 카드 스택 그림자·여백으로 만든다. 불투명도로 글자색을 만들지 않는다(neutral-700 솔리드).</div>
+
+        <p class="subhead text" id="dark">2.8 다크 모드 — "밤의 주방 패스"</p>
+        <p class="t-body text" style="color:var(--color-ink-2);margin-bottom:var(--space-4)">라이트를 반전한 흑백이 아니라, 조명 낮은 주방에서 보이는 <strong>웜 차콜</strong>(hue 78~90 유지)이다. <strong>순검정은 쓰지 않는다</strong> — 예외는 그림자(<code class="inline">shadowTint</code>)와 모달 딤(<code class="inline">scrim</code>)뿐, 둘 다 "빛이 없는" 레이어라 온기가 필요 없다. 시맨틱 토큰만 적응하고 <strong>일러스트(FoodGlyph) 팔레트는 스킴 불변 고정색</strong>이다(§13.3) — 재료 식별이 스킴에 흔들리면 안 된다. 공유 카드(<code class="inline">RecipeShareCard</code>)는 항상 라이트로 굽는다. 그림자는 항상 <code class="inline">shadowTint</code>(<code class="inline">ink</code> 금지 — 다크에서 크림으로 뒤집혀 밝은 글로우가 된다). <code class="inline">paperEdge</code> 헤어라인의 다크 반전은 "종이 두께" 표현으로 의도적으로 둔다.</p>
+
+        <p class="t-caption text" style="color:var(--color-ink-2);margin-bottom:var(--space-3)">신규 토큰 4종 — 우측 상단 토글로 전환해 보면 스와치가 실시간으로 바뀐다(라이브 CSS 변수).</p>
+        <div class="swatch-row">
+          <div class="swatch">
+            <div class="swatch__main on-ink" style="background:var(--receipt)">receipt</div>
+            <div class="swatch__meta"><span class="role">"흰 영수증" 면의 정본</span><code>L .985/.004/90 · D .29/.007/83</code></div>
+          </div>
+          <div class="swatch">
+            <div class="swatch__main on-white" style="background:var(--shadow-tint)">shadowTint</div>
+            <div class="swatch__meta"><span class="role">그림자 전용 (ink 아님)</span><code>L = 라이트 ink · D 순검정</code></div>
+          </div>
+          <div class="swatch">
+            <div class="swatch__main on-white" style="background:var(--toast)">toast</div>
+            <div class="swatch__meta"><span class="role">잉크 토스트 캡슐 면</span><code>L = 라이트 ink · D .33/.010/80 · 위 텍스트 항상 white</code></div>
+          </div>
+          <div class="swatch">
+            <div class="swatch__main" style="background:var(--color-ink);color:var(--on-ink)">onInk</div>
+            <div class="swatch__meta"><span class="role"><code class="inline">ink</code> 면 위 콘텐츠 전용</span><code>L 흰색 · D .22/.010/78</code></div>
+          </div>
+        </div>
+
+        <p class="t-caption text" style="color:var(--color-ink-2);margin:var(--space-4) 0 var(--space-3)">다크 대비 실측표 — 요구치는 라이트와 동일(§2.6): 본문 ≥4.5 · 큰글자 ≥3 · 비텍스트 ≥3, 로고·헤딩류는 AAA ≥7 지향. <code class="inline">oklch→sRGB→상대휘도→WCAG 대비비</code> 스크립트 실측값이며 추정치가 아니다.</p>
+        <table class="tbl">
+          <thead><tr><th>항목</th><th>요구</th><th>라이트</th><th>다크</th></tr></thead>
+          <tbody>
+            <tr><td>ink on canvas</td><td>≥7.0</td><td class="num pass">14.68</td><td class="num pass">14.26</td></tr>
+            <tr><td>ink on paper</td><td>≥7.0</td><td class="num pass">15.56</td><td class="num pass">11.68</td></tr>
+            <tr><td>ink on receipt</td><td>≥7.0</td><td class="num pass">15.33</td><td class="num pass">11.49</td></tr>
+            <tr><td>ink2 on canvas</td><td>≥4.5</td><td class="num pass">7.44</td><td class="num pass">8.16</td></tr>
+            <tr><td>muted on canvas</td><td>≥3.0</td><td class="num pass">4.27</td><td class="num pass">4.44</td></tr>
+            <tr><td>soonDark on canvas</td><td>≥4.5</td><td class="num pass">4.96</td><td class="num pass">8.64</td></tr>
+            <tr><td>soonDark on soonLight</td><td>≥4.5</td><td class="num pass">4.67</td><td class="num pass">6.51</td></tr>
+            <tr><td>urgentDark on canvas</td><td>≥4.5</td><td class="num pass">5.43</td><td class="num pass">7.23</td></tr>
+            <tr><td>blueDark on canvas</td><td>≥4.5</td><td class="num pass">8.42</td><td class="num pass">8.21</td></tr>
+            <tr><td>white on blue</td><td>≥4.5</td><td class="num pass">5.65</td><td class="num pass">4.64</td></tr>
+            <tr><td>ink on urgent main</td><td>≥4.5</td><td class="num pass">6.84</td><td class="num pass">6.33</td></tr>
+            <tr><td>onInk on ink</td><td>≥7.0</td><td class="num pass">16.01</td><td class="num pass">14.09</td></tr>
+            <tr><td>(참고) white on toast</td><td>≥4.5</td><td class="num pass">16.01</td><td class="num pass">12.22</td></tr>
+          </tbody>
+        </table>
+        <div class="note" style="margin-top:var(--space-4)"><strong>toast 위 글자는 항상 <code class="inline">white</code></strong> — <code class="inline">onInk</code>가 아니다. <code class="inline">toast</code>는 양 모드 모두 어두운 면이라 white가 맞다(다크 12.22:1); <code class="inline">onInk</code>(다크 L .22)를 얹으면 1.42:1로 깨진다. <code class="inline">onInk</code>는 <strong><code class="inline">ink</code>로 채운 면 위에서만</strong> 쓴다(다크에서 ink가 크림으로 뒤집히는 면).</div>
       </section>
 
       <!-- 3. Typography -->
@@ -906,7 +1051,7 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
           <tbody>
             <tr><td><code class="inline">monoTicketLabel</code></td><td class="num">Bold 13 / t2.5 / caption</td><td>오더 티켓 모노 헤더 — "ORDER"·"ORDER · FIRED"</td></tr>
             <tr><td><code class="inline">monoEyebrow</code></td><td class="num">Bold 10 / t1.6 / caption2</td><td>초소형 올캡 라벨 — "TABLE · REFFI KITCHEN"·"MORNING ALERTS"·AI 미니 배지·영수증 푸터</td></tr>
-            <tr><td><code class="inline">sectionLabel</code></td><td class="num">SemiBold 11 / t1.4 / caption2</td><td>섹션/픽커 라벨 — "ON THE TICKET"·"PREP"·"FREQUENT"·카테고리</td></tr>
+            <tr><td><code class="inline">sectionLabel</code></td><td class="num">SemiBold 11 / t1.4 / caption2</td><td>섹션 라벨 — "ON THE TICKET"·"PREP"·카테고리</td></tr>
             <tr><td><code class="inline">menuName</code></td><td class="num">Bold 26 / t−0.3 / title2</td><td>티켓·레시피 메뉴명</td></tr>
             <tr><td><code class="inline">metaText</code></td><td class="num">Medium 13 / caption</td><td>보조 메타 — 시간·개수·설명·힌트</td></tr>
             <tr><td><code class="inline">pillLabel</code></td><td class="num">SemiBold 13 / caption</td><td>필/버튼 라벨 — Undo·Add·Skip·Turn on·Later·판정 키커</td></tr>
@@ -1326,7 +1471,19 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
           </div>
         </div>
 
-        <div class="note" style="margin-top:var(--space-5)"><strong>입력 시트도 행동표면 언어를 따른다 — 재료 추가는 폼이 아니라 픽커다.</strong> 타이핑으로 임의 재료를 만드는 직접 입력 폼은 주 추가 플로우에 없다 — <strong>일러스트 사전 픽커 + 영수증 스캔</strong>이 전부. 크림 캔버스 + 흰 영수증 카드(스캔 카드) + <strong>검색 필드</strong>(사전 필터, 임의 생성용 아님) + <strong>픽커 그리드</strong>(PaperSilhouette 일러스트 + 흰 종이 타일, 3~4열 — FREQUENT 이력/시드 → 카테고리 섹션)로 짓는다. <strong>탭 = 즉시 추가</strong>(사전 기본값으로 폼 없이 저장) — 일러스트는 카테고리를 대표할 뿐 고른 재료와 1:1이 아니다, 정확한 표기는 하단 피드백 스트립("Added {name} · {n} this run" + Edit)이 책임진다. 검색이 사전에서 못 찾을 때만 컴팩트 <strong>커스텀 시트</strong>(이름 고정 + 기한·수량·보관)로 폴백한다 — 사전 밖 재료를 만드는 유일한 경로. 커스텀·편집 시트는 여전히 모노 섹션 라벨(ITEM·DETAILS · OPTIONAL) + DashedRule + PaperButton 문법. 시스템 글래스 툴바·리퀴드글래스 배경 금지(입력 표면은 조용한 종이) — 상단은 종이 X 닫기 헤더. 쇼핑리스트 재입고는 시트조차 열지 않고 이력 스냅샷 + 사전 기본 기한으로 곧장 채운다.</div>
+        <div class="note" style="margin-top:var(--space-5)"><strong>입력 시트도 행동표면 언어를 따른다 — 재료 추가는 이제 영수증 스캔 하나뿐이다.</strong> 사용자 결정(2026-08-01)으로 일러스트 사전 픽커·검색 필드·직접 입력 폼을 주 플로우에서 전부 제거했다 — 지금 냉장고가 비어 뭔가 사려는 상황을 상정하지 않고, 장 본 뒤 영수증으로 한 번에 등록하는 패턴에 집중한다. 3단계: ① <strong>소스 선택</strong>(카메라 문서 스캐너 또는 사진 최대 3장), ② <strong>처리</strong>(온디바이스 Vision OCR, 네트워크 전송 없음), ③ <strong>확인 리스트</strong> — 인식된 줄이 후보 행(체크·이름·원문·수량·연필)으로 뜨고 기본 전체 선택, 사전 미매칭이면 "Est. date: check" 배지로 추정 기한임을 알린다. 연필이 여는 컴팩트 편집 시트(흰 영수증 카드 + DashedRule 행)에서 이름·수량·보관·기한·구매처를 고칠 수 있다 — <strong>여기가 사전 밖 이름을 만드는 유일한 경로</strong>다(별도 커스텀 시트 없음). 하단 PaperButton("Add N items")으로 선택분을 일괄 등록. 쇼핑리스트 재입고는 여전히 시트조차 열지 않고 이력 스냅샷 + 사전 기본 기한으로 곧장 채운다.</div>
+
+        <div class="demo-pane" style="margin-top:var(--space-4)">
+          <p class="subhead text" style="margin-top:0">영수증 스캔 확인 리스트 (재료 추가의 유일한 경로)</p>
+          <div class="memo" style="max-width:420px">
+            <div class="ticket-head"><span>SCAN · RECEIPT</span><span class="right"><span class="num">3 items</span></span></div>
+            <div class="rule"></div>
+            <div class="line"><span class="box" style="box-shadow:inset 0 0 0 1.5px var(--color-blue-dark);background:var(--color-blue-dark)"></span><span class="text">연두부</span><span class="dn num" style="color:var(--color-ink-2)">D-0</span></div>
+            <div class="line"><span class="box" style="box-shadow:inset 0 0 0 1.5px var(--color-blue-dark);background:var(--color-blue-dark)"></span><span class="text">애호박</span><span class="dn num" style="color:var(--color-ink-2)">D-2</span></div>
+            <div class="line"><span class="box"></span><span class="text">토마토소스 <span class="ai-badge" style="letter-spacing:0.6px">Est. date: check</span></span><span class="dn num" style="color:var(--color-soon-dark)">D+3</span></div>
+          </div>
+          <p class="lbl">체크(선택) → 연필(편집 시트에서 이름·수량·보관·기한·구매처 수정, 사전 밖 이름도 여기서) → 하단 "Add N items"로 일괄 등록.</p>
+        </div>
 
         <div class="note" style="margin-top:var(--space-5)"><strong>냉장고 요약·정렬도 §13 문법을 공유한다.</strong> 헤더 아래 요약 페이저(장보기 · 무낭비 리포트, 한 장씩 스와이프)는 PaperCutRect 종이컷 버튼 면 + 옅은 그레인 + 점 인디케이터로 짓는다. <strong>정렬 칩</strong>(현재 정렬 라벨을 상시 노출)과 간편보기 원탭 토글은 둘 다 PaperRect 종이 면 + paperEdge(히트 44pt). 정렬 칩을 탭하면 스톡 <code class="inline">Menu</code>/<code class="inline">Picker</code> 팝업 대신 <strong>커스텀 PaperDropdown</strong>이 칩 바로 아래에 뜬다 — 스펙과 실제 렌더는 위 "정렬 칩 · PaperDropdown" 데모. 간편보기 행은 틸트·겹침 없는 납작한 흰 영수증 한 조각 — 실루엣 + 이름 + 수량 + D-day(냉동이면 + FROZEN 도장)를 한 줄로 훑어보기에 최적화한다.</div>
 
@@ -1442,6 +1599,28 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
 </div>
 
 <script>
+// 라이트/다크 토글 — data-theme 속성을 stamp해 :root[data-theme] 오버라이드가 미디어쿼리를 이기게 한다(§2.8).
+// 저장된 선택이 없으면 시스템 스킴을 그대로 따른다(속성 없음 = @media (prefers-color-scheme) 경로).
+(function () {
+  var root = document.documentElement;
+  var btn = document.getElementById('theme-toggle');
+  var KEY = 'reffi-ds-theme';
+  var saved = localStorage.getItem(KEY);
+  if (saved === 'light' || saved === 'dark') {
+    root.setAttribute('data-theme', saved);
+    btn.setAttribute('aria-pressed', String(saved === 'dark'));
+  }
+  btn.addEventListener('click', function () {
+    var current = root.getAttribute('data-theme');
+    var systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    var currentlyDark = current ? current === 'dark' : systemDark;
+    var next = currentlyDark ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    localStorage.setItem(KEY, next);
+    btn.setAttribute('aria-pressed', String(next === 'dark'));
+  });
+})();
+
 // Scroll-spy: highlight active nav item
 (function () {
   var links = Array.prototype.slice.call(document.querySelectorAll('.nav__list a'));

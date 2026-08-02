@@ -29,6 +29,9 @@ struct PaperSilhouette: View {
 
     // MARK: Palette (자연색 · 각 몸통마다 base/shade/highlight 3톤으로 면분할)
     private enum C {
+        /// 눈·패싯 디테일용 고정 잉크 — 일러스트는 물성(잘라 붙인 종이)이라 다크에서도 재채색하지 않는다.
+        /// 적응형 `ReffiColor.ink`를 쓰면 다크에서 크림으로 뒤집혀 실루엣이 망가진다.
+        static let inkFixed = ReffiColor.oklch(0.25, 0.012, 80)
         // 초록 계열(잎·줄기·봉오리)
         static let dGreen  = ReffiColor.oklch(0.43, 0.11, 150)
         static let mGreen  = ReffiColor.oklch(0.55, 0.13, 148)
@@ -974,7 +977,7 @@ struct PaperSilhouette: View {
                          CGPoint(x: cx + w / 2, y: cy + h * 0.5)]), C.fishDk)
         // 눈
         fill(&ctx, facet(cx - w * 0.32, cy - h * 0.10, w * 0.08, w * 0.08, 6), .white)
-        fill(&ctx, facet(cx - w * 0.32, cy - h * 0.10, w * 0.038, w * 0.038, 5), ReffiColor.ink)
+        fill(&ctx, facet(cx - w * 0.32, cy - h * 0.10, w * 0.038, w * 0.038, 5), C.inkFixed)
     }
 
     /// 새우 — 각진 코랄 몸(분절) + 꼬리 부채.
@@ -1514,7 +1517,7 @@ struct PaperSilhouette: View {
         // 눈 두 개(위)
         for s in [-1.0, 1.0] as [CGFloat] {
             fill(&ctx, facet(cx + s * w * 0.16, cy - h * 0.28, w * 0.09, w * 0.09, 6), C.cream)
-            fill(&ctx, facet(cx + s * w * 0.16, cy - h * 0.28, w * 0.04, w * 0.04, 5), ReffiColor.ink)
+            fill(&ctx, facet(cx + s * w * 0.16, cy - h * 0.28, w * 0.04, w * 0.04, 5), C.inkFixed)
         }
     }
 
@@ -1548,7 +1551,7 @@ struct PaperSilhouette: View {
                              CGPoint(x: cx + s * w * 0.32, y: topY + r.height * 0.30)]), C.squidPink.opacity(0.7))
         }
         fill(&ctx, facet(cx - w * 0.10, midY - r.height * 0.02, w * 0.10, w * 0.10, 6), C.squidBSh)
-        fill(&ctx, facet(cx - w * 0.10, midY - r.height * 0.02, w * 0.05, w * 0.05, 5), ReffiColor.ink)
+        fill(&ctx, facet(cx - w * 0.10, midY - r.height * 0.02, w * 0.05, w * 0.05, 5), C.inkFixed)
     }
 
     /// 조개 — 부채꼴 각진 조개껍질 + 방사 홈 + 힌지.

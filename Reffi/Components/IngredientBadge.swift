@@ -48,7 +48,7 @@ struct IngredientBadge: View {
     }
 }
 
-/// 추가 뱃지 — 점선 종이 사각의 ＋. `AddIngredientSheet`로.
+/// 추가 뱃지 — 점선 종이 사각의 ＋. 탭하면 영수증 스캔 시트(`AddIngredientSheet` → `ReceiptScanView`)로.
 struct AddBadge: View {
     var seed: Int = 1
     var onTap: () -> Void

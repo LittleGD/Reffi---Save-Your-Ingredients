@@ -255,8 +255,9 @@ struct CookingStepsView: View {
                     if done {
                         RoundedRectangle(cornerRadius: 4, style: .continuous)
                             .fill(ReffiColor.freshDark).frame(width: 20, height: 20)
+                        // 다크에서 freshDark 도트가 밝아지므로 체크는 onInk(어두운 콘텐츠)여야 산다.
                         Image(systemName: "checkmark")
-                            .font(.system(size: 11, weight: .heavy)).foregroundStyle(.white)
+                            .font(.system(size: 11, weight: .heavy)).foregroundStyle(ReffiColor.onInk)
                     }
                 }
                 Text(verbatim: "\(index + 1).")
@@ -289,7 +290,10 @@ struct CookingStepsView: View {
     /// 공유 카드 이미지 렌더 — `RecipeShareCard`를 레티나 스케일로 오프스크린 래스터라이즈한다. 실패하면 nil.
     @MainActor
     private func renderShareImage(for cook: FridgeStore.CookSession) -> Image? {
+        // 공유 이미지는 물리 산출물(인쇄된 영수증)이라 기기 다크모드와 무관하게 항상 라이트 종이로 렌더한다.
+        // ImageRenderer는 환경을 명시하지 않으면 항상 라이트로 해석하지만, 명시적으로 고정해 의도를 문서화한다.
         let card = RecipeShareCard(recipeName: cook.recipeName, steps: cook.steps ?? [], count: cook.count)
+            .environment(\.colorScheme, .light)
         let renderer = ImageRenderer(content: card)
         renderer.scale = 3   // 레티나
         guard let uiImage = renderer.uiImage else { return nil }

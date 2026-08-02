@@ -12,6 +12,8 @@ struct ShareCardPreviewView: View {
                 steps: recipe?.displaySteps ?? Self.fallbackSteps,
                 count: recipe?.ingredients.count ?? 12
             )
+            // 실제 공유 경로(CookingStepsView.renderShareImage)와 같은 라이트 고정 렌더를 검증용에서도 재현.
+            .environment(\.colorScheme, .light)
             .padding(.vertical, ReffiSpace.s6)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
