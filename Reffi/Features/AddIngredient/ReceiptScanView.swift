@@ -6,6 +6,9 @@ import PhotosUI
 /// 영수증 스캔 — 카메라(문서 스캐너) 또는 사진에서 영수증을 읽어(온디바이스 Vision OCR, ko+en)
 /// 정본 재료 사전으로 매핑된 후보를 체크리스트로 확인 후 일괄 등록한다.
 /// 인식·매핑은 전부 온디바이스 — 네트워크 전송 없음.
+///
+/// `AddIngredientSheet`가 그대로 감싸는 1차 추가 표면(사용자 결정 2026-08-01) — 픽커·검색·
+/// 직접 입력 폴백은 없다. presentationDetents는 여기서 적용한다(호출부 중복 금지).
 struct ReceiptScanView: View {
     @Environment(FridgeStore.self) private var store
     @Environment(\.dismiss) private var dismiss
@@ -32,6 +35,9 @@ struct ReceiptScanView: View {
             content
         }
         .background(ReffiColor.canvas)
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
+        .presentationBackground(ReffiColor.canvas)
         .sensoryFeedback(.success, trigger: addedHaptic)
         .fullScreenCover(isPresented: $showCamera) {
             DocumentCameraView { images in
@@ -112,7 +118,7 @@ struct ReceiptScanView: View {
         if candidates.isEmpty {
             VStack(spacing: ReffiSpace.s3) {
                 Text("Nothing recognized").reffiType(.subhead).foregroundStyle(ReffiColor.ink)
-                Text("Try a clearer photo, or add items manually.")
+                Text("Try again with a clearer photo.")
                     .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
                 PaperButton(title: "Try again", kind: .secondary) { phase = .pick }
                     .padding(.top, ReffiSpace.s3)
@@ -444,9 +450,9 @@ private struct CandidateEditSheet: View {
         .padding(.horizontal, ReffiSpace.s5)
         .padding(.vertical, ReffiSpace.s5 + 3)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(ReffiColor.oklch(0.985, 0.004, 90), in: shape)
+        .background(ReffiColor.receipt, in: shape)
         .paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
-        .shadow(color: ReffiColor.ink.opacity(0.06), radius: 5, x: 0, y: 2)
+        .shadow(color: ReffiColor.shadowTint.opacity(0.06), radius: 5, x: 0, y: 2)
     }
 
     private var actionBar: some View {

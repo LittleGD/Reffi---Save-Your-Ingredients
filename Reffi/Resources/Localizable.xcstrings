@@ -1,16 +1,6 @@
 {
   "sourceLanguage": "en",
   "strings": {
-    "%@ default · %lldd": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ 기본값 · %lld일"
-          }
-        }
-      }
-    },
     "%@ · eaten": {
       "localizations": {
         "ko": {
@@ -411,26 +401,6 @@
         }
       }
     },
-    "Add a whole grocery run at once": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "장보기 한 번을 통째로 추가해요"
-          }
-        }
-      }
-    },
-    "Add ingredient": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "재료 추가"
-          }
-        }
-      }
-    },
     "Add ingredients": {
       "localizations": {
         "ko": {
@@ -487,26 +457,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "나만의 레시피 추가"
-          }
-        }
-      }
-    },
-    "Add “%@” as a custom item": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "“%@”를 커스텀 재료로 추가"
-          }
-        }
-      }
-    },
-    "Added %@ · %lld this run": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%1$@ 추가됨 · 이번에 %2$lld개"
           }
         }
       }
@@ -751,16 +701,6 @@
         }
       }
     },
-    "Clear search": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "검색어 지우기"
-          }
-        }
-      }
-    },
     "Clears %lld before they spoil": {
       "localizations": {
         "ko": {
@@ -971,26 +911,6 @@
         }
       }
     },
-    "Default quantity": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "기본 수량"
-          }
-        }
-      }
-    },
-    "Defaults": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "기본값"
-          }
-        }
-      }
-    },
     "Delete": {
       "localizations": {
         "ko": {
@@ -1097,16 +1017,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "저장하지 않고 닫을까요?"
-          }
-        }
-      }
-    },
-    "Discard this item?": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "추가하지 않고 닫을까요?"
           }
         }
       }
@@ -1221,16 +1131,6 @@
         }
       }
     },
-    "Enter manually": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "직접 입력"
-          }
-        }
-      }
-    },
     "Est. date: check": {
       "localizations": {
         "ko": {
@@ -1287,16 +1187,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "임박 알림"
-          }
-        }
-      }
-    },
-    "FREQUENT": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "자주 구매"
           }
         }
       }
@@ -1931,16 +1821,6 @@
         }
       }
     },
-    "Not in the dictionary. Please check the date": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "사전에 없는 재료예요. 날짜를 확인해주세요"
-          }
-        }
-      }
-    },
     "Nothing here yet": {
       "localizations": {
         "ko": {
@@ -2227,16 +2107,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "먼저 이메일을 인증해 주세요. 받은 편지함을 확인해 보세요."
-          }
-        }
-      }
-    },
-    "Pre-filled when you add an ingredient": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "재료 추가 시 미리 채워져요"
           }
         }
       }
@@ -2577,16 +2447,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "해산물"
-          }
-        }
-      }
-    },
-    "Search ingredients": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "재료 검색"
           }
         }
       }
@@ -3051,16 +2911,6 @@
         }
       }
     },
-    "Try a clearer photo, or add items manually.": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "더 선명한 사진으로 다시 시도하거나 직접 입력해 보세요."
-          }
-        }
-      }
-    },
     "Try again": {
       "localizations": {
         "ko": {
@@ -3497,6 +3347,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "장"
+          }
+        }
+      }
+    },
+    "Try again with a clearer photo.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "더 선명한 사진으로 다시 시도해 주세요."
           }
         }
       }

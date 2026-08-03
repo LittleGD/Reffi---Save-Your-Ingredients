@@ -85,7 +85,7 @@ extension Font {
 enum ReffiActionRole {
     case monoTicketLabel   // 오더 티켓 모노 헤더 — "ORDER"·"ORDER · FIRED"
     case monoEyebrow       // 초소형 올캡 라벨 — 서브헤더·배지 타이틀·구분선 문구
-    case sectionLabel      // 섹션/픽커 라벨 — "ON THE TICKET"·"PREP"·"FREQUENT"·카테고리
+    case sectionLabel      // 섹션 라벨 — "ON THE TICKET"·"PREP"·"ITEM" 등 모노 올캡
     case menuName          // 티켓/레시피 메뉴명
     case metaText          // 보조 메타 — 시간·개수·설명·힌트
     case pillLabel         // 필/버튼 라벨 — Undo·Add·Skip·Turn on·Later 등

@@ -34,6 +34,12 @@ final class IngredientDropScene: SKScene {
     private let jitterDamp: CGFloat = 0.8            // 잔여 운동의 프레임당 곱셈 감쇠 — 접촉 임펄스를 이긴다
     private var foregroundObserver: NSObjectProtocol?   // 블록 옵저버라 명시 해제 필요
 
+    // 컬러 스킴 — SpriteKit은 동적 UIColor를 트레이트 변화에 따라 다시 해석하지 않고,
+    // ImageRenderer도 명시하지 않으면 항상 라이트로 렌더한다. 스킴을 씬이 직접 들고 있다가
+    // 바뀌면 텍스처를 다시 굽는다(SKView의 trait 변경을 구독 — SwiftUI 쪽 배선 불필요).
+    private var interfaceStyle: UIUserInterfaceStyle = .light
+    private var traitRegistration: (any UITraitChangeRegistration)?
+
     /// 짧은 탭 = 판정 묻기(Ate/Tossed).
     var onRemove: ((UUID) -> Void)?
     /// 제스처 판정(§13.6 B) — 칩을 존에 끌어다 놓으면 (id, wasted). 탭 오버레이는 접근성 경로로 유지.
@@ -59,6 +65,13 @@ final class IngredientDropScene: SKScene {
         physicsWorld.gravity = CGVector(dx: 0, dy: -42)   // 적당히 — 가볍게 떨어지되 둥둥 뜨진 않게
         view.preferredFramesPerSecond = 60
         view.ignoresSiblingOrder = true   // 칩 z가 전부 달라(§안착 z-순서) 순서 결정적 — 안전
+        // 칩·존을 굽기 **전에** 현재 스킴을 확정한다(첫 렌더부터 올바른 팔레트로).
+        applyInterfaceStyle(view.traitCollection.userInterfaceStyle)
+        if traitRegistration == nil {
+            traitRegistration = view.registerForTraitChanges([UITraitUserInterfaceStyle.self]) { [weak self] (v: SKView, _) in
+                self?.applyInterfaceStyle(v.traitCollection.userInterfaceStyle)
+            }
+        }
         buildWalls()
         layoutZones()
         sync(pending)
@@ -83,11 +96,49 @@ final class IngredientDropScene: SKScene {
             NotificationCenter.default.removeObserver(o)
             foregroundObserver = nil
         }
+        if let r = traitRegistration {
+            view.unregisterForTraitChanges(r)
+            traitRegistration = nil
+        }
         super.willMove(from: view)
     }
 
     deinit {
         if let o = foregroundObserver { NotificationCenter.default.removeObserver(o) }
+    }
+
+    // MARK: - 컬러 스킴 (라이트/다크)
+
+    /// 스킴 확정 — 바뀌었으면 적응형 색을 쓰는 표면(판정 존, 폴백 칩 틴트)만 다시 굽는다.
+    /// 실루엣 텍스처 캐시는 **비우지 않는다** — PaperSilhouette 팔레트는 전량 고정색(물성 원칙)이라
+    /// 스킴과 무관하게 픽셀 동일, 비우면 전환 순간 메인 스레드 재렌더 히치만 생긴다.
+    /// `.unspecified`는 라이트로 접는다(SKView가 항상 구체 스타일을 주긴 하지만 방어).
+    private func applyInterfaceStyle(_ style: UIUserInterfaceStyle) {
+        let resolved: UIUserInterfaceStyle = (style == .dark) ? .dark : .light
+        guard resolved != interfaceStyle else { return }
+        interfaceStyle = resolved
+        retintForCurrentStyle()
+    }
+
+    /// 동적 색을 현재 스킴으로 **명시 해석**. SpriteKit 노드는 동적 UIColor를 보관만 할 뿐
+    /// 트레이트 변화에 재해석하지 않아, 넣는 순간의 값(기본 라이트)으로 굳어버린다.
+    private func resolvedUIColor(_ color: Color) -> UIColor {
+        UIColor(color).resolvedColor(with: UITraitCollection(userInterfaceStyle: interfaceStyle))
+    }
+
+    /// 스킴 전환 반영 — 적응형 색을 쓰는 표면만 다시 렌더한다.
+    /// 실루엣 칩은 스킴 불변(캐시 유지)이라 폴백 틴트 사각형만 재해석하면 된다.
+    private func retintForCurrentStyle() {
+        for ing in pending {
+            guard let node = chips[ing.id], node.colorBlendFactor == 1 else { continue }
+            node.color = resolvedUIColor(ing.freshness.main)   // 폴백 칩(텍스처 실패)만 적응형
+        }
+        // 존은 렌더된 텍스처라 다시 만들어야 팔레트가 갱신된다(드래그 중이면 보이는 상태 유지).
+        let wasVisible = (tossZone?.alpha ?? 0) > 0
+        tossZone?.removeFromParent(); tossZone = nil
+        ateZone?.removeFromParent();  ateZone = nil
+        layoutZones()
+        if wasVisible { setZones(visible: true) }
     }
 
     override func didChangeSize(_ oldSize: CGSize) {
@@ -263,6 +314,8 @@ final class IngredientDropScene: SKScene {
                 .foregroundStyle(tint)
         }
         .frame(width: zoneSide, height: zoneSide)
+        // ImageRenderer는 환경을 명시하지 않으면 항상 라이트로 해석한다 — 적응형 토큰이 든 뷰엔 필수.
+        .environment(\.colorScheme, interfaceStyle == .dark ? .dark : .light)
         let renderer = ImageRenderer(content: view)
         renderer.scale = 3
         let node = SKSpriteNode(texture: renderer.uiImage.map { SKTexture(image: $0) },
@@ -317,6 +370,7 @@ final class IngredientDropScene: SKScene {
     /// 실측 폴리곤(`makeBody`)이라, 여기선 표시용(shadowed: true)만 쓴다(shadowless는 진단용 잔존).
     /// 캐시 키에 side가 들어가 리사이즈로 변이 달라지면 자동 무효(캐시 removeAll은 didChangeSize).
     private func texture(for ing: Ingredient, side: CGFloat, shadowed: Bool) -> SKTexture? {
+        // 캐시 키에 스킴은 없다 — PaperSilhouette 팔레트는 전량 고정색이라 라이트/다크가 픽셀 동일.
         let key = "\(ing.glyph.rawValue)@\(Int(side))" + (shadowed ? "" : "#body")
         if let t = textureCache[key] { return t }
         let view = PaperSilhouette(glyph: ing.glyph, fresh: ing.freshness, shadowed: shadowed)
@@ -376,7 +430,8 @@ final class IngredientDropScene: SKScene {
         if let disp = texture(for: ing, side: s, shadowed: true) {
             node = SKSpriteNode(texture: disp, size: CGSize(width: s, height: s))
         } else {
-            node = SKSpriteNode(color: UIColor(ing.freshness.main), size: CGSize(width: s, height: s))
+            // 폴백 단색 — 동적 UIColor를 그대로 주면 라이트 값으로 굳으므로 현재 스킴으로 해석해 넣는다.
+            node = SKSpriteNode(color: resolvedUIColor(ing.freshness.main), size: CGSize(width: s, height: s))
         }
         // 충돌체 = **실측 알파 bbox 기반 볼록 폴리곤**(makeBody). 오목 알파 텍스처 바디는 접촉 해소
         // 지터가 영원히 안 죽고(브로콜리 겹침·요동의 원인) 비용도 크다 — 실측으로 실루엣에 딱 맞춘

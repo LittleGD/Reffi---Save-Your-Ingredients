@@ -56,9 +56,9 @@ struct OrderMemoCard: View {
         .compositingGroup()   // 그림자 재합성을 1패스로 — PaperGrain(.overlay)도 이 경계에 갇힌다.
         // 그림자는 값만 분기, 체인(2패스)은 고정 — 뷰 정체성 유지.
         // 풀 렌더면 reffiShadow1(§6.2)과 동일 값, headerOnly면 가벼운 단일 패스(2패스째 투명).
-        .shadow(color: ReffiColor.ink.opacity(headerOnly ? 0.06 : 0.10),
+        .shadow(color: ReffiColor.shadowTint.opacity(headerOnly ? 0.06 : 0.10),
                 radius: headerOnly ? 4 : 1.5, x: 0, y: headerOnly ? 2 : 1)
-        .shadow(color: ReffiColor.ink.opacity(headerOnly ? 0 : 0.05),
+        .shadow(color: ReffiColor.shadowTint.opacity(headerOnly ? 0 : 0.05),
                 radius: 10, x: 0, y: 8)
     }
 
@@ -247,7 +247,8 @@ struct OrderMemoCard: View {
                 if done {
                     RoundedRectangle(cornerRadius: 3, style: .continuous)
                         .fill(ing.freshness.dark).frame(width: 14, height: 14)
-                    Image(systemName: "checkmark").font(.system(size: 8, weight: .heavy)).foregroundStyle(.white)
+                    // 다크에서 freshness.dark 도트가 밝아지므로 체크는 onInk(어두운 콘텐츠)여야 산다.
+                    Image(systemName: "checkmark").font(.system(size: 8, weight: .heavy)).foregroundStyle(ReffiColor.onInk)
                 }
             }
             Text(verbatim: ing.name)

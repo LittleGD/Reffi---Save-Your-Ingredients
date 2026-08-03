@@ -508,9 +508,9 @@ struct FridgeCompactRow: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background {
             let s = PaperRect(cornerRadius: ReffiRadius.md, seed: ingredient.daysLeft &+ 3)
-            s.fill(ReffiColor.oklch(0.985, 0.004, 90)).paperEdge(s, tint: ReffiColor.ink.opacity(0.06))
+            s.fill(ReffiColor.receipt).paperEdge(s, tint: ReffiColor.ink.opacity(0.06))
         }
-        .shadow(color: ReffiColor.ink.opacity(0.05), radius: 3, x: 0, y: 1)
+        .shadow(color: ReffiColor.shadowTint.opacity(0.05), radius: 3, x: 0, y: 1)
         .accessibilityElement(children: .combine)
     }
 }
@@ -549,7 +549,7 @@ struct FridgeCard: View {
     var body: some View {
         let f = ingredient.freshness
         let shape = ReceiptShape(tooth: toothH)
-        let paper = ReffiColor.oklch(0.985, 0.004, 90)   // 흰 영수증
+        let paper = ReffiColor.receipt   // 흰 영수증
 
         return VStack(alignment: .leading, spacing: ReffiSpace.s1) {
             // 상단 행 — 카테고리(좌) / [FROZEN] + D-day 도장(우 상단 코너).
@@ -578,7 +578,7 @@ struct FridgeCard: View {
         .frame(height: height)
         .background(paper, in: shape)
         .paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
-        .shadow(color: ReffiColor.ink.opacity(0.06), radius: 4, x: 0, y: 2)   // 약한 드롭섀도
+        .shadow(color: ReffiColor.shadowTint.opacity(0.06), radius: 4, x: 0, y: 2)   // 약한 드롭섀도
     }
 }
 
@@ -597,7 +597,7 @@ struct ExpandedFridgeCard: View {
     var body: some View {
         let f = ingredient.freshness
         let shape = ReceiptShape(tooth: toothH)
-        let paper = ReffiColor.oklch(0.985, 0.004, 90)   // 흰 영수증
+        let paper = ReffiColor.receipt   // 흰 영수증
 
         return VStack(alignment: .leading, spacing: 0) {
             // 헤더 — 큰 일러스트 + (카테고리·편집) / (이름·Due date)
@@ -660,7 +660,7 @@ struct ExpandedFridgeCard: View {
         .padding(.bottom, toothH)
         .background(paper, in: shape)
         .paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
-        .shadow(color: ReffiColor.ink.opacity(0.06), radius: 5, x: 0, y: 2)
+        .shadow(color: ReffiColor.shadowTint.opacity(0.06), radius: 5, x: 0, y: 2)
     }
 
     private func row(_ label: LocalizedStringKey, _ value: String, valueColor: Color = ReffiColor.ink) -> some View {

@@ -49,20 +49,4 @@ enum Freshness {
         case .urgent: "Today"
         }
     }
-
-    /// 면 색의 정본 OKLCH 파라미터(L/C/H) — depth 단차 계산용.
-    var faceParams: (L: Double, C: Double, H: Double) {
-        switch self {
-        case .fresh:  (0.86, 0.120, 136)
-        case .soon:   (0.85, 0.125, 84)
-        case .urgent: (0.75, 0.135, 36)
-        }
-    }
-
-    /// 스택에서 인접 카드 깊이감 — 아래로 갈수록 L을 미세하게(+1.6%/단) 올려 뒤로 물러나게(§8.2).
-    func face(depth: Int) -> Color {
-        let p = faceParams
-        let l = min(0.95, p.L + Double(depth) * 0.016)
-        return ReffiColor.oklch(l, p.C, p.H)
-    }
 }

@@ -115,9 +115,9 @@ struct ShoppingListView: View {
         .padding(.horizontal, ReffiSpace.s5)
         .padding(.vertical, ReffiSpace.s5 + 7)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(ReffiColor.oklch(0.985, 0.004, 90), in: shape)
+        .background(ReffiColor.receipt, in: shape)
         .paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
-        .shadow(color: ReffiColor.ink.opacity(0.06), radius: 5, x: 0, y: 2)
+        .shadow(color: ReffiColor.shadowTint.opacity(0.06), radius: 5, x: 0, y: 2)
     }
 
     private var emptyCard: some View {
@@ -130,7 +130,7 @@ struct ShoppingListView: View {
         .padding(.horizontal, ReffiSpace.s5)
         .padding(.vertical, ReffiSpace.s5 + 7)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(ReffiColor.oklch(0.985, 0.004, 90), in: shape)
+        .background(ReffiColor.receipt, in: shape)
         .paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
     }
 }

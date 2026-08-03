@@ -15,9 +15,6 @@ struct ProfileView: View {
     // 알림 SSOT — ExpiryNotifier의 @AppStorage 키를 직접 읽어 실제 스케줄에 반영한다.
     @AppStorage(ExpiryNotifier.enabledKey) private var alertsEnabled = false
     @AppStorage(ExpiryNotifier.hourKey) private var alertHour = ExpiryNotifier.defaultHour
-    // 등록 폼 기본값 — 수량·단위(AddIngredientSheet가 소비).
-    @AppStorage("defaultQuantityValue") private var defaultQuantityValue = 1.0
-    @AppStorage("defaultQuantityUnit") private var defaultQuantityUnit = IngredientUnit.piece.rawValue
     // AI 클라우드 생성 동의 SSOT — AIConsent.cloudEnabled와 같은 키(Apple 5.1.2(i), 토글=명시 동의 UI).
     @AppStorage(AIConsent.cloudConsentKey) private var cloudAIEnabled = false
 
@@ -53,7 +50,6 @@ struct ProfileView: View {
                 tasteReceipt
                 householdReceipt
                 notifyReceipt
-                defaultsReceipt
                 recipesReceipt
                 aiReceipt.id(Anchor.ai)
                 languageReceipt
@@ -323,35 +319,6 @@ struct ProfileView: View {
     /// 알림 시각 표시 — 정시(:00) 라벨.
     private var alertHourText: String { NotifyTimeSheet.hourLabel(alertHour) }
 
-    // MARK: - 등록 기본값 영수증 (수량·단위)
-    private var defaultsReceipt: some View {
-        ReceiptCard(title: String(localized: "Defaults")) {
-            VStack(alignment: .leading, spacing: ReffiSpace.s3) {
-                Text("Pre-filled when you add an ingredient")
-                    .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
-                HStack(spacing: ReffiSpace.s2) {
-                    Text("Default quantity").reffiType(.body).foregroundStyle(ReffiColor.ink)
-                    Spacer(minLength: ReffiSpace.s4)
-                    TextField("1", value: $defaultQuantityValue, format: .number)
-                        .keyboardType(.decimalPad)
-                        .multilineTextAlignment(.trailing)
-                        .font(.reffiNum(15, relativeTo: .body))
-                        .foregroundStyle(ReffiColor.ink)
-                        .frame(width: 52)
-                    Picker(selection: $defaultQuantityUnit) {
-                        ForEach(IngredientUnit.allCases) { u in
-                            Text(verbatim: u.label).tag(u.rawValue)
-                        }
-                    } label: { EmptyView() }
-                    .pickerStyle(.menu)
-                    .tint(ReffiColor.blue)
-                }
-            }
-            .padding(.horizontal, ReffiSpace.s5)
-            .padding(.vertical, ReffiSpace.s4)
-        }
-    }
-
     // MARK: - 내 레시피 영수증 (커스텀 — 추천 풀에 합류)
     private var recipesReceipt: some View {
         ReceiptCard(title: String(localized: "My recipes")) {
@@ -495,7 +462,7 @@ struct ReceiptCard<Content: View>: View {
 
     var body: some View {
         let shape = ReceiptShape(tooth: toothH)
-        let paper = ReffiColor.oklch(0.985, 0.004, 90)   // 흰 영수증(Fridge와 동일)
+        let paper = ReffiColor.receipt   // 흰 영수증(Fridge와 동일)
 
         return VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .center) {
@@ -523,7 +490,7 @@ struct ReceiptCard<Content: View>: View {
         .padding(.bottom, ReffiSpace.s2 + toothH)
         .background(paper, in: shape)
         .paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
-        .shadow(color: ReffiColor.ink.opacity(0.06), radius: 4, x: 0, y: 2)   // 약한 드롭섀도(Fridge와 동일)
+        .shadow(color: ReffiColor.shadowTint.opacity(0.06), radius: 4, x: 0, y: 2)   // 약한 드롭섀도(Fridge와 동일)
     }
 }
 

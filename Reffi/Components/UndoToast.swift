@@ -31,14 +31,15 @@ struct UndoToast: View {
             Button(action: onUndo) {
                 Text("Undo")
                     .reffiType(.pillLabel)
-                    .foregroundStyle(ReffiColor.blueLight)
+                    .foregroundStyle(ReffiColor.toastAction)   // 고정 사유는 토큰 정의 주석 참조
                     .frame(minWidth: 44, minHeight: 44)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.paperPress)
         }
         .padding(.horizontal, ReffiSpace.s4).padding(.vertical, ReffiSpace.s1)
-        .background(ReffiColor.ink, in: Capsule())
+        // 캡슐 면은 양 모드 모두 어두운 색이어야 위 흰 텍스트가 살아남는다(ink는 다크에서 크림으로 뒤집힘).
+        .background(ReffiColor.toast, in: Capsule())
         .reffiShadow1()
         .padding(.horizontal, ReffiGrid.margin)
     }

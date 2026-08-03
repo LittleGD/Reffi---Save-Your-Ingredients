@@ -20,12 +20,12 @@ struct TitleClipLabView: View {
         }
         .padding(.top, 20)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(white: 0.96))
+        .background(ReffiColor.canvas)
     }
 
     private func row<C: View>(@ViewBuilder _ c: () -> C) -> some View {
         c()
-            .foregroundStyle(.black)
+            .foregroundStyle(ReffiColor.ink)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.leading, 24)
             .frame(height: 90)
@@ -39,7 +39,7 @@ private struct StoryLabel: UIViewRepresentable {
         let l = UILabel()
         l.font = UIFont(name: "StoryScript-Regular", size: 34)
         l.text = text
-        l.textColor = .black
+        l.textColor = UIColor(ReffiColor.ink)
         l.clipsToBounds = false
         return l
     }

@@ -33,9 +33,8 @@ struct ReffiApp: App {
                 .environment(profile)
                 .environment(auth)
                 .tint(ReffiColor.blue)
-                // 다크 토큰이 정의되기 전까지 라이트 고정 — 고정 크림 팔레트와
-                // 적응형 머티리얼(글래스)이 다크에서 어긋나는 중간 상태를 막는다.
-                .preferredColorScheme(.light)
+                // 컬러 스킴은 시스템 설정을 따른다 — 시맨틱 토큰이 전부 적응형(ReffiColor.dynamic)이라
+                // 라이트/다크 어느 쪽으로도 팔레트가 스스로 뒤집힌다.
                 // 알림은 앞으로 30일 치만 등록되므로, 포그라운드 복귀 때마다 창을 앞으로 민다
                 // (스토어 변이 없이 오래 방치해도 그 이후 재료를 놓치지 않게).
                 .onChange(of: scenePhase) { _, phase in
