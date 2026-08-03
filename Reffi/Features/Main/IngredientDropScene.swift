@@ -109,13 +109,14 @@ final class IngredientDropScene: SKScene {
 
     // MARK: - 컬러 스킴 (라이트/다크)
 
-    /// 스킴 확정 — 바뀌었으면 텍스처 캐시를 버리고 칩·판정 존을 새 팔레트로 다시 굽는다.
+    /// 스킴 확정 — 바뀌었으면 적응형 색을 쓰는 표면(판정 존, 폴백 칩 틴트)만 다시 굽는다.
+    /// 실루엣 텍스처 캐시는 **비우지 않는다** — PaperSilhouette 팔레트는 전량 고정색(물성 원칙)이라
+    /// 스킴과 무관하게 픽셀 동일, 비우면 전환 순간 메인 스레드 재렌더 히치만 생긴다.
     /// `.unspecified`는 라이트로 접는다(SKView가 항상 구체 스타일을 주긴 하지만 방어).
     private func applyInterfaceStyle(_ style: UIUserInterfaceStyle) {
         let resolved: UIUserInterfaceStyle = (style == .dark) ? .dark : .light
         guard resolved != interfaceStyle else { return }
         interfaceStyle = resolved
-        textureCache.removeAll()   // 캐시 키에 스킴이 있어 충돌은 없지만, 안 쓰는 쪽을 들고 있지 않는다
         retintForCurrentStyle()
     }
 
@@ -125,17 +126,12 @@ final class IngredientDropScene: SKScene {
         UIColor(color).resolvedColor(with: UITraitCollection(userInterfaceStyle: interfaceStyle))
     }
 
-    /// 스킴 전환 반영 — 이미 화면에 있는 칩 텍스처와 판정 존을 다시 렌더한다.
+    /// 스킴 전환 반영 — 적응형 색을 쓰는 표면만 다시 렌더한다.
+    /// 실루엣 칩은 스킴 불변(캐시 유지)이라 폴백 틴트 사각형만 재해석하면 된다.
     private func retintForCurrentStyle() {
         for ing in pending {
-            guard let node = chips[ing.id] else { continue }
-            if let t = texture(for: ing, side: chipSide, shadowed: true) {
-                node.texture = t
-                node.colorBlendFactor = 0
-            } else {
-                node.color = resolvedUIColor(ing.freshness.main)
-                node.colorBlendFactor = 1
-            }
+            guard let node = chips[ing.id], node.colorBlendFactor == 1 else { continue }
+            node.color = resolvedUIColor(ing.freshness.main)   // 폴백 칩(텍스처 실패)만 적응형
         }
         // 존은 렌더된 텍스처라 다시 만들어야 팔레트가 갱신된다(드래그 중이면 보이는 상태 유지).
         let wasVisible = (tossZone?.alpha ?? 0) > 0
@@ -374,13 +370,11 @@ final class IngredientDropScene: SKScene {
     /// 실측 폴리곤(`makeBody`)이라, 여기선 표시용(shadowed: true)만 쓴다(shadowless는 진단용 잔존).
     /// 캐시 키에 side가 들어가 리사이즈로 변이 달라지면 자동 무효(캐시 removeAll은 didChangeSize).
     private func texture(for ing: Ingredient, side: CGFloat, shadowed: Bool) -> SKTexture? {
-        // 캐시 키에 스킴도 들어간다 — 라이트/다크 실루엣은 서로 다른 그림이다.
-        let key = "\(ing.glyph.rawValue)@\(Int(side))"
-            + (shadowed ? "" : "#body") + (interfaceStyle == .dark ? "#dark" : "")
+        // 캐시 키에 스킴은 없다 — PaperSilhouette 팔레트는 전량 고정색이라 라이트/다크가 픽셀 동일.
+        let key = "\(ing.glyph.rawValue)@\(Int(side))" + (shadowed ? "" : "#body")
         if let t = textureCache[key] { return t }
         let view = PaperSilhouette(glyph: ing.glyph, fresh: ing.freshness, shadowed: shadowed)
             .frame(width: side, height: side)
-            .environment(\.colorScheme, interfaceStyle == .dark ? .dark : .light)
         let renderer = ImageRenderer(content: view)
         renderer.scale = 3
         guard let img = renderer.uiImage else { return nil }

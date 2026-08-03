@@ -49,25 +49,4 @@ enum Freshness {
         case .urgent: "Today"
         }
     }
-
-    /// 면 색의 정본 OKLCH 파라미터(L/C/H) — depth 단차 계산용. 라이트/다크 쌍.
-    /// 라이트는 `main` 토큰과 동일, 다크는 스택 면 전용으로 살짝 더 눌러 캔버스와 붙지 않게 한다.
-    var faceParams: (light: (L: Double, C: Double, H: Double), dark: (L: Double, C: Double, H: Double)) {
-        switch self {
-        case .fresh:  ((0.86, 0.120, 136), (0.40, 0.070, 138))
-        case .soon:   ((0.85, 0.125, 84),  (0.42, 0.075, 82))
-        case .urgent: ((0.75, 0.135, 36),  (0.42, 0.088, 34))
-        }
-    }
-
-    /// 스택에서 인접 카드 깊이감 — 뒤 카드일수록 캔버스 쪽으로 한 단씩 물러난다(§8.2).
-    /// 라이트는 밝은 캔버스라 L을 올려(+1.6%/단, .95 캡), 다크는 어두운 캔버스라 L을 내려
-    /// (-1.4%/단, .30 캡) 물러나게 한다 — 다크에서 밝히면 뒤 카드가 오히려 앞으로 튀어나온다.
-    func face(depth: Int) -> Color {
-        let p = faceParams
-        let lightL = min(0.95, p.light.L + Double(depth) * 0.016)
-        let darkL  = max(0.30, p.dark.L - Double(depth) * 0.014)
-        return ReffiColor.dynamic(light: (lightL, p.light.C, p.light.H),
-                                  dark:  (darkL,  p.dark.C,  p.dark.H))
-    }
 }

@@ -85,6 +85,13 @@
   --shadow-tint: oklch(25% 0.012 80);  /* 그림자 전용 — 다크에서 순검정으로 뒤집혀야 ink 위 밝은 글로우를 피한다 */
   --toast:       oklch(25% 0.012 80);  /* 잉크 토스트 캡슐 면(= 라이트 ink). 위 텍스트는 항상 고정 white */
   --on-ink:      white;                /* ink로 채운 면 위 콘텐츠. 다크에서 어두운 값으로 뒤집힘 */
+  --toast-action: oklch(90% 0.05 250); /* toast 위 액션 라벨(Undo) — 고정, 다크 오버라이드 없음(실측 대비 L 11.92 · D 9.11) */
+
+  /* ---- 페이지 크롬 전용 고정색(브랜드 표지) — 앱 토큰 아님. 네비/히어로는 다크에서도
+         브랜드 블루 크롬을 유지해야 해서 적응형 --color-blue*를 쓰지 않는다(§2.8 원칙과 무관) ---- */
+  --chrome-blue:      oklch(51.4% 0.134 249.8);
+  --chrome-blue-deep: oklch(40% 0.12 250);
+  --chrome-blue-tint: oklch(93% 0.045 250);
 
   /* ---- Interaction ---- */
   --tap-min: 44px;
@@ -239,7 +246,7 @@ h1, h2, h3 { text-wrap: balance; }
   height: 100vh;
   width: 248px;
   flex: 0 0 248px;
-  background: var(--color-blue);
+  background: var(--chrome-blue);
   color: #fff;
   padding: var(--space-6) var(--space-5);
   overflow-y: auto;
@@ -249,7 +256,7 @@ h1, h2, h3 { text-wrap: balance; }
 .theme-toggle {
   margin-left: auto; align-self: center; display: grid; place-items: center;
   width: var(--tap-min); height: var(--tap-min); border: 0; cursor: pointer; padding: 0;
-  border-radius: var(--radius-pill); background: var(--color-blue-dark); color: #fff;
+  border-radius: var(--radius-pill); background: var(--chrome-blue-deep); color: #fff;
   transition: transform var(--dur-2) var(--ease-std);
 }
 .theme-toggle:active { transform: scale(0.92); }
@@ -262,8 +269,8 @@ h1, h2, h3 { text-wrap: balance; }
 :root[data-theme="dark"] .theme-toggle .i-sun { display: none; }
 :root[data-theme="dark"] .theme-toggle .i-moon { display: block; }
 .nav__logo { font-family: var(--font-display); font-weight: 400; font-size: 34px; line-height: 1; letter-spacing: 0; }
-.nav__tag { font-size: 13px; color: var(--color-blue-light); letter-spacing: 0.01em; }
-.nav__desc { font-size: 13px; line-height: 1.5; color: var(--color-blue-light); margin: 0 0 var(--space-5); }
+.nav__tag { font-size: 13px; color: var(--chrome-blue-tint); letter-spacing: 0.01em; }
+.nav__desc { font-size: 13px; line-height: 1.5; color: var(--chrome-blue-tint); margin: 0 0 var(--space-5); }
 .nav__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
 .nav__list a {
   display: block;
@@ -276,11 +283,11 @@ h1, h2, h3 { text-wrap: balance; }
   border-radius: var(--radius-sm);
   transition: background-color var(--dur-2) var(--ease-std);
 }
-.nav__list a .idx { color: var(--color-blue-light); margin-right: var(--space-2); font-variant-numeric: tabular-nums; }
+.nav__list a .idx { color: var(--chrome-blue-tint); margin-right: var(--space-2); font-variant-numeric: tabular-nums; }
 @media (hover: hover) and (pointer: fine) {
-  .nav__list a:hover { background-color: var(--color-blue-dark); }
+  .nav__list a:hover { background-color: var(--chrome-blue-deep); }
 }
-.nav__list a.active { background-color: var(--color-blue-dark); }
+.nav__list a.active { background-color: var(--chrome-blue-deep); }
 
 /* ---- Main content ---- */
 .main { flex: 1 1 auto; min-width: 0; }
@@ -288,20 +295,20 @@ h1, h2, h3 { text-wrap: balance; }
 
 /* ---- Hero ---- */
 .hero {
-  background: var(--color-blue);
+  background: var(--chrome-blue);
   color: #fff;
   padding: var(--space-7) var(--space-5);
 }
 .hero__inner { max-width: 1040px; margin: 0 auto; }
-.hero .eyebrow { font-family: var(--font-display); font-weight: 400; font-size: 40px; line-height: 1; letter-spacing: 0; color: var(--color-blue-light); margin: 0 0 var(--space-3); }
+.hero .eyebrow { font-family: var(--font-display); font-weight: 400; font-size: 40px; line-height: 1; letter-spacing: 0; color: var(--chrome-blue-tint); margin: 0 0 var(--space-3); }
 .hero h1 { font-size: var(--d-display-size); font-weight: 700; line-height: 1.2; letter-spacing: -0.02em; margin: 0 0 var(--space-4); max-width: 18ch; }
-.hero p { font: var(--d-body); color: var(--color-blue-light); margin: 0; max-width: 56ch; }
+.hero p { font: var(--d-body); color: var(--chrome-blue-tint); margin: 0; max-width: 56ch; }
 .hero__pills { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-5); }
 .hero__pills span {
   font-size: 14px; font-weight: 600; letter-spacing: 0.01em;
   padding: var(--space-1) var(--space-3);
   border-radius: var(--radius-pill);
-  background: var(--color-blue-dark);
+  background: var(--chrome-blue-deep);
 }
 
 /* ---- Section ---- */
@@ -954,7 +961,7 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
         <p class="subhead text" id="dark">2.8 다크 모드 — "밤의 주방 패스"</p>
         <p class="t-body text" style="color:var(--color-ink-2);margin-bottom:var(--space-4)">라이트를 반전한 흑백이 아니라, 조명 낮은 주방에서 보이는 <strong>웜 차콜</strong>(hue 78~90 유지)이다. <strong>순검정은 쓰지 않는다</strong> — 예외는 그림자(<code class="inline">shadowTint</code>)와 모달 딤(<code class="inline">scrim</code>)뿐, 둘 다 "빛이 없는" 레이어라 온기가 필요 없다. 시맨틱 토큰만 적응하고 <strong>일러스트(FoodGlyph) 팔레트는 스킴 불변 고정색</strong>이다(§13.3) — 재료 식별이 스킴에 흔들리면 안 된다. 공유 카드(<code class="inline">RecipeShareCard</code>)는 항상 라이트로 굽는다. 그림자는 항상 <code class="inline">shadowTint</code>(<code class="inline">ink</code> 금지 — 다크에서 크림으로 뒤집혀 밝은 글로우가 된다). <code class="inline">paperEdge</code> 헤어라인의 다크 반전은 "종이 두께" 표현으로 의도적으로 둔다.</p>
 
-        <p class="t-caption text" style="color:var(--color-ink-2);margin-bottom:var(--space-3)">신규 토큰 4종 — 우측 상단 토글로 전환해 보면 스와치가 실시간으로 바뀐다(라이브 CSS 변수).</p>
+        <p class="t-caption text" style="color:var(--color-ink-2);margin-bottom:var(--space-3)">신규 토큰 5종 — 우측 상단 토글로 전환해 보면 스와치가 실시간으로 바뀐다(라이브 CSS 변수). <code class="inline">toastAction</code>만 고정색(비적응)이다.</p>
         <div class="swatch-row">
           <div class="swatch">
             <div class="swatch__main on-ink" style="background:var(--receipt)">receipt</div>
@@ -971,6 +978,10 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
           <div class="swatch">
             <div class="swatch__main" style="background:var(--color-ink);color:var(--on-ink)">onInk</div>
             <div class="swatch__meta"><span class="role"><code class="inline">ink</code> 면 위 콘텐츠 전용</span><code>L 흰색 · D .22/.010/78</code></div>
+          </div>
+          <div class="swatch">
+            <div class="swatch__main" style="background:var(--toast);color:var(--toast-action)">toastAction</div>
+            <div class="swatch__meta"><span class="role"><code class="inline">toast</code> 위 액션 라벨(Undo) — 고정</span><code>.90/.05/250 양 모드 동일 · 실측 L 11.92 / D 9.11</code></div>
           </div>
         </div>
 

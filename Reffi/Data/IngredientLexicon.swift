@@ -132,21 +132,4 @@ struct IngredientLexicon {
     func defaultExpiry(for name: String, storage: StorageLocation, from now: Date = Date()) -> Date? {
         shelfLifeDays(for: name, storage: storage).map { Ingredient.day(offset: $0, from: now) }
     }
-
-    /// 자동완성 — 입력이 어느 표기의 접두이거나 포함되면 후보로. 로케일 대표 표기 반환.
-    func suggestions(matching input: String, limit: Int = 6) -> [Entry] {
-        let n = Self.norm(input)
-        guard !n.isEmpty else { return [] }
-        var seen = Set<String>()
-        var prefix: [Entry] = [], contains: [Entry] = []
-        for e in entries {
-            let keywords = (e.names.ko + e.names.en).map(Self.norm)
-            if keywords.contains(where: { $0.hasPrefix(n) }) {
-                if seen.insert(e.id).inserted { prefix.append(e) }
-            } else if n.count > 1, keywords.contains(where: { $0.contains(n) }) {
-                if seen.insert(e.id).inserted { contains.append(e) }
-            }
-        }
-        return Array((prefix + contains).prefix(limit))
-    }
 }

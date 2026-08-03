@@ -1131,16 +1131,6 @@
         }
       }
     },
-    "Enter manually": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "직접 입력"
-          }
-        }
-      }
-    },
     "Est. date: check": {
       "localizations": {
         "ko": {

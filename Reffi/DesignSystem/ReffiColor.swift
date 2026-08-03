@@ -90,6 +90,10 @@ enum ReffiColor {
     /// `ink` 면(강대비 면) 위 콘텐츠 색 — L 흰색 · D .22/.010/78
     /// (다크에선 ink가 크림 면이라 그 위 콘텐츠는 도로 어두워야 한다)
     static let onInk      = dynamic(light: (1, 0, 0), dark: (0.22, 0.010, 78))
+    /// `toast` 면 위 액션 라벨(Undo 등) — 고정 라이트 블루 .90/.05/250, 양 모드 동일.
+    /// toast 면이 양 모드 모두 어두워 적응이 불필요하고, blueLight는 다크에서 어두운 면색으로
+    /// 뒤집혀 못 쓴다. "toast 위 텍스트는 고정" 규칙(§2.8)의 액션 변형.
+    static let toastAction = oklch(0.90, 0.05, 250)
 
     // MARK: - Semantic aliases (§12)
 
