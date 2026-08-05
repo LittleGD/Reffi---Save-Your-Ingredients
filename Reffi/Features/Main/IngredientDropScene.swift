@@ -264,7 +264,29 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
 
     private var chipSide: CGFloat { chipSideFor(size) }
     private func chipSideFor(_ s: CGSize) -> CGFloat { min(max(124, s.width * 0.42), 188) }
-    private var floorY: CGFloat { max(6, size.height * 0.03) }
+    // MARK: - 좌표계: 물리 영역 vs 가려지지 않는 영역
+
+    /// 헤더·배너가 씬 위를 덮는 높이 — MainView가 실측해 넣어준다.
+    ///
+    /// 씬은 이제 **화면 전체 배경**이라 위쪽 일부가 헤더·MORNING ALERTS 배너에 가려진다.
+    /// 물리 경계(`sealedCeiling`)는 그 가려진 데까지 열어 두어 기울이면 재료가 배너 **뒤로** 굴러
+    /// 올라가지만, 스폰·판정 존처럼 **사용자가 봐야 하는 것**은 이 인셋 아래(가려지지 않는 영역)에 둔다.
+    /// 그래서 런치 캐스케이드가 헤더 텍스트 위를 가로지르지 않고 구도가 종전과 같다.
+    var overlayTopInset: CGFloat = 0 {
+        didSet {
+            guard abs(overlayTopInset - oldValue) > 0.5 else { return }
+            layoutZones()
+            wake()
+        }
+    }
+
+    /// 가려지지 않는 영역의 높이 — 확장 전의 필드 높이와 같다. 바닥·존·스폰의 기준.
+    private var clearHeight: CGFloat { max(1, size.height - overlayTopInset) }
+    /// 가려지지 않는 영역의 위끝 — 확장 전 `sealedCeiling`과 같은 자리.
+    private var clearCeiling: CGFloat { clearHeight - wallInset }
+    /// 바닥은 **확장 전 위치 그대로**(배지 행 위). 씬이 위로 커져도 안 따라 올라가게
+    /// 전체 높이가 아니라 가려지지 않는 높이에 비례시킨다.
+    private var floorY: CGFloat { max(6, clearHeight * 0.03) }
 
     // MARK: - 컨테인먼트 경계 (§13.4)
 
@@ -275,7 +297,8 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     /// 표의 최대 바디폭이 0.68s이므로 약 0.038s. 테이블이 버린 가로 중심 오프셋(`dx`)과 회전 여유까지
     /// 얹어 0.09s로 잡았다(0.06s로는 실측 여백이 1.7pt까지 좁아져 사실상 닿아 보였다 — 스크린샷 계측).
     private var wallInset: CGFloat { max(2, chipSide * 0.09) }
-    /// 밀폐 천장 — **보이는 영역의 위끝**. 여기서 막아야 위쪽(안 보이는 곳)으로 재료가 사라지지 않는다.
+    /// 밀폐 천장 — **씬(= 화면) 최상단**. 헤더·배너 뒤까지가 물리 영역이므로 여기까지 열어 두되,
+    /// 그 위로는 절대 못 나간다. 배너는 물리적 장애물이 아니라 그냥 위에 그려진 UI일 뿐이다.
     private var sealedCeiling: CGFloat { size.height - wallInset }
     /// 스폰 천장 — 재료는 화면 위에서 떨어져 들어오므로(§13) 낙하 중엔 천장을 스폰 위치 위로 올려 둔다.
     private var spawnCeiling: CGFloat { size.height + spawnHeadroom }
@@ -588,7 +611,8 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         if tossZone == nil { let z = makeZone(toss: true); tossZone = z; addChild(z) }
         if ateZone == nil { let z = makeZone(toss: false); ateZone = z; addChild(z) }
         // 상단 모서리 — 더미(바닥)와 겹치지 않고, 들어 올려서 넣는 제스처가 자연스럽다.
-        let y = size.height - zoneSide * 0.5 - 12
+        // 존은 **가려지지 않는 영역** 위끝에 — 배너 뒤로 올라가면 드래그 타깃이 안 보인다.
+        let y = clearHeight - zoneSide * 0.5 - 12
         tossZone?.position = CGPoint(x: zoneSide * 0.5 + 14, y: y)
         ateZone?.position = CGPoint(x: size.width - zoneSide * 0.5 - 14, y: y)
     }
@@ -765,7 +789,10 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         } else {
             // 물속 스폰 — 가시 영역 안쪽 상단에 스태거로 놓고 천천히 가라앉힌다.
             // 상자 밖에서 시작하지 않으므로 천장을 열 필요가 없다(컨테인먼트가 계속 밀폐 상태).
-            let y = sealedCeiling - s * (spawnDepth + CGFloat(order) * spawnStagger)
+            // 스폰은 **가려지지 않는 영역** 기준 — 씬이 화면 전체로 커졌다고 스폰까지 올리면
+            // 런치 캐스케이드가 헤더·배너 텍스트 위를 가로질러 올라간다. 확장된 위쪽은
+            // 기울기·셰이크로 굴러 올라갈 때만 쓰는 공간이다.
+            let y = clearCeiling - s * (spawnDepth + CGFloat(order) * spawnStagger)
             node.position = CGPoint(x: x, y: max(floorY + s * 0.3, y))
         }
         addChild(node)

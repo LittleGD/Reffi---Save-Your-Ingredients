@@ -40,6 +40,11 @@ struct MainView: View {
     private let margin = ReffiGrid.margin
     private let navClearance: CGFloat = 86
 
+    /// 좌표 공간 이름 — 스페이서 프레임을 이 공간에서 재야 씬 좌표와 맞물린다.
+    private static let fieldSpace = "mainField"
+    /// 헤더·배너가 물리 필드를 덮는 높이. 씬은 이 값으로 스폰·판정 존을 예전 자리에 유지한다.
+    @State private var overlayTopInset: CGFloat = 0
+
     private var counter: [Ingredient] { store.counterIngredients }
     private var carouselResults: [RecipeRecommender.Result] {
         // 소비 후보 = 전체 가용 재고(예약 제외) — 티켓이 쓰는 재료가 작업대 밖에 있어도
@@ -65,54 +70,14 @@ struct MainView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            header
-                .padding(.horizontal, margin)
-                .padding(.top, ReffiSpace.s2)
-
-            // 발주 진행 카드(§13.6 C) — 헤더 아래 죽은 공간이 상태 표면이 된다.
-            if let cook = store.activeCook {
-                cookingNowCard(cook)
-                    .padding(.horizontal, margin)
-                    .padding(.top, ReffiSpace.s3)
-                    .transition(.move(edge: .top).combined(with: .opacity))
-            } else if showAlertPrompt {
-                alertPromptCard
-                    .padding(.horizontal, margin)
-                    .padding(.top, ReffiSpace.s3)
-                    .transition(.move(edge: .top).combined(with: .opacity))
-            }
-
-            physicsField
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-            if !counter.isEmpty {
-                badgeScroll
-                    .padding(.bottom, ReffiSpace.s2)
-                    .id(dayTick)   // 자정 경과 시 D-day·신선도색 재계산
-            }
-
-            PaperButton(title: "Start cooking") { cook() }
-                .padding(.horizontal, margin)
-                .padding(.top, ReffiSpace.s3)
-                .padding(.bottom, navClearance)
-                .disabled(counter.isEmpty)   // 디밍은 PaperButton이 §7.2로 처리 — 여기서 겹치면 곱해진다.
+        // 3층 구조 — 아래에서 위로: 배경 그라디언트 / 물리 필드 / UI.
+        // 물리 필드가 **화면 최상단부터** 깔려 헤더·배너 뒤까지 재료가 굴러다닌다.
+        // UI가 항상 위층이라 배너 버튼·CTA·탭바 탭은 그대로 이긴다(히트테스트 위계).
+        ZStack {
+            fieldBackground
+            contentLayer
         }
-        .animation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion), value: store.activeCook)
-        .background {
-            ZStack {
-                LiquidGlassBackground(accent: topF.main, accentDeep: topF.dark)
-                // 긴급도 연출(F) — 오늘 만료가 있으면 상단에 옅은 웜톤 시노.
-                if urgentCount > 0 {
-                    LinearGradient(colors: [ReffiColor.urgent.opacity(0.14), .clear],
-                                   startPoint: .top, endPoint: .center)
-                        .ignoresSafeArea()
-                        .allowsHitTesting(false)
-                }
-            }
-            .animation(ReffiMotion.gated(.easeInOut(duration: 0.5), reduce: reduceMotion), value: topF)
-            .animation(ReffiMotion.gated(.easeInOut(duration: 0.5), reduce: reduceMotion), value: urgentCount > 0)
-        }
+        .onPreferenceChange(ClearFieldTopKey.self) { overlayTopInset = $0 }
         .sensoryFeedback(.impact(weight: .medium), trigger: fireHaptic)
         .sensoryFeedback(.impact(weight: .light), trigger: decisionHaptic)
         .fullScreenCover(isPresented: $showCarousel, onDismiss: {
@@ -185,25 +150,121 @@ struct MainView: View {
 
     @State private var dayTick = 0   // 자정 리렌더 트리거
 
+    // MARK: - 레이어
+
+    /// 배경 그라디언트 — 항상 최하층. 히트테스트를 꺼야 그 위 물리 필드의 칩 드래그가 산다.
+    private var fieldBackground: some View {
+        ZStack {
+            LiquidGlassBackground(accent: topF.main, accentDeep: topF.dark)
+            // 긴급도 연출(F) — 오늘 만료가 있으면 상단에 옅은 웜톤 시노.
+            if urgentCount > 0 {
+                LinearGradient(colors: [ReffiColor.urgent.opacity(0.14), .clear],
+                               startPoint: .top, endPoint: .center)
+                    .ignoresSafeArea()
+            }
+        }
+        .allowsHitTesting(false)
+        .animation(ReffiMotion.gated(.easeInOut(duration: 0.5), reduce: reduceMotion), value: topF)
+        .animation(ReffiMotion.gated(.easeInOut(duration: 0.5), reduce: reduceMotion), value: urgentCount > 0)
+    }
+
+    /// UI 층. 헤더·배너·스페이서 묶음(`fieldStack`)의 **배경**이 물리 필드라, 필드가 자동으로
+    /// 화면 최상단부터 배지 행 위까지를 차지한다 — 높이를 따로 재서 주입하면 레이아웃 되먹임이 생겨
+    /// 프레임이 0으로 굳는다(실제로 그렇게 만들었다가 재료가 통째로 사라졌다).
+    private var contentLayer: some View {
+        VStack(spacing: 0) {
+            fieldStack
+
+            if !counter.isEmpty {
+                badgeScroll
+                    .padding(.bottom, ReffiSpace.s2)
+                    .id(dayTick)   // 자정 경과 시 D-day·신선도색 재계산
+            }
+
+            PaperButton(title: "Start cooking") { cook() }
+                .padding(.horizontal, margin)
+                .padding(.top, ReffiSpace.s3)
+                .padding(.bottom, navClearance)
+                .disabled(counter.isEmpty)   // 디밍은 PaperButton이 §7.2로 처리 — 여기서 겹치면 곱해진다.
+        }
+        .animation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion), value: store.activeCook)
+    }
+
+    /// 헤더 + 배너 + 스페이서 묶음. **이 묶음의 배경이 물리 필드**라, 필드가 화면 최상단부터
+    /// 배지 행 위까지 자동으로 깔린다(바닥 위치는 확장 전과 동일). 위쪽은 헤더·배너에 가리지만
+    /// 물리적으로는 열려 있어 기울이면 재료가 그 뒤로 굴러 올라간다.
+    private var fieldStack: some View {
+        VStack(spacing: 0) {
+            header
+                .padding(.horizontal, margin)
+                .padding(.top, ReffiSpace.s2)
+
+            // 발주 진행 카드(§13.6 C) — 헤더 아래 죽은 공간이 상태 표면이 된다.
+            if let cook = store.activeCook {
+                cookingNowCard(cook)
+                    .padding(.horizontal, margin)
+                    .padding(.top, ReffiSpace.s3)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            } else if showAlertPrompt {
+                alertPromptCard
+                    .padding(.horizontal, margin)
+                    .padding(.top, ReffiSpace.s3)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
+
+            clearFieldSpacer
+        }
+        .coordinateSpace(name: Self.fieldSpace)
+        .background(physicsField)
+    }
+
+    /// 예전에 물리 필드가 차지하던 자리 — 이제는 **가려지지 않는 영역을 재는 스페이서**다.
+    /// 여기 minY가 곧 헤더·배너가 씬을 덮는 높이(`scene.overlayTopInset`)이고,
+    /// 씬은 그 값으로 스폰·판정 존을 예전 자리에 유지한다.
+    /// `Color.clear`는 **기본적으로 히트테스트를 먹으므로** 반드시 꺼야 아래 칩 드래그가 산다.
+    private var clearFieldSpacer: some View {
+        Color.clear
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .allowsHitTesting(false)
+            .background(GeometryReader { geo in
+                Color.clear.preference(key: ClearFieldTopKey.self,
+                                       value: geo.frame(in: .named(Self.fieldSpace)).minY)
+            })
+            .overlay { if counter.isEmpty { emptyField } }   // 빈 상태 버튼은 계속 눌려야 한다
+    }
+
     // MARK: - Tilt lab (`-tiltLab`, DEBUG)
 
     #if DEBUG
-    @State private var tiltLabX: Double = Self.launchTilt("tiltLab.x") ?? 0    // 주입 중력 x(정규화) — 오른쪽이 +
-    @State private var tiltLabY: Double = Self.launchTilt("tiltLab.y") ?? -1   // 주입 중력 y(정규화) — 위가 +, 세워 든 기본 자세가 -1
-
-    /// `-tiltLab.x 1` 처럼 시작 중력을 런치 인자로 주입한다(NSArgumentDomain — `-fridge.compact YES` 선례).
-    /// 슬라이더는 코드로 못 움직이므로, 컨테인먼트 스크린샷 QA를 자동화하려면 이 경로가 필요하다.
-    private static func launchTilt(_ key: String) -> Double? {
-        guard UserDefaults.standard.object(forKey: key) != nil else { return nil }
-        return min(1, max(-1, UserDefaults.standard.double(forKey: key)))
+    /// 런치 인자 순수 파서 — `-tiltLab.x -0.9`처럼 값이 음수면 NSArgumentDomain(UserDefaults)이 `-0.9`를
+    /// 다음 키로 오인해 바인딩을 통째로 잃는다(`-fridge.compact YES` 선례는 값이 항상 양수/문자라 문제가
+    /// 없었다). 그래서 ProcessInfo.arguments를 직접 순회해 값을 뽑는다 — 순수 함수라 음수·클램프·누락
+    /// 같은 케이스를 실기기/시뮬레이터 없이 유닛 테스트로 고정할 수 있다.
+    /// `internal`(비-private) — TiltLabLaunchArgTests가 `@testable import Reffi`로 직접 호출한다.
+    /// 반환: x/y는 파싱 성공 시에만 값이 실리고(실패·누락이면 nil, 다음 토큰은 소비하지 않음) -1...1로
+    /// 클램프된다. labOn은 `-tiltLab` 존재, x 파싱 성공, y 파싱 성공, `-tiltLab.shake` 존재 중 하나만
+    /// 참이어도 true. shake는 `-tiltLab.shake` 존재 여부.
+    static func tiltLabLaunchConfig(from args: [String]) -> (x: Double?, y: Double?, labOn: Bool, shake: Bool) {
+        func value(after flag: String) -> Double? {
+            guard let i = args.firstIndex(of: flag), i + 1 < args.count,
+                  let raw = Double(args[i + 1]) else { return nil }
+            return min(1, max(-1, raw))
+        }
+        let x = value(after: "-tiltLab.x")
+        let y = value(after: "-tiltLab.y")
+        let shake = args.contains("-tiltLab.shake")
+        let labOn = args.contains("-tiltLab") || x != nil || y != nil || shake
+        return (x, y, labOn, shake)
     }
 
-    /// `-tiltLab` 또는 `-tiltLab.x/.y` 중 하나만 있어도 실험실을 켠다.
-    private var tiltLabOn: Bool {
-        ProcessInfo.processInfo.arguments.contains("-tiltLab")
-            || UserDefaults.standard.object(forKey: "tiltLab.x") != nil
-            || UserDefaults.standard.object(forKey: "tiltLab.y") != nil
-    }
+    /// 프로세스당 한 번만 파싱 — 아래 여러 프로퍼티가 ProcessInfo.arguments를 반복해 읽지 않도록 캐싱.
+    private static let tiltLabConfig = Self.tiltLabLaunchConfig(from: ProcessInfo.processInfo.arguments)
+
+    @State private var tiltLabX: Double = Self.tiltLabConfig.x ?? 0    // 주입 중력 x(정규화) — 오른쪽이 +
+    @State private var tiltLabY: Double = Self.tiltLabConfig.y ?? -1   // 주입 중력 y(정규화) — 위가 +, 세워 든 기본 자세가 -1
+
+    /// `-tiltLab` 또는 `-tiltLab.x/.y`(파싱 성공) 또는 `-tiltLab.shake` 중 하나만 있어도 실험실을 켠다.
+    private var tiltLabOn: Bool { Self.tiltLabConfig.labOn }
 
     /// 기울기 실험실 — X/Y 슬라이더로 씬 중력 벡터를 직접 주입한다. 시뮬레이터엔 자이로가 없어
     /// CoreMotion 경로를 탈 수 없으므로, 굴러가는 모양 QA는 사실상 이 경로로만 가능하다.
@@ -251,8 +312,9 @@ struct MainView: View {
                     if clatterLog.times.count > 240 { clatterLog.times.removeFirst(120) }
                 }
                 // `-tiltLab.shake` — 버튼을 코드로 못 눌러서, 런치 1.5초 뒤 버스트를 한 번 자동 발동한다
-                // (재료가 자리를 잡은 뒤라야 충돌이 의미 있다).
-                if ProcessInfo.processInfo.arguments.contains("-tiltLab.shake") {
+                // (재료가 자리를 잡은 뒤라야 충돌이 의미 있다). 단독 지정 시에도 tiltLabConfig.labOn이
+                // true가 되어 이 오버레이(및 onAppear)가 열리므로 스케줄이 정상 발동한다.
+                if Self.tiltLabConfig.shake {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { scene.shakeBurst() }
                 }
             }
@@ -419,28 +481,28 @@ struct MainView: View {
 
     // MARK: - Physics field (real engine, persistent pile)
 
+    /// 물리 필드 — 화면 최상단부터 배지 행 위까지의 **배경 캔버스**.
+    /// 빈 상태 안내는 여기 있지 않고 `clearFieldSpacer` 위에 얹힌다(가려지지 않는 영역 중앙에 와야 하므로).
     private var physicsField: some View {
         GeometryReader { geo in
-            ZStack {
-                // 주의: SpriteView(isPaused:)는 초기화 시점에 멈춰 첫 프레임이 안 그려질 수 있다(회색).
-                // 일시정지는 씬이 스스로 관리한다(externallyPaused ∥ idle) — 첫 프레임 이후엔
-                // SKView 렌더 루프까지 멈춰(마지막 프레임 정지화면) 가려진 탭의 유휴 CPU를 없앤다.
-                SpriteView(scene: scene, options: [.allowsTransparency])
-                    .onAppear { configureScene(size: geo.size) }
-                    .onChange(of: geo.size) { _, s in scene.size = s }
-                    .onChange(of: sceneSyncKey) { _, _ in scene.sync(counter) }
-                    .onChange(of: reduceMotion) { _, v in scene.reduceMotion = v }
-                    .onChange(of: scenePaused) { _, p in scene.externallyPaused = p }
-                    .onChange(of: tiltActive) { _, v in scene.tiltEnabled = v }
-                if counter.isEmpty { emptyField }
-            }
-            .frame(width: geo.size.width, height: geo.size.height)
+            // 주의: SpriteView(isPaused:)는 초기화 시점에 멈춰 첫 프레임이 안 그려질 수 있다(회색).
+            // 일시정지는 씬이 스스로 관리한다(externallyPaused ∥ idle) — 첫 프레임 이후엔
+            // SKView 렌더 루프까지 멈춰(마지막 프레임 정지화면) 가려진 탭의 유휴 CPU를 없앤다.
+            SpriteView(scene: scene, options: [.allowsTransparency])
+                .onAppear { configureScene(size: geo.size) }
+                .onChange(of: geo.size) { _, s in scene.size = s }
+                .onChange(of: sceneSyncKey) { _, _ in scene.sync(counter) }
+                .onChange(of: reduceMotion) { _, v in scene.reduceMotion = v }
+                .onChange(of: scenePaused) { _, p in scene.externallyPaused = p }
+                .onChange(of: tiltActive) { _, v in scene.tiltEnabled = v }
+                .onChange(of: overlayTopInset) { _, v in scene.overlayTopInset = max(0, v) }
         }
     }
 
     private func configureScene(size: CGSize) {
         scene.scaleMode = .resizeFill
         scene.size = size
+        scene.overlayTopInset = max(0, overlayTopInset)   // 헤더·배너가 덮는 높이
         scene.reduceMotion = reduceMotion
         scene.onRemove = { id in decide(id) }
         scene.onDecide = { id, wasted in gestureDecide(id, wasted: wasted) }
@@ -579,6 +641,12 @@ struct MainView: View {
             if coverGeneration == gen { showCarousel = false }   // 새로 연 커버는 닫지 않는다
         }
     }
+}
+
+/// 헤더·배너가 물리 필드를 덮는 높이를 위로 나르는 키.
+private struct ClearFieldTopKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
 }
 
 /// Ate/Tossed 결정 — 투명 풀스크린 커버 위 딤 + 종이 카드 + 종이컷 아이콘 버튼 쌍 + 명시적 취소.
