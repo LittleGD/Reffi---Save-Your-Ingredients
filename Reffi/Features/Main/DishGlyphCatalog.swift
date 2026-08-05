@@ -292,6 +292,21 @@ enum DishGlyphCatalog {
         return fallback(name: name, koreanName: koreanName, cuisine: cuisine, id: id)
     }
 
+    // MARK: 확신도별 진입점 (히어로 아이콘 폴백 체인 — `Recipe.heroIcon`)
+
+    /// 시드 매핑 표 적중만 — 손으로 배정한 80종의 **정본** 변주. 표 밖(커스텀·AI)이면 nil.
+    /// 추론까지 포함한 `look(for:)`과 달리 "이 요리를 우리가 그려 뒀는가"에만 답한다 —
+    /// 그려 둔 요리 그림이 따로 있는 이름(김밥)을 짐작으로 덮지 않으려면 이 구분이 필요하다.
+    static func curatedLook(id: String) -> DishLook? { table[id] }
+
+    /// 이름이 요리를 **지목할 때만** 나오는 추론 결과 — cuisine 기본값만으로 만든 짐작은 nil로 돌려보낸다
+    /// ("한식이니 찌개"는 이름이 침묵할 때의 추측이라, 없는 요리를 단정하느니 호출부가 재료로 내려가는 편이 낫다).
+    /// 값이 나올 땐 `look(for:)`와 **같은 결과**다 — 같은 레시피가 표면마다 다른 그림이 되지 않게.
+    static func nameMatchedLook(for recipe: Recipe) -> DishLook? {
+        guard keywordArchetype(name: recipe.name.en, koreanName: recipe.name.ko) != nil else { return nil }
+        return look(for: recipe)
+    }
+
     // MARK: 시드 80개
 
     /// `L`/`M`은 표를 한 줄에 담기 위한 축약 생성자 — 80줄이 눈으로 비교되게(변주 축이 열로 정렬).
@@ -465,13 +480,18 @@ enum DishGlyphCatalog {
     /// 나라는 `cuisine` 필드가 이미 들고 있으므로 이름에서 지워도 정보가 사라지지 않는다.
     private static let countryNoise = ["중국", "한국", "태국", "미국", "영국", "일본", "프랑스"]
 
-    /// 매핑이 없는 레시피의 아이콘. **절대 빈 결과를 내지 않는다** — 원형·색·고명이 항상 채워진다.
-    static func fallback(name: String, koreanName: String?, cuisine: String?, id: String) -> DishLook {
+    /// 이름 키워드가 집어낸 원형 — 아무 규칙도 안 걸리면 nil(호출부가 cuisine 기본으로 내려간다).
+    /// 폴백과 분리해 둔 이유는 **"이름이 요리를 지목했는가"** 자체가 히어로 체인의 분기점이기 때문이다.
+    static func keywordArchetype(name: String, koreanName: String?) -> DishArchetype? {
         var hay = ([name, koreanName].compactMap { $0 }).joined(separator: " ").lowercased()
         for noise in countryNoise { hay = hay.replacingOccurrences(of: noise, with: " ") }
+        return keywordRules.first { $0.needles.contains { hay.contains($0) } }?.archetype
+    }
+
+    /// 매핑이 없는 레시피의 아이콘. **절대 빈 결과를 내지 않는다** — 원형·색·고명이 항상 채워진다.
+    static func fallback(name: String, koreanName: String?, cuisine: String?, id: String) -> DishLook {
         let (defaultArchetype, dl, dc, dh) = cuisineDefault(cuisine)
-        let archetype = keywordRules.first { $0.needles.contains { hay.contains($0) } }?.archetype
-            ?? defaultArchetype
+        let archetype = keywordArchetype(name: name, koreanName: koreanName) ?? defaultArchetype
         // 색상은 id 해시로 흔든다 — 매핑 없는 레시피 여럿이 같은 원형에 몰려도 서로 다른 색이 된다.
         let h = stableHash(id)
         let fill = ReffiColor.oklch(dl + Double(h % 5) * 0.012 - 0.024,

@@ -93,12 +93,11 @@ struct OrderMemoCard: View {
     private var collapsedBody: some View {
         VStack(spacing: ReffiSpace.s3) {
             Spacer(minLength: 0)
-            // 대표 글리프는 `Recipe.glyph`(= 첫 비상비 재료, §13.5) — 레시피에 별도 대표 이미지가 없고,
-            // 이 티켓이 "구하러 가는 재료"가 곧 얼굴이라 축약 상태의 정체성으로 쓸 수 있다.
+            // 히어로는 **요리 정체성 카탈로그 우선, 커스텀 요리명은 큐레이션 표, 최후엔 재료**
+            // (`Recipe.heroIcon` §13.5) — 축약 본문은 아이콘 + 메뉴명뿐이라 이 그림이 곧 메뉴 식별자다.
+            // 재료에서 파생하면 비빔밥이 시금치 잎으로 뜬다. 체인 판정은 모델이 하고 여기선 렌더만 한다.
             // 앱 공통 종이컷 일러스트로 그린다(이모지·이미지 폰트를 아이콘으로 쓰지 않는다, §5).
-            // `fresh:`는 색에 쓰이지 않는 시그니처 유지용 인자다 — 색은 신선도 코딩과 분리(§13.3)라
-            // 티켓 글리프는 재료의 남은 기한과 무관하게 항상 같은 톤으로 그려야 한다.
-            PaperSilhouette(glyph: result.recipe.glyph, fresh: .fresh)
+            RecipeHeroIconView(icon: result.recipe.heroIcon)
                 .frame(width: 146, height: 146)
             Text(verbatim: result.recipe.displayName)
                 .reffiType(.menuName).foregroundStyle(ReffiColor.ink)
@@ -154,7 +153,9 @@ struct OrderMemoCard: View {
                         }
                     }
                     Spacer(minLength: ReffiSpace.s2)
-                    DishSilhouette(look: DishGlyphCatalog.look(for: r))
+                    // 축약 히어로와 **같은** `heroIcon`을 쓴다 — 한 티켓의 두 상태가 다른 그림을 보이면
+                    // 펼치는 순간 다른 요리로 바뀐 것처럼 읽힌다(축약↔펼침은 콘텐츠만 갈리는 한 카드다).
+                    RecipeHeroIconView(icon: r.heroIcon)
                         .frame(width: ReffiDishIcon.ticket, height: ReffiDishIcon.ticket)
                 }
 

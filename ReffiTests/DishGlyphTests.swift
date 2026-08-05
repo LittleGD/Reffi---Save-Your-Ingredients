@@ -118,6 +118,100 @@ struct DishGlyphCatalogTests {
     }
 }
 
+/// 티켓 히어로 아이콘 폴백 체인(`Recipe.heroIcon` §13.5) — **두 일러스트 시스템 사이의 우선순위 계약**.
+/// 요리 카탈로그(`DishSilhouette`)와 재료 글리프(`PaperSilhouette`)가 공존하므로, 어느 레시피가
+/// 어느 쪽으로 가는지가 흔들리면 축약 티켓의 얼굴이 바뀐다(비빔밥이 시금치 잎으로 뜨던 회귀).
+struct RecipeHeroIconTests {
+
+    /// ① 시드는 전부 요리 그림 — 축약 티켓 146pt에서 재료 글리프가 뜨면 안 된다.
+    @Test func everySeedRecipeShowsItsCuratedDish() {
+        for r in seedRecipesForTests() {
+            #expect(r.heroIcon == .dish(DishGlyphCatalog.look(for: r)),
+                    "\(r.id)(\(r.name.ko ?? r.name.en))의 히어로가 요리 카탈로그를 타지 않는다")
+        }
+    }
+
+    /// ① 사용자 불만 지점 3케이스 — 원형까지 못 박는다(비빔밥=덮밥 공기, 김밥=롤 단면, 잡채=면기).
+    @Test func reportedSeedRecipesUseTheRightArchetype() {
+        let expected: [String: DishArchetype] = [
+            "bibimbap": .riceBowl, "gimbap": .rollSlices, "japchae": .noodleBowl,
+        ]
+        let seeds = seedRecipesForTests()
+        for (id, archetype) in expected {
+            guard let r = seeds.first(where: { $0.id == id }) else {
+                Issue.record("시드 \(id)를 찾지 못했다"); continue
+            }
+            guard case .dish(let look) = r.heroIcon else {
+                Issue.record("\(id)가 요리 그림이 아니다: \(r.heroIcon)"); continue
+            }
+            #expect(look.archetype == archetype, "\(id) → \(look.archetype.rawValue)")
+        }
+    }
+
+    /// ② 커스텀 "김밥"은 **손으로 그린 요리형 글리프**를 유지한다 — 카탈로그 이름 추론(③)이
+    /// 앞서면 원형만 롤이고 색은 id 해시라 아무 색 롤이 된다.
+    @Test func customGimbapKeepsTheCuratedDishGlyph() {
+        let recipe = Recipe.userRecipe(name: "김밥", ingredientNames: ["김", "밥", "계란", "당근"],
+                                       minutes: 20, steps: ["말기"])
+        #expect(recipe.heroIcon == .food(.gimbap))
+        // 파생 표기도 같은 그림(이름 부분 일치).
+        let tuna = Recipe.userRecipe(name: "참치김밥", ingredientNames: ["참치", "김"],
+                                     minutes: 15, steps: ["말기"])
+        #expect(tuna.heroIcon == .food(.gimbap))
+    }
+
+    /// ③ 이름이 요리를 지목하는 커스텀은 카탈로그 추론으로 **요리 그림**을 받는다.
+    /// 결과가 `look(for:)`와 같아야 목록(`MyRecipesView`)과 티켓이 같은 그림을 쓴다.
+    @Test func customDishNameFallsBackToCatalogInference() {
+        let cases: [(String, DishArchetype)] = [
+            ("된장찌개", .stewPot), ("새우 파스타", .pastaPlate), ("치즈 그라탕", .bakeDish),
+        ]
+        for (name, archetype) in cases {
+            let r = Recipe.userRecipe(name: name, ingredientNames: ["두부", "양파"],
+                                      minutes: 20, steps: ["끓이기"])
+            #expect(r.heroIcon == .dish(DishGlyphCatalog.look(for: r)),
+                    "\(name)이 카탈로그 추론을 타지 않는다: \(r.heroIcon)")
+            guard case .dish(let look) = r.heroIcon else { continue }
+            #expect(look.archetype == archetype, "\(name) → \(look.archetype.rawValue)")
+        }
+    }
+
+    /// ④ 이름이 아무 요리도 지목하지 않으면 **재료**로 내려간다 — cuisine 기본값만 보고
+    /// "한식이니 찌개"라고 단정하지 않는다(없는 요리를 그리느니 실제 재료를 보여준다).
+    @Test func namelessDishFallsBackToTheIngredientGlyph() {
+        let r = Recipe.userRecipe(name: "Halmeoni Special", ingredientNames: ["토마토", "양파"],
+                                  minutes: 20, steps: ["섞기"])
+        #expect(r.heroIcon == .food(r.glyph), "요리로 못 읽히는 이름인데 요리 그림이 나왔다: \(r.heroIcon)")
+        #expect(r.glyph == .tomato, "첫 비상비 재료가 대표여야 한다")
+        // 대조 — 같은 레시피를 카탈로그에 직접 물으면 cuisine 기본(대접)을 짐작해 돌려준다.
+        #expect(DishGlyphCatalog.nameMatchedLook(for: r) == nil,
+                "이름이 침묵하는데 카탈로그가 요리를 단정했다")
+    }
+
+    /// 체인이 카탈로그와 **갈리는 지점은 ②·④뿐**이다 — 그 밖에선 `look(for:)`와 같은 요리 그림이라
+    /// 카탈로그를 직접 부르는 다른 표면(내 레시피 목록·조리 화면·공유 카드)과 그림이 어긋나지 않는다.
+    /// 갈릴 때도 이유가 하나씩이라야 한다: ② 그려 둔 요리 글리프가 따로 있다 / ④ 이름이 침묵한다.
+    @Test func heroIconDivergesFromTheCatalogOnlyWhereIntended() {
+        let samples: [Recipe] = seedRecipesForTests() + [
+            Recipe.userRecipe(name: "김밥", ingredientNames: ["김", "밥"], minutes: 20, steps: ["말기"]),
+            Recipe.userRecipe(name: "된장찌개", ingredientNames: ["두부"], minutes: 20, steps: ["끓이기"]),
+            Recipe.userRecipe(name: "Halmeoni Special", ingredientNames: ["토마토"], minutes: 20, steps: ["섞기"]),
+        ]
+        for r in samples {
+            switch r.heroIcon {
+            case .dish(let look):
+                #expect(look == DishGlyphCatalog.look(for: r),
+                        "\(r.name.en): 요리 그림인데 카탈로그와 변주가 다르다")
+            case .food:
+                let curated = Recipe.dishGlyph(for: r.name) != nil
+                let silentName = DishGlyphCatalog.nameMatchedLook(for: r) == nil
+                #expect(curated || silentName,
+                        "\(r.name.en): 요리로 읽히는 이름인데 재료 그림으로 내려갔다")
+            }
+        }
+    }
+}
+
 /// 매핑이 **실제 픽셀에 도달하는지**를 시드 80개 전부에 대해 확인한다(`WiltRenderTests` 선례).
 /// 갤러리 스크린샷은 첫 판만 담아 아래쪽이 사각지대로 남는다 — 여기서 오프스크린 래스터로 전수 검사한다.
 @MainActor
