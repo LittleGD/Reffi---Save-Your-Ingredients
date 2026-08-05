@@ -10,7 +10,10 @@ struct ShareCardPreviewView: View {
             RecipeShareCard(
                 recipeName: recipe?.displayName ?? "Bibimbap",
                 steps: recipe?.displaySteps ?? Self.fallbackSteps,
-                count: recipe?.ingredients.count ?? 12
+                count: recipe?.ingredients.count ?? 12,
+                // 매핑 표의 키가 id라, 시드 로드가 실패해도 아이콘은 같은 요리로 나온다.
+                look: DishGlyphCatalog.look(id: "bibimbap",
+                                            name: recipe?.name.en ?? "Bibimbap", cuisine: "korean")
             )
             // 실제 공유 경로(CookingStepsView.renderShareImage)와 같은 라이트 고정 렌더를 검증용에서도 재현.
             .environment(\.colorScheme, .light)

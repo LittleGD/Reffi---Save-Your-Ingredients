@@ -57,7 +57,8 @@ struct ReffiApp: App {
         } else if ProcessInfo.processInfo.arguments.contains("-shareCardPreview") {
             ShareCardPreviewView()
         } else if ProcessInfo.processInfo.arguments.contains("-myRecipesPreview") {
-            MyRecipesView()   // QA·스크린샷용 — 커스텀 레시피 목록/편집 종이화 검증(-shareCardPreview 선례)
+            // QA·스크린샷용 — 커스텀 레시피 목록/편집 종이화 검증(-shareCardPreview 선례).
+            MyRecipesView().onAppear { seedPreviewRecipes() }
         } else if ProcessInfo.processInfo.arguments.contains("-glyphMetrics") {
             GlyphMetricsView()
         } else if ProcessInfo.processInfo.arguments.contains("-buttonGallery") {
@@ -71,6 +72,21 @@ struct ReffiApp: App {
         RootGateView()
         #endif
     }
+
+    #if DEBUG
+    /// `-myRecipesPreview` 표본 — 커스텀 레시피는 사용자가 만든 것뿐이라 QA 설치엔 항상 비어 있다.
+    /// 시드 앞쪽 다섯 개를 커스텀으로 복제해 목록을 채운다(문구 하드코딩 금지 — 이름·재료·단계를
+    /// 전부 번들 시드에서 가져온다, `-previewAIBadge` 선례). 새 UUID를 받으므로 요리 아이콘은
+    /// 매핑 표가 아니라 **폴백 경로**가 그린다 — 실제 커스텀 레시피와 같은 조건이다.
+    @MainActor private func seedPreviewRecipes() {
+        guard store.userRecipes.isEmpty else { return }
+        for r in RecipeCatalog.loadSeed().prefix(5).reversed() {
+            store.addUserRecipe(.userRecipe(name: r.displayName,
+                                            ingredientNames: r.ingredients.map(\.displayName),
+                                            minutes: r.minutes, steps: r.displaySteps))
+        }
+    }
+    #endif
 }
 
 /// 진입 게이트 — 온보딩(기기당 1회) → 로그인(세션/게스트 없으면) → 메인.

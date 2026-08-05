@@ -201,3 +201,49 @@ struct DishRenderTests {
         }
     }
 }
+
+/// 공유 카드(`RecipeShareCard`)의 **오프스크린 경로**를 잠근다.
+/// 공유 이미지는 화면이 아니라 `ImageRenderer`가 만든다 — 화면에선 멀쩡한 `Canvas` 요리 아이콘이
+/// 래스터에서만 비어도 스크린샷 QA로는 안 잡힌다(공유된 영수증에만 그림이 빠진다).
+@MainActor
+struct ShareCardRenderTests {
+
+    /// 실제 공유 경로(`CookingStepsView.renderShareImage`)와 같은 설정 — scale 3 · 라이트 고정.
+    static func raster(recipe: Recipe, look: DishLook) -> [UInt8]? {
+        let card = RecipeShareCard(recipeName: recipe.displayName, steps: recipe.displaySteps,
+                                   count: recipe.ingredients.count, look: look)
+            .environment(\.colorScheme, .light)
+        let renderer = ImageRenderer(content: card)
+        renderer.scale = 3
+        guard let cg = renderer.uiImage?.cgImage else { return nil }
+        let (w, h) = (cg.width, cg.height)
+        var data = [UInt8](repeating: 0, count: w * h * 4)
+        guard let ctx = CGContext(data: &data, width: w, height: h, bitsPerComponent: 8,
+                                  bytesPerRow: w * 4, space: CGColorSpaceCreateDeviceRGB(),
+                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+        ctx.draw(cg, in: CGRect(x: 0, y: 0, width: w, height: h))
+        return data
+    }
+
+    @Test func shareCardCarriesTheDishIconThroughImageRenderer() {
+        let seeds = seedRecipesForTests()
+        guard let dish = seeds.first(where: { $0.id == "kimchi-jjigae" }),
+              let other = seeds.first(where: { $0.id == "pancakes" }) else {
+            Issue.record("시드 로드 실패 — 공유 카드 래스터를 검증할 수 없다"); return
+        }
+        guard let a = Self.raster(recipe: dish, look: DishGlyphCatalog.look(for: dish)) else {
+            Issue.record("공유 카드가 ImageRenderer에서 래스터되지 않았다"); return
+        }
+        // 텍스트·레이아웃은 그대로 두고 **아이콘 변주만** 바꾼 두 번째 장.
+        guard let b = Self.raster(recipe: dish, look: DishGlyphCatalog.look(for: other)),
+              a.count == b.count else {
+            Issue.record("대조군 래스터 실패"); return
+        }
+        var diff = 0
+        for i in stride(from: 0, to: a.count, by: 4) where a[i] != b[i] || a[i + 1] != b[i + 1]
+            || a[i + 2] != b[i + 2] { diff += 1 }
+        // 아이콘은 56pt × scale 3 = 168² ≈ 28k px. 그 일부만 달라도 통과하되, 0이면 Canvas가 빈 것이다.
+        #expect(diff > 1000,
+                "아이콘 변주만 바꿨는데 공유 카드 래스터가 사실상 같다(\(diff)px) — 오프스크린에서 요리 아이콘이 비었다")
+    }
+}

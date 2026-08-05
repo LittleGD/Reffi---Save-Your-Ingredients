@@ -158,9 +158,16 @@ struct CookingStepsView: View {
                     .foregroundStyle(ReffiColor.ink2)
             }
 
-            Text(verbatim: cook.recipeName)
-                .reffiType(.menuName).foregroundStyle(ReffiColor.ink)
-                .fixedSize(horizontal: false, vertical: true)
+            // 메뉴명 + 요리 아이콘 — 오더 티켓(`OrderMemoCard`)과 **같은 자리·같은 크기**로 둔다.
+            // 발주 전후로 아이콘이 움직이면 같은 티켓이 조리 티켓이 됐다는 연결이 끊긴다.
+            HStack(alignment: .top, spacing: ReffiSpace.s3) {
+                Text(verbatim: cook.recipeName)
+                    .reffiType(.menuName).foregroundStyle(ReffiColor.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: ReffiSpace.s2)
+                DishSilhouette(look: dishLook(for: cook))
+                    .frame(width: ReffiDishIcon.ticket, height: ReffiDishIcon.ticket)
+            }
 
             DashedRule()
 
@@ -279,6 +286,16 @@ struct CookingStepsView: View {
         .accessibilityValue(done ? Text("Done") : Text(verbatim: ""))
     }
 
+    /// 세션의 요리 아이콘 — 발주 때 남긴 레시피 id로 **원본 레시피를 되찾아** 오더 티켓과 같은 변주를 쓴다.
+    /// 레시피가 지워졌거나 id가 없는 구버전 세션이면 이름으로 폴백한다(빈 아이콘은 나오지 않는다).
+    private func dishLook(for cook: FridgeStore.CookSession) -> DishLook {
+        if let id = cook.recipeID, let recipe = store.recipes.first(where: { $0.id == id }) {
+            return DishGlyphCatalog.look(for: recipe)
+        }
+        return DishGlyphCatalog.look(id: cook.recipeID ?? cook.recipeName,
+                                     name: cook.recipeName, cuisine: nil)
+    }
+
     /// 유튜브 검색 URL — 레시피명 + "recipe"를 퍼센트 인코딩. 인코딩·URL 생성 실패 시 유튜브 홈으로 폴백.
     private func youtubeSearchURL(for recipeName: String) -> URL {
         let fallback = URL(string: "https://www.youtube.com")!
@@ -292,7 +309,8 @@ struct CookingStepsView: View {
     private func renderShareImage(for cook: FridgeStore.CookSession) -> Image? {
         // 공유 이미지는 물리 산출물(인쇄된 영수증)이라 기기 다크모드와 무관하게 항상 라이트 종이로 렌더한다.
         // ImageRenderer는 환경을 명시하지 않으면 항상 라이트로 해석하지만, 명시적으로 고정해 의도를 문서화한다.
-        let card = RecipeShareCard(recipeName: cook.recipeName, steps: cook.steps ?? [], count: cook.count)
+        let card = RecipeShareCard(recipeName: cook.recipeName, steps: cook.steps ?? [],
+                                   count: cook.count, look: dishLook(for: cook))
             .environment(\.colorScheme, .light)
         let renderer = ImageRenderer(content: card)
         renderer.scale = 3   // 레티나

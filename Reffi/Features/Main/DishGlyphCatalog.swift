@@ -431,7 +431,7 @@ enum DishGlyphCatalog {
         (["팬케이크", "크레페", "전", "부침", "pancake", "crepe", "jeon", "frittata", "omelette", "omelet", "waffle", "와플"], .discStack),
         (["샐러드", "무침", "나물", "salad", "hummus", "dip", "salsa", "슬로", "slaw", "pickle", "겉절이"], .sideBowl),
         (["구이", "스테이크", "커틀릿", "돈까스", "grill", "steak", "cutlet", "schnitzel", "seared", "roast", "bbq", "탄두리", "tandoori"], .grillPlate),
-        (["볶음", "stir-fry", "stir fry", "saute", "sauté", "skillet", "pan-fried", "scrambled", "shakshuka"], .skillet),
+        (["볶음", "불고기", "bulgogi", "제육", "stir-fry", "stir fry", "stir-fried", "stir fried", "saute", "sauté", "skillet", "pan-fried", "scrambled", "shakshuka"], .skillet),
     ]
 
     /// cuisine → 폴백 기본 원형·색조. 키워드가 하나도 안 걸릴 때 쓴다.
