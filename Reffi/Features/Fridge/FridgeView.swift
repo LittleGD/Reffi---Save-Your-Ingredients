@@ -486,7 +486,7 @@ struct FridgeCompactRow: View {
     var body: some View {
         let f = ingredient.freshness
         return HStack(spacing: ReffiSpace.s3) {
-            PaperSilhouette(glyph: ingredient.glyph, fresh: f)
+            PaperSilhouette(glyph: ingredient.glyph, fresh: f, wilted: f.isWilted)
                 .frame(width: 34, height: 34)
             VStack(alignment: .leading, spacing: 1) {
                 Text(ingredient.name)
@@ -564,7 +564,7 @@ struct FridgeCard: View {
                 DDayStamp(text: ingredient.dDayText, color: f.dark, size: 17)
             }
             HStack(spacing: ReffiSpace.s3) {
-                PaperSilhouette(glyph: ingredient.glyph, fresh: f)
+                PaperSilhouette(glyph: ingredient.glyph, fresh: f, wilted: f.isWilted)
                     .frame(width: 46, height: 46)
                 Text(ingredient.name)
                     .reffiType(.subhead).foregroundStyle(ReffiColor.ink).lineLimit(1)
@@ -602,7 +602,7 @@ struct ExpandedFridgeCard: View {
         return VStack(alignment: .leading, spacing: 0) {
             // 헤더 — 큰 일러스트 + (카테고리·편집) / (이름·Due date)
             HStack(spacing: ReffiSpace.s4) {
-                PaperSilhouette(glyph: ingredient.glyph, fresh: f)
+                PaperSilhouette(glyph: ingredient.glyph, fresh: f, wilted: f.isWilted)
                     .frame(width: 64, height: 64)
                 VStack(alignment: .leading, spacing: 2) {
                     HStack {

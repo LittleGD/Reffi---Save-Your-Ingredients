@@ -35,6 +35,9 @@ final class FridgeStore {
 
     struct CookSession: Codable, Equatable {
         var recipeName: String
+        /// 발주한 레시피의 id — 조리 화면이 원본 레시피를 되찾아 **오더 티켓과 같은 요리 아이콘**을
+        /// 그리게 한다(이름만으론 시드 매핑 표에 닿지 못한다). 구버전 파일엔 없으므로 옵셔널.
+        var recipeID: String?
         var startedAt: Date
         var count: Int                    // 발주로 예약한 재료 수
         var steps: [String]?              // 단계 레시피(발주 시점 스냅샷) — 구버전 파일 호환용 옵셔널
@@ -351,7 +354,8 @@ final class FridgeStore {
         let counterBefore = counterIDs
         // 진행 중 세션이 있으면 교체 — 이전 예약은 자동 해제되고, undo가 이전 세션을 복원한다.
         let replaced = activeCook
-        activeCook = CookSession(recipeName: result.recipe.displayName, startedAt: Date(),
+        activeCook = CookSession(recipeName: result.recipe.displayName, recipeID: result.recipe.id,
+                                 startedAt: Date(),
                                  count: used.count, steps: result.recipe.displaySteps,
                                  usedIDs: used.map(\.id))
         let reserved = reservedIDs

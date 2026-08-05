@@ -92,6 +92,9 @@ struct MyRecipesView: View {
     private func recipeCard(_ recipe: Recipe, seed: Int) -> some View {
         Button { editing = recipe } label: {
             HStack(spacing: ReffiSpace.s3) {
+                // 요리 아이콘 — 커스텀 레시피는 매핑 표 밖이라 전부 폴백(이름 키워드 → 원형)이 그린다.
+                DishSilhouette(look: DishGlyphCatalog.look(for: recipe))
+                    .frame(width: ReffiDishIcon.row, height: ReffiDishIcon.row)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(verbatim: recipe.displayName)
                         .reffiType(.body).foregroundStyle(ReffiColor.ink)

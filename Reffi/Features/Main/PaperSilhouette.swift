@@ -9,10 +9,26 @@ struct PaperSilhouette: View {
     /// false면 외곽 그림자 필터를 끈다 — 물리 바디용 텍스처는 알파 임계로 모양을 뜨므로
     /// 그림자가 실제 글리프보다 큰 충돌체를 만든다(재료 사이 빈틈). 표시용은 기본값 그대로.
     var shadowed: Bool = true
+    /// true면 **시든 처리**(채도↓·누런 워시·분류별 처짐·꼭짓점 라운딩)를 얹는다(`Wilt`).
+    /// 신선도(`fresh`)에서 자동 파생하지 않는다 — 갤러리·온보딩·쇼핑리스트·바디 계측처럼
+    /// **재고 아이템이 아닌** 표시 지점이 있어, "이건 재고인가"는 호출부가 정해야 한다.
+    var wilted: Bool = false
+
+    /// 이번 렌더에 적용할 형태 처리 — 신선하면 nil(원본 각짐 그대로).
+    private var look: Wilt.Look? { wilted ? Wilt.look(for: glyph) : nil }
 
     var body: some View {
         Canvas { ctx, size in
             let r = CGRect(origin: .zero, size: size).insetBy(dx: size.width * 0.1, dy: size.height * 0.1)
+            // 처짐·퍼짐 — 그림자까지 같이 기울도록 그리기 **전에** 좌표계를 접는다.
+            if let look {
+                // 바닥 앵커(밑변 가운데) — 밑동은 제자리에 두고 윗부분만 숙게 한다.
+                // 세로로 눌린 만큼 가로로 아주 살짝 퍼져 "물러서 주저앉은" 인상이 된다.
+                ctx.translateBy(x: r.midX, y: r.maxY)
+                ctx.rotate(by: .degrees(look.tilt))
+                ctx.scaleBy(x: look.spread, y: look.squash)
+                ctx.translateBy(x: -r.midX, y: -r.maxY)
+            }
             // 배경 분리 — 실루엣 전체를 한 겹으로 합성해 **단일 외곽 그림자**를 준다.
             // 흰색 계열(달걀·버섯 기둥·우유)이 크림 배경에 묻히지 않게 가장자리에 옅은 헤일로.
             var shaded = ctx
@@ -21,10 +37,67 @@ struct PaperSilhouette: View {
                                          radius: size.width * 0.04, x: 0, y: size.height * 0.015))
             }
             shaded.drawLayer { layer in
-                Self.draw(glyph, in: r, ctx: &layer)
+                guard wilted else {
+                    draw(glyph, in: r, ctx: &layer)
+                    return
+                }
+                // 색 바램 — **레이어를 겹쳐 적용 순서를 못 박는다**: 안쪽에서 채도를 먼저 빼고,
+                // 그 결과에 누런 워시를 곱한다. 순서가 뒤집히면 워시의 누런 기까지 함께 빠져
+                // 그냥 흐릿한 회색이 된다.
+                layer.addFilter(.colorMultiply(Wilt.wash))
+                layer.drawLayer { faded in
+                    faded.addFilter(.saturation(Wilt.saturation))
+                    draw(glyph, in: r, ctx: &faded)
+                }
             }
         }
         .accessibilityHidden(true)
+    }
+
+    // MARK: Wilt (시든 상태 — 52종을 다시 그리지 않고 렌더 레이어에서 일괄 처리)
+
+    /// 소비기한이 임박한 재료(`Freshness.isWilted`)의 시각 처리값(§13.3).
+    /// **색 바램은 전 분류 공통**, **형태(처짐·퍼짐·라운딩)만 분류별로 차등**한다. 지향점은
+    /// "종이공예 재료가 숨이 죽은" 상태이지 "상한" 상태가 아니다 — 값을 더 키우면 썩은 갈색 덩어리
+    /// 또는 정체불명의 블롭이 되니 미묘함을 지킨다.
+    /// `internal`(비-private) — WiltTests가 `@testable import Reffi`로 분류를 직접 고정한다
+    /// (`MainView.tiltLabLaunchConfig` 선례).
+    enum Wilt {
+        /// 채도 배율 — 0.6이면 색이 40% 빠진다. 이보다 더 내리면 "회색으로 상한" 쪽으로 넘어간다.
+        static let saturation: Double = 0.60
+        /// 누런 워시 — 곱하기 합성이라 파랑 채널이 가장 크게 깎여 전체가 누렇게 가라앉고,
+        /// L이 1보다 낮은 만큼 명도도 함께 살짝 내려간다. 색은 OKLCH 정본(hex 금지).
+        /// 팔레트와 마찬가지로 **고정색** — 적응형 토큰을 쓰면 다크에서 실루엣이 뒤집히고,
+        /// 물리 텍스처 캐시의 "라이트/다크 픽셀 동일" 전제도 깨진다.
+        static let wash = ReffiColor.oklch(0.90, 0.030, 88)
+
+        /// 시든 재료의 **형태** 처리.
+        /// - `tilt`·`squash`: 처짐(바닥 앵커) — 밑동은 그대로, 윗부분이 숙는다.
+        /// - `spread`: 세로로 눌린 만큼 가로로 살짝 퍼짐 — 주저앉은 인상을 보강한다.
+        /// - `rounding`: 빳빳하던 꼭짓점을 뭉툭하게 — 종이가 물을 먹어 각이 무뎌진 느낌.
+        struct Look: Equatable {
+            let tilt: Double        // 기울기(도, 음수 = 반시계)
+            let squash: CGFloat     // 세로 스쿼시
+            let spread: CGFloat     // 가로 퍼짐
+            /// 꼭짓점 라운딩 — **각 면의 짧은 변 기준 비율**(0 = 각 그대로)이라 34pt 간편보기 행이든
+            /// 70pt 갤러리든 같은 인상을 준다(절대 반경이면 작은 글리프만 뭉개진다).
+            let rounding: CGFloat
+        }
+
+        /// 분류별 형태 처리. 분류 축은 기존 `FoodGlyph.categoryLabel`을 그대로 재사용한다
+        /// (시듦 전용 분류 테이블을 새로 만들면 글리프가 늘 때마다 두 곳을 손봐야 한다).
+        /// - `Veg`: 잎·줄기가 가장 먼저 숨이 죽는다 → 처짐·물러짐 모두 가장 강하게.
+        /// - `Fruit`: 무르는 건 채소만큼이지만 형태가 덩어리라 처짐은 중간, 라운딩은 강하게.
+        /// - `Dairy`·`Pantry`: 갑·병·캔·단지·달걀 — **형태 불변**(캔은 시들지 않는다). 색만 바램.
+        /// - 그 밖(육류·해산물·두부·빵·곡류): 처짐·라운딩 모두 중간.
+        static func look(for glyph: FoodGlyph) -> Look? {
+            switch glyph.categoryLabel {
+            case "Veg":             Look(tilt: -7.0, squash: 0.935, spread: 1.030, rounding: 0.17)
+            case "Fruit":           Look(tilt: -4.5, squash: 0.955, spread: 1.022, rounding: 0.15)
+            case "Dairy", "Pantry": nil
+            default:                Look(tilt: -4.5, squash: 0.965, spread: 1.000, rounding: 0.09)
+            }
+        }
     }
 
     // MARK: Palette (자연색 · 각 몸통마다 base/shade/highlight 3톤으로 면분할)
@@ -175,18 +248,22 @@ struct PaperSilhouette: View {
     }
 
     // MARK: Helpers
-    private static func fill(_ ctx: inout GraphicsContext, _ p: Path, _ color: Color) { ctx.fill(p, with: .color(color)) }
+    private func fill(_ ctx: inout GraphicsContext, _ p: Path, _ color: Color) { ctx.fill(p, with: .color(color)) }
 
     /// 종이 그림자(아래로 옅게).
-    private static func shadow(_ ctx: inout GraphicsContext, _ p: Path, _ r: CGRect) {
+    private func shadow(_ ctx: inout GraphicsContext, _ p: Path, _ r: CGRect) {
         ctx.fill(p.applying(.init(translationX: 0, y: r.height * 0.02)), with: .color(.black.opacity(0.08)))
     }
-    private static func rot(_ a: CGFloat, _ c: CGPoint) -> CGAffineTransform {
+    private func rot(_ a: CGFloat, _ c: CGPoint) -> CGAffineTransform {
         CGAffineTransform(translationX: c.x, y: c.y).rotated(by: a).translatedBy(x: -c.x, y: -c.y)
     }
 
-    /// 닫힌 다각형(직선 면).
-    private static func poly(_ pts: [CGPoint]) -> Path {
+    /// 닫힌 다각형(직선 면). **모든 글리프의 면이 이 한 곳을 지난다**(`facet`·`angularLeaf`도 여기로
+    /// 모인다) — 그래서 시든 재료의 "각이 무뎌짐"을 52종 draw 함수를 건드리지 않고 여기서 일괄 적용한다.
+    private func poly(_ pts: [CGPoint]) -> Path {
+        if let look, look.rounding > 0, pts.count >= 3 {
+            return roundedPoly(pts, look.rounding)
+        }
         var p = Path()
         guard let f = pts.first else { return p }
         p.move(to: f)
@@ -195,8 +272,45 @@ struct PaperSilhouette: View {
         return p
     }
 
+    /// 꼭짓점을 깎은 닫힌 다각형 — 각 꼭짓점에서 인접 두 변으로 물러난 지점을 2차 베지에로 잇는다
+    /// (제어점 = 원래 꼭짓점).
+    ///
+    /// 물러나는 거리는 **그 도형 자신의 짧은 변(바운딩 박스) 비율**이다. 변 길이 비율로 잡으면
+    /// 마름모(잎)처럼 변이 긴 도형만 통째로 뭉개져 정체불명의 블롭이 되고, 12각형처럼 변이 짧은
+    /// 도형은 거의 안 변한다 — 같은 글리프 안에서도 처리 강도가 제각각이 된다. 도형 크기 기준이면
+    /// 모든 면이 비슷한 만큼 무뎌지고, 잎맥·씨앗 같은 **가느다란 조각은 자기 폭에 비례해 거의 그대로**
+    /// 남아 몸통 밖으로 삐져나오지 않는다.
+    ///
+    /// 꼭짓점당 물러나는 거리는 짧은 인접 변의 42%로 한 번 더 조인다 — 이웃한 라운딩끼리 한 변에서
+    /// 소비하는 길이의 합이 최대 84%라 서로 겹치지 않는다.
+    private func roundedPoly(_ pts: [CGPoint], _ frac: CGFloat) -> Path {
+        let xs = pts.map(\.x), ys = pts.map(\.y)
+        let box = min((xs.max() ?? 0) - (xs.min() ?? 0), (ys.max() ?? 0) - (ys.min() ?? 0))
+        let radius = box * frac
+        let n = pts.count
+        var p = Path()
+        var started = false
+        func step(to pt: CGPoint) {
+            if started { p.addLine(to: pt) } else { p.move(to: pt); started = true }
+        }
+        for i in 0..<n {
+            let cur = pts[i], prev = pts[(i + n - 1) % n], next = pts[(i + 1) % n]
+            let (dxA, dyA) = (prev.x - cur.x, prev.y - cur.y)
+            let (dxB, dyB) = (next.x - cur.x, next.y - cur.y)
+            let lenA = hypot(dxA, dyA), lenB = hypot(dxB, dyB)
+            // 길이 0인 변(중복 점)은 깎을 방향이 없다 — 원래 꼭짓점을 그대로 통과시킨다.
+            guard lenA > 0.0001, lenB > 0.0001 else { step(to: cur); continue }
+            let back = min(radius, 0.42 * min(lenA, lenB))
+            step(to: CGPoint(x: cur.x + dxA / lenA * back, y: cur.y + dyA / lenA * back))
+            p.addQuadCurve(to: CGPoint(x: cur.x + dxB / lenB * back, y: cur.y + dyB / lenB * back),
+                           control: cur)
+        }
+        p.closeSubpath()
+        return p
+    }
+
     /// 각진 N각형(타원 근사) — 곡선 대신 직선 면으로 종이 컷 느낌. phase로 첫 정점 각도 조절.
-    private static func facet(_ cx: CGFloat, _ cy: CGFloat, _ w: CGFloat, _ h: CGFloat,
+    private func facet(_ cx: CGFloat, _ cy: CGFloat, _ w: CGFloat, _ h: CGFloat,
                               _ sides: Int, phase: CGFloat = -.pi / 2) -> Path {
         var pts: [CGPoint] = []
         for i in 0..<sides {
@@ -207,7 +321,7 @@ struct PaperSilhouette: View {
     }
 
     /// 각진 잎/칼날 한 장(base→tip, 가운데가 가장 넓은 다이아 블레이드) — 어느 각도든 동작.
-    private static func angularLeaf(_ base: CGPoint, _ tip: CGPoint, _ halfW: CGFloat) -> Path {
+    private func angularLeaf(_ base: CGPoint, _ tip: CGPoint, _ halfW: CGFloat) -> Path {
         let mid = CGPoint(x: (base.x + tip.x) / 2, y: (base.y + tip.y) / 2)
         let dx = tip.y - base.y, dy = -(tip.x - base.x)     // 진행방향의 수직
         let len = max(hypot(dx, dy), 0.0001)
@@ -220,7 +334,7 @@ struct PaperSilhouette: View {
 
     /// 몸통 면분할(2~3톤) — body로 클립하고 우하 어두운 면 + 좌상 밝은 면을 얹는다.
     /// 대각선 직선 경계라 "잘라 붙인 면" 느낌이 난다.
-    private static func shadeBody(_ ctx: inout GraphicsContext, _ body: Path,
+    private func shadeBody(_ ctx: inout GraphicsContext, _ body: Path,
                                   dark: Color, light: Color? = nil, split: CGFloat = 0.42) {
         let b = body.boundingRect
         guard b.width > 0, b.height > 0 else { return }
@@ -238,12 +352,12 @@ struct PaperSilhouette: View {
         }
     }
 
-    private static func roundRect(_ rect: CGRect, _ rad: CGFloat) -> Path {
+    private func roundRect(_ rect: CGRect, _ rad: CGFloat) -> Path {
         Path(roundedRect: rect, cornerRadius: rad, style: .continuous)
     }
 
     // MARK: Dispatch
-    static func draw(_ glyph: FoodGlyph, in r: CGRect, ctx: inout GraphicsContext) {
+    func draw(_ glyph: FoodGlyph, in r: CGRect, ctx: inout GraphicsContext) {
         switch glyph {
         // 채소
         case .root:      carrot(r, &ctx)
@@ -308,7 +422,7 @@ struct PaperSilhouette: View {
     // MARK: - Vegetables
 
     /// 당근 — 각진 오렌지 원뿔 + 초록 잎 프린지.
-    private static func carrot(_ r: CGRect, _ ctx: inout GraphicsContext) {
+    private func carrot(_ r: CGRect, _ ctx: inout GraphicsContext) {
         let cx = r.midX, topY = r.minY + r.height * 0.36, hw = r.width * 0.19, bot = r.maxY - r.height * 0.02
         let body = poly([
             CGPoint(x: cx - hw, y: topY),
@@ -336,7 +450,7 @@ struct PaperSilhouette: View {
     }
 
     /// 토마토 — 각진(8각) 빨강 몸 + 초록 별 꼭지 + 줄기.
-    private static func tomato(_ r: CGRect, _ ctx: inout GraphicsContext) {
+    private func tomato(_ r: CGRect, _ ctx: inout GraphicsContext) {
         let cy = r.midY + r.height * 0.06, w = r.width * 0.84, h = r.height * 0.76
         let body = facet(r.midX, cy, w, h, 8, phase: -.pi / 2 + .pi / 8)
         shadow(&ctx, body, r)
@@ -363,7 +477,7 @@ struct PaperSilhouette: View {
     }
 
     /// 파프리카 — 각진 노랑 몸(하부 두 로브) + 올리브 꼭지.
-    private static func pepper(_ r: CGRect, _ ctx: inout GraphicsContext) {
+    private func pepper(_ r: CGRect, _ ctx: inout GraphicsContext) {
         let cx = r.midX, cy = r.midY + r.height * 0.06, w = r.width * 0.76, h = r.height * 0.78
         let top = cy - h / 2, bot = cy + h / 2
         let body = poly([
@@ -388,7 +502,7 @@ struct PaperSilhouette: View {
     }
 
     /// 애호박 — 각진 초록 원기둥(기울임) + 꼭지.
-    private static func zucchini(_ r: CGRect, _ ctx: inout GraphicsContext) {
+    private func zucchini(_ r: CGRect, _ ctx: inout GraphicsContext) {
         let cx = r.midX, cy = r.midY, w = r.width * 0.34, h = r.height * 0.80
         let body = poly([
             CGPoint(x: cx - w / 2, y: cy - h * 0.36),
@@ -412,7 +526,7 @@ struct PaperSilhouette: View {
     }
 
     /// 잎채소 — 각진 초록 잎 두 장 + 잎맥.
-    private static func greens(_ r: CGRect, _ ctx: inout GraphicsContext) {
+    private func greens(_ r: CGRect, _ ctx: inout GraphicsContext) {
         let cx = r.midX
         let bigBase = CGPoint(x: cx, y: r.maxY - r.height * 0.04)
         let big = angularLeaf(bigBase, CGPoint(x: cx - r.width * 0.06, y: r.minY + r.height * 0.02), r.width * 0.34)
@@ -432,7 +546,7 @@ struct PaperSilhouette: View {
     }
 
     /// 양파 — 각진 크림 알뿌리 + 초록 싹 + **보라 뿌리 액센트**.
-    private static func onion(_ r: CGRect, _ ctx: inout GraphicsContext) {
+    private func onion(_ r: CGRect, _ ctx: inout GraphicsContext) {
         let cx = r.midX, cy = r.midY + r.height * 0.10, w = r.width * 0.72, h = r.height * 0.66
         let top = cy - h / 2, bot = cy + h / 2
         let body = poly([
@@ -472,7 +586,7 @@ struct PaperSilhouette: View {
     }
 
     /// 버섯 — 각진 탄 갓 + 점 + 크림 기둥.
-    private static func mushroom(_ r: CGRect, _ ctx: inout GraphicsContext) {
+    private func mushroom(_ r: CGRect, _ ctx: inout GraphicsContext) {
         let cx = r.midX, cy = r.midY, w = r.width * 0.82, h = r.height * 0.72
         let capBot = cy - h * 0.02, stemW = w * 0.36
         // 기둥(크림, 각진)
@@ -499,7 +613,7 @@ struct PaperSilhouette: View {
     }
 
     /// 브로콜리 — 각진 초록 봉오리 클러스터(줄기에 맞닿게) + 연두 줄기.
-    private static func broccoli(_ r: CGRect, _ ctx: inout GraphicsContext) {
+    private func broccoli(_ r: CGRect, _ ctx: inout GraphicsContext) {
         let cx = r.midX, cy = r.midY, w = r.width * 0.82, h = r.height * 0.82
         let stalkTop = cy + h * 0.06, stalkW = w * 0.28
         // 줄기(연두, 각진) — 봉오리 클러스터 밑동과 겹치게 위로 올린다.
@@ -523,7 +637,7 @@ struct PaperSilhouette: View {
     }
 
     /// 감자 — 각진 탄 덩이 + 눈.
-    private static func potato(_ r: CGRect, _ ctx: inout GraphicsContext) {
+    private func potato(_ r: CGRect, _ ctx: inout GraphicsContext) {
         let cx = r.midX, cy = r.midY, w = r.width * 0.84, h = r.height * 0.66
         let body = poly([
             CGPoint(x: cx - w * 0.46, y: cy - h * 0.20),
@@ -544,7 +658,7 @@ struct PaperSilhouette: View {
     }
 
     /// 마늘 — 각진 크림 알뿌리 + 클로브 결.
-    private static func garlic(_ r: CGRect, _ ctx: inout GraphicsContext) {
+    private func garlic(_ r: CGRect, _ ctx: inout GraphicsContext) {
         let cx = r.midX, cy = r.midY + r.height * 0.06, w = r.width * 0.64, h = r.height * 0.74
         let top = cy - h / 2, bot = cy + h / 2
         let body = poly([
@@ -572,7 +686,7 @@ struct PaperSilhouette: View {
     }
 
     /// 오이 단면 — 연두 원 + 진초록 씨앗 별무늬.
-    private static func cucumber(_ r: CGRect, _ ctx: inout GraphicsContext) {
+    private func cucumber(_ r: CGRect, _ ctx: inout GraphicsContext) {
         let cx = r.midX, cy = r.midY, R = min(r.width, r.height) * 0.42
         let rind = facet(cx, cy, R * 2, R * 2, 9)
         shadow(&ctx, rind, r)
@@ -591,7 +705,7 @@ struct PaperSilhouette: View {
     }
 
     /// 완두 꼬투리 — 진초록 포드 + 연두 콩알.
-    private static func pea(_ r: CGRect, _ ctx: inout GraphicsContext) {
+    private func pea(_ r: CGRect, _ ctx: inout GraphicsContext) {
         let cx = r.midX, cy = r.midY
         // 꼬투리(기울인 각진 반달)
         let pod = poly([
@@ -617,7 +731,7 @@ struct PaperSilhouette: View {
     }
 
     /// 양배추 — 연녹 각진 머리 + 짙은 겉잎 + 잎맥.
-    private static func cabbage(_ r: CGRect, _ ctx: inout GraphicsContext) {
+    private func cabbage(_ r: CGRect, _ ctx: inout GraphicsContext) {
         let cx = r.midX, cy = r.midY + r.height * 0.02, w = r.width * 0.86, h = r.height * 0.82
         // 겉잎(짙은 초록, 조금 큰 각진 원)
         let outer = facet(cx, cy, w, h, 8)
@@ -640,7 +754,7 @@ struct PaperSilhouette: View {
     }
 
     /// 고추 — 각진 붉은 뿔 + 초록 꼭지.
-    private static func chili(_ r: CGRect, _ ctx: inout GraphicsContext) {
+    private func chili(_ r: CGRect, _ ctx: inout GraphicsContext) {
         let cx = r.midX, top = r.minY + r.height * 0.14
         let body = poly([
             CGPoint(x: cx - r.width * 0.14, y: top),
@@ -664,7 +778,7 @@ struct PaperSilhouette: View {
     }
 
     /// 호박(단호박/늙은호박) — 각진 오렌지 몸 + 세로 리브 + 초록 꼭지.
-    private static func pumpkin(_ r: CGRect, _ ctx: inout GraphicsContext) {
+    private func pumpkin(_ r: CGRect, _ ctx: inout GraphicsContext) {
         let cx = r.midX, cy = r.midY + r.height * 0.06, w = r.width * 0.9, h = r.height * 0.72
         let body = facet(cx, cy, w, h, 8, phase: -.pi / 2 + .pi / 8)
         shadow(&ctx, body, r)
@@ -687,7 +801,7 @@ struct PaperSilhouette: View {
     }
 
     /// 옥수수 — 각진 노랑 자루(알갱이 격자) + 초록 껍질.
-    private static func corn(_ r: CGRect, _ ctx: inout GraphicsContext) {
+    private func corn(_ r: CGRect, _ ctx: inout GraphicsContext) {
         let cx = r.midX, cy = r.midY - r.height * 0.02, w = r.width * 0.44, h = r.height * 0.82
         let top = cy - h / 2, bot = cy + h / 2
         // 껍질 두 장(초록, 하부)
@@ -723,7 +837,7 @@ struct PaperSilhouette: View {
     // MARK: - Fruit
 
     /// 사과 — 각진 빨강 몸(윗 노치) + 갈색 줄기 + 초록 잎.
-    private static func apple(_ r: CGRect, _ ctx: inout GraphicsContext) {
+    private func apple(_ r: CGRect, _ ctx: inout GraphicsContext) {
         let cx = r.midX, cy = r.midY + r.height * 0.05, w = r.width * 0.84, h = r.height * 0.78
         let top = cy - h / 2, bot = cy + h / 2
         let body = poly([
@@ -751,7 +865,7 @@ struct PaperSilhouette: View {
     }
 
     /// 레몬 — 각진 노랑 타원(양끝 뾰족).
-    private static func lemon(_ r: CGRect, _ ctx: inout GraphicsContext) {
+    private func lemon(_ r: CGRect, _ ctx: inout GraphicsContext) {
         let cx = r.midX, cy = r.midY, w = r.width * 0.84, h = r.height * 0.60
         let body = poly([
             CGPoint(x: cx - w / 2, y: cy + h * 0.04),
@@ -771,7 +885,7 @@ struct PaperSilhouette: View {
     }
 
     /// 딸기 — 각진 빨강 몸 + 초록 꼭지 + 씨.
-    private static func berry(_ r: CGRect, _ ctx: inout GraphicsContext) {
+    private func berry(_ r: CGRect, _ ctx: inout GraphicsContext) {
         let cx = r.midX, cy = r.midY + r.height * 0.06, w = r.width * 0.66, h = r.height * 0.76
         let top = cy - h / 2, bot = cy + h / 2
         let body = poly([
@@ -798,7 +912,7 @@ struct PaperSilhouette: View {
     }
 
     /// 아보카도 반쪽 — 짙은 껍질 + 황록 과육 + 밤색 씨.
-    private static func avocado(_ r: CGRect, _ ctx: inout GraphicsContext) {
+    private func avocado(_ r: CGRect, _ ctx: inout GraphicsContext) {
         let cx = r.midX, cy = r.midY, w = r.width * 0.62, h = r.height * 0.86
         // 서양배 모양(각진) — 위 좁고 아래 넓게
         func pear(_ sw: CGFloat, _ sh: CGFloat) -> Path {
@@ -827,7 +941,7 @@ struct PaperSilhouette: View {
     }
 
     /// 바나나 — 각진 노랑 초승달 두 개(다발) + 갈색 팁·꼭지.
-    private static func banana(_ r: CGRect, _ ctx: inout GraphicsContext) {
+    private func banana(_ r: CGRect, _ ctx: inout GraphicsContext) {
         let cx = r.midX, cy = r.midY, w = r.width * 0.82, h = r.height * 0.52
         // 굵은 각진 초승달(벨리가 아래, 양끝 위) — 자체 중심 기준 회전.
         func crescent(_ c: CGPoint, _ sw: CGFloat, _ sh: CGFloat, _ a: CGFloat) -> Path {
@@ -859,7 +973,7 @@ struct PaperSilhouette: View {
     // MARK: - Protein
 
     /// 계란 — 각진 흰자 + 노른자(각진 원) + 하이라이트.
-    private static func egg(_ r: CGRect, _ ctx: inout GraphicsContext) {
+    private func egg(_ r: CGRect, _ ctx: inout GraphicsContext) {
         let cx = r.midX, cy = r.midY, w = r.width * 0.76, h = r.height * 0.84
         let white = facet(cx, cy, w, h, 9)
         shadow(&ctx, white, r)
@@ -871,7 +985,7 @@ struct PaperSilhouette: View {
     }
 
     /// 두부 — 각진 크림 블록(윗면 밝게 · 옆면 어둡게).
-    private static func tofu(_ r: CGRect, _ ctx: inout GraphicsContext) {
+    private func tofu(_ r: CGRect, _ ctx: inout GraphicsContext) {
         let w = r.width * 0.82, h = r.height * 0.62, cx = r.midX, cy = r.midY
         let front = CGRect(x: cx - w / 2, y: cy - h * 0.28, width: w, height: h * 0.78)
         let off = w * 0.16
@@ -893,7 +1007,7 @@ struct PaperSilhouette: View {
     }
 
     /// 소/돼지고기 — 각진 빨강 살 + 크림 지방 가장자리.
-    private static func meat(_ r: CGRect, _ ctx: inout GraphicsContext) {
+    private func meat(_ r: CGRect, _ ctx: inout GraphicsContext) {
         let cx = r.midX, cy = r.midY, w = r.width * 0.88, h = r.height * 0.62
         let l = cx - w / 2, rr = cx + w / 2, t = cy - h / 2, b = cy + h / 2
         let body = poly([
@@ -922,7 +1036,7 @@ struct PaperSilhouette: View {
     }
 
     /// 닭다리 — 각진 탄 살 + 크림 뼈.
-    private static func drumstick(_ r: CGRect, _ ctx: inout GraphicsContext) {
+    private func drumstick(_ r: CGRect, _ ctx: inout GraphicsContext) {
         let cx = r.midX, cy = r.midY, w = r.width * 0.58, h = r.height * 0.9
         let boneW = w * 0.14, boneTopY = cy - h * 0.44, meatTopY = cy - h * 0.06, meatBotY = cy + h * 0.44
         // 살(각진 물방울)
@@ -953,7 +1067,7 @@ struct PaperSilhouette: View {
     }
 
     /// 생선 — 각진 파랑 몸 + 갈라진 꼬리 + 눈.
-    private static func fish(_ r: CGRect, _ ctx: inout GraphicsContext) {
+    private func fish(_ r: CGRect, _ ctx: inout GraphicsContext) {
         let cx = r.midX, cy = r.midY, w = r.width * 0.94, h = r.height * 0.56
         let bodyRight = cx + w * 0.26
         let body = poly([
@@ -982,7 +1096,7 @@ struct PaperSilhouette: View {
     }
 
     /// 새우 — 각진 코랄 몸(분절) + 꼬리 부채.
-    private static func shrimp(_ r: CGRect, _ ctx: inout GraphicsContext) {
+    private func shrimp(_ r: CGRect, _ ctx: inout GraphicsContext) {
         let c = CGPoint(x: r.midX, y: r.midY), R = min(r.width, r.height) * 0.42
         // C자 각진 몸
         let body = poly([
@@ -1014,7 +1128,7 @@ struct PaperSilhouette: View {
     // MARK: - Dairy / grain / pantry / other
 
     /// 우유 — 각진 흰 박공 카톤 + 라벨 띠.
-    private static func milk(_ r: CGRect, _ ctx: inout GraphicsContext) {
+    private func milk(_ r: CGRect, _ ctx: inout GraphicsContext) {
         let cx = r.midX, w = r.width * 0.56, h = r.height * 0.86
         let top = r.midY - h / 2, bot = r.midY + h / 2, bodyTop = top + h * 0.28
         let carton = poly([
@@ -1037,7 +1151,7 @@ struct PaperSilhouette: View {
     }
 
     /// 치즈 — 각진 노랑 쐐기 + 구멍.
-    private static func cheese(_ r: CGRect, _ ctx: inout GraphicsContext) {
+    private func cheese(_ r: CGRect, _ ctx: inout GraphicsContext) {
         let cx = r.midX, cy = r.midY + r.height * 0.04, w = r.width * 0.86, h = r.height * 0.62
         let wedge = poly([
             CGPoint(x: cx - w / 2, y: cy - h / 2),
@@ -1055,7 +1169,7 @@ struct PaperSilhouette: View {
     }
 
     /// 빵 — 각진 식빵 + 진한 윗 크러스트.
-    private static func bread(_ r: CGRect, _ ctx: inout GraphicsContext) {
+    private func bread(_ r: CGRect, _ ctx: inout GraphicsContext) {
         let cx = r.midX, cy = r.midY + r.height * 0.04, w = r.width * 0.78, h = r.height * 0.72
         let bot = cy + h / 2, sideTop = cy - h * 0.08
         let loaf = poly([
@@ -1085,7 +1199,7 @@ struct PaperSilhouette: View {
     }
 
     /// 밥 — 각진 나무 밥공기 + 흰 밥 봉우리 + 밥알.
-    private static func rice(_ r: CGRect, _ ctx: inout GraphicsContext) {
+    private func rice(_ r: CGRect, _ ctx: inout GraphicsContext) {
         let cx = r.midX, cy = r.midY + r.height * 0.06, w = r.width * 0.82
         let rim = cy - r.height * 0.06
         // 밥 봉우리(각진 돔)
@@ -1116,7 +1230,7 @@ struct PaperSilhouette: View {
     }
 
     /// 국수 — 각진 도기 그릇 + 밀색 면 봉우리(웨이브 가닥).
-    private static func noodles(_ r: CGRect, _ ctx: inout GraphicsContext) {
+    private func noodles(_ r: CGRect, _ ctx: inout GraphicsContext) {
         let cx = r.midX, cy = r.midY + r.height * 0.06, w = r.width * 0.84
         let rim = cy - r.height * 0.04
         // 면 봉우리(각진)
@@ -1156,7 +1270,7 @@ struct PaperSilhouette: View {
     }
 
     /// 소스병 — 각진 병 실루엣 + 라벨 면 + 레드 뚜껑 액센트.
-    private static func sauceBottle(_ r: CGRect, _ ctx: inout GraphicsContext) {
+    private func sauceBottle(_ r: CGRect, _ ctx: inout GraphicsContext) {
         let cx = r.midX, w = r.width * 0.42
         let top = r.minY + r.height * 0.06, bot = r.maxY - r.height * 0.04
         let neckBot = top + r.height * 0.24, shoulder = top + r.height * 0.30
@@ -1186,7 +1300,7 @@ struct PaperSilhouette: View {
     }
 
     /// 통조림 캔 — 각진 금속 원기둥 + 라벨 띠.
-    private static func can(_ r: CGRect, _ ctx: inout GraphicsContext) {
+    private func can(_ r: CGRect, _ ctx: inout GraphicsContext) {
         let cx = r.midX, w = r.width * 0.62, h = r.height * 0.66
         let top = r.midY - h / 2, bot = r.midY + h / 2, lip = top + h * 0.10
         // 몸(각진 원기둥)
@@ -1212,7 +1326,7 @@ struct PaperSilhouette: View {
     // MARK: - v2 신규 17종
 
     /// 가지 — 보라 각진 곡선체 + 초록 꼭지(calyx)·줄기.
-    private static func eggplant(_ r: CGRect, _ ctx: inout GraphicsContext) {
+    private func eggplant(_ r: CGRect, _ ctx: inout GraphicsContext) {
         let cx = r.midX, w = r.width * 0.52, topY = r.minY + r.height * 0.22, botY = r.maxY - r.height * 0.06
         let body = poly([
             CGPoint(x: cx - w * 0.16, y: topY + r.height * 0.06),
@@ -1238,7 +1352,7 @@ struct PaperSilhouette: View {
     }
 
     /// 고구마 — 자주빛 각진 방추형 + 면분할 결·뿌리 팁.
-    private static func sweetPotato(_ r: CGRect, _ ctx: inout GraphicsContext) {
+    private func sweetPotato(_ r: CGRect, _ ctx: inout GraphicsContext) {
         let cx = r.midX, cy = r.midY, w = r.width * 0.84, h = r.height * 0.44
         let body = poly([
             CGPoint(x: cx - w * 0.48, y: cy + h * 0.12),
@@ -1263,7 +1377,7 @@ struct PaperSilhouette: View {
     }
 
     /// 생강 — 베이지 각진 울퉁불퉁 분지형(손가락 마디).
-    private static func ginger(_ r: CGRect, _ ctx: inout GraphicsContext) {
+    private func ginger(_ r: CGRect, _ ctx: inout GraphicsContext) {
         let cx = r.midX, cy = r.midY + r.height * 0.04, w = r.width * 0.74, h = r.height * 0.62
         let body = poly([
             CGPoint(x: cx - w * 0.42, y: cy + h * 0.12),
@@ -1293,7 +1407,7 @@ struct PaperSilhouette: View {
     }
 
     /// 김/미역 — 진초록 각진 김 시트 + 광택 면.
-    private static func seaweed(_ r: CGRect, _ ctx: inout GraphicsContext) {
+    private func seaweed(_ r: CGRect, _ ctx: inout GraphicsContext) {
         let cx = r.midX, cy = r.midY, w = r.width * 0.70, h = r.height * 0.80
         let body = poly([
             CGPoint(x: cx - w * 0.50, y: cy - h * 0.44),
@@ -1325,7 +1439,7 @@ struct PaperSilhouette: View {
     // MARK: v2 과일
 
     /// 포도 — 각진 자주 알맹이 클러스터(역삼각) + 초록 잎·줄기.
-    private static func grape(_ r: CGRect, _ ctx: inout GraphicsContext) {
+    private func grape(_ r: CGRect, _ ctx: inout GraphicsContext) {
         let cx = r.midX, topY = r.minY + r.height * 0.30, w = r.width * 0.66
         let bead = w * 0.30
         let sx = bead * 0.50, sy = bead * 0.78
@@ -1348,7 +1462,7 @@ struct PaperSilhouette: View {
     }
 
     /// 수박 조각 — 진초록 껍질 + 연녹 밴드 + 핑크레드 과육 + 씨.
-    private static func watermelon(_ r: CGRect, _ ctx: inout GraphicsContext) {
+    private func watermelon(_ r: CGRect, _ ctx: inout GraphicsContext) {
         let cx = r.midX, cy = r.midY, w = r.width * 0.92, h = r.height * 0.82
         let arcTop: [CGPoint] = [
             CGPoint(x: cx - w * 0.48, y: cy - h * 0.16),
@@ -1373,7 +1487,7 @@ struct PaperSilhouette: View {
     }
 
     /// 파인애플 — 다이아 격자 황갈 몸통 + 뾰족 잎관.
-    private static func pineapple(_ r: CGRect, _ ctx: inout GraphicsContext) {
+    private func pineapple(_ r: CGRect, _ ctx: inout GraphicsContext) {
         let cx = r.midX, cy = r.midY + r.height * 0.14, w = r.width * 0.56, h = r.height * 0.62
         let body = facet(cx, cy, w, h, 8, phase: -.pi / 2 + .pi / 8)
         // 잎관(뾰족 각진 5장)
@@ -1401,7 +1515,7 @@ struct PaperSilhouette: View {
     }
 
     /// 망고 — 비대칭 각진 타원 + 빨강→노랑 2톤 면 + 초록 꼭지.
-    private static func mango(_ r: CGRect, _ ctx: inout GraphicsContext) {
+    private func mango(_ r: CGRect, _ ctx: inout GraphicsContext) {
         let cx = r.midX, cy = r.midY, w = r.width * 0.80, h = r.height * 0.66
         let body = poly([
             CGPoint(x: cx - w * 0.44, y: cy - h * 0.04),
@@ -1432,7 +1546,7 @@ struct PaperSilhouette: View {
     // MARK: v2 육류·해산물
 
     /// 소시지 — 링크 소시지 2개 묶음(각진 캡슐).
-    private static func sausage(_ r: CGRect, _ ctx: inout GraphicsContext) {
+    private func sausage(_ r: CGRect, _ ctx: inout GraphicsContext) {
         let cx = r.midX, cy = r.midY
         func link(_ ct: CGPoint, _ a: CGFloat) -> Path {
             poly([
@@ -1458,7 +1572,7 @@ struct PaperSilhouette: View {
     }
 
     /// 베이컨 — 물결 스트립 + 지방 줄무늬 면.
-    private static func bacon(_ r: CGRect, _ ctx: inout GraphicsContext) {
+    private func bacon(_ r: CGRect, _ ctx: inout GraphicsContext) {
         let cx = r.midX, cy = r.midY, w = r.width * 0.9
         let amp = r.height * 0.12, thk = r.height * 0.15, n = 4
         func wave(_ off: CGFloat, _ half: CGFloat) -> Path {
@@ -1484,7 +1598,7 @@ struct PaperSilhouette: View {
     }
 
     /// 게 — 빨강 각진 몸통 + 집게 2 + 다리.
-    private static func crab(_ r: CGRect, _ ctx: inout GraphicsContext) {
+    private func crab(_ r: CGRect, _ ctx: inout GraphicsContext) {
         let cx = r.midX, cy = r.midY + r.height * 0.08, w = r.width * 0.62, h = r.height * 0.40
         // 다리(각진 3쌍)
         for s in [-1.0, 1.0] as [CGFloat] {
@@ -1523,7 +1637,7 @@ struct PaperSilhouette: View {
     }
 
     /// 오징어 — 크림/분홍 몸통(hood) + 다리 프린지.
-    private static func squid(_ r: CGRect, _ ctx: inout GraphicsContext) {
+    private func squid(_ r: CGRect, _ ctx: inout GraphicsContext) {
         let cx = r.midX, w = r.width * 0.50, topY = r.minY + r.height * 0.08, midY = r.midY + r.height * 0.08
         // 다리 프린지(먼저, 뒤에)
         let fringeTop = midY + r.height * 0.06
@@ -1556,7 +1670,7 @@ struct PaperSilhouette: View {
     }
 
     /// 조개 — 부채꼴 각진 조개껍질 + 방사 홈 + 힌지.
-    private static func clam(_ r: CGRect, _ ctx: inout GraphicsContext) {
+    private func clam(_ r: CGRect, _ ctx: inout GraphicsContext) {
         let cx = r.midX, cy = r.midY + r.height * 0.12, w = r.width * 0.82, h = r.height * 0.64
         let hinge = CGPoint(x: cx, y: cy + h * 0.42)
         let arc: [CGPoint] = [
@@ -1587,7 +1701,7 @@ struct PaperSilhouette: View {
     // MARK: v2 유제품
 
     /// 요거트 — 테이퍼 컵 + 라벨 밴드 + 포일 뚜껑.
-    private static func yogurt(_ r: CGRect, _ ctx: inout GraphicsContext) {
+    private func yogurt(_ r: CGRect, _ ctx: inout GraphicsContext) {
         let cx = r.midX, w = r.width * 0.58, top = r.minY + r.height * 0.20, bot = r.maxY - r.height * 0.06
         let cup = poly([
             CGPoint(x: cx - w * 0.50, y: top),
@@ -1615,7 +1729,7 @@ struct PaperSilhouette: View {
     }
 
     /// 버터 — 노랑 각진 블록(윗면·옆면) + 포일 포장 한 겹.
-    private static func butter(_ r: CGRect, _ ctx: inout GraphicsContext) {
+    private func butter(_ r: CGRect, _ ctx: inout GraphicsContext) {
         let w = r.width * 0.78, h = r.height * 0.44, cx = r.midX, cy = r.midY
         let front = CGRect(x: cx - w / 2, y: cy - h * 0.16, width: w, height: h * 0.86)
         let off = w * 0.14
@@ -1645,7 +1759,7 @@ struct PaperSilhouette: View {
     // MARK: v2 저장식품·기타
 
     /// 꿀 — 유리 단지 + 앰버 꿀 + 라벨 + 나무 디퍼.
-    private static func honey(_ r: CGRect, _ ctx: inout GraphicsContext) {
+    private func honey(_ r: CGRect, _ ctx: inout GraphicsContext) {
         let cx = r.midX, w = r.width * 0.52, top = r.minY + r.height * 0.18, bot = r.maxY - r.height * 0.06
         let shoulder = top + r.height * 0.16
         let jar = poly([
@@ -1682,7 +1796,7 @@ struct PaperSilhouette: View {
     }
 
     /// 만두 — 주름 접힌 반달 만두(크림 만두피 + 주름 면).
-    private static func dumpling(_ r: CGRect, _ ctx: inout GraphicsContext) {
+    private func dumpling(_ r: CGRect, _ ctx: inout GraphicsContext) {
         let cx = r.midX, cy = r.midY + r.height * 0.06, w = r.width * 0.82, h = r.height * 0.52
         let body = poly([
             CGPoint(x: cx - w * 0.46, y: cy + h * 0.10),
@@ -1717,7 +1831,7 @@ struct PaperSilhouette: View {
     /// 40pt(냉장고 행)에서도 **진초록 링 → 흰 링 → 알록달록 속**이라는 세 겹의 명도 대비만으로
     /// 김밥이 읽히도록, 디테일을 이 세 겹에만 건다(참깨·밥알 같은 미세 디테일은 넣지 않는다 —
     /// 작은 크기에서 링을 갉아먹고 큰 크기에서만 보이는 장식은 두 크기 사이의 정체성을 갈라놓는다).
-    private static func gimbap(_ r: CGRect, _ ctx: inout GraphicsContext) {
+    private func gimbap(_ r: CGRect, _ ctx: inout GraphicsContext) {
         let W = r.width, H = r.height
         // 뒤 조각(좌상·작게) — 김 + 밥 두 겹뿐. 그늘 톤이라 앞 조각과 명도로 갈린다.
         let bx = r.midX - W * 0.26, by = r.midY - H * 0.24, bd = W * 0.56
@@ -1764,7 +1878,7 @@ struct PaperSilhouette: View {
     }
 
     /// 일반 — 각진 뉴트럴 블롭.
-    private static func blob(_ r: CGRect, _ ctx: inout GraphicsContext) {
+    private func blob(_ r: CGRect, _ ctx: inout GraphicsContext) {
         let body = facet(r.midX, r.midY, r.width * 0.84, r.height * 0.80, 9)
         shadow(&ctx, body, r)
         fill(&ctx, body, C.neutral)

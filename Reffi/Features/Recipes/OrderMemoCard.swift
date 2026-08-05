@@ -138,15 +138,24 @@ struct OrderMemoCard: View {
                 verdictKicker
                     .reffiType(.pillLabel).foregroundStyle(verdictColor)
 
-                // 메뉴명 + 시간
-                Text(verbatim: r.displayName)
-                    .reffiType(.menuName).foregroundStyle(ReffiColor.ink)
-                    .lineLimit(2).minimumScaleFactor(0.8).fixedSize(horizontal: false, vertical: true)
-                HStack(spacing: 4) {
-                    ReffiIcon.time.reffi(13).foregroundStyle(ReffiColor.ink2)
-                    Text("\(r.minutes) min · \(result.used.count) to use")
-                        .reffiType(.metaText)
-                        .foregroundStyle(ReffiColor.ink2)
+                // 메뉴명 + 시간 + 요리 아이콘. 아이콘은 **오른쪽 여백에 얹힌 그림**이고 글이 주인공이다 —
+                // 이름 위에 한 줄로 올리면 티켓 상단이 그림에 밀려 "주문서"가 아니라 메뉴판이 된다.
+                // 배경 타일 없이 종이 위에 그대로 둔다(§13.3 — 일러스트는 색면 박스에 담지 않는다).
+                HStack(alignment: .top, spacing: ReffiSpace.s3) {
+                    VStack(alignment: .leading, spacing: ReffiSpace.s3) {
+                        Text(verbatim: r.displayName)
+                            .reffiType(.menuName).foregroundStyle(ReffiColor.ink)
+                            .lineLimit(2).minimumScaleFactor(0.8).fixedSize(horizontal: false, vertical: true)
+                        HStack(spacing: 4) {
+                            ReffiIcon.time.reffi(13).foregroundStyle(ReffiColor.ink2)
+                            Text("\(r.minutes) min · \(result.used.count) to use")
+                                .reffiType(.metaText)
+                                .foregroundStyle(ReffiColor.ink2)
+                        }
+                    }
+                    Spacer(minLength: ReffiSpace.s2)
+                    DishSilhouette(look: DishGlyphCatalog.look(for: r))
+                        .frame(width: ReffiDishIcon.ticket, height: ReffiDishIcon.ticket)
                 }
 
                 DashedRule()

@@ -7,6 +7,8 @@ struct RecipeShareCard: View {
     let recipeName: String
     let steps: [String]
     let count: Int
+    /// 요리 아이콘 변주 — 이 카드는 표시 전용(데이터는 전부 파라미터)이라 레시피→아이콘 매핑은 호출부가 푼다.
+    let look: DishLook
 
     private static let cardWidth: CGFloat = 340
 
@@ -29,9 +31,16 @@ struct RecipeShareCard: View {
                     .foregroundStyle(ReffiColor.ink2)
             }
 
-            Text(verbatim: recipeName)
-                .reffiType(.menuName).foregroundStyle(ReffiColor.ink)
-                .fixedSize(horizontal: false, vertical: true)
+            // 메뉴명 + 요리 아이콘 — 조리 티켓과 같은 배치(글 왼쪽·그림 오른쪽). 카드가 340pt로 좁아
+            // 아이콘만 한 단계 작게 잡아 같은 시각 비중을 유지한다(`ReffiDishIcon.card`).
+            HStack(alignment: .top, spacing: ReffiSpace.s3) {
+                Text(verbatim: recipeName)
+                    .reffiType(.menuName).foregroundStyle(ReffiColor.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: ReffiSpace.s2)
+                DishSilhouette(look: look)
+                    .frame(width: ReffiDishIcon.card, height: ReffiDishIcon.card)
+            }
 
             DashedRule()
 
