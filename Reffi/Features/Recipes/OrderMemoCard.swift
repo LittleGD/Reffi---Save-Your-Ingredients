@@ -22,6 +22,10 @@ struct OrderMemoCard: View {
     /// `headerOnly`와 같은 규율 — 컨테이너는 단일 정체성을 유지하고 내부 콘텐츠만 분기한다.
     var expanded: Bool = true
     var onFire: () -> Void = {}
+    /// 오른쪽 플릭 발주(Cook, §13.6)의 외부 트리거 — 값이 바뀌면 카드 내부 `fire()`를 **그대로** 부른다.
+    /// 발주 상태(`fired`)는 슬램 연출을 구동하느라 카드가 소유하므로 부모가 직접 켤 수 없다. 카운터를
+    /// 태워 같은 함수를 부르면 "Cook this" 버튼과 슬램·줄긋기·`onFire` 체인·이중 발주 가드가 한 벌이 된다.
+    var fireTrigger: Int = 0
     /// 헤더(또는 축약 본문) 탭 → 축약↔펼침 토글. **드래그는 카드가 받지 않는다** — 수평 플릭과
     /// 수직 펼침/접힘의 축 중재는 덱(`RecipeMemoCarousel.frontDrag`) 한 곳에서만 한다(§13.6).
     var onToggleDetails: () -> Void = {}
@@ -79,6 +83,8 @@ struct OrderMemoCard: View {
         // 다시 펼친 첫 프레임에 스테일 마스크가 적용된다(콘텐츠가 짧아졌는데 하단 페이드가 남는 식).
         // 상태 수명을 뷰 수명에 맞춘다.
         .onChange(of: expanded) { _, isExpanded in if !isExpanded { middleScrolls = false } }
+        // 오른쪽 플릭 발주 — 버튼과 **같은** fire()를 탄다(축약 상태에서도 발주가 성립하는 유일한 경로).
+        .onChange(of: fireTrigger) { _, _ in fire() }
     }
 
     /// 축약 본문(§13.5) — **음식 아이콘 + 메뉴명**만. "뭘 만들지"가 먼저 읽히고 재료·PREP·발주는
@@ -295,8 +301,10 @@ struct OrderMemoCard: View {
     }
 
     /// 발주 도장 — "START"가 쾅(scale 1.5→1, pop) 찍힌다. 빨강 잉크(키친 fired).
+    /// verbatim — 티켓 소인 크롬은 비로컬라이즈("ORDER · FIRED"·"TABLE · REFFI KITCHEN" 선례).
+    /// a11y hidden 장식이라 정보 전달은 로컬라이즈된 fireBand가 맡는다.
     private var slamStamp: some View {
-        Text("START")
+        Text(verbatim: "START")
             .reffiType(.stampLabel).foregroundStyle(ReffiColor.urgentDark.opacity(0.88))
             .padding(.horizontal, ReffiSpace.s4).padding(.vertical, ReffiSpace.s2)
             .overlay(PaperRect(cornerRadius: ReffiRadius.sm, seed: 2)

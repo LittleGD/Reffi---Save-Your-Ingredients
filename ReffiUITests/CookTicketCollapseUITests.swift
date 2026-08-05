@@ -4,8 +4,11 @@ import XCTest
 /// 끌어올리거나 탭해야 상세(ON THE TICKET 체크리스트 · Cook this 발주 CTA)가 나타난다.
 /// 카드 크기는 두 상태가 같고 바뀌는 건 콘텐츠뿐이다.
 ///
-/// 계약은 넷이다: ① 축약이 기본값 ② 펼침 트리거가 실제로 상세를 켠다 ③ **축이 갈리지 않은 드래그는
-/// 아무 것도 커밋하지 않는다** ④ 펼친 본문(내부 ScrollView) 위 **수평 플릭이 덱 넘김에 도달한다**.
+/// 수평 플릭은 **방향이 곧 의미**다(§13.6) — 왼쪽 = Pass(다음 티켓), 오른쪽 = Cook(발주).
+///
+/// 계약은 여섯이다: ① 축약이 기본값 ② 펼침 트리거가 실제로 상세를 켠다 ③ **축이 갈리지 않은 드래그는
+/// 아무 것도 커밋하지 않는다** ④ 펼친 본문(내부 ScrollView) 위 **수평 플릭이 덱 넘김에 도달한다**
+/// ⑤ 왼쪽 플릭 = 다음 티켓 ⑥ 오른쪽 플릭 = 발주(넘김이 아니다 — 앞 티켓 그대로 발주된다).
 /// ③④는 제스처 중재를 덱 한 곳(`RecipeMemoCarousel.frontDrag`)으로 모은 뒤의 회귀 방지선이다.
 final class CookTicketCollapseUITests: XCTestCase {
 
@@ -112,6 +115,7 @@ final class CookTicketCollapseUITests: XCTestCase {
     /// 펼친 상태에서 **본문(내부 세로 ScrollView) 위 수평 플릭이 덱 넘김에 도달**하는지 —
     /// 접기 그립을 없애고 제스처를 덱 한 곳으로 모은 뒤, 펼친 티켓에서 플릭 가능한 영역이
     /// 헤더·발주 밴드 주변만 남지 않는다는 실증이다(자식 스크롤이 수평까지 삼키면 여기서 깨진다).
+    /// 방향은 **왼쪽(Pass)** — 오른쪽은 이제 발주라 덱을 넘기지 않는다.
     func testTicketDeck_HorizontalFlickOverExpandedBody_AdvancesDeck() {
         let app = launchDeck()
 
@@ -122,16 +126,59 @@ final class CookTicketCollapseUITests: XCTestCase {
         let ticketSection = app.staticTexts["ON THE TICKET"]
         XCTAssertTrue(ticketSection.waitForExistence(timeout: 8), "탭하면 상세가 펼쳐져야 한다")
 
-        // 'ON THE TICKET'은 중간 ScrollView 안에 있다 — 여기서 시작해 오른쪽으로 240pt
-        // (플릭 임계 160pt의 1.5배). 세로 성분 0이라 축 판별은 수평으로만 갈린다.
-        let inBody = ticketSection.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0.5))
-        inBody.press(forDuration: 0.1, thenDragTo: inBody.withOffset(CGVector(dx: 240, dy: 0)))
+        // 'ON THE TICKET' 줄 높이 × 화면 가로 78% 지점 = 중간 ScrollView 위. 시작점을 오른쪽에 두는
+        // 이유는 폭이다 — 라벨 왼쪽 끝(카드 안쪽 여백)에서 왼쪽으로 240pt를 밀면 좌표가 화면 밖으로 나간다.
+        let inBody = app.coordinate(withNormalizedOffset: CGVector(dx: 0.78, dy: 0))
+            .withOffset(CGVector(dx: 0, dy: ticketSection.frame.midY))
+        inBody.press(forDuration: 0.1, thenDragTo: inBody.withOffset(CGVector(dx: -240, dy: 0)))
 
         XCTAssertTrue(ticketSection.waitForNonExistence(timeout: 8),
-                      "플릭 임계의 \(240 / flickCommit)배로 밀었으면 덱까지 도달해 다음 티켓으로 넘어가야 한다"
+                      "플릭 임계의 \(240 / flickCommit)배로 왼쪽에 밀었으면 덱까지 도달해 다음 티켓으로 넘어가야 한다"
                       + "(새 앞 티켓은 축약부터)")
         let second = ticketStub(app, number: 2)
         XCTAssertTrue(second.waitForExistence(timeout: 8), "2번 티켓이 축약 본문으로 올라와야 한다")
         XCTAssertTrue(second.isHittable, "2번 티켓이 맨 앞이어야 한다(앞 티켓만 히트테스트를 받는다)")
+    }
+
+    /// **왼쪽 플릭 = Pass** — 축약 상태의 앞 티켓을 왼쪽으로 튕기면 덱 뒤로 들어가고 2번이 올라온다.
+    /// 위 케이스가 "펼친 본문 위에서도 도달하는가"를 보는 반면, 여기선 **방향 매핑 자체**가 계약이다.
+    func testTicketDeck_LeftFlick_PassesToNextTicket() {
+        let app = launchDeck()
+
+        let first = ticketStub(app, number: 1)
+        XCTAssertTrue(first.waitForExistence(timeout: 20), "축약 본문으로 덱이 열려야 한다")
+
+        // 축약 본문 오른쪽 끝 근처에서 왼쪽으로 240pt(임계 1.5배) — 시작점을 오른쪽에 두어야
+        // 240pt를 밀 폭이 남는다. 세로 성분 0이라 축은 수평으로만 갈린다.
+        let start = first.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5))
+        start.press(forDuration: 0.1, thenDragTo: start.withOffset(CGVector(dx: -240, dy: 0)))
+
+        let second = ticketStub(app, number: 2)
+        XCTAssertTrue(second.waitForExistence(timeout: 8), "왼쪽 플릭이면 2번 티켓이 올라와야 한다")
+        XCTAssertTrue(second.isHittable, "2번 티켓이 맨 앞이어야 한다(앞 티켓만 히트테스트를 받는다)")
+        XCTAssertFalse(app.staticTexts["ORDER · FIRED"].exists, "왼쪽 플릭은 발주가 아니다")
+    }
+
+    /// **오른쪽 플릭 = Cook(발주)** — 넘김이 아니라 "Cook this" 버튼과 같은 발주다.
+    /// 발주가 성립하면 커버가 스스로 닫히고 단계별 조리 화면(`ORDER · FIRED`)이 열린다.
+    /// 조리 화면의 메뉴명이 **1번 티켓 이름**이어야 한다 — 덱을 먼저 넘긴 뒤 발주한 게 아니라는 증거다.
+    func testTicketDeck_RightFlick_FiresTheTicket() {
+        let app = launchDeck()
+
+        let first = ticketStub(app, number: 1)
+        XCTAssertTrue(first.waitForExistence(timeout: 20), "축약 본문으로 덱이 열려야 한다")
+        // 축약 본문 라벨은 "Ticket 1: 메뉴명" — 뒤쪽 메뉴명을 조리 화면과 대조할 기준으로 뽑아 둔다.
+        let menu = String(first.label.dropFirst("Ticket 1: ".count))
+        XCTAssertFalse(menu.isEmpty, "축약 본문 라벨에서 메뉴명을 뽑지 못했다: \(first.label)")
+
+        // 축약 본문 왼쪽 끝 근처에서 오른쪽으로 240pt(임계 1.5배).
+        let start = first.coordinate(withNormalizedOffset: CGVector(dx: 0.1, dy: 0.5))
+        start.press(forDuration: 0.1, thenDragTo: start.withOffset(CGVector(dx: 240, dy: 0)))
+
+        // 발주 → START 슬램을 보여준 뒤(1.25초) 커버가 닫히고 조리 화면이 열린다.
+        XCTAssertTrue(app.staticTexts["ORDER · FIRED"].waitForExistence(timeout: 20),
+                      "오른쪽으로 임계의 \(240 / flickCommit)배를 밀었으면 발주돼 조리 화면까지 가야 한다")
+        XCTAssertTrue(app.staticTexts[menu].exists,
+                      "발주된 티켓은 1번(\(menu))이어야 한다 — 오른쪽 플릭은 덱을 넘기지 않는다")
     }
 }

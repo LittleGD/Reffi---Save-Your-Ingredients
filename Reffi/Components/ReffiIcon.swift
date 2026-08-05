@@ -27,6 +27,13 @@ enum ReffiIcon {
     static var undo: Ph { .arrowCounterClockwise }
     static var youtube: Ph { .youtubeLogo }   // 조리 티켓 — 요리 예시 영상 링크(§13.6)
     static var share: Ph { .shareFat }        // 조리 티켓 — 레시피 공유, 시스템 공유 시트(§13.6)
+    /// 티켓 왼쪽 플릭 예고(Pass, §13.6) — 이 티켓을 덱 뒤로 넘기고 다음 티켓을 올린다.
+    /// **순환 화살표**인 이유: Pass의 실제 동작이 `advance()` = 앞 티켓이 덱 뒤로 돌아가고 다음이
+    /// 올라오는 **순환**이라 기호가 동작 사실과 그대로 맞는다. 파괴(휴지통)도 거절(✕)도 아니다 —
+    /// 넘긴 티켓은 사라지지 않고 덱 안에 남는다.
+    /// 후보 배제 근거: `skipForward`는 미디어 "끝으로" 기호라 실사용에서 의미가 읽히지 않았고
+    /// 왼쪽 플릭과 방향도 어긋난다. ✕ 계열은 같은 화면 우상단 `PaperCloseButton`과 기호가 충돌한다.
+    static var pass: Ph { .arrowsClockwise }
 
     // 냉장고 툴바 · 리포트
     static var sort: Ph { .arrowsDownUp }
