@@ -54,6 +54,9 @@ xcrun simctl io booted screenshot reffi-home.png
 `-skipAuth` 게스트로 게이트 통과 · `-authGate` 게스트 해제 ·
 `-fridge.compact YES` 간편보기 · `-fridge.sort recent|freshest|expiry` 정렬 ·
 `-loadSample` 샘플 시드 · `-previewCarousel` 캐러셀 바로 열기(`-previewAIBadge` 동시 지정 시 AI 배지 티켓도 얹음) ·
+`-cookCarousel` 티켓 덱 자동 오픈(축약 상태 · 시드가 없으면 샘플을 스스로 채운다) ·
+　└ 한계: `cook()`을 거치지 않아 **AI 힌트·AI 티켓 합류는 재현되지 않는다**(발주·자동 닫기는 정상) ·
+`-cookCarousel.expanded` 티켓 덱 오픈 + 앞 티켓 펼친 상태(단독 지정해도 덱이 켜진다) ·
 `-cookTicket` 샘플로 강제 발주 후 조리 티켓(CookingStepsView) 바로 열기 ·
 `-shareCardPreview` 공유용 레시피 영수증 카드(RecipeShareCard) 미리보기 ·
 `-profileAI` Profile을 AI recipes 영수증까지 스크롤

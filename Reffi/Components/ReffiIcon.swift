@@ -18,6 +18,10 @@ enum ReffiIcon {
     static var ai: Ph { .sparkle }
     static var go: Ph { .arrowRight }
     static var chevron: Ph { .caretRight }
+    // 방향 이름으로 둔다 — "expand"처럼 의미 이름에 방향을 박으면 반대 기표를 추가할 때
+    // 같은 글리프를 다른 이름으로 또 만들게 된다. 오더 티켓 축약↔펼침 기표(§13.5)가 쌍으로 쓴다.
+    static var caretUp: Ph { .caretUp }
+    static var caretDown: Ph { .caretDown }
     static var time: Ph { .clock }
     static var countdown: Ph { .clockCountdown }
     static var undo: Ph { .arrowCounterClockwise }

@@ -4,6 +4,9 @@ import PhosphorSwift
 /// 오더 메모 카드(§13) — 주방 오더 티켓: 크림 종이 + 톱니 엣지 + 모노 헤더 + 판정문 + 메뉴/시간 +
 /// 재료 체크리스트 + **"이걸로 요리" 발주 CTA**. 발주하면 START 스탬프가 쾅 찍히고 사용 재료가 비워진다
 /// (Fire the Ticket). affordance(탭할 스탬프)와 payoff(비우기 증명)가 같은 오브젝트.
+///
+/// 기본은 **축약 본문**(`expanded == false`) — 음식 아이콘 + 메뉴명만. 끌어올리거나 탭하면 상세가 펼쳐진다.
+/// 카드 크기는 두 상태가 같다 — 바뀌는 건 콘텐츠뿐이라 톱니 밑단이 제자리에 있고 덱이 흔들리지 않는다.
 struct OrderMemoCard: View {
     let result: RecipeRecommender.Result
     let number: Int
@@ -13,7 +16,15 @@ struct OrderMemoCard: View {
     /// 유지하고 내부 콘텐츠만 분기한다 — body 수준 if/else(ConditionalContent)면 덱 회전 시
     /// 카드가 제거+삽입(기본 opacity 트랜지션)되어 번쩍인다.
     var headerOnly: Bool = false
+    /// 상세 펼침 여부 — false면 **축약 본문**(음식 아이콘 + 메뉴명)만 그린다(§13.5).
+    /// 덱 앞 티켓의 기본은 축약이고, 끌어올리거나 탭해야 상세(판정문·체크리스트·PREP·발주)가 나온다.
+    /// 상태를 부모(덱)가 소유하는 이유는 플릭으로 티켓이 바뀌면 축약부터 다시 시작해야 하기 때문이다.
+    /// `headerOnly`와 같은 규율 — 컨테이너는 단일 정체성을 유지하고 내부 콘텐츠만 분기한다.
+    var expanded: Bool = true
     var onFire: () -> Void = {}
+    /// 헤더(또는 축약 본문) 탭 → 축약↔펼침 토글. **드래그는 카드가 받지 않는다** — 수평 플릭과
+    /// 수직 펼침/접힘의 축 중재는 덱(`RecipeMemoCarousel.frontDrag`) 한 곳에서만 한다(§13.6).
+    var onToggleDetails: () -> Void = {}
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var fired = false
@@ -33,17 +44,21 @@ struct OrderMemoCard: View {
             : rescuedCount > 0 ? ReffiColor.soonDark : ReffiColor.freshDark
     }
 
-    /// 컨테이너는 항상 같은 뷰 트리(단일 정체성) — headerOnly는 내부 콘텐츠·모디파이어 값만 바꾼다.
-    /// 덱 회전으로 headerOnly가 토글돼도(승격·강등) 카드가 통째로 교체되지 않아 번쩍임이 없다.
+    /// 컨테이너는 항상 같은 뷰 트리(단일 정체성) — headerOnly·expanded는 내부 콘텐츠·모디파이어 값만 바꾼다.
+    /// 덱 회전으로 headerOnly가 토글돼도(승격·강등), 축약↔펼침을 오가도 카드가 통째로 교체되지 않아 번쩍임이 없다.
     var body: some View {
         VStack(alignment: .leading, spacing: ReffiSpace.s3) {
             header
+                .contentShape(Rectangle())
+                .onTapGesture { onToggleDetails() }
             if headerOnly {
                 Spacer(minLength: 0)
-            } else {
+            } else if expanded {
                 middleScroll
                 Spacer(minLength: ReffiSpace.s3)
                 fireBand
+            } else {
+                collapsedBody
             }
         }
         .padding(.horizontal, ReffiSpace.s5)
@@ -60,6 +75,49 @@ struct OrderMemoCard: View {
                 radius: headerOnly ? 4 : 1.5, x: 0, y: headerOnly ? 2 : 1)
         .shadow(color: ReffiColor.shadowTint.opacity(headerOnly ? 0 : 0.05),
                 radius: 10, x: 0, y: 8)
+        // 축약 중엔 middleScroll이 렌더되지 않아 `onScrollGeometryChange`가 멈춘다 — 직전 값이 남으면
+        // 다시 펼친 첫 프레임에 스테일 마스크가 적용된다(콘텐츠가 짧아졌는데 하단 페이드가 남는 식).
+        // 상태 수명을 뷰 수명에 맞춘다.
+        .onChange(of: expanded) { _, isExpanded in if !isExpanded { middleScrolls = false } }
+    }
+
+    /// 축약 본문(§13.5) — **음식 아이콘 + 메뉴명**만. "뭘 만들지"가 먼저 읽히고 재료·PREP·발주는
+    /// 끌어올린 뒤에 온다. 카드 크기는 펼침과 같으므로(톱니 밑단 제자리) 이 묶음은 헤더 아래
+    /// **남는 공간의 세로 중앙**에 놓인다 — 위아래 `Spacer`가 그 역할이다.
+    private var collapsedBody: some View {
+        VStack(spacing: ReffiSpace.s3) {
+            Spacer(minLength: 0)
+            // 대표 글리프는 `Recipe.glyph`(= 첫 비상비 재료, §13.5) — 레시피에 별도 대표 이미지가 없고,
+            // 이 티켓이 "구하러 가는 재료"가 곧 얼굴이라 축약 상태의 정체성으로 쓸 수 있다.
+            // 앱 공통 종이컷 일러스트로 그린다(이모지·이미지 폰트를 아이콘으로 쓰지 않는다, §5).
+            // `fresh:`는 색에 쓰이지 않는 시그니처 유지용 인자다 — 색은 신선도 코딩과 분리(§13.3)라
+            // 티켓 글리프는 재료의 남은 기한과 무관하게 항상 같은 톤으로 그려야 한다.
+            PaperSilhouette(glyph: result.recipe.glyph, fresh: .fresh)
+                .frame(width: 146, height: 146)
+            Text(verbatim: result.recipe.displayName)
+                .reffiType(.menuName).foregroundStyle(ReffiColor.ink)
+                .multilineTextAlignment(.center)
+                .lineLimit(2).minimumScaleFactor(0.7)
+                .fixedSize(horizontal: false, vertical: true)
+            // 조용한 펼침 기표(§13.6 룰⑩) — 제스처만 두면 상세로 가는 길이 보이지 않는다.
+            // 펼친 헤더의 caret-down과 거울상이라 두 방향이 모두 화면에 예고된다.
+            HStack(spacing: ReffiSpace.s1) {
+                ReffiIcon.caretUp.reffi(12).foregroundStyle(ReffiColor.ink2)
+                Text("Pull up for details")
+                    .reffiType(.metaText).foregroundStyle(ReffiColor.ink2)
+            }
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .contentShape(Rectangle())
+        .onTapGesture { onToggleDetails() }
+        // 축약 본문은 통째로 한 요소 — VoiceOver가 "글리프+이름+힌트"를 조각내 읽지 않게.
+        // 활성화(더블탭) = 펼침. 같은 동작을 덱 커스텀 액션으로 또 노출하지 않는다(경로 하나로).
+        .accessibilityElement(children: .combine)
+        // 번호를 함께 읽는다 — 헤더의 "#NN"과 짝이 맞고, 덱에 겹친 티켓들이 라벨로 구분된다.
+        .accessibilityLabel(Text("Ticket \(number): \(result.recipe.displayName)"))
+        .accessibilityHint(Text("Shows the full ticket"))
+        .accessibilityAddTraits(.isButton)
     }
 
     /// 중간 섹션 — 헤더·fireBand는 고정, 'ON THE TICKET'~PREP(+ Short 문구)만 내부 스크롤(§13.6).
@@ -141,6 +199,17 @@ struct OrderMemoCard: View {
                 if result.recipe.isAI { aiBadge }
                 Text(String(format: "#%02d", number))
                     .font(.reffiNum(14, relativeTo: .caption)).foregroundStyle(ReffiColor.ink2)
+                // 접기 기표(§13.6 룰⑩) — 축약 본문의 caret-up과 거울상. 펼친 티켓에만 나타나
+                // "헤더를 아래로 끌거나 탭하면 접힌다"는 길을 보여준다(펼침에만 기표를 두면 비대칭).
+                // VoiceOver에겐 이 글리프가 곧 접기 버튼이다 — 축약 본문이 통짜 버튼인 것과 대칭이고,
+                // 덱 커스텀 액션으로 같은 동작을 두 번 노출하지 않는다.
+                if expanded && !headerOnly {
+                    ReffiIcon.caretDown.reffi(12).foregroundStyle(ReffiColor.ink2)
+                        .accessibilityElement()
+                        .accessibilityLabel(Text("Hide ticket details"))
+                        .accessibilityAddTraits(.isButton)
+                        .accessibilityAction { onToggleDetails() }
+                }
             }
             Text(verbatim: "TABLE · REFFI KITCHEN")
                 .reffiType(.monoEyebrow).foregroundStyle(ReffiColor.ink2)   // §2.6 — 소형 텍스트 대비

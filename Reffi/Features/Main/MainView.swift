@@ -134,6 +134,19 @@ struct MainView: View {
                 showCarousel = true
             }
             if args.contains("-previewAdd") { showAdd = true }   // 재료 추가 시트 스크린샷 검증용
+            // `-cookCarousel` — 티켓 덱을 런치 시 자동 오픈(축약 상태 스크린샷·UI 테스트용).
+            // `-cookCarousel.expanded`는 앞 티켓을 펼친 상태로 띄운다(단독 지정해도 덱이 열린다 — `-tiltLab.x` 선례).
+            // 시드가 부모(RootTabView)의 `-uiTestSampleFridge`로 들어오는 조합도 있어 한 박자 늦게 연다(`-cookTicket` 선례).
+            if args.contains("-cookCarousel") || args.contains("-cookCarousel.expanded") {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                    // 시드 자가 보장 — 스냅샷을 이 시점에 **한 번만** 읽으므로, 부모 시드가 없거나
+                    // 늦으면 덱이 영구히 빈 채로 열린다(테스트는 느려지는 게 아니라 실패한다).
+                    // `-cookTicket`이 loadSampleData()를 직접 부르는 선례를 따라 여기서 채운다.
+                    if store.available.isEmpty { store.loadSampleData() }
+                    carouselSnapshot = carouselResults
+                    showCarousel = true
+                }
+            }
             // `-cookTicket` — 조리 티켓은 fire 없인 열리지 않아 스크린샷 QA가 막힌다.
             // 진행 중 세션이 없으면 샘플로 강제 발주한 뒤 곧장 CookingStepsView를 연다.
             if args.contains("-cookTicket") {

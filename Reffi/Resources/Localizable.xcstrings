@@ -1351,6 +1351,16 @@
         }
       }
     },
+    "Hide ticket details": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "티켓 상세 접기"
+          }
+        }
+      }
+    },
     "History": {
       "localizations": {
         "ko": {
@@ -1901,6 +1911,16 @@
         }
       }
     },
+    "ON THE TICKET": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "티켓 재료"
+          }
+        }
+      }
+    },
     "OR": {
       "localizations": {
         "ko": {
@@ -2127,6 +2147,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "단백질"
+          }
+        }
+      }
+    },
+    "Pull up for details": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "위로 끌어 상세 보기"
           }
         }
       }
@@ -2501,6 +2531,16 @@
         }
       }
     },
+    "Shows the full ticket": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "티켓 전체가 펼쳐져요"
+          }
+        }
+      }
+    },
     "Sign up": {
       "localizations": {
         "ko": {
@@ -2767,6 +2807,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "아직 지원하지 않는 로그인 방식이에요."
+          }
+        }
+      }
+    },
+    "Ticket %lld: %@": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld번 티켓: %2$@"
           }
         }
       }
