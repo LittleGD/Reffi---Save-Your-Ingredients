@@ -41,6 +41,7 @@ xcrun simctl io booted screenshot reffi-home.png
 
 ### QA 런치 인자 (DEBUG)
 `-glyphGallery` `-buttonGallery` 갤러리 · `-profileTab` `-fridgeTab` 탭 직행 ·
+`-glyphGallery.wilted YES` 글리프 갤러리를 전부 **시든 상태**로 렌더(신선 대비 스크린샷용 · `-glyphGallery`와 함께) ·
 `-showHistory` History 시트 · `-authView` 로그인 화면 · `-onboarding` 온보딩(+`-onboardingPage N`) ·
 `-onboardingSetup` 셋업 시트 바로 열기 · `-onboardingSetupPage N` 셋업 시트 특정 장 직행 ·
 `-onboardingSetupAutoAdvance` 셋업 시트 장 자동 순환(전환 QA용) ·

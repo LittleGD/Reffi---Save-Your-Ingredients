@@ -41,6 +41,17 @@ enum Freshness {
         }
     }
 
+    /// 재료 일러스트가 "숨이 죽은" 모습으로 그려지는지(§13.3). `.fresh`(D-4+)가 아니면 시든다 —
+    /// 즉 소비기한 3일 전부터다. **임계는 위 `init(daysLeft:)`가 정본**이라 시각 처리 쪽에서
+    /// 3을 다시 정의하지 않는다(임계가 바뀌면 뱃지 색과 시든 모양이 함께 움직인다).
+    /// 시듦은 감성적 보강일 뿐, 정보의 정본은 여전히 D-day 뱃지다.
+    var isWilted: Bool {
+        switch self {
+        case .fresh:          false
+        case .soon, .urgent:  true
+        }
+    }
+
     /// 짧은 상태 라벨(색 단독 의미 금지 → 항상 동반).
     var label: String {
         switch self {

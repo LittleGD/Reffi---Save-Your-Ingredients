@@ -722,9 +722,13 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     /// 캐시 키에 side가 들어가 리사이즈로 변이 달라지면 자동 무효(캐시 removeAll은 didChangeSize).
     private func texture(for ing: Ingredient, side: CGFloat, shadowed: Bool) -> SKTexture? {
         // 캐시 키에 스킴은 없다 — PaperSilhouette 팔레트는 전량 고정색이라 라이트/다크가 픽셀 동일.
-        let key = "\(ing.glyph.rawValue)@\(Int(side))" + (shadowed ? "" : "#body")
+        // 시듦은 **반드시 키에 넣는다** — 같은 글리프의 신선/시듦이 픽셀이 다른 별개 텍스처라,
+        // 빠뜨리면 먼저 캐시된 쪽이 나머지에 재사용돼 시금치가 신선하게(또는 그 반대로) 보인다.
+        let wilted = ing.freshness.isWilted
+        let key = "\(ing.glyph.rawValue)@\(Int(side))" + (wilted ? "!wilt" : "") + (shadowed ? "" : "#body")
         if let t = textureCache[key] { return t }
-        let view = PaperSilhouette(glyph: ing.glyph, fresh: ing.freshness, shadowed: shadowed)
+        let view = PaperSilhouette(glyph: ing.glyph, fresh: ing.freshness, shadowed: shadowed,
+                                   wilted: wilted)
             .frame(width: side, height: side)
         let renderer = ImageRenderer(content: view)
         renderer.scale = 3
@@ -746,7 +750,10 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         for (i, ing) in ingredients.enumerated() {
             if let node = chips[ing.id] {
                 // 이름이 편집됐으면(글리프도 바뀔 수 있음) 칩을 다시 만든다.
-                if (node.userData?["name"] as? String) != ing.name {
+                // 시듦 상태도 같이 본다 — 텍스처는 생성 시점에 굳으므로, 소비기한을 고쳐 신선/시듦이
+                // 뒤집혀도 다시 만들지 않으면 예전 모습 그대로 남는다.
+                if (node.userData?["name"] as? String) != ing.name
+                    || (node.userData?["wilted"] as? Bool) != ing.freshness.isWilted {
                     popOut(node, id: ing.id)
                     addChip(ing, order: i, count: ingredients.count)
                 }
@@ -790,8 +797,9 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         let body = makeBody(for: ing.glyph, side: s)
         node.physicsBody = body
         node.name = "chip:\(ing.id.uuidString)"
-        // glyph는 충돌 시 촉감(sharpness·세기)을 되찾기 위해 함께 싣는다.
-        node.userData = ["name": ing.name, "glyph": ing.glyph.rawValue]
+        // glyph는 충돌 시 촉감(sharpness·세기)을 되찾기 위해, wilted는 sync의 재생성 판정을 위해 싣는다.
+        node.userData = ["name": ing.name, "glyph": ing.glyph.rawValue,
+                         "wilted": ing.freshness.isWilted]
         // 달그락용 contact 태그. collisionBitMask는 기본값 그대로라 물리 거동은 안 바뀐다.
         body.categoryBitMask = Category.chip
         body.contactTestBitMask = Category.chip | Category.wall
