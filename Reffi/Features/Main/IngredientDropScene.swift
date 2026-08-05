@@ -893,7 +893,7 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         .milk: .container, .sauceBottle: .container, .can: .container, .honey: .container,
         .yogurt: .container, .butter: .container, .cheese: .container,
         // 물렁함 — 눌러 붙는 것
-        .tofu: .soft, .rice: .soft, .noodles: .soft, .dumpling: .soft,
+        .tofu: .soft, .rice: .soft, .noodles: .soft, .dumpling: .soft, .gimbap: .soft,
         .avocado: .soft, .banana: .soft,
     ]
 
@@ -945,6 +945,8 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         .bacon: (0.67, 0.36, 0.00), .crab: (0.61, 0.54, 0.06), .squid: (0.29, 0.61, 0.03),
         .clam: (0.56, 0.43, 0.09), .yogurt: (0.44, 0.61, 0.01), .butter: (0.64, 0.33, 0.07),
         .honey: (0.43, 0.61, 0.07), .dumpling: (0.54, 0.32, 0.06),
+        // v3 요리형 1종 — 단면 두 조각이라 글리프 집합에서 가장 큰 바디다(`-glyphMetrics` 실측).
+        .gimbap: (0.72, 0.71, -0.01),
         .generic: (0.60, 0.56, 0.01),
     ]
 

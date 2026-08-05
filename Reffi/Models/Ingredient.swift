@@ -21,6 +21,7 @@ enum FoodGlyph: String, Codable, CaseIterable {
     case rice, noodles, corn                           // 신규 곡류
     case sauceBottle, can                              // 신규 저장식품
     case honey, dumpling                               // v2 신규 저장식품·기타
+    case gimbap                                        // v3 요리형(만두 선례) — 재료가 아니라 메뉴 자체가 모티프
     case generic
 
     /// 톨러런트 디코드 — 미지의 rawValue(향후 케이스 추가·데이터 오염)가 필드 하나로 끝나게
@@ -30,9 +31,31 @@ enum FoodGlyph: String, Codable, CaseIterable {
         self = FoodGlyph(rawValue: raw) ?? .generic
     }
 
-    /// 재료명 → 글리프. 1순위 정본 재료 사전(`IngredientLexicon`), 2순위 레거시 키워드 폴백.
+    /// 요리형 글리프 키워드 — **메뉴 자체가 모티프**인 완성 요리만 등재한다(재료가 아니라 메뉴가 정체성).
+    /// `excludeSuffixes`는 "그 요리에 **쓰는** 재료" 표기를 재료 경로로 되돌려 보내는 가드다.
+    private static let dishKeywords: [(needles: [String], excludeSuffixes: [String], glyph: FoodGlyph)] = [
+        (["김밥", "gimbap", "kimbap"], ["김"], .gimbap),
+    ]
+
+    /// 요리 이름 → 전용 글리프. 표에 없으면 nil(재료 경로로 넘어간다).
+    static func dishGlyph(for rawName: String) -> FoodGlyph? {
+        let n = rawName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !n.isEmpty else { return nil }
+        for row in dishKeywords {
+            guard row.needles.contains(where: { n.contains($0) }) else { continue }
+            // "김밥김"·"김밥용 김"은 김밥에 쓰는 **김 시트**라 롤이 아니다 — 사전 경로로 돌려보낸다.
+            if row.excludeSuffixes.contains(where: { n.hasSuffix($0) }) { continue }
+            return row.glyph
+        }
+        return nil
+    }
+
+    /// 재료명 → 글리프. 우선순위 **① 요리 정체성 → ② 정본 재료 사전(`IngredientLexicon`) → ③ 레거시 키워드**.
+    /// 요리 이름이 사전보다도 앞서는 이유: 사전은 **부분 문자열 매칭**이라 완성된 요리 이름이 재료로
+    /// 쪼개진다 — "gimbap"은 김(`gim`)에, "참치김밥"은 참치에 먼저 걸려 롤이 김·생선으로 뒤집힌다.
     /// 한 글자 키워드("배"·"파"·"무")는 정확 일치만 — "배추"→과일, "파프리카"→양파 같은 오분류를 막는다.
     static func match(_ name: String) -> FoodGlyph {
+        if let dish = dishGlyph(for: name) { return dish }
         if let g = IngredientLexicon.shared.glyph(for: name) { return g }
         let n = name.lowercased()
         func has(_ ks: [String]) -> Bool { ks.contains { $0.count > 1 ? n.contains($0) : n == $0 } }
@@ -266,7 +289,8 @@ extension FoodGlyph {
         case .fish, .shrimp, .crab, .squid, .clam: "Seafood"
         case .tofu: "Protein"
         case .bread: "Bakery"
-        case .rice, .noodles, .corn: "Grain"
+        // 김밥은 요리지만 정체는 밥 — Other(잡동사니)보다 Grain이 History 도넛에서 읽힌다.
+        case .rice, .noodles, .corn, .gimbap: "Grain"
         case .sauceBottle, .can, .honey: "Pantry"
         case .generic, .dumpling: "Other"
         }

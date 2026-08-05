@@ -300,6 +300,7 @@ struct PaperSilhouette: View {
         case .can:       can(r, &ctx)
         case .honey:     honey(r, &ctx)
         case .dumpling:  dumpling(r, &ctx)
+        case .gimbap:    gimbap(r, &ctx)
         case .generic:   blob(r, &ctx)
         }
     }
@@ -1706,6 +1707,60 @@ struct PaperSilhouette: View {
                    with: .color(i % 2 == 0 ? C.doughSh.opacity(0.6) : C.doughHi.opacity(0.6)))
             i += 1
         }
+    }
+
+    // MARK: v3 요리(메뉴) 글리프
+
+    /// 김밥 — 썰어 놓은 **단면 두 조각**(뒤 조각 + 앞 조각). 바깥 김 링 + 밥 링 + 속재료 색면 5종.
+    /// 두 링은 **각기 다른 정다각형을 각도까지 어긋나게** 겹친다(9각 김 ↔ 8각 밥) — 링 두께가
+    /// 들쭉날쭉해져 컴퍼스가 아니라 손으로 오린 종이 링이 된다(§13.3 완전한 원 금지).
+    /// 40pt(냉장고 행)에서도 **진초록 링 → 흰 링 → 알록달록 속**이라는 세 겹의 명도 대비만으로
+    /// 김밥이 읽히도록, 디테일을 이 세 겹에만 건다(참깨·밥알 같은 미세 디테일은 넣지 않는다 —
+    /// 작은 크기에서 링을 갉아먹고 큰 크기에서만 보이는 장식은 두 크기 사이의 정체성을 갈라놓는다).
+    private static func gimbap(_ r: CGRect, _ ctx: inout GraphicsContext) {
+        let W = r.width, H = r.height
+        // 뒤 조각(좌상·작게) — 김 + 밥 두 겹뿐. 그늘 톤이라 앞 조각과 명도로 갈린다.
+        let bx = r.midX - W * 0.26, by = r.midY - H * 0.24, bd = W * 0.56
+        let backNori = facet(bx, by, bd, bd, 8, phase: -.pi / 2 + 0.30)
+        shadow(&ctx, backNori, r)
+        fill(&ctx, backNori, C.seaweedShd)
+        fill(&ctx, facet(bx, by, bd * 0.66, bd * 0.66, 7, phase: -.pi / 2 + 0.9), C.riceSh)
+        // 속재료 한 점만 — 뒤 조각도 속이 찬 롤이라는 힌트(앞 조각과 겹치지 않는 좌상단에 둔다).
+        fill(&ctx, facet(bx - bd * 0.10, by - bd * 0.09, bd * 0.22, bd * 0.22, 5), C.carrotSh)
+
+        // 앞 조각(주역, 우하)
+        let fx = r.midX + W * 0.06, fy = r.midY + H * 0.07, fd = W * 0.84
+        let nori = facet(fx, fy, fd, fd, 9, phase: -.pi / 2 + 0.12)
+        shadow(&ctx, nori, r)
+        fill(&ctx, nori, C.seaweedDk)
+        shadeBody(&ctx, nori, dark: C.seaweedShd, split: 0.5)
+        // 참기름 광택(각진 대각 면) — 밥보다 먼저 그려 김 링에만 남는다.
+        var c = ctx; c.clip(to: nori)
+        c.fill(poly([CGPoint(x: fx - fd * 0.40, y: fy - fd * 0.20),
+                     CGPoint(x: fx - fd * 0.20, y: fy - fd * 0.44),
+                     CGPoint(x: fx - fd * 0.04, y: fy - fd * 0.40),
+                     CGPoint(x: fx - fd * 0.32, y: fy - fd * 0.04)]),
+               with: .color(C.seaweedGloss.opacity(0.80)))
+
+        // 밥 링
+        let riceFace = facet(fx, fy, fd * 0.79, fd * 0.79, 8, phase: -.pi / 2 + 0.55)
+        fill(&ctx, riceFace, C.rice)
+        shadeBody(&ctx, riceFace, dark: C.riceSh, split: 0.52)
+
+        // 속재료 — 십자로 벌려 사이사이에 밥이 비친다(실제 단면의 결). 색면은 평면으로 두고
+        // 면분할은 하지 않는다: 40pt에서 한 조각이 6pt라 톤을 나누면 색이 탁해진다.
+        let R = fd / 2
+        let fillings: [(x: CGFloat, y: CGFloat, w: CGFloat, h: CGFloat, sides: Int, color: Color)] = [
+            (-0.29, -0.30, 0.52, 0.50, 6, C.yellow),    // 계란 지단
+            ( 0.30, -0.28, 0.50, 0.50, 5, C.pink),      // 햄 — 장난기 있는 오프컬러 액센트 1포인트
+            ( 0.28,  0.31, 0.52, 0.50, 6, C.carrot),    // 당근
+            (-0.30,  0.30, 0.50, 0.52, 5, C.mGreen),    // 시금치
+        ]
+        for f in fillings {
+            fill(&ctx, facet(fx + R * f.x, fy + R * f.y, R * f.w, R * f.h, f.sides,
+                             phase: f.x + f.y), f.color)
+        }
+        fill(&ctx, facet(fx, fy, R * 0.38, R * 0.38, 5, phase: 0.4), C.lGreen)   // 오이(중앙)
     }
 
     /// 일반 — 각진 뉴트럴 블롭.
