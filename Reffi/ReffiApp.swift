@@ -50,6 +50,8 @@ struct ReffiApp: App {
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("-glyphGallery") {
             GlyphGalleryView()
+        } else if ProcessInfo.processInfo.arguments.contains("-dishGallery") {
+            DishGalleryView()
         } else if ProcessInfo.processInfo.arguments.contains("-titleClipLab") {
             TitleClipLabView()
         } else if ProcessInfo.processInfo.arguments.contains("-shareCardPreview") {
