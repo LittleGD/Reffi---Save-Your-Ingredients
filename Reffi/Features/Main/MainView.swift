@@ -11,6 +11,7 @@ struct MainView: View {
     @Environment(FridgeStore.self) private var store
     @Environment(ProfileStore.self) private var profile
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
 
     // 알림 유도(프리퍼미션) — 첫 임박 재료가 생긴 순간이 가치가 증명되는 순간이다.
     // 알림은 기본 OFF + 스위치가 MyPage에만 있어, 여기서 한 번 제안하지 않으면 발견되지 않는다.
@@ -49,8 +50,15 @@ struct MainView: View {
     private var topF: Freshness { counter.first?.freshness ?? .fresh }
     private var urgentCount: Int { counter.lazy.filter { $0.freshness == .urgent }.count }
     private var soonCount: Int { counter.lazy.filter { $0.freshness == .soon }.count }
-    /// 씬 일시정지 — 다른 탭, 캐러셀·판정 커버에 가려진 동안은 물리 렌더를 멈춘다.
-    private var scenePaused: Bool { !isActive || showCarousel || deciding != nil }
+    /// 씬 일시정지 — 다른 탭, 백그라운드, 캐러셀·판정 커버에 가려진 동안은 물리 렌더를 멈춘다.
+    /// `.inactive`(앱 스위처·제어센터 오버레이)는 화면이 아직 보이므로 멈추지 않는다 —
+    /// 여기서 멈추면 런치 직후 첫 프레임이 회색으로 굳는다.
+    private var scenePaused: Bool {
+        !isActive || scenePhase == .background || showCarousel || deciding != nil
+    }
+    /// 기울기 반응(CoreMotion) 가동 조건 — 씬이 실제로 도는 동안에만, 그리고 Reduce Motion이
+    /// 꺼져 있을 때만 센서를 읽는다(§7.4 — 켜져 있으면 기능 자체를 끄고 기본 중력 더미로 남는다).
+    private var tiltActive: Bool { !scenePaused && !reduceMotion }
     /// 씬 동기화 트리거 — id·이름·글리프·신선도 어느 것이 바뀌어도 칩이 따라간다.
     private var sceneSyncKey: [String] {
         counter.map { "\($0.id.uuidString)#\($0.name)#\($0.glyph.rawValue)#\($0.freshness)" }
@@ -138,6 +146,8 @@ struct MainView: View {
             scene.sync(counter)
         }
         #if DEBUG
+        // `-tiltLab` — 기울기 QA용 하단 오버레이. overlay라 헤더·배너·뱃지 행·CTA 레이아웃은 그대로다.
+        .overlay(alignment: .bottom) { tiltLabOverlay }
         .onAppear {   // 미리보기/검증용: `-loadSample`로 샘플 시드, `-previewCarousel 1`로 캐러셀 바로 열기.
             let args = ProcessInfo.processInfo.arguments
             if args.contains("-loadSample"), store.isPristine {
@@ -174,6 +184,113 @@ struct MainView: View {
     }
 
     @State private var dayTick = 0   // 자정 리렌더 트리거
+
+    // MARK: - Tilt lab (`-tiltLab`, DEBUG)
+
+    #if DEBUG
+    @State private var tiltLabX: Double = Self.launchTilt("tiltLab.x") ?? 0    // 주입 중력 x(정규화) — 오른쪽이 +
+    @State private var tiltLabY: Double = Self.launchTilt("tiltLab.y") ?? -1   // 주입 중력 y(정규화) — 위가 +, 세워 든 기본 자세가 -1
+
+    /// `-tiltLab.x 1` 처럼 시작 중력을 런치 인자로 주입한다(NSArgumentDomain — `-fridge.compact YES` 선례).
+    /// 슬라이더는 코드로 못 움직이므로, 컨테인먼트 스크린샷 QA를 자동화하려면 이 경로가 필요하다.
+    private static func launchTilt(_ key: String) -> Double? {
+        guard UserDefaults.standard.object(forKey: key) != nil else { return nil }
+        return min(1, max(-1, UserDefaults.standard.double(forKey: key)))
+    }
+
+    /// `-tiltLab` 또는 `-tiltLab.x/.y` 중 하나만 있어도 실험실을 켠다.
+    private var tiltLabOn: Bool {
+        ProcessInfo.processInfo.arguments.contains("-tiltLab")
+            || UserDefaults.standard.object(forKey: "tiltLab.x") != nil
+            || UserDefaults.standard.object(forKey: "tiltLab.y") != nil
+    }
+
+    /// 기울기 실험실 — X/Y 슬라이더로 씬 중력 벡터를 직접 주입한다. 시뮬레이터엔 자이로가 없어
+    /// CoreMotion 경로를 탈 수 없으므로, 굴러가는 모양 QA는 사실상 이 경로로만 가능하다.
+    /// CTA 위에 얹어(하단 패딩) 요리시작 버튼은 계속 누를 수 있게 둔다.
+    @ViewBuilder private var tiltLabOverlay: some View {
+        if tiltLabOn {
+            VStack(alignment: .leading, spacing: 2) {
+                HStack {
+                    Text(verbatim: "TILT LAB")
+                        .reffiType(.monoEyebrow).foregroundStyle(ReffiColor.blueDark)
+                    Spacer()
+                    Text(verbatim: String(format: "x %.2f   y %.2f", tiltLabX, tiltLabY))
+                        .reffiType(.metaText).foregroundStyle(ReffiColor.ink2)
+                }
+                tiltLabSlider("X", value: $tiltLabX)
+                tiltLabSlider("Y", value: $tiltLabY)
+                HStack(spacing: ReffiSpace.s3) {
+                    Button { scene.shakeBurst() } label: {
+                        Text(verbatim: "SHAKE")
+                            .reffiType(.monoEyebrow)
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, ReffiSpace.s3)
+                            .padding(.vertical, 4)
+                            .background(ReffiColor.blue, in: Capsule())
+                    }
+                    .buttonStyle(.reffiPress)
+                    clatterCounter
+                    Spacer()
+                }
+                .padding(.top, 2)
+            }
+            .padding(.horizontal, ReffiSpace.s4)
+            .padding(.vertical, ReffiSpace.s2)
+            .background {
+                let shape = PaperRect(cornerRadius: ReffiRadius.md)
+                shape.fill(ReffiColor.paper).paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
+            }
+            .reffiShadow1()
+            .padding(.horizontal, margin)
+            .padding(.bottom, navClearance + 60)
+            .onAppear {
+                pushTiltLab()
+                scene.onClatter = { [clatterLog] in
+                    clatterLog.times.append(ProcessInfo.processInfo.systemUptime)
+                    if clatterLog.times.count > 240 { clatterLog.times.removeFirst(120) }
+                }
+                // `-tiltLab.shake` — 버튼을 코드로 못 눌러서, 런치 1.5초 뒤 버스트를 한 번 자동 발동한다
+                // (재료가 자리를 잡은 뒤라야 충돌이 의미 있다).
+                if ProcessInfo.processInfo.arguments.contains("-tiltLab.shake") {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { scene.shakeBurst() }
+                }
+            }
+            .onChange(of: tiltLabX) { _, _ in pushTiltLab() }
+            .onChange(of: tiltLabY) { _, _ in pushTiltLab() }
+        }
+    }
+
+    /// 햅틱 발화 시각 로그 — @State가 아니라 **참조 박스**에 담는다. 초당 수십 회 발화를 @State에
+    /// 쓰면 그때마다 SwiftUI가 물리 필드까지 다시 그린다. TimelineView가 자기 주기로 읽어 가면 충분하다.
+    private final class ClatterLog { var times: [TimeInterval] = [] }
+    @State private var clatterLog = ClatterLog()
+
+    /// 최근 1초 햅틱 발화 수 — 시뮬레이터엔 햅틱 하드웨어가 없어 **이 숫자가 유일한 관측 수단**이다.
+    /// 정지한 더미에서 0으로 떨어지는지(웅웅 방지 증명)도 여기서 본다.
+    private var clatterCounter: some View {
+        TimelineView(.periodic(from: .now, by: 0.25)) { _ in
+            let now = ProcessInfo.processInfo.systemUptime
+            let recent = clatterLog.times.filter { now - $0 < 1 }.count
+            Text(verbatim: "HAPTIC \(recent)/s")
+                .reffiType(.metaText)
+                .foregroundStyle(recent > 0 ? ReffiColor.blueDark : ReffiColor.ink2)
+        }
+    }
+
+    private func tiltLabSlider(_ label: String, value: Binding<Double>) -> some View {
+        HStack(spacing: ReffiSpace.s2) {
+            Text(verbatim: label)
+                .reffiType(.metaText).foregroundStyle(ReffiColor.ink2).frame(width: 12)
+            Slider(value: value, in: -1...1)
+        }
+    }
+
+    /// 슬라이더 값을 씬에 주입 — 씬은 이 값을 CoreMotion보다 우선한다.
+    private func pushTiltLab() {
+        scene.debugTilt = CGVector(dx: tiltLabX, dy: tiltLabY)
+    }
+    #endif
 
     // MARK: - Header
 
@@ -314,6 +431,7 @@ struct MainView: View {
                     .onChange(of: sceneSyncKey) { _, _ in scene.sync(counter) }
                     .onChange(of: reduceMotion) { _, v in scene.reduceMotion = v }
                     .onChange(of: scenePaused) { _, p in scene.externallyPaused = p }
+                    .onChange(of: tiltActive) { _, v in scene.tiltEnabled = v }
                 if counter.isEmpty { emptyField }
             }
             .frame(width: geo.size.width, height: geo.size.height)
@@ -327,6 +445,7 @@ struct MainView: View {
         scene.onRemove = { id in decide(id) }
         scene.onDecide = { id, wasted in gestureDecide(id, wasted: wasted) }
         scene.externallyPaused = scenePaused
+        scene.tiltEnabled = tiltActive
         scene.sync(counter)
     }
 
