@@ -44,6 +44,9 @@ struct MainView: View {
     private static let fieldSpace = "mainField"
     /// 헤더·배너가 물리 필드를 덮는 높이. 씬은 이 값으로 스폰·판정 존을 예전 자리에 유지한다.
     @State private var overlayTopInset: CGFloat = 0
+    /// 헤더 블록(워드마크·날짜·미션 라인)의 아래 끝. 씬의 **물리 천장**이 여기 걸려
+    /// 재료가 배너 뒤까지는 올라가도 헤더 텍스트는 덮지 않는다(배너 유무와 무관).
+    @State private var headerBottom: CGFloat = 0
 
     private var counter: [Ingredient] { store.counterIngredients }
     private var carouselResults: [RecipeRecommender.Result] {
@@ -71,13 +74,15 @@ struct MainView: View {
 
     var body: some View {
         // 3층 구조 — 아래에서 위로: 배경 그라디언트 / 물리 필드 / UI.
-        // 물리 필드가 **화면 최상단부터** 깔려 헤더·배너 뒤까지 재료가 굴러다닌다.
+        // 물리 필드는 화면 최상단부터 깔리되 **재료가 올라갈 수 있는 천장은 헤더 아래 끝**이다 —
+        // 배너 뒤로는 굴러 들어가도 워드마크·날짜·미션 라인은 안 덮는다.
         // UI가 항상 위층이라 배너 버튼·CTA·탭바 탭은 그대로 이긴다(히트테스트 위계).
         ZStack {
             fieldBackground
             contentLayer
         }
         .onPreferenceChange(ClearFieldTopKey.self) { overlayTopInset = $0 }
+        .onPreferenceChange(HeaderBottomKey.self) { headerBottom = $0 }
         .sensoryFeedback(.impact(weight: .medium), trigger: fireHaptic)
         .sensoryFeedback(.impact(weight: .light), trigger: decisionHaptic)
         .fullScreenCover(isPresented: $showCarousel, onDismiss: {
@@ -191,13 +196,22 @@ struct MainView: View {
     }
 
     /// 헤더 + 배너 + 스페이서 묶음. **이 묶음의 배경이 물리 필드**라, 필드가 화면 최상단부터
-    /// 배지 행 위까지 자동으로 깔린다(바닥 위치는 확장 전과 동일). 위쪽은 헤더·배너에 가리지만
-    /// 물리적으로는 열려 있어 기울이면 재료가 그 뒤로 굴러 올라간다.
+    /// 배지 행 위까지 자동으로 깔린다(바닥 위치는 확장 전과 동일). 배너 구간은 물리적으로 열려 있어
+    /// 기울이면 재료가 그 뒤로 굴러 올라가고, 헤더 구간은 천장 위라 재료가 못 들어온다.
     private var fieldStack: some View {
         VStack(spacing: 0) {
             header
                 .padding(.horizontal, margin)
                 .padding(.top, ReffiSpace.s2)
+                // 헤더 아래 끝 = 물리 천장. 배너가 아니라 **헤더**를 재야 배너를 닫아도 기준이 안 흔들린다.
+                // 측정용 배경은 히트테스트를 꺼야 그 아래 물리 필드의 칩 드래그가 산다(clearFieldSpacer 선례).
+                .background(
+                    GeometryReader { geo in
+                        Color.clear.preference(key: HeaderBottomKey.self,
+                                               value: geo.frame(in: .named(Self.fieldSpace)).maxY)
+                    }
+                    .allowsHitTesting(false)
+                )
 
             // 발주 진행 카드(§13.6 C) — 헤더 아래 죽은 공간이 상태 표면이 된다.
             if let cook = store.activeCook {
@@ -496,13 +510,15 @@ struct MainView: View {
                 .onChange(of: scenePaused) { _, p in scene.externallyPaused = p }
                 .onChange(of: tiltActive) { _, v in scene.tiltEnabled = v }
                 .onChange(of: overlayTopInset) { _, v in scene.overlayTopInset = max(0, v) }
+                .onChange(of: headerBottom) { _, v in scene.headerTopInset = max(0, v) }
         }
     }
 
     private func configureScene(size: CGSize) {
         scene.scaleMode = .resizeFill
         scene.size = size
-        scene.overlayTopInset = max(0, overlayTopInset)   // 헤더·배너가 덮는 높이
+        scene.overlayTopInset = max(0, overlayTopInset)   // 헤더·배너가 덮는 높이(스폰·판정 존 기준)
+        scene.headerTopInset = max(0, headerBottom)       // 헤더 아래 끝(물리 천장)
         scene.reduceMotion = reduceMotion
         scene.onRemove = { id in decide(id) }
         scene.onDecide = { id, wasted in gestureDecide(id, wasted: wasted) }
@@ -644,9 +660,21 @@ struct MainView: View {
 }
 
 /// 헤더·배너가 물리 필드를 덮는 높이를 위로 나르는 키.
+///
+/// **reduce는 max여야 한다.** 흔한 `value = nextValue()`(마지막이 이김)를 쓰면, 값을 싣지 않는
+/// 형제(뱃지 행·CTA)가 기본값 0을 들고 뒤에 오면서 실측값을 **0으로 덮어쓴다** — 측정이 조용히
+/// 죽어 인셋이 영영 0이 된다(실제로 그래서 스폰·판정 존이 계속 화면 최상단 기준으로 놓였다).
+/// 값을 싣는 뷰가 하나뿐이고 나머지는 0이므로 max가 곧 그 하나의 값이다.
 private struct ClearFieldTopKey: PreferenceKey {
     static let defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
+}
+
+/// 헤더 블록의 아래 끝(= 물리 천장)을 위로 나르는 키. 배너를 재지 않으므로 배너가 사라져도 안 흔들린다.
+/// reduce가 max인 이유는 위 `ClearFieldTopKey` 주석과 같다.
+private struct HeaderBottomKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
 }
 
 /// Ate/Tossed 결정 — 투명 풀스크린 커버 위 딤 + 종이 카드 + 종이컷 아이콘 버튼 쌍 + 명시적 취소.

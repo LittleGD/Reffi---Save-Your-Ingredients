@@ -269,13 +269,28 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     /// 헤더·배너가 씬 위를 덮는 높이 — MainView가 실측해 넣어준다.
     ///
     /// 씬은 이제 **화면 전체 배경**이라 위쪽 일부가 헤더·MORNING ALERTS 배너에 가려진다.
-    /// 물리 경계(`sealedCeiling`)는 그 가려진 데까지 열어 두어 기울이면 재료가 배너 **뒤로** 굴러
+    /// 물리 경계(`sealedCeiling`)는 배너에 가려진 데까지 열어 두어 기울이면 재료가 배너 **뒤로** 굴러
     /// 올라가지만, 스폰·판정 존처럼 **사용자가 봐야 하는 것**은 이 인셋 아래(가려지지 않는 영역)에 둔다.
     /// 그래서 런치 캐스케이드가 헤더 텍스트 위를 가로지르지 않고 구도가 종전과 같다.
     var overlayTopInset: CGFloat = 0 {
         didSet {
             guard abs(overlayTopInset - oldValue) > 0.5 else { return }
             layoutZones()
+            wake()
+        }
+    }
+
+    /// 헤더 블록(워드마크·날짜·미션 라인)이 씬 위를 덮는 높이 — MainView가 실측해 넣어준다.
+    /// **물리 천장이 여기 걸린다**(`sealedCeiling`).
+    ///
+    /// 배너는 헤더 **아래**에 있으므로 이 기준은 배너 유무와 무관하다 — Later로 배너를 닫아도,
+    /// Cooking now 카드로 바뀌어도 천장이 움직이지 않는다. 값이 실제로 달라졌을 때만 벽을
+    /// 다시 세운다(`overlayTopInset`과 같은 0.5pt 문턱 — 실측 노이즈로 매 프레임 재구축 방지).
+    var headerTopInset: CGFloat = 0 {
+        didSet {
+            guard abs(headerTopInset - oldValue) > 0.5 else { return }
+            buildWalls()
+            tuckStraysUnderCeiling()   // 천장이 내려왔으면 그 위에 남은 칩을 즉시 끌어들인다(아래 주석)
             wake()
         }
     }
@@ -297,9 +312,10 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     /// 표의 최대 바디폭이 0.68s이므로 약 0.038s. 테이블이 버린 가로 중심 오프셋(`dx`)과 회전 여유까지
     /// 얹어 0.09s로 잡았다(0.06s로는 실측 여백이 1.7pt까지 좁아져 사실상 닿아 보였다 — 스크린샷 계측).
     private var wallInset: CGFloat { max(2, chipSide * 0.09) }
-    /// 밀폐 천장 — **씬(= 화면) 최상단**. 헤더·배너 뒤까지가 물리 영역이므로 여기까지 열어 두되,
-    /// 그 위로는 절대 못 나간다. 배너는 물리적 장애물이 아니라 그냥 위에 그려진 UI일 뿐이다.
-    private var sealedCeiling: CGFloat { size.height - wallInset }
+    /// 밀폐 천장 — **헤더 블록의 아래 끝**(= 배너의 윗선). 재료는 MORNING ALERTS 배너 뒤까지
+    /// 굴러 올라가지만(배너는 물리적 장애물이 아니라 그냥 위에 그려진 UI다) 워드마크·날짜·미션
+    /// 라인은 **어떤 중력·드래그에서도 덮지 않는다**. 벽·회수 목표·드래그 클램프가 모두 이 선을 쓴다.
+    private var sealedCeiling: CGFloat { max(1, size.height - headerTopInset) - wallInset }
     /// 스폰 천장 — 재료는 화면 위에서 떨어져 들어오므로(§13) 낙하 중엔 천장을 스폰 위치 위로 올려 둔다.
     private var spawnCeiling: CGFloat { size.height + spawnHeadroom }
     /// 물속 튜닝으로 종단 속도가 크게 떨어져(§물성) 예전 700pt 낙하는 십수 초가 걸린다.
@@ -418,6 +434,9 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         // 칩 변이 실제로 달라졌으면 텍스처 캐시를 버린다(캐시 키에 side가 박혀 있음).
         if chipSideFor(oldSize) != chipSide { textureCache.removeAll() }
         buildWalls()
+        // 씬이 낮아지면 천장도 함께 내려온다 — 그 위에 남은 칩을 즉시 끌어들인다.
+        // (런치 직후 뱃지 행이 생기며 필드가 64pt 줄어드는 순간이 실제 사례다.)
+        tuckStraysUnderCeiling()
         layoutZones()
         wake()   // 리사이즈로 레이아웃이 바뀌었으니 한 번 굴려 재안착
     }
@@ -675,16 +694,27 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         let since = unsealedSince ?? now
         unsealedSince = since
         guard now - since > sealTimeout else { return }
-        // 갇힌 칩 회수 — 가시 영역 상단 바로 아래로 내려놓고 속도를 죽인 뒤 상자를 닫는다.
-        for node in strays {
-            node.position.y = sealedCeiling - chipSide * 0.5
-            node.physicsBody?.velocity = .zero
-            node.physicsBody?.angularVelocity = 0
-        }
+        // 갇힌 칩 회수 — 천장 바로 아래로 내려놓고 속도를 죽인 뒤 상자를 닫는다.
+        tuckStraysUnderCeiling()
         unsealedSince = nil
         ceilingSealed = true
         buildWalls()
         wake()
+    }
+
+    /// 천장 **위**에 남은 칩을 상자 안으로 끌어들인다.
+    ///
+    /// 밀폐된 상자 바깥(위)에 놓인 칩은 스스로 못 들어온다 — 위로 기울인 상태면 그대로 떠올라
+    /// 감쇠(`jitterDamp`)에 얼어붙고, 그러면 씬이 안착으로 판정해 잠들어(`forceSettle`) `maintainCeiling`의
+    /// 4초 타임아웃이 **영영 돌지 않는다**(재료가 화면 밖에서 사라진 것처럼 보였다).
+    /// 그래서 `maintainCeiling`의 지연 회수와 별개로, 천장이 내려오는 순간에도 즉시 회수한다.
+    private func tuckStraysUnderCeiling() {
+        let ceiling = sealedCeiling
+        for node in chips.values where node.position.y > ceiling {
+            node.position.y = ceiling - chipSide * 0.5
+            node.physicsBody?.velocity = .zero
+            node.physicsBody?.angularVelocity = 0
+        }
     }
 
     /// 표시용 실루엣 텍스처(종이 그림자 포함)를 캐시한다. 충돌체는 이 텍스처 알파가 아니라
