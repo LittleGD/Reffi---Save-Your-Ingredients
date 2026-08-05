@@ -48,6 +48,7 @@ xcrun simctl io booted screenshot reffi-home.png
 `-tiltLab` 기울기 물리 실험실(하단 X/Y 슬라이더로 홈 재료 더미의 중력 벡터 주입 · 시뮬레이터엔 자이로가 없어 필수) ·
 `-tiltLab.x -1..1` `-tiltLab.y -1..1` 시작 중력 벡터 주입(슬라이더를 코드로 못 움직여 컨테인먼트 스크린샷 QA에 필요 · 단독 지정해도 실험실이 켜진다) ·
 `-tiltLab.shake` 런치 1.5초 뒤 셰이크 버스트 1회 자동 발동(달그락 햅틱 QA용 · 실험실 패널의 SHAKE 버튼과 동일 · 단독 지정해도 실험실이 켜진다) ·
+`-zoneLab` 홈 판정 존(Ate/Tossed 종이 블롭)을 드래그 없이 항상 표시 — 존은 SpriteKit 노드라 접근성 트리에 없고 드래그 중에만 보여서, 배치 회귀를 스크린샷으로 잡으려면 이 경로가 필요하다(§13.6 3-1) ·
 `-fridgeExpand` 냉장고 첫 재료 펼침 · `-fridgeExpandSolo` 재료 1개만 남기고 펼침(네비 클리어런스 QA) ·
 `-fridge.sortOpen` 정렬 드롭다운(`PaperDropdown`) 자동 오픈(스크린샷용) · `-fridgeEdit` 첫 재료 편집 시트 자동 표시(+`-loadSample`) ·
 `-resetOnboarding` 온보딩 초기화 · `-skipOnboarding` 온보딩 건너뛰고 곧장 게이트 통과 ·

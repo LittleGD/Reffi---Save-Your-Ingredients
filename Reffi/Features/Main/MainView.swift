@@ -657,9 +657,17 @@ struct MainView: View {
 }
 
 /// 헤더·배너가 물리 필드를 덮는 높이를 위로 나르는 키.
-private struct ClearFieldTopKey: PreferenceKey {
+///
+/// `reduce`가 **max**인 이유 — 값을 쓰는 건 `clearFieldSpacer` 하나뿐이지만, SwiftUI는 컨테이너의
+/// **모든** 자식을 접으면서 값을 안 쓰는 형제도 `defaultValue`(0)로 참여시킨다. `contentLayer`의
+/// VStack에서 쓰는 쪽(`fieldStack`)이 맨 앞이고 뒤에 뱃지 행·CTA가 오므로, `value = nextValue()`
+/// ("마지막이 이김")면 실측값이 뒤따르는 0에 덮여 **항상 0이 배달된다** — 그러면 씬의 clearHeight가
+/// 화면 전체 높이가 되어 판정 존이 헤더 위(화면 최상단)에 붙는다. minY는 음수가 될 수 없으므로
+/// max는 유일한 실측값을 형제 순서와 무관하게 그대로 통과시킨다.
+/// (`internal` — ZonePlacementTests가 이 접기 규칙을 직접 고정한다.)
+struct ClearFieldTopKey: PreferenceKey {
     static let defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
 }
 
 /// Ate/Tossed 결정 — 투명 풀스크린 커버 위 딤 + 종이 카드 + 종이컷 아이콘 버튼 쌍 + 명시적 취소.

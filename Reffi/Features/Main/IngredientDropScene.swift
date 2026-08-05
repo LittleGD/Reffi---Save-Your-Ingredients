@@ -262,6 +262,18 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     private let zoneSide: CGFloat = 86
     private let magnetRadius: CGFloat = 88
 
+    #if DEBUG
+    /// `-zoneLab` — 판정 존을 드래그 없이 **항상 표시**한다. 존은 SpriteKit 노드라 접근성 트리에
+    /// 없고 드래그 중에만 보여서, 위치 회귀를 스크린샷으로 잡으려면 강제 표시 경로가 필요하다.
+    private let zoneLab = ProcessInfo.processInfo.arguments.contains("-zoneLab")
+
+    /// 회귀 테스트용 존 중심(씬 좌표) — 생성 전이면 nil. `debugTilt` 선례와 같은 QA 주입/관찰구.
+    var debugZoneCenters: (toss: CGPoint, ate: CGPoint)? {
+        guard let t = tossZone, let a = ateZone else { return nil }
+        return (t.position, a.position)
+    }
+    #endif
+
     private var chipSide: CGFloat { chipSideFor(size) }
     private func chipSideFor(_ s: CGSize) -> CGFloat { min(max(124, s.width * 0.42), 188) }
     // MARK: - 좌표계: 물리 영역 vs 가려지지 않는 영역
@@ -615,6 +627,10 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         let y = clearHeight - zoneSide * 0.5 - 12
         tossZone?.position = CGPoint(x: zoneSide * 0.5 + 14, y: y)
         ateZone?.position = CGPoint(x: size.width - zoneSide * 0.5 - 14, y: y)
+        #if DEBUG
+        // `-zoneLab`은 재생성(다크 전환 리틴트) 뒤에도 계속 보여야 하므로 여기서 알파를 되돌린다.
+        if zoneLab { tossZone?.alpha = 0.96; ateZone?.alpha = 0.96 }
+        #endif
     }
 
     /// 드래그 시작/끝에만 보인다 — 평소엔 물리 필드를 어지럽히지 않는다.
