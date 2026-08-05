@@ -86,6 +86,28 @@ struct ZonePlacementTests {
         #expect(value == 0)
     }
 
+    // MARK: - 물리 천장을 나르는 키 (같은 접기 함정)
+
+    /// `HeaderBottomKey`(물리 천장)는 `ClearFieldTopKey`와 **같은 VStack의 같은 형제들** 사이를
+    /// 지나므로 접기 함정도 같다 — 값을 싣는 건 헤더 하나뿐이고 뱃지 행·CTA가 기본값 0을 들고
+    /// 뒤따른다. 두 키가 함께 살아야 재료가 헤더 텍스트를 덮지 않으므로 규칙을 따로 고정한다.
+    @Test func headerBottomSurvivesNonWritingSiblings() {
+        var value = HeaderBottomKey.defaultValue
+        HeaderBottomKey.reduce(value: &value) { 96.67 }                    // header(유일한 실측 주체)
+        HeaderBottomKey.reduce(value: &value) { HeaderBottomKey.defaultValue }  // 발주 진행 카드
+        HeaderBottomKey.reduce(value: &value) { HeaderBottomKey.defaultValue }  // 배너·스페이서
+        #expect(value == 96.67)
+    }
+
+    /// 형제 순서가 반대여도 같은 값이어야 한다 — 헤더 아래 요소가 늘고 줄어도 천장이 안 흔들리게.
+    @Test func headerBottomIsOrderIndependent() {
+        var value = HeaderBottomKey.defaultValue
+        HeaderBottomKey.reduce(value: &value) { HeaderBottomKey.defaultValue }
+        HeaderBottomKey.reduce(value: &value) { 96.67 }
+        HeaderBottomKey.reduce(value: &value) { HeaderBottomKey.defaultValue }
+        #expect(value == 96.67)
+    }
+
     // MARK: - 씬 배치 (도착 순서 불문)
 
     /// 실측 재현값(iPhone 17 Pro, MORNING ALERTS 배너 표시 상태): 씬 562.33, 인셋 143.33.
