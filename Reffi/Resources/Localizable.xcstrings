@@ -1931,6 +1931,16 @@
         }
       }
     },
+    "ORDER": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "주문"
+          }
+        }
+      }
+    },
     "On-device generation runs only on this device. Nothing leaves your phone.": {
       "localizations": {
         "ko": {
@@ -2037,6 +2047,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "기한 지남"
+          }
+        }
+      }
+    },
+    "PREP": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "조리 메모"
           }
         }
       }
