@@ -26,6 +26,9 @@ final class FridgeStore {
     private(set) var archivedTossed: Int
     /// "이번엔 안 살" 항목 — toBuy에서 제외.
     private(set) var dismissedToBuy: Set<String>
+    /// 직접 담은 장보기 항목 — 이력 제안(파생 `toBuy`)을 **보완**하는 수동 메모.
+    /// 이력에 없는 품목(한 번도 안 써본 재료)은 파생으로는 원천적으로 뜰 수 없어 여기에만 산다.
+    private(set) var manualToBuy: [ManualBuyItem]
     /// 메인 작업대(§13.6) — 물리 더미에 올라온 재료. 빈 자리는 다음 임박 재료가 채운다.
     private(set) var counterIDs: [UUID]
     /// 방금 처리한 판정/발주의 되돌리기 창(6초). 탭 전환에도 살아남는다.
@@ -43,6 +46,18 @@ final class FridgeStore {
         var steps: [String]?              // 단계 레시피(발주 시점 스냅샷) — 구버전 파일 호환용 옵셔널
         var completedSteps: [Int]?        // 체크한 단계 인덱스
         var usedIDs: [UUID]?              // 예약된 재료 — v1 세션(발주 즉시 소비)엔 없음
+    }
+
+    /// 장보기 목록에 손으로 얹은 한 줄. 키가 아니라 **항목**으로 저장한다 — 정규화 키만 남기면
+    /// 사용자가 담은 그 표기(로케일 표기·사전 표제어)로 다시 그려줄 수 없다.
+    struct ManualBuyItem: Codable, Equatable, Identifiable {
+        var name: String            // 담을 때의 표시 원문
+        var canonicalID: String?    // 정본 사전 캐논 ID — 사전 밖 이름이면 nil
+        var glyph: FoodGlyph
+
+        var id: String { matchKey }
+        /// 재료 동일성 키 — Ingredient/RemovalLog와 같은 규칙(표기 무관 비교).
+        var matchKey: String { canonicalID ?? name.lowercased() }
     }
 
     /// 예약된 재료(조리 중) — 작업대·추천에서 제외된다.
@@ -89,6 +104,7 @@ final class FridgeStore {
         archivedAte = snap?.archivedAte ?? 0
         archivedTossed = snap?.archivedTossed ?? 0
         dismissedToBuy = snap?.dismissedToBuy ?? []
+        manualToBuy = snap?.manualToBuy ?? []   // 구버전 파일엔 없음 → 빈 목록
         counterIDs = snap?.counterIDs ?? []
         activeCook = snap?.activeCook
         userRecipes = snap?.userRecipes ?? []
@@ -114,6 +130,7 @@ final class FridgeStore {
         archivedAte = 0
         archivedTossed = 0
         dismissedToBuy = []
+        manualToBuy = []
         counterIDs = []
         resolveCanonicalIDs()   // 메모리 스토어도 로드 규칙과 일관되게 해석(프리뷰·테스트)
         replenishCounter()
@@ -150,6 +167,7 @@ final class FridgeStore {
         var archivedAte: Int?              // v2
         var archivedTossed: Int?           // v2
         var aiRecipes: [Recipe]? = nil     // v2 — 기본 nil이라 기존 memberwise 호출·레거시 파일 안전
+        var manualToBuy: [ManualBuyItem]? = nil   // v2 — 직접 담은 장보기 항목(같은 이유로 옵셔널+기본값)
     }
 
     static var storeURL: URL {
@@ -198,7 +216,7 @@ final class FridgeStore {
                             dismissedToBuy: dismissedToBuy, counterIDs: counterIDs,
                             activeCook: activeCook, userRecipes: userRecipes,
                             archivedAte: archivedAte, archivedTossed: archivedTossed,
-                            aiRecipes: aiRecipes)
+                            aiRecipes: aiRecipes, manualToBuy: manualToBuy)
         do {
             let data = try JSONEncoder().encode(snap)
             let url = Self.storeURL
@@ -287,6 +305,8 @@ final class FridgeStore {
             // 재입고면 '이번엔 안 사기'를 해제 — matchKey(캐논/이름) 기준으로 비교.
             let key = ingredient.matchKey
             dismissedToBuy = dismissedToBuy.filter { dismissKey($0) != key }
+            // 직접 담아둔 장보기 메모도 함께 내린다 — 어느 입구로 들어왔든 '샀다'는 사실은 같다.
+            manualToBuy.removeAll { $0.matchKey == key }
         }
         if capsCounter { replenishCounter() }   // 스캔 — 상한(6)까지 최임박 우선 등재, 나머지는 냉장고에
         persist()
@@ -678,27 +698,115 @@ final class FridgeStore {
 
     // MARK: - 사야 할 식재료(쇼핑 리스트)
 
-    /// 자주 쓰는데(이력에 있는데) 지금 냉장고엔 없는 = 사야 할 식재료. 빈도 많은 순.
+    /// 자주 쓰는데(이력에 있는데) 지금 냉장고엔 없는 = 사야 할 식재료 **제안**. 빈도 많은 순.
     /// 비교는 전부 matchKey(캐논 ID 우선) — 표기(Milk/milk, 양파/onion)가 달라도 한 품목으로 묶인다.
     /// 표시는 최근 로그의 원문.
-    var toBuy: [(name: String, glyph: FoodGlyph)] {
+    private var derivedToBuy: [(name: String, glyph: FoodGlyph, key: String)] {
         let inStock = Set(ingredients.map(\.matchKey))
         let dismissed = Set(dismissedToBuy.map(dismissKey))
         let grouped = Dictionary(grouping: history) { $0.matchKey }
         return grouped
-            .compactMap { key, logs -> (name: String, glyph: FoodGlyph, count: Int)? in
+            .compactMap { key, logs -> (name: String, glyph: FoodGlyph, key: String, count: Int)? in
                 guard let first = logs.first,   // history는 최신이 앞 → 최근 표기
                       !inStock.contains(key),
                       !dismissed.contains(key) else { return nil }
-                return (name: first.name, glyph: first.glyph, count: logs.count)
+                return (name: first.name, glyph: first.glyph, key: key, count: logs.count)
             }
             .sorted { $0.count != $1.count ? $0.count > $1.count : $0.name < $1.name }
-            .map { (name: $0.name, glyph: $0.glyph) }
+            .map { (name: $0.name, glyph: $0.glyph, key: $0.key) }
     }
 
-    /// 이번엔 안 사기 — 쇼핑 리스트에서 제외. 캐논 키(없으면 이름 소문자)로 저장해 표기 무관 비교.
+    /// 화면에 뜨는 장보기 목록 — **직접 담은 항목이 맨 위**(내가 적은 게 먼저 읽혀야 한다), 그 아래 이력 제안.
+    /// 수동 항목은 재고 보유·'이번엔 안 사기' 필터를 **우회한다**: 지금 있어도 더 사려고 손으로 적은 것이라
+    /// 재고 유무로 지울 수 없다(있으면 안 산다는 파생 제안의 전제와 정반대). 같은 품목이 제안으로도 잡히면
+    /// 수동이 흡수해 한 줄로만 뜬다.
+    var toBuy: [(name: String, glyph: FoodGlyph, manual: Bool)] {
+        let manualKeys = Set(manualToBuy.map(\.matchKey))
+        return manualToBuy.map { (name: $0.name, glyph: $0.glyph, manual: true) }
+            + derivedToBuy.filter { !manualKeys.contains($0.key) }
+                          .map { (name: $0.name, glyph: $0.glyph, manual: false) }
+    }
+
+    /// 지금 목록에 떠 있는 품목 키 — 검색 시트의 '이미 담김' 표시·중복 추가 방지용(행마다 재계산 방지).
+    var toBuyKeys: Set<String> {
+        Set(manualToBuy.map(\.matchKey)).union(derivedToBuy.map(\.key))
+    }
+
+    /// 첫 사용자 시드 칩 — **재료 지식이 아니라 노출 순서(UX)**라 코드 상수로 둔다.
+    /// 재료 자체의 사실(표기·글리프·기한)은 여전히 `IngredientLexicon`(JSON)에서만 나온다.
+    static let frequentSeedIDs = ["egg", "milk", "onion", "green-onion", "tofu", "garlic",
+                                  "potato", "carrot", "kimchi", "cucumber", "rice", "chicken"]
+
+    /// 자주 쓰는 재료 — 검색 시트의 원탭 칩 소스. 축은 `derivedToBuy`와 같은 **이력 빈도**지만
+    /// **필터가 없다**: 지금 재고에 있어도, '이번엔 안 사기'로 접었어도 뜬다 — 자주 쓰는 건 또 사고,
+    /// 이건 제안 목록이 아니라 '빨리 담기' 단축키이기 때문이다(무엇을 담을지는 사용자가 정한다).
+    /// 이력 상위가 `limit`에 못 미치면 **부족분을 항상** 큐레이션 시드로 채운다(중복 제거) — 이력이
+    /// 3종에서 4종으로 느는 순간 칩이 12개에서 4개로 급감하는 계단식 UX 역행을 막는다. '빈 그리드는
+    /// 고장으로 읽힌다'는 원래 설계 의도가 이력 규모와 무관하게 항상 성립해야 한다.
+    func frequentIngredients(limit: Int = 12) -> [(name: String, glyph: FoodGlyph, key: String)] {
+        let ranked = Dictionary(grouping: history) { $0.matchKey }
+            .compactMap { key, logs -> (name: String, glyph: FoodGlyph, key: String, count: Int)? in
+                guard let first = logs.first else { return nil }   // history는 최신이 앞 → 최근 표기
+                return (name: first.name, glyph: first.glyph, key: key, count: logs.count)
+            }
+            .sorted { $0.count != $1.count ? $0.count > $1.count : $0.name < $1.name }
+            .prefix(limit)
+            .map { (name: $0.name, glyph: $0.glyph, key: $0.key) }
+
+        var out = Array(ranked)
+        guard out.count < limit else { return out }
+        let lex = IngredientLexicon.shared
+        var seen = Set(out.map(\.key))
+        for id in Self.frequentSeedIDs where out.count < limit {
+            guard !seen.contains(id), let e = lex.entry(id: id) else { continue }
+            out.append((name: e.displayName, glyph: FoodGlyph(rawValue: e.glyph) ?? .generic, key: e.id))
+            seen.insert(id)
+        }
+        return out
+    }
+
+    /// 장보기 목록에 직접 담기 — 이력 제안이 닿지 못하는 품목을 사용자가 손으로 얹는다.
+    /// **재고 추가가 아니라 '살 것' 메모**다(§13.5 To buy 예외 — 실제 반입은 여전히 영수증 스캔·재입고).
+    /// 이미 목록에 있으면 아무 것도 하지 않는다(중복 추가 no-op — 시트가 체크 상태로 이미 알린다).
+    /// `canonicalID`·`glyph`는 사전에서 고른 호출부가 그대로 넘긴다(이름 역조회로 다른 항목에 붙는 것 방지).
+    @discardableResult
+    func addToBuy(name: String, canonicalID: String? = nil, glyph: FoodGlyph? = nil) -> Bool {
+        let lex = IngredientLexicon.shared
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return false }
+        let canonical = canonicalID ?? lex.canonicalID(for: trimmed)
+        let key = canonical ?? trimmed.lowercased()
+        // 이미 '수동으로' 담긴 것만 중복으로 막는다 — 파생 제안으로만 잡혀 있는 품목은 여기서
+        // 걸러지면 안 된다(그래야 아래 append가 그 파생 제안을 흡수해 한 줄로 만든다, toBuy 참고).
+        // toBuyKeys(수동∪파생)로 막으면 흡수가 영영 못 일어난다 — skipBuy의 wasManual과 같은 축.
+        guard !manualToBuy.contains(where: { $0.matchKey == key }) else { return false }
+        manualToBuy.append(ManualBuyItem(name: trimmed, canonicalID: canonical,
+                                         glyph: glyph ?? lex.glyph(for: trimmed) ?? FoodGlyph.match(trimmed)))
+        persist(reschedulesAlerts: false)   // 재료 불변
+        return true
+    }
+
+    /// 이번엔 안 사기(레거시) — 이름을 사전으로 **역조회**해 키를 만든다. `addToBuy`는 호출부가 캐논 키를
+    /// 직접 넘기도록 설계됐는데(이름 역조회로 다른 항목에 붙는 것 방지) 이 함수만 반대 방향이라 규약이
+    /// 비대칭이다 — 표기가 갈라지는 이름이 들어오면 잘못된 품목의 키에 붙을 잠재 위험이 있다.
+    /// **Deprecated**: 새 호출부는 `skipBuy(key:)`를 써라. 이 오버로드는 `ShoppingListView`가 아직
+    /// 이름을 넘기는 구버전 호출부라 당장은 남겨둔다 — 그 호출부가 `skipBuy(key:)`로 전환되면 제거한다.
     func skipBuy(_ name: String) {
-        dismissedToBuy.insert(IngredientLexicon.shared.canonicalID(for: name) ?? name.lowercased())
+        skipBuy(key: IngredientLexicon.shared.canonicalID(for: name) ?? name.lowercased())
+    }
+
+    /// 이번엔 안 사기 — 쇼핑 리스트에서 제외. **저장된 키(캐논 ID 또는 matchKey)를 그대로 받는다** —
+    /// 호출부가 이미 알고 있는 키를 넘기게 해(`addToBuy`와 같은 규약) 이름 역조회로 인한 오귀속을
+    /// 원천적으로 막는다. 직접 담은 항목은 메모 자체를 지운다 — 손으로 얹은 걸 손으로 내리는 것이라,
+    /// 영구 제외 목록까지 오염시킬 이유가 없다. 다만 같은 품목이 이력 제안으로도 잡히는 상태면 그
+    /// 제안까지 함께 접는다(수동이 흡수하던 제안이 되살아나 같은 줄이 그 자리에 남으면 Skip이 안
+    /// 먹은 것처럼 보인다).
+    func skipBuy(key: String) {
+        let wasManual = manualToBuy.contains { $0.matchKey == key }
+        manualToBuy.removeAll { $0.matchKey == key }
+        if !wasManual || derivedToBuy.contains(where: { $0.key == key }) {
+            dismissedToBuy.insert(key)
+        }
         persist(reschedulesAlerts: false)   // 재료 불변
     }
 
@@ -717,6 +825,7 @@ final class FridgeStore {
         archivedAte = 0
         archivedTossed = 0
         dismissedToBuy = []
+        manualToBuy = []
         counterIDs = []
         pendingUndo = nil
         activeCook = nil
@@ -734,6 +843,7 @@ final class FridgeStore {
         archivedAte = 0
         archivedTossed = 0
         dismissedToBuy = []
+        manualToBuy = []
         counterIDs = []
         pendingUndo = nil
         activeCook = nil

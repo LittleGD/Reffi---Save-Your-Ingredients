@@ -44,6 +44,7 @@ xcrun simctl io booted screenshot reffi-home.png
 `-glyphGallery.wilted YES` 글리프 갤러리를 전부 **시든 상태**로 렌더(신선 대비 스크린샷용 · `-glyphGallery`와 함께) ·
 `-dishGallery` 요리 아이콘 갤러리(시드 레시피 전체를 그리드로 · 라벨은 한글 요리명, `-dishGallery.archetype YES`면 원형 이름) ·
 `-showHistory` History 시트 · `-authView` 로그인 화면 · `-onboarding` 온보딩(+`-onboardingPage N`) ·
+`-toBuy` To buy 커버 직행(`-fridgeTab`·`-loadSample`과 함께) · `-toBuy.search` 재료 검색 바텀시트까지 자동 오픈(단독 지정해도 커버가 열린다) ·
 `-onboardingSetup` 셋업 시트 바로 열기 · `-onboardingSetupPage N` 셋업 시트 특정 장 직행 ·
 `-onboardingSetupAutoAdvance` 셋업 시트 장 자동 순환(전환 QA용) ·
 `-titleClipLab` StoryScript 줄 끝 글리프 클리핑 실험실(폰트 advance 패치 회귀 검증용) ·

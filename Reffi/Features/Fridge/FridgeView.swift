@@ -121,6 +121,9 @@ struct FridgeView: View {
         // 스크린샷·QA용 — `-showHistory` 런치 인자로 History 시트 바로 열기(-previewCarousel 선례).
         .onAppear {
             if ProcessInfo.processInfo.arguments.contains("-showHistory") { showHistory = true }
+            // `-toBuy` To buy 커버 직행. `-toBuy.search`(검색 시트 자동 오픈)는 단독 지정해도 커버가 열린다.
+            if ProcessInfo.processInfo.arguments.contains("-toBuy")
+                || ProcessInfo.processInfo.arguments.contains("-toBuy.search") { showShopping = true }
             // `-fridgeExpand` — 첫 재료를 바로 펼침(Ate/Tossed 버튼 QA용). 샘플 시드가 늦을 수 있어 지연 재시도.
             if ProcessInfo.processInfo.arguments.contains("-fridgeExpand") {
                 selectedID = items.first?.id
