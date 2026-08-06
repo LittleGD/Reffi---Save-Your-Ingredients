@@ -2,7 +2,7 @@ import SwiftUI
 
 // MARK: - 원형(archetype)
 
-/// 요리 아이콘의 **원형** — 80개 레시피를 하나씩 그리지 않기 위한 축(§13.4).
+/// 요리 아이콘의 **원형** — 80개 레시피를 하나씩 그리지 않기 위한 축(§13.7).
 /// 재료 글리프가 "시금치"가 아니라 `leaf` 원형이듯, 요리도 **담기는 그릇 + 덩어리 형태**로 묶는다.
 /// 60pt 섬네일에서 먼저 읽히는 건 색이 아니라 **실루엣**이라, 원형끼리는 전부 외곽이 다르다
 /// (깊은 냄비 / 얕은 대접 / 납작한 접시 / 사각 오븐 그릇 / 반달 / 원판 / 층).
@@ -433,7 +433,7 @@ enum DishGlyphCatalog {
         // 찌개 규칙에 먼저 걸리면 오븐 요리·볶음이 통째로 국물 요리가 된다.
         (["그라탕", "gratin", "라자냐", "lasagna", "베이크", "bake", "casserole"], .bakeDish),
         (["탕수육", "탕수", "sweet and sour"], .skillet),
-        (["볶음밥", "fried rice", "리조또", "risotto", "필라프", "pilaf", "매쉬", "mashed"], .platedMound),
+        (["볶음밥", "fried rice", "리조또", "리소토", "risotto", "필라프", "pilaf", "매쉬", "mashed"], .platedMound),
         (["덮밥", "비빔밥", "bibimbap", "donburi", "규동", "rice bowl", "burrito bowl", "포케", "poke"], .riceBowl),
         (["파스타", "pasta", "스파게티", "spaghetti", "펜네", "penne", "링귀니", "linguine"], .pastaPlate),
         (["볶음면", "라면", "면", "국수", "noodle", "ramen", "pho", "udon", "soba", "chow mein", "yakisoba", "pad thai"], .noodleBowl),
@@ -447,6 +447,11 @@ enum DishGlyphCatalog {
         (["샐러드", "무침", "나물", "salad", "hummus", "dip", "salsa", "슬로", "slaw", "pickle", "겉절이"], .sideBowl),
         (["구이", "스테이크", "커틀릿", "돈까스", "grill", "steak", "cutlet", "schnitzel", "seared", "roast", "bbq", "탄두리", "tandoori"], .grillPlate),
         (["볶음", "불고기", "bulgogi", "제육", "stir-fry", "stir fry", "stir-fried", "stir fried", "saute", "sauté", "skillet", "pan-fried", "scrambled", "shakshuka"], .skillet),
+        // ── 아래 셋은 **맨 끝**이 자리다: 위의 구체 규칙(볶음밥·rice bowl·salad·soup 계열)이 먼저
+        //    선점한 뒤 남는 이름만 받는 그물이라, 앞으로 끌어올리면 "Salad Bowl"이 덮밥이 된다.
+        (["오므라이스", "omurice"], .platedMound),  // 밥 산 위에 계란을 이불처럼 덮어 접시에 담는 플레이팅이라 공기(riceBowl)가 아니라 platedMound다.
+        ([" rice"], .riceBowl),  // "Cheese and Spinach Rice"류 영문 밥 요리를 잡는 그물. 앞 공백이 "price"·"licorice" 오탐을 막고, "Rice ~"로 시작하는 이름은 대부분 위의 porridge·salad·omelette 계열 규칙이 먼저 채간다.
+        ([" bowl"], .riceBowl),  // "Buddha Bowl"류를 잡는 그물. "Salad Bowl"은 위 샐러드 규칙이 먼저 선점한다.
     ]
 
     /// cuisine → 폴백 기본 원형·색조. 키워드가 하나도 안 걸릴 때 쓴다.

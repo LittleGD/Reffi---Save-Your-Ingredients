@@ -7,8 +7,10 @@ struct RecipeShareCard: View {
     let recipeName: String
     let steps: [String]
     let count: Int
-    /// 요리 아이콘 변주 — 이 카드는 표시 전용(데이터는 전부 파라미터)이라 레시피→아이콘 매핑은 호출부가 푼다.
-    let look: DishLook
+    /// 대표 아이콘 — 이 카드는 표시 전용(데이터는 전부 파라미터)이라 레시피→아이콘 체인은 호출부가 푼다.
+    /// 정체(요리 그림/재료 글리프)까지 `RecipeHeroIcon`으로 받는다 — 여기서 카탈로그를 다시 부르면
+    /// 커스텀 "김밥"이 공유 카드에서만 티켓과 다른 그림이 된다.
+    let icon: RecipeHeroIcon
 
     private static let cardWidth: CGFloat = 340
 
@@ -38,7 +40,7 @@ struct RecipeShareCard: View {
                     .reffiType(.menuName).foregroundStyle(ReffiColor.ink)
                     .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: ReffiSpace.s2)
-                DishSilhouette(look: look)
+                RecipeHeroIconView(icon: icon)
                     .frame(width: ReffiDishIcon.card, height: ReffiDishIcon.card)
             }
 

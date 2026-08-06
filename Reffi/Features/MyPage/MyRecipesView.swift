@@ -92,8 +92,9 @@ struct MyRecipesView: View {
     private func recipeCard(_ recipe: Recipe, seed: Int) -> some View {
         Button { editing = recipe } label: {
             HStack(spacing: ReffiSpace.s3) {
-                // 요리 아이콘 — 커스텀 레시피는 매핑 표 밖이라 전부 폴백(이름 키워드 → 원형)이 그린다.
-                DishSilhouette(look: DishGlyphCatalog.look(for: recipe))
+                // 대표 아이콘 — 티켓·조리 화면과 **같은 `heroIcon` 체인**을 탄다. 카탈로그를 직접 부르면
+                // 커스텀 "김밥"이 여기서만 이름 추론의 아무 색 롤이 되어 표면마다 그림이 갈린다.
+                RecipeHeroIconView(icon: recipe.heroIcon)
                     .frame(width: ReffiDishIcon.row, height: ReffiDishIcon.row)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(verbatim: recipe.displayName)

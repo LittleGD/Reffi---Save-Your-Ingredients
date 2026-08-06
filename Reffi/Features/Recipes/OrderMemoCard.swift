@@ -94,7 +94,7 @@ struct OrderMemoCard: View {
         VStack(spacing: ReffiSpace.s3) {
             Spacer(minLength: 0)
             // 히어로는 **요리 정체성 카탈로그 우선, 커스텀 요리명은 큐레이션 표, 최후엔 재료**
-            // (`Recipe.heroIcon` §13.5) — 축약 본문은 아이콘 + 메뉴명뿐이라 이 그림이 곧 메뉴 식별자다.
+            // (`Recipe.heroIcon` §13.7) — 축약 본문은 아이콘 + 메뉴명뿐이라 이 그림이 곧 메뉴 식별자다.
             // 재료에서 파생하면 비빔밥이 시금치 잎으로 뜬다. 체인 판정은 모델이 하고 여기선 렌더만 한다.
             // 앱 공통 종이컷 일러스트로 그린다(이모지·이미지 폰트를 아이콘으로 쓰지 않는다, §5).
             RecipeHeroIconView(icon: result.recipe.heroIcon)

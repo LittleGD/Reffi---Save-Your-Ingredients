@@ -165,7 +165,7 @@ struct CookingStepsView: View {
                     .reffiType(.menuName).foregroundStyle(ReffiColor.ink)
                     .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: ReffiSpace.s2)
-                DishSilhouette(look: dishLook(for: cook))
+                RecipeHeroIconView(icon: heroIcon(for: cook))
                     .frame(width: ReffiDishIcon.ticket, height: ReffiDishIcon.ticket)
             }
 
@@ -286,14 +286,15 @@ struct CookingStepsView: View {
         .accessibilityValue(done ? Text("Done") : Text(verbatim: ""))
     }
 
-    /// 세션의 요리 아이콘 — 발주 때 남긴 레시피 id로 **원본 레시피를 되찾아** 오더 티켓과 같은 변주를 쓴다.
-    /// 레시피가 지워졌거나 id가 없는 구버전 세션이면 이름으로 폴백한다(빈 아이콘은 나오지 않는다).
-    private func dishLook(for cook: FridgeStore.CookSession) -> DishLook {
+    /// 세션의 히어로 아이콘 — 발주 때 남긴 레시피 id로 **원본 레시피를 되찾아** 오더 티켓과 같은
+    /// `heroIcon` 체인을 탄다. 카탈로그를 직접 부르면 커스텀 "김밥"이 티켓에선 손으로 그린 김밥,
+    /// 여기선 아무 색 롤로 갈린다.
+    /// 레시피가 지워졌거나 id가 없는 구버전 세션이면 이름만으로 폴백한다(빈 아이콘은 나오지 않는다).
+    private func heroIcon(for cook: FridgeStore.CookSession) -> RecipeHeroIcon {
         if let id = cook.recipeID, let recipe = store.recipes.first(where: { $0.id == id }) {
-            return DishGlyphCatalog.look(for: recipe)
+            return recipe.heroIcon
         }
-        return DishGlyphCatalog.look(id: cook.recipeID ?? cook.recipeName,
-                                     name: cook.recipeName, cuisine: nil)
+        return .session(name: cook.recipeName, id: cook.recipeID)
     }
 
     /// 유튜브 검색 URL — 레시피명 + "recipe"를 퍼센트 인코딩. 인코딩·URL 생성 실패 시 유튜브 홈으로 폴백.
@@ -310,7 +311,7 @@ struct CookingStepsView: View {
         // 공유 이미지는 물리 산출물(인쇄된 영수증)이라 기기 다크모드와 무관하게 항상 라이트 종이로 렌더한다.
         // ImageRenderer는 환경을 명시하지 않으면 항상 라이트로 해석하지만, 명시적으로 고정해 의도를 문서화한다.
         let card = RecipeShareCard(recipeName: cook.recipeName, steps: cook.steps ?? [],
-                                   count: cook.count, look: dishLook(for: cook))
+                                   count: cook.count, icon: heroIcon(for: cook))
             .environment(\.colorScheme, .light)
         let renderer = ImageRenderer(content: card)
         renderer.scale = 3   // 레티나

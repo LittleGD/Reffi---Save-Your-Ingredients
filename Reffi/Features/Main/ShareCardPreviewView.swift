@@ -11,9 +11,9 @@ struct ShareCardPreviewView: View {
                 recipeName: recipe?.displayName ?? "Bibimbap",
                 steps: recipe?.displaySteps ?? Self.fallbackSteps,
                 count: recipe?.ingredients.count ?? 12,
-                // 매핑 표의 키가 id라, 시드 로드가 실패해도 아이콘은 같은 요리로 나온다.
-                look: DishGlyphCatalog.look(id: "bibimbap",
-                                            name: recipe?.name.en ?? "Bibimbap", cuisine: "korean")
+                // 시드가 로드되면 실제 공유 경로와 **같은 히어로 체인**(`heroIcon`)을 그대로 태운다.
+                // 실패해도 세션 폴백이 같은 표 키(id)를 타므로 같은 요리 그림이 나온다.
+                icon: recipe?.heroIcon ?? RecipeHeroIcon.session(name: "Bibimbap", id: "bibimbap")
             )
             // 실제 공유 경로(CookingStepsView.renderShareImage)와 같은 라이트 고정 렌더를 검증용에서도 재현.
             .environment(\.colorScheme, .light)

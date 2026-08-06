@@ -14,7 +14,7 @@ func seedRecipesForTests() -> [Recipe] {
     return []
 }
 
-/// 요리 아이콘 시스템(§13.4) — **매핑 계약**을 잠근다.
+/// 요리 아이콘 시스템(§13.7) — **매핑 계약**을 잠근다.
 /// 시드 80개가 전부 명시 매핑을 받는지, 매핑 밖 레시피가 폴백으로 항상 아이콘을 얻는지,
 /// 폴백이 실행마다 흔들리지 않는지가 이 스위트가 막는 회귀다.
 struct DishGlyphCatalogTests {
@@ -118,7 +118,7 @@ struct DishGlyphCatalogTests {
     }
 }
 
-/// 티켓 히어로 아이콘 폴백 체인(`Recipe.heroIcon` §13.5) — **두 일러스트 시스템 사이의 우선순위 계약**.
+/// 티켓 히어로 아이콘 폴백 체인(`Recipe.heroIcon` §13.7) — **두 일러스트 시스템 사이의 우선순위 계약**.
 /// 요리 카탈로그(`DishSilhouette`)와 재료 글리프(`PaperSilhouette`)가 공존하므로, 어느 레시피가
 /// 어느 쪽으로 가는지가 흔들리면 축약 티켓의 얼굴이 바뀐다(비빔밥이 시금치 잎으로 뜨던 회귀).
 struct RecipeHeroIconTests {
@@ -165,6 +165,11 @@ struct RecipeHeroIconTests {
     @Test func customDishNameFallsBackToCatalogInference() {
         let cases: [(String, DishArchetype)] = [
             ("된장찌개", .stewPot), ("새우 파스타", .pastaPlate), ("치즈 그라탕", .bakeDish),
+            // 회귀 잠금(코드 변경 없음 — needle은 기존재): 영/한 "볶음"이 ④로 새지 않고 ③에서 잡힌다.
+            ("Korean Beef Stir Fry", .skillet), ("소고기 볶음", .skillet),
+            // AI 티켓 실증 갭(rice 그물 규칙) 잠금 — "Korean Cheese and Spinach Rice"가 ④(재료 폴백)로 새던 케이스.
+            ("Korean Cheese and Spinach Rice", .riceBowl), ("치즈 시금치 덮밥", .riceBowl),
+            ("Buddha Bowl", .riceBowl), ("오므라이스", .platedMound),
         ]
         for (name, archetype) in cases {
             let r = Recipe.userRecipe(name: name, ingredientNames: ["두부", "양파"],
@@ -209,6 +214,45 @@ struct RecipeHeroIconTests {
                         "\(r.name.en): 요리로 읽히는 이름인데 재료 그림으로 내려갔다")
             }
         }
+    }
+
+    // MARK: 세션 폴백 (`RecipeHeroIcon.session` — Recipe 객체가 없는 조리 세션)
+
+    /// ② 이름만 남아도 손으로 그린 김밥은 지킨다 — 발주 후 레시피를 지우면 조리 화면·공유 카드가
+    /// 이 경로로 내려온다. 여기서 카탈로그 추론이 이기면 같은 티켓이 조리 중에 아무 색 롤로 바뀐다.
+    @Test func sessionFallbackKeepsTheCuratedDishGlyph() {
+        #expect(RecipeHeroIcon.session(name: "김밥", id: nil) == .food(.gimbap))
+        // id가 있어도(=커스텀 UUID) 큐레이션이 먼저다 — 표에 없는 id는 추론으로 새기 때문.
+        #expect(RecipeHeroIcon.session(name: "김밥", id: UUID().uuidString) == .food(.gimbap))
+    }
+
+    /// 큐레이션(②)에 안 걸리는 이름은 조리 화면이 쓰던 **카탈로그 호출과 문자 그대로 같은 결과**여야
+    /// 한다 — 세션 폴백이 들어오며 기존 아이콘이 조용히 바뀌면 안 된다.
+    /// "Mystery Plate"처럼 이름이 침묵해도 ④(재료 글리프)로는 못 내려간다 — 세션엔 재료가 없다.
+    /// 그래도 빈 아이콘은 없다: `look`이 cuisine 기본값으로 원형·색을 항상 채운다.
+    @Test func sessionFallbackMatchesTheCatalogCallItReplaced() {
+        for name in ["된장찌개", "Mystery Plate"] {   // 이름이 요리를 지목하는 경우 / 침묵하는 경우
+            let id = UUID().uuidString
+            #expect(RecipeHeroIcon.session(name: name, id: id)
+                    == .dish(DishGlyphCatalog.look(id: id, name: name, cuisine: nil)),
+                    "\(name): 세션 폴백이 기존 카탈로그 호출과 다른 그림을 냈다")
+            // id 없는 구버전 세션은 이름이 곧 해시 키였다(`cook.recipeID ?? cook.recipeName`).
+            #expect(RecipeHeroIcon.session(name: name, id: nil)
+                    == .dish(DishGlyphCatalog.look(id: name, name: name, cuisine: nil)),
+                    "\(name): id 없는 세션의 해시 키가 이름이 아니다")
+        }
+    }
+
+    /// ①/② 역전 계약 — `gimbap`은 시드 매핑 표(①)에도 있고 요리형 글리프 큐레이션(②)에도 걸리는
+    /// 유일한 케이스다. `RecipeHeroIcon.session`은 ②를 맨 앞에 두므로(`RecipeHeroIcon.swift` 머리
+    /// 주석) 이 겹침에서 ②가 이겨야 한다 — 레시피가 삭제된 뒤에도 손으로 그린 김밥이 카탈로그의
+    /// 이름 추론(아무 색 롤)으로 덮이면 안 된다. 위 테스트는 ②에 안 걸리는 이름만 보므로 이 역전
+    /// 구간은 여기서 별도로 잠근다.
+    @Test func sessionFallbackPrefersCurationEvenWhenIdIsASeedTableKey() {
+        let fallback = RecipeHeroIcon.session(name: "김밥", id: "gimbap")
+        #expect(fallback == .food(.gimbap), "시드 표 키와 겹쳐도 ②(요리형 글리프)가 이겨야 한다")
+        #expect(fallback != .dish(DishGlyphCatalog.look(id: "gimbap", name: "김밥", cuisine: nil)),
+                "①(시드 표 카탈로그 호출)로 덮이면 손그림 김밥이 사라진다")
     }
 }
 
@@ -303,9 +347,9 @@ struct DishRenderTests {
 struct ShareCardRenderTests {
 
     /// 실제 공유 경로(`CookingStepsView.renderShareImage`)와 같은 설정 — scale 3 · 라이트 고정.
-    static func raster(recipe: Recipe, look: DishLook) -> [UInt8]? {
+    static func raster(recipe: Recipe, icon: RecipeHeroIcon) -> [UInt8]? {
         let card = RecipeShareCard(recipeName: recipe.displayName, steps: recipe.displaySteps,
-                                   count: recipe.ingredients.count, look: look)
+                                   count: recipe.ingredients.count, icon: icon)
             .environment(\.colorScheme, .light)
         let renderer = ImageRenderer(content: card)
         renderer.scale = 3
@@ -325,11 +369,11 @@ struct ShareCardRenderTests {
               let other = seeds.first(where: { $0.id == "pancakes" }) else {
             Issue.record("시드 로드 실패 — 공유 카드 래스터를 검증할 수 없다"); return
         }
-        guard let a = Self.raster(recipe: dish, look: DishGlyphCatalog.look(for: dish)) else {
+        guard let a = Self.raster(recipe: dish, icon: .dish(DishGlyphCatalog.look(for: dish))) else {
             Issue.record("공유 카드가 ImageRenderer에서 래스터되지 않았다"); return
         }
         // 텍스트·레이아웃은 그대로 두고 **아이콘 변주만** 바꾼 두 번째 장.
-        guard let b = Self.raster(recipe: dish, look: DishGlyphCatalog.look(for: other)),
+        guard let b = Self.raster(recipe: dish, icon: .dish(DishGlyphCatalog.look(for: other))),
               a.count == b.count else {
             Issue.record("대조군 래스터 실패"); return
         }
@@ -339,5 +383,27 @@ struct ShareCardRenderTests {
         // 아이콘은 56pt × scale 3 = 168² ≈ 28k px. 그 일부만 달라도 통과하되, 0이면 Canvas가 빈 것이다.
         #expect(diff > 1000,
                 "아이콘 변주만 바꿨는데 공유 카드 래스터가 사실상 같다(\(diff)px) — 오프스크린에서 요리 아이콘이 비었다")
+    }
+
+    /// 재료 글리프(`PaperSilhouette`) 경로도 같은 오프스크린 검증을 받는다 — 커스텀 "김밥" 공유가
+    /// 이 경로의 실사용 시나리오다. 공유 카드는 요리 그림만 굽던 자리라, `.food`가 래스터에서만
+    /// 비어도 화면 QA로는 안 잡힌다(공유된 영수증에만 아이콘이 빠진다).
+    @Test func shareCardCarriesTheFoodGlyphThroughImageRenderer() {
+        let recipe = Recipe.userRecipe(name: "김밥", ingredientNames: ["김", "밥", "계란"],
+                                       minutes: 20, steps: ["말기", "썰기"])
+        #expect(recipe.heroIcon == .food(.gimbap), "커스텀 김밥이 요리형 글리프를 타지 않는다: \(recipe.heroIcon)")
+        guard let a = Self.raster(recipe: recipe, icon: recipe.heroIcon) else {
+            Issue.record("공유 카드가 ImageRenderer에서 래스터되지 않았다"); return
+        }
+        // 대조군은 **다른 글리프**로 잡는다 — 요리 그림(`.dish`)과 비교하면 글리프가 통째로 비어도
+        // 차이가 커서 통과해 버린다(빈 글리프야말로 이 테스트가 잡아야 할 회귀다).
+        guard let b = Self.raster(recipe: recipe, icon: .food(.tomato)), a.count == b.count else {
+            Issue.record("대조군 래스터 실패"); return
+        }
+        var diff = 0
+        for i in stride(from: 0, to: a.count, by: 4) where a[i] != b[i] || a[i + 1] != b[i + 1]
+            || a[i + 2] != b[i + 2] { diff += 1 }
+        #expect(diff > 1000,
+                "글리프만 바꿨는데 공유 카드 래스터가 사실상 같다(\(diff)px) — 오프스크린에서 재료 글리프가 비었다")
     }
 }

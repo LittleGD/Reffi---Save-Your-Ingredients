@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// 레시피 대표 아이콘의 **정체** — 완성된 요리로 그릴지(`DishSilhouette` §13.4), 재료로 그릴지
+/// 레시피 대표 아이콘의 **정체** — 완성된 요리로 그릴지(`DishSilhouette` §13.7), 재료로 그릴지
 /// (`PaperSilhouette` §13.3). 두 일러스트 시스템이 공존하므로 어느 쪽인지는 **모델이 정하고
 /// 뷰는 switch로 렌더만 한다** — 뷰마다 조건을 다시 쓰면 같은 레시피가 표면마다 다른 그림이 된다
 /// (축약 티켓의 히어로와 펼침 티켓의 아이콘이 갈리는 식).
@@ -9,6 +9,21 @@ enum RecipeHeroIcon: Equatable {
     case dish(DishLook)
     /// 재료 그림 — 요리형 글리프(김밥 등) 또는 첫 비상비 재료(`FoodGlyph`).
     case food(FoodGlyph)
+
+    /// 이름만 남은 조리 세션의 히어로 — 발주한 레시피가 지워졌거나 id가 없는 구버전 세션이라
+    /// `Recipe` 객체를 되찾지 못할 때의 폴백. ②를 맨 앞에 둔다 — `heroIcon`(①→②)과 달리 여기선
+    /// ②가 시드 표보다 먼저라, 표 등재와 ② 적중이 겹치는 이름(현재 시드 `gimbap` 하나)은 요리형
+    /// 글리프가 이긴다: 손으로 그린 김밥이 있는데 카탈로그의 이름 추론이 아무 색 롤로 덮으면
+    /// 조리 화면·공유 카드만 티켓과 다른 그림이 된다.
+    ///
+    /// 두 번째 줄은 조리 화면이 쓰던 카탈로그 호출과 **문자 그대로 같다** — ②에 안 걸리는 이름의
+    /// 기존 아이콘이 그대로 보존된다. ①(시드 매핑 표)은 그 줄의 `look(id:)`가 표를 먼저 보므로 ② 뒤에서 포함된다.
+    /// ④(재료 글리프)는 원천 불가 — 세션은 재료를 들고 있지 않다. 대신 `look`이 nil을 내지 않아
+    /// 빈 아이콘도 나오지 않는다.
+    static func session(name: String, id: String?) -> RecipeHeroIcon {
+        if let dish = Recipe.dishGlyph(for: Recipe.LocalizedName(en: name, ko: nil)) { return .food(dish) }
+        return .dish(DishGlyphCatalog.look(id: id ?? name, name: name, cuisine: nil))
+    }
 }
 
 extension Recipe {
