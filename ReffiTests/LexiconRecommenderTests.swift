@@ -65,6 +65,16 @@ struct LexiconTests {
         #expect(lex.search(query: "zzz").isEmpty)
     }
 
+    @Test func searchLimit60CoversToBuySearchSheetPath() {
+        // `ToBuySearchSheet`가 실제로 넘기는 상한(60) — 기본값(20)만 덮던 공백. 쿼리 "c"는 (en+ko
+        // prefix·contains 합쳐) 47개 항목에 걸린다 — 기본 상한(20)에서는 잘리지만, 60을 넘기면 커스텀
+        // limit이 실제로 관철돼 전부(< 60) 담긴다. 정확히 60개를 채우는 단일 쿼리는 사전 223종 규모에서
+        // 존재하지 않는다(브루트포스로 확인 — 최댓값이 47) — 그래서 "상한이 넘어간다"가 아니라
+        // "커스텀 limit이 기본값 대신 적용된다"를 검증축으로 삼는다.
+        #expect(lex.search(query: "c").count == 20)              // 기본 상한(20)에 잘림
+        #expect(lex.search(query: "c", limit: 60).count == 47)   // 커스텀 60에선 전부 담김(자연 히트 < 60)
+    }
+
     // MARK: 카테고리 섹션 (To buy 검색 시트의 재료 배열)
 
     @Test func categorySectionsCoverEveryEntryExactlyOnce() {
