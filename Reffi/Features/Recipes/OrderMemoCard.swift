@@ -51,24 +51,30 @@ struct OrderMemoCard: View {
     /// 컨테이너는 항상 같은 뷰 트리(단일 정체성) — headerOnly·expanded는 내부 콘텐츠·모디파이어 값만 바꾼다.
     /// 덱 회전으로 headerOnly가 토글돼도(승격·강등), 축약↔펼침을 오가도 카드가 통째로 교체되지 않아 번쩍임이 없다.
     var body: some View {
-        VStack(alignment: .leading, spacing: ReffiSpace.s3) {
-            header
-                .contentShape(Rectangle())
-                .onTapGesture { onToggleDetails() }
-            if headerOnly {
-                Spacer(minLength: 0)
-            } else if expanded {
-                middleScroll
-                Spacer(minLength: ReffiSpace.s3)
-                fireBand
-            } else {
-                collapsedBody
+        // 카드 전체 크기 측정(§13.5 축약 히어로 비례) — collapsedBody 내부에 두면 헤더를 뺀 잔여
+        // 높이만 잡혀 "카드 높이"의 진짜 값보다 작아진다. GeometryReader를 padding/frame 체인 **안쪽**,
+        // background·overlay·shadow·onChange **바깥쪽**에 둬 기존에 그 체인이 채우던 것과 똑같은
+        // 제안 크기를 그대로 흡수하게 한다 — 레이아웃 결과물은 이전과 동일하고 크기만 추가로 읽는다.
+        GeometryReader { geo in
+            VStack(alignment: .leading, spacing: ReffiSpace.s3) {
+                header
+                    .contentShape(Rectangle())
+                    .onTapGesture { onToggleDetails() }
+                if headerOnly {
+                    Spacer(minLength: 0)
+                } else if expanded {
+                    middleScroll
+                    Spacer(minLength: ReffiSpace.s3)
+                    fireBand
+                } else {
+                    collapsedBody(cardSize: geo.size)
+                }
             }
+            .padding(.horizontal, ReffiSpace.s5)
+            .padding(.top, ReffiSpace.s5 + 2)
+            .padding(.bottom, ReffiSpace.s5)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
-        .padding(.horizontal, ReffiSpace.s5)
-        .padding(.top, ReffiSpace.s5 + 2)
-        .padding(.bottom, ReffiSpace.s5)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(ReceiptShape(tooth: 9).fill(ReffiColor.paper))
         .overlay { if !headerOnly { ReceiptShape(tooth: 9).stroke(ReffiColor.ink.opacity(0.07), lineWidth: 1) } }
         .overlay { if fired { slamStamp } }
@@ -90,15 +96,18 @@ struct OrderMemoCard: View {
     /// 축약 본문(§13.5) — **음식 아이콘 + 메뉴명**만. "뭘 만들지"가 먼저 읽히고 재료·PREP·발주는
     /// 끌어올린 뒤에 온다. 카드 크기는 펼침과 같으므로(톱니 밑단 제자리) 이 묶음은 헤더 아래
     /// **남는 공간의 세로 중앙**에 놓인다 — 위아래 `Spacer`가 그 역할이다.
-    private var collapsedBody: some View {
+    private func collapsedBody(cardSize: CGSize) -> some View {
         VStack(spacing: ReffiSpace.s3) {
             Spacer(minLength: 0)
             // 히어로는 **요리 정체성 카탈로그 우선, 커스텀 요리명은 큐레이션 표, 최후엔 재료**
             // (`Recipe.heroIcon` §13.7) — 축약 본문은 아이콘 + 메뉴명뿐이라 이 그림이 곧 메뉴 식별자다.
             // 재료에서 파생하면 비빔밥이 시금치 잎으로 뜬다. 체인 판정은 모델이 하고 여기선 렌더만 한다.
             // 앱 공통 종이컷 일러스트로 그린다(이모지·이미지 폰트를 아이콘으로 쓰지 않는다, §5).
+            // 카드 크기 비례(§13.5, `collapsedHeroSide`) — 세로 상한이 아이콘을 먼저 캡핑해 두므로
+            // 큰 Dynamic Type으로 메뉴명·힌트가 늘어나도 아이콘이 그만큼 자리를 내준 채로 남는다.
+            let heroSide = collapsedHeroSide(cardSize: cardSize)
             RecipeHeroIconView(icon: result.recipe.heroIcon)
-                .frame(width: 146, height: 146)
+                .frame(width: heroSide, height: heroSide)
             Text(verbatim: result.recipe.displayName)
                 .reffiType(.menuName).foregroundStyle(ReffiColor.ink)
                 .multilineTextAlignment(.center)
@@ -123,6 +132,15 @@ struct OrderMemoCard: View {
         .accessibilityLabel(Text("Ticket \(number): \(result.recipe.displayName)"))
         .accessibilityHint(Text("Shows the full ticket"))
         .accessibilityAddTraits(.isButton)
+    }
+
+    /// 축약 히어로 변 길이(§13.5) — **카드 크기 비례**: 콘텐츠 폭(카드 내부 폭, 좌우 패딩 제외)의 85%와
+    /// 카드 전체 높이의 50% 중 **작은 값**. 좁고 긴 카드에선 폭이, 넓고 짧은 카드에선 높이가 상한이 되어
+    /// 어느 치수가 걸리든 아이콘이 카드 밖으로 넘치거나(폭) 메뉴명·힌트를 밀어내지(높이) 않는다 —
+    /// 고정 146pt였던 이전 값과 달리 카드가 커지면 아이콘도 함께 커진다.
+    private func collapsedHeroSide(cardSize: CGSize) -> CGFloat {
+        let contentWidth = max(0, cardSize.width - ReffiSpace.s5 * 2)
+        return min(contentWidth * 0.85, cardSize.height * 0.50)
     }
 
     /// 중간 섹션 — 헤더·fireBand는 고정, 'ON THE TICKET'~PREP(+ Short 문구)만 내부 스크롤(§13.6).
