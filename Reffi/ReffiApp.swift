@@ -158,6 +158,10 @@ private struct RootGateView: View {
         }
         // previous == nil: 최초 기록(와이프 없음). 어느 경우든 소유자 확정.
         UserDefaults.standard.set(newID, forKey: DataOwner.key)
+        // 가입 완료(최초 기록) 또는 다른 계정 전환(바로 위 profile.resetAll()이 닉네임을 "Reffi"로
+        // 되돌린 직후) — 두 경우 모두 이 시점 닉네임이 미설정일 수 있어 위트 있는 이름을 배정한다.
+        // 이미 사용자가 지은 닉네임(승계된 기존 계정 포함)이면 가드가 막아 그대로 유지된다.
+        profile.assignGeneratedNicknameIfUnset()
     }
 
     /// 세션 복원 동안의 정적 스플래시 — 런치 스크린과 같은 크림 + 워드마크(깜빡임 방지).

@@ -63,7 +63,8 @@ xcrun simctl io booted screenshot reffi-home.png
 `-cookCarousel.expanded` 티켓 덱 오픈 + 앞 티켓 펼친 상태(단독 지정해도 덱이 켜진다) ·
 `-cookTicket` 샘플로 강제 발주 후 조리 티켓(CookingStepsView) 바로 열기 ·
 `-shareCardPreview` 공유용 레시피 영수증 카드(RecipeShareCard) 미리보기 ·
-`-profileAI` Profile을 AI recipes 영수증까지 스크롤
+`-profileAI` Profile을 AI recipes 영수증까지 스크롤 ·
+`-resetNickname` 저장된 닉네임을 미설정 취급 — 이번 런치에서 곧장 위트 있는 자동 닉네임 생성을 재현(NicknameGenerator QA)
 (인증 콘솔 설정은 `docs/AUTH_SETUP.md`)
 
 ## 기술 스택

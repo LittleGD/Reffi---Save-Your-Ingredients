@@ -30,10 +30,38 @@ final class ProfileStore {
         disliked   = defaults.stringArray(forKey: Key.disliked) ?? []
         allergies  = defaults.stringArray(forKey: Key.allergies) ?? []
         household  = HouseholdSize(rawValue: defaults.string(forKey: Key.household) ?? "") ?? .one
+        #if DEBUG
+        // QA — 자동 닉네임 생성 스크린샷 검증용(-resetOnboarding 선례). 저장된 닉네임이 있어도
+        // 이번 런치에서 강제로 미설정 취급해 곧장 새 위트 있는 이름을 보게 한다.
+        if ProcessInfo.processInfo.arguments.contains("-resetNickname") { nickname = "" }
+        #endif
+        // 신규 프로필 최초 시드 — 저장된 닉네임이 없거나(첫 설치) 예전 기본값 "Reffi" 그대로면
+        // 위트 있는 이름을 즉시 배정한다. 위 대입들로 모든 저장 프로퍼티가 이미 초기값을 받은
+        // 뒤라(2단계 초기화 완료), 이 메서드 호출 내부의 재대입은 일반 호출과 동일하게 didSet →
+        // save()가 정상 발동해 곧바로 영속화된다.
+        assignGeneratedNicknameIfUnset()
     }
 
     func toggleCuisine(_ c: CuisineStyle) {
         if cuisines.contains(c) { cuisines.remove(c) } else { cuisines.insert(c) }
+    }
+
+    /// 미설정 닉네임에 위트 있는 자동 생성 이름(`NicknameGenerator`)을 배정한다.
+    /// 호출부 둘: ① 이 클래스의 `init`(신규 프로필 최초 시드) ② `ReffiApp.reconcileDataOwner`
+    /// (가입 완료·다른 계정 전환 재기록 직후) — 두 지점 모두 "이 로컬 프로필의 닉네임이 방금
+    /// 미설정 상태로 (재)확정됐을 수 있다"는 공통점이 있어 같은 가드를 공유한다.
+    /// **이미 사용자가 지은 닉네임은 절대 건드리지 않는다** — `isUnsetNickname`이 아니면 즉시 반환.
+    func assignGeneratedNicknameIfUnset(locale: Locale = .current) {
+        guard Self.isUnsetNickname(nickname) else { return }
+        nickname = NicknameGenerator.generate(locale: locale)
+    }
+
+    /// "닉네임 미설정" 판정 — 빈 문자열이거나 손대지 않은 오리지널 기본값 "Reffi" 그대로인 경우만.
+    /// 사용자가 실제로 "Reffi"라는 이름을 스스로 다시 지은 경우와 구분할 방법은 없지만(둘 다 저장값이
+    /// 동일), 그 경우는 값이 사실상 기본값과 같아 자동 생성으로 덮여도 실사용자 피해가 없다.
+    static func isUnsetNickname(_ value: String) -> Bool {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty || trimmed == "Reffi"
     }
 
     /// 회원 탈퇴(§6.5) — 로컬 프로필 데이터 초기화(백엔드 없으므로 기본값 복구).
