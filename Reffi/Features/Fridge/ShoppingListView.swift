@@ -13,7 +13,7 @@ struct ShoppingListView: View {
     @State private var restockHaptic = 0
     @State private var showSearch = false
 
-    private typealias Row = (name: String, glyph: FoodGlyph, manual: Bool)
+    private typealias Row = (name: String, glyph: FoodGlyph, manual: Bool, key: String)
 
     private var items: [Row] { store.toBuy }
 
@@ -132,7 +132,7 @@ struct ShoppingListView: View {
             .accessibilityLabel(Text("Restock \(item.name)"))
             Button {
                 withAnimation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion)) {
-                    store.skipBuy(item.name)
+                    store.skipBuy(key: item.key)
                 }
             } label: {
                 Text("Skip")
@@ -262,7 +262,10 @@ private struct ToBuySearchSheet: View {
         .frame(minHeight: 44)   // §7.3 터치 타깃
         .background {
             let s = PaperRect(cornerRadius: ReffiRadius.md, seed: 6)
-            s.fill(ReffiColor.paper).paperEdge(s, tint: ReffiColor.ink.opacity(0.1))
+            // receipt — 원본 픽커 검색 필드의 인라인 값 oklch(0.985, 0.004, 90)이 곧 이 토큰이고,
+            // 시트 안의 다른 종이 면(타일·listCard·emptyCard·noMatchCard)도 전부 receipt다.
+            // paper(0.99, 0.006, 90)는 다른 토큰이라 여기만 남으면 시트 안 종이결이 갈라진다.
+            s.fill(ReffiColor.receipt).paperEdge(s, tint: ReffiColor.ink.opacity(0.1))
         }
     }
 

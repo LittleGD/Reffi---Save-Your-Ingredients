@@ -720,11 +720,14 @@ final class FridgeStore {
     /// 수동 항목은 재고 보유·'이번엔 안 사기' 필터를 **우회한다**: 지금 있어도 더 사려고 손으로 적은 것이라
     /// 재고 유무로 지울 수 없다(있으면 안 산다는 파생 제안의 전제와 정반대). 같은 품목이 제안으로도 잡히면
     /// 수동이 흡수해 한 줄로만 뜬다.
-    var toBuy: [(name: String, glyph: FoodGlyph, manual: Bool)] {
+    /// `key`는 두 갈래(수동 `matchKey` / 파생 `derivedToBuy.key`) 모두 이미 정확한 캐논 키를 들고 있어
+    /// 그대로 실어 나른다 — 호출부(Skip 버튼)가 이름을 다시 역조회할 필요 없이 `skipBuy(key:)`로 바로
+    /// 넘길 수 있게 한다(이름 역조회로 인한 오귀속 위험을 원천 차단, `addToBuy`/`skipBuy(key:)`와 같은 규약).
+    var toBuy: [(name: String, glyph: FoodGlyph, manual: Bool, key: String)] {
         let manualKeys = Set(manualToBuy.map(\.matchKey))
-        return manualToBuy.map { (name: $0.name, glyph: $0.glyph, manual: true) }
+        return manualToBuy.map { (name: $0.name, glyph: $0.glyph, manual: true, key: $0.matchKey) }
             + derivedToBuy.filter { !manualKeys.contains($0.key) }
-                          .map { (name: $0.name, glyph: $0.glyph, manual: false) }
+                          .map { (name: $0.name, glyph: $0.glyph, manual: false, key: $0.key) }
     }
 
     /// 지금 목록에 떠 있는 품목 키 — 검색 시트의 '이미 담김' 표시·중복 추가 방지용(행마다 재계산 방지).
@@ -789,8 +792,10 @@ final class FridgeStore {
     /// 이번엔 안 사기(레거시) — 이름을 사전으로 **역조회**해 키를 만든다. `addToBuy`는 호출부가 캐논 키를
     /// 직접 넘기도록 설계됐는데(이름 역조회로 다른 항목에 붙는 것 방지) 이 함수만 반대 방향이라 규약이
     /// 비대칭이다 — 표기가 갈라지는 이름이 들어오면 잘못된 품목의 키에 붙을 잠재 위험이 있다.
-    /// **Deprecated**: 새 호출부는 `skipBuy(key:)`를 써라. 이 오버로드는 `ShoppingListView`가 아직
-    /// 이름을 넘기는 구버전 호출부라 당장은 남겨둔다 — 그 호출부가 `skipBuy(key:)`로 전환되면 제거한다.
+    /// **Deprecated**: 프로덕션 호출부는 전환 완료됐다 — `toBuy` 튜플이 이제 `key`를 실어 나르므로
+    /// `ShoppingListView`의 Skip 버튼은 `skipBuy(key:)`를 쓴다. 이 오버로드는 `ReffiTests`가 이름 기반
+    /// 크로스 로케일 시나리오(예: 영문 "Onion"으로 스킵해 한글 "양파" 이력과 같은 캐논에 맞는지)를
+    /// 직접 검증하는 데 계속 쓰고 있어 남겨둔다 — 테스트가 이 경로를 그만 쓰게 되면 제거해도 된다.
     func skipBuy(_ name: String) {
         skipBuy(key: IngredientLexicon.shared.canonicalID(for: name) ?? name.lowercased())
     }

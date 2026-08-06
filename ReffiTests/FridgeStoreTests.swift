@@ -373,6 +373,31 @@ struct FridgeStoreTests {
         #expect(store.toBuy.isEmpty)
     }
 
+    @Test func toBuyRowKeyDrivesSkipBuyKeyForDerivedSuggestion() throws {
+        // ShoppingListView의 Skip 버튼은 이제 이름을 넘기지 않고 store.toBuy가 실어 나른 `key`로
+        // skipBuy(key:)를 호출한다 — 그 축이 실제로 맞물리는지 스토어 레벨에서 검증
+        // (뷰 유닛 테스트가 없는 영역이라 이 계약이 유일한 회귀 방지선이다).
+        let store = FridgeStore(ingredients: [], recipes: [],
+                                history: [RemovalLog(name: "양파", glyph: .onion, daysAgo: 2, wasted: false)])
+        let row = try #require(store.toBuy.first)
+        #expect(row.key == "onion")
+        #expect(!row.manual)
+        store.skipBuy(key: row.key)
+        #expect(store.toBuy.isEmpty)
+    }
+
+    @Test func toBuyRowKeyDrivesSkipBuyKeyForManualItem() throws {
+        // 같은 계약을 수동 항목 경로에서도 확인 — key는 matchKey 그대로다.
+        let store = FridgeStore(ingredients: [], recipes: [], history: [])
+        #expect(store.addToBuy(name: "onion", canonicalID: "onion", glyph: .onion))
+        let row = try #require(store.toBuy.first)
+        #expect(row.key == "onion")
+        #expect(row.manual)
+        store.skipBuy(key: row.key)
+        #expect(store.manualToBuy.isEmpty)
+        #expect(store.toBuy.isEmpty)
+    }
+
     // MARK: 자주 쓰는 재료 칩 (검색 시트 빈 쿼리 상태)
 
     @Test func frequentIngredientsRankByHistoryCount() {
