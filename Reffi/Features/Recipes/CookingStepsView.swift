@@ -29,15 +29,18 @@ struct CookingStepsView: View {
         ZStack(alignment: .top) {
             ReffiColor.paperPass.ignoresSafeArea()
             if let cook = store.activeCook {
+                // 티켓·공유 카드 키·렌더가 같은 해석(icon)을 공유 — body 평가당 카탈로그 탐색 1회.
+                let icon = heroIcon(for: cook)
                 ScrollView {
-                    ticket(cook)
+                    ticket(cook, icon: icon)
                         .padding(.horizontal, ReffiGrid.margin + 8)
                         .padding(.top, 104)
                         .padding(.bottom, ReffiSpace.s6)
                 }
-                // 공유 카드는 레시피+스텝 스냅샷이라 체크 상태와 무관 — recipeName이 바뀔 때(새 세션)만 다시 렌더.
-                .task(id: cook.recipeName) {
-                    shareImage = renderShareImage(for: cook)
+                // 공유 카드는 레시피+스텝 스냅샷이라 체크 상태와 무관 — 새 세션(recipeName) 또는
+                // 화면 아이콘 정체가 바뀔 때(조리 중 레시피 삭제로 heroIcon(for:)가 세션 폴백으로 갈아탈 때)만 다시 렌더.
+                .task(id: ShareCardKey(recipeName: cook.recipeName, heroIcon: icon)) {
+                    shareImage = renderShareImage(for: cook, icon: icon)
                 }
             }
             topBar
@@ -144,7 +147,7 @@ struct CookingStepsView: View {
 
     // MARK: - 조리 티켓
 
-    private func ticket(_ cook: FridgeStore.CookSession) -> some View {
+    private func ticket(_ cook: FridgeStore.CookSession, icon: RecipeHeroIcon) -> some View {
         let steps = cook.steps ?? []
         let done = Set(cook.completedSteps ?? [])
         return VStack(alignment: .leading, spacing: ReffiSpace.s3) {
@@ -165,7 +168,7 @@ struct CookingStepsView: View {
                     .reffiType(.menuName).foregroundStyle(ReffiColor.ink)
                     .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: ReffiSpace.s2)
-                RecipeHeroIconView(icon: heroIcon(for: cook))
+                RecipeHeroIconView(icon: icon)
                     .frame(width: ReffiDishIcon.ticket, height: ReffiDishIcon.ticket)
             }
 
@@ -305,13 +308,24 @@ struct CookingStepsView: View {
         return URL(string: "https://www.youtube.com/results?search_query=\(encoded)") ?? fallback
     }
 
+    /// 공유 카드 재렌더 트리거 키 — 두 필드가 각자 다른 회귀를 막는다.
+    /// `recipeName`은 새 세션 감지용이다 — "김밥"·"참치김밥"처럼 같은 아이콘이라도 다른 메뉴면 구분해야 한다.
+    /// `heroIcon`은 화면 아이콘(`heroIcon(for:)`, 티켓의 `RecipeHeroIconView`)과 같은 값을 들고 있어,
+    /// 조리 중 레시피가 삭제돼 화면이 `RecipeHeroIcon.session` 폴백으로 바뀌면 공유 이미지도 같이 갈아탄다
+    /// — 그러지 않으면 화면과 공유 이미지가 서로 다른 그림으로 갈린다.
+    /// `.task(id:)`는 Equatable만 요구해 이 정도로 충분하다 — `RecipeHeroIcon`에 Hashable을 더할 필요 없다.
+    struct ShareCardKey: Equatable {
+        let recipeName: String
+        let heroIcon: RecipeHeroIcon
+    }
+
     /// 공유 카드 이미지 렌더 — `RecipeShareCard`를 레티나 스케일로 오프스크린 래스터라이즈한다. 실패하면 nil.
     @MainActor
-    private func renderShareImage(for cook: FridgeStore.CookSession) -> Image? {
+    private func renderShareImage(for cook: FridgeStore.CookSession, icon: RecipeHeroIcon) -> Image? {
         // 공유 이미지는 물리 산출물(인쇄된 영수증)이라 기기 다크모드와 무관하게 항상 라이트 종이로 렌더한다.
         // ImageRenderer는 환경을 명시하지 않으면 항상 라이트로 해석하지만, 명시적으로 고정해 의도를 문서화한다.
         let card = RecipeShareCard(recipeName: cook.recipeName, steps: cook.steps ?? [],
-                                   count: cook.count, icon: heroIcon(for: cook))
+                                   count: cook.count, icon: icon)
             .environment(\.colorScheme, .light)
         let renderer = ImageRenderer(content: card)
         renderer.scale = 3   // 레티나

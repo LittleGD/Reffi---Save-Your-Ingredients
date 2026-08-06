@@ -256,6 +256,61 @@ struct RecipeHeroIconTests {
     }
 }
 
+/// 공유 카드 재렌더 키(`CookingStepsView.ShareCardKey`) 계약 — 조리 중 레시피가 삭제되면 화면
+/// 아이콘(`heroIcon(for:)`)은 `RecipeHeroIcon.session` 폴백으로 바뀌는데, 공유 카드를 `recipeName`만
+/// (세션 스냅샷이라 삭제와 무관하게 불변)으로 재렌더 트리거하면 화면과 공유 이미지가 갈린다(리뷰 Nit).
+/// `heroIcon`을 키에 더해 이 갭을 막는다.
+struct CookingShareCardKeyTests {
+
+    /// 리뷰 Nit의 실제 시나리오 — ④(재료 글리프) 히어로를 가진 커스텀 레시피가 조리 중 삭제되면
+    /// `heroIcon(for:)`는 라이브 조회(`recipe.heroIcon`)에서 세션 폴백으로 갈아탄다. 두 아이콘이
+    /// 실제로 다른지(전환 전제)부터 확인한 뒤, 같은 recipeName으로 묶은 두 키가 갈리는지 잠근다.
+    @Test func recipeDeletionTransitionChangesTheShareCardKey() {
+        let recipeName = "Halmeoni Special"
+        let recipe = Recipe.userRecipe(name: recipeName, ingredientNames: ["토마토", "양파"],
+                                       minutes: 20, steps: ["섞기"])
+        let beforeDeletion = recipe.heroIcon                                    // 삭제 전 — 라이브 조회
+        let afterDeletion = RecipeHeroIcon.session(name: recipeName, id: recipe.id)   // 삭제 후 — 세션 폴백
+        #expect(beforeDeletion != afterDeletion,
+                "전환 전제가 깨졌다 — 이 레시피는 삭제돼도 같은 그림이라 리뷰 시나리오를 재현 못한다")
+
+        let keyBeforeDeletion = CookingStepsView.ShareCardKey(recipeName: recipeName, heroIcon: beforeDeletion)
+        let keyAfterDeletion = CookingStepsView.ShareCardKey(recipeName: recipeName, heroIcon: afterDeletion)
+        #expect(keyBeforeDeletion != keyAfterDeletion,
+                "조리 중 레시피 삭제로 화면 아이콘이 바뀌었는데 공유 카드 키가 그대로다 — 공유 이미지가 스테일로 남는다")
+    }
+
+    /// "김밥"·"참치김밥"은 둘 다 `.food(.gimbap)`으로 해석되지만(§13.7 ②) 이름·스텝이 다른 새
+    /// 세션이므로 키가 달라 재렌더돼야 한다 — 아이콘 단독으로 키를 좁히는 회귀를 막는 잠금이다.
+    @Test func sameHeroIconDifferentRecipeNameGetsDifferentKeys() {
+        let gimbap = Recipe.userRecipe(name: "김밥", ingredientNames: ["김", "밥", "계란", "당근"],
+                                       minutes: 20, steps: ["말기"])
+        let tunaGimbap = Recipe.userRecipe(name: "참치김밥", ingredientNames: ["참치", "김"],
+                                           minutes: 15, steps: ["말기"])
+        #expect(gimbap.heroIcon == .food(.gimbap))
+        #expect(tunaGimbap.heroIcon == .food(.gimbap))
+
+        let key1 = CookingStepsView.ShareCardKey(recipeName: "김밥", heroIcon: gimbap.heroIcon)
+        let key2 = CookingStepsView.ShareCardKey(recipeName: "참치김밥", heroIcon: tunaGimbap.heroIcon)
+        #expect(key1 != key2, "아이콘이 같다고 키까지 같으면 참치김밥으로 새 세션을 열어도 옛 김밥 공유 이미지가 남는다")
+    }
+
+    /// 큐레이션(②) 이름 "김밥"은 레시피가 삭제돼도 세션 폴백이 같은 그림(`.food(.gimbap)`)이다 —
+    /// 그림이 안 바뀌면 키도 같아야 불필요한 재렌더가 없다(과잉 트리거 방지 잠금).
+    @Test func deletionThatKeepsTheSamePictureKeepsTheSameKey() {
+        let recipeName = "김밥"
+        let recipe = Recipe.userRecipe(name: recipeName, ingredientNames: ["김", "밥", "계란", "당근"],
+                                       minutes: 20, steps: ["말기"])
+        let beforeDeletion = recipe.heroIcon
+        let afterDeletion = RecipeHeroIcon.session(name: recipeName, id: recipe.id)
+        #expect(beforeDeletion == afterDeletion, "같은 그림이어야 할 큐레이션 케이스가 갈렸다")
+
+        let keyBeforeDeletion = CookingStepsView.ShareCardKey(recipeName: recipeName, heroIcon: beforeDeletion)
+        let keyAfterDeletion = CookingStepsView.ShareCardKey(recipeName: recipeName, heroIcon: afterDeletion)
+        #expect(keyBeforeDeletion == keyAfterDeletion, "그림이 같은데 키가 달라 불필요한 재렌더가 발생한다")
+    }
+}
+
 /// 매핑이 **실제 픽셀에 도달하는지**를 시드 80개 전부에 대해 확인한다(`WiltRenderTests` 선례).
 /// 갤러리 스크린샷은 첫 판만 담아 아래쪽이 사각지대로 남는다 — 여기서 오프스크린 래스터로 전수 검사한다.
 @MainActor
