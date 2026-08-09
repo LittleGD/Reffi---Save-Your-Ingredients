@@ -370,6 +370,54 @@ struct FridgeStoreTests {
         #expect(store.counterIngredients.map(\.effectiveDaysLeft) == [1, 2, 3, 4, 5, 6])
     }
 
+    // MARK: 카테고리 필터 (냉장고 칩 행 — 순수 로직)
+
+    /// 카테고리별 재료 — 글리프가 필터 키를 정한다(저장 category 문자열이 아니라).
+    private func categorized(_ glyph: FoodGlyph, _ name: String, category: String = "Other") -> Ingredient {
+        Ingredient(name: name, category: category, daysLeft: 3,
+                   quantity: Quantity(value: 1, unit: .piece), glyph: glyph)
+    }
+
+    private var mixedItems: [Ingredient] {
+        [categorized(.leaf, "Lettuce"), categorized(.onion, "Onion"), categorized(.tomato, "Tomato"),
+         categorized(.meat, "Beef", category: "Meat · Beef"),   // 레거시 자유 문자열 — 글리프로 흡수
+         categorized(.milk, "Milk"), categorized(.apple, "Apple")]
+    }
+
+    @Test func filterReturnsOnlyMatchingCategory() {
+        let items = mixedItems
+        let veg = FridgeCategoryFilter.apply("Veg", to: items)
+        #expect(veg.map(\.name) == ["Lettuce", "Onion", "Tomato"])   // 입력 정렬 순서 보존
+        #expect(FridgeCategoryFilter.apply(nil, to: items).count == items.count)
+        #expect(FridgeCategoryFilter.apply("Seafood", to: items).isEmpty)
+    }
+
+    @Test func bucketsCountPresentCategoriesInCanonicalOrder() {
+        let buckets = FridgeCategoryFilter.buckets(of: mixedItems)
+        // 재고에 있는 것만, 캐논 순서(Veg → Fruit → Dairy → Meat)로.
+        #expect(buckets.map(\.category) == ["Veg", "Fruit", "Dairy", "Meat"])
+        #expect(buckets.map(\.count) == [3, 1, 1, 1])
+        #expect(buckets.map(\.count).reduce(0, +) == mixedItems.count)   // 합 = 전체(누락 카테고리 없음)
+        #expect(FridgeCategoryFilter.buckets(of: []).isEmpty)
+    }
+
+    @Test func legacyCategoryStringFoldsIntoGlyphCategory() {
+        // "Meat · Beef"로 저장된 레거시 재료도 Meat 칩 하나로 묶인다(칩 파편화 방지).
+        let beef = categorized(.meat, "Beef", category: "Meat · Beef")
+        #expect(FridgeCategoryFilter.key(of: beef) == "Meat")
+        #expect(FridgeCategoryFilter.apply("Meat", to: [beef]).count == 1)
+    }
+
+    @Test func resolvedClearsFilterWhenCategoryEmpties() {
+        let items = mixedItems
+        #expect(FridgeCategoryFilter.resolved("Dairy", in: items) == "Dairy")
+        // 마지막 유제품이 사라지면 전체로 되돌아간다(빈 화면에 가두지 않는다).
+        let withoutDairy = items.filter { FridgeCategoryFilter.key(of: $0) != "Dairy" }
+        #expect(FridgeCategoryFilter.resolved("Dairy", in: withoutDairy) == nil)
+        #expect(FridgeCategoryFilter.resolved("Veg", in: []) == nil)
+        #expect(FridgeCategoryFilter.resolved(nil, in: items) == nil)
+    }
+
     @Test func promoteUrgentSwapsInMoreUrgentWhenCounterFull() {
         // day 10..15 fresh 6개 — init에서 작업대가 이 6개로 찬다.
         let fresh = (0..<6).map { i in

@@ -471,6 +471,16 @@
         }
       }
     },
+    "All": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "전체"
+          }
+        }
+      }
+    },
     "All fresh. Get ahead of it.": {
       "localizations": {
         "ko": {
@@ -1217,6 +1227,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "작업대를 채우고 요리를 시작하세요"
+          }
+        }
+      }
+    },
+    "Filter: %@": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "필터: %@"
           }
         }
       }
