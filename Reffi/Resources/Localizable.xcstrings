@@ -313,26 +313,6 @@
         }
       }
     },
-    "AI generated recipe": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "AI가 생성한 레시피"
-          }
-        }
-      }
-    },
-    "AI recipes": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "AI 레시피"
-          }
-        }
-      }
-    },
     "Account": {
       "localizations": {
         "ko": {
@@ -731,16 +711,6 @@
         }
       }
     },
-    "Cloud recipe generation": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "클라우드 레시피 생성"
-          }
-        }
-      }
-    },
     "Coming soon": {
       "localizations": {
         "ko": {
@@ -827,16 +797,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "요리 중"
-          }
-        }
-      }
-    },
-    "Cooking up an AI ticket…": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "AI 티켓을 만드는 중…"
           }
         }
       }
@@ -1327,16 +1287,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "과일"
-          }
-        }
-      }
-    },
-    "Generating an AI recipe": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "AI 레시피 생성 중"
           }
         }
       }
@@ -1927,16 +1877,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "또는"
-          }
-        }
-      }
-    },
-    "On-device generation runs only on this device. Nothing leaves your phone.": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "온디바이스 생성은 기기 안에서만 동작해요. 아무것도 밖으로 나가지 않아요."
           }
         }
       }
@@ -2751,16 +2691,6 @@
         }
       }
     },
-    "This device supports on-device generation. It's tried first, before the cloud.": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "이 기기는 온디바이스 생성을 지원해요. 클라우드보다 먼저 시도돼요."
-          }
-        }
-      }
-    },
     "This email is already registered. Try logging in.": {
       "localizations": {
         "ko": {
@@ -2827,16 +2757,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "오늘"
-          }
-        }
-      }
-    },
-    "Today %lld of %lld generations left": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "오늘 생성 %lld / %lld회 남음"
           }
         }
       }
@@ -3177,16 +3097,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "냉장고에 뭐가 있나요?"
-          }
-        }
-      }
-    },
-    "When on, your ingredient names and food preferences are sent to Reffi's recipe service to generate ideas. Nothing is stored on the server.": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "켜면 재료 이름과 음식 취향이 레시피 생성을 위해 Reffi 서버로 전송돼요. 서버에 저장되지는 않아요."
           }
         }
       }

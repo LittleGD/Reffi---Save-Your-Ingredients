@@ -15,8 +15,6 @@ struct ProfileView: View {
     // 알림 SSOT — ExpiryNotifier의 @AppStorage 키를 직접 읽어 실제 스케줄에 반영한다.
     @AppStorage(ExpiryNotifier.enabledKey) private var alertsEnabled = false
     @AppStorage(ExpiryNotifier.hourKey) private var alertHour = ExpiryNotifier.defaultHour
-    // AI 클라우드 생성 동의 SSOT — AIConsent.cloudEnabled와 같은 키(Apple 5.1.2(i), 토글=명시 동의 UI).
-    @AppStorage(AIConsent.cloudConsentKey) private var cloudAIEnabled = false
 
     @State private var sheet: Sheet?
     @State private var showLogout = false
@@ -34,7 +32,7 @@ struct ProfileView: View {
     }
 
     /// 스크롤 앵커 id — 하단 섹션까지 프로그램 스크롤(QA 스크린샷)용.
-    private enum Anchor: Hashable { case bottom, ai }
+    private enum Anchor: Hashable { case bottom }
 
     /// 영수증 인셋 — Fridge cardInset처럼 페이지 마진 위에 추가로 좁혀 영수증 폭을 만든다.
     private let receiptInset: CGFloat = 6
@@ -51,7 +49,6 @@ struct ProfileView: View {
                 householdReceipt
                 notifyReceipt
                 recipesReceipt
-                aiReceipt.id(Anchor.ai)
                 languageReceipt
                 dataReceipt
                 accountReceipt
@@ -67,12 +64,6 @@ struct ProfileView: View {
             if ProcessInfo.processInfo.arguments.contains("-profileBottom") {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
                     proxy.scrollTo(Anchor.bottom, anchor: .bottom)
-                }
-            }
-            // AI recipes 영수증 스크린샷 검증용.
-            if ProcessInfo.processInfo.arguments.contains("-profileAI") {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-                    proxy.scrollTo(Anchor.ai, anchor: .center)
                 }
             }
         }
@@ -95,7 +86,7 @@ struct ProfileView: View {
         }
         .sheet(isPresented: $showAuth) { AuthView() }
         .sheet(isPresented: $showMyRecipes) { MyRecipesView() }
-        // 룰⑧ — 로그아웃은 세션만 해지하는 상태 전환이다. 냉장고·이력·프로필·AI 동의는 이 기기에
+        // 룰⑧ — 로그아웃은 세션만 해지하는 상태 전환이다. 냉장고·이력·프로필은 이 기기에
         // 그대로 남고, 소유자 키도 직전 계정 id로 유지된다(AuthStore.signOut / accountUserID).
         // 뒤이어 붙는 익명 게스트 세션은 소유자 대조 대상이 아니라 콜드 런치를 거쳐도 와이프가 없다
         // (ReffiApp.reconcileDataOwner 보장 ①). → 파괴가 아니므로 confirmationDialog가 맞다.
@@ -114,7 +105,6 @@ struct ProfileView: View {
                     await auth.signOut()      // scope .local — 오프라인에서도 로그아웃
                     store.resetAllData()      // 이 기기 냉장고·이력 삭제
                     profile.resetAll()        // 프로필·취향 초기화
-                    AIConsent.resetAll()      // 동의는 계정 귀속 — 소유자 와이프와 원자적으로 초기화
                     // 소유자 키도 함께 해제 — 남겨두면 이후 게스트 구간에 새로 쌓은 데이터가
                     // 다음 가입 시 '다른 계정 전환'으로 오인돼 조용히 와이프된다(승계 안내와 모순).
                     UserDefaults.standard.removeObject(forKey: DataOwner.key)
@@ -329,45 +319,6 @@ struct ProfileView: View {
                 showMyRecipes = true
             }
         }
-    }
-
-    // MARK: - AI 레시피 영수증 (클라우드 동의 SSOT — Apple 5.1.2(i), 토글 자체가 명시 동의 UI)
-    private var aiReceipt: some View {
-        ReceiptCard(title: String(localized: "AI recipes")) {
-            Toggle(isOn: $cloudAIEnabled) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Cloud recipe generation").reffiType(.body).foregroundStyle(ReffiColor.ink)
-                    // 켜는 순간이 동의 시점 — 고지는 켜기 전에도 상시 표시된다(토글=명시 동의 UI).
-                    Text("When on, your ingredient names and food preferences are sent to Reffi's recipe service to generate ideas. Nothing is stored on the server.")
-                        .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
-                }
-            }
-            .tint(ReffiColor.blue)
-            .accessibilityLabel("Cloud recipe generation")
-            .padding(.horizontal, ReffiSpace.s5)
-            .padding(.vertical, ReffiSpace.s4)
-
-            ReceiptRule()
-            VStack(alignment: .leading, spacing: ReffiSpace.s1) {
-                Text("On-device generation runs only on this device. Nothing leaves your phone.")
-                    .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
-                // 일일 캡의 클라이언트 미러(AIConsent) — 정직한 잔여 표시.
-                Text(remainingGenerationsText)
-                    .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
-                if OnDeviceModelRecipeSource().isAvailable {
-                    Text("This device supports on-device generation. It's tried first, before the cloud.")
-                        .reffiType(.caption).foregroundStyle(ReffiColor.muted)
-                }
-            }
-            .padding(.horizontal, ReffiSpace.s5)
-            .padding(.vertical, ReffiSpace.s3)
-        }
-    }
-
-    /// 오늘 남은 생성 횟수 — "Today X of Y generations left" 형태. Y(일일 캡)가 고정 상수(현재 5)라
-    /// "of Y generations"의 복수형은 X 값과 무관하게 항상 성립해(문법상 옳음) 별도 ICU 복수 변형이 불필요하다.
-    private var remainingGenerationsText: String {
-        String(localized: "Today \(AIConsent.remainingToday) of \(AIConsent.dailyCap) generations left")
     }
 
     // MARK: - 언어 영수증 — 앱별 언어는 iOS 설정이 정본. 인앱 가짜 스위처(재시작 필요·번들 스위즐)

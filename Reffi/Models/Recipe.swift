@@ -1,7 +1,7 @@
 import Foundation
 
-/// 레시피 — 번들 시드(recipes-seed.json)·사용자 커스텀·(향후) AI 생성이 모두 이 한 모델로 흐른다.
-/// **코드에 레시피를 하드코딩하지 않는다**(프로젝트 규칙) — 데이터는 항상 번들/영속화/생성 소스에서 온다.
+/// 레시피 — 번들 시드(recipes-seed.json)와 사용자 커스텀이 모두 이 한 모델로 흐른다.
+/// **코드에 레시피를 하드코딩하지 않는다**(프로젝트 규칙) — 데이터는 항상 번들/영속화 소스에서 온다.
 /// 이름·단계는 영-한 이중언어(en 필수, ko 선택) — 표시 시점에 로케일로 고른다.
 struct Recipe: Identifiable, Codable, Equatable {
 
@@ -16,7 +16,7 @@ struct Recipe: Identifiable, Codable, Equatable {
         var displayName: String { Recipe.isKorean ? (ko ?? en) : en }
     }
 
-    var id: String                 // 시드는 슬러그("beef-bulgogi"), 커스텀·AI는 UUID 문자열
+    var id: String                 // 시드는 슬러그("beef-bulgogi"), 커스텀은 UUID 문자열
     var name: LocalizedName
     var cuisine: String?
     var minutes: Int
@@ -24,8 +24,9 @@ struct Recipe: Identifiable, Codable, Equatable {
     var steps: LocalizedSteps
     /// 사용자 커스텀 여부 — 커스텀만 편집·삭제 가능(시드 생략 시 nil = false).
     var isUser: Bool?
-    /// 공급 출처 — AI 생성이면 "ai". 시드/레거시/커스텀은 nil(Codable-안전: 키 없으면 nil).
-    /// 기본값 nil이라 기존 memberwise 호출·시드 로더·userRecipe 팩토리는 불변으로 컴파일된다.
+    /// 공급 출처. 현재 앱에서 이 값을 채우는 경로는 없다 — 제거된 AI 생성 기능이 남긴 영속 데이터
+    /// (origin "ai"가 박힌 사용자 레시피)를 그대로 디코드하려고 필드만 유지한다. 지우면 옛 스냅샷의
+    /// 해당 레시피가 손실되므로 두되, 표시·분기 로직은 이 값을 읽지 않는다.
     var origin: String? = nil
 
     struct LocalizedName: Codable, Equatable {
@@ -50,8 +51,6 @@ struct Recipe: Identifiable, Codable, Equatable {
         return steps.en
     }
     var isUserRecipe: Bool { isUser ?? false }
-    /// AI 생성 레시피 여부 — 배지·필터 배선용(후속 UI 에이전트).
-    var isAI: Bool { origin == "ai" }
 
     /// 히어로 대표 모티프 — 첫 번째 비상비 재료의 글리프에서 파생.
     var glyph: FoodGlyph {

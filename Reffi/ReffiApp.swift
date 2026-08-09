@@ -136,7 +136,6 @@ private struct RootGateView: View {
             // 다른 계정으로 전환 — 이전 소유자 데이터 제거.
             store.resetAllData()
             profile.resetAll()
-            AIConsent.resetAll()   // 동의는 계정 귀속 — 소유자 와이프와 원자적으로 초기화
         }
         // previous == nil: 최초 기록(와이프 없음). 어느 경우든 소유자 확정.
         UserDefaults.standard.set(newID, forKey: DataOwner.key)

@@ -51,6 +51,40 @@ struct FridgeStoreTests {
         #expect(snap.schemaVersion == nil)                           // v1 표식
     }
 
+    @Test func decodesSnapshotWithRemovedAIRecipesKey() throws {
+        // AI 생성 기능 제거 전에 저장된 파일 — Snapshot에 더 이상 없는 `aiRecipes` 키가 남아 있다.
+        // 모르는 키는 무시되고 나머지 상태는 온전히 살아야 한다(격리·데이터 소실 금지).
+        let json = """
+        {"schemaVersion":2,"ingredients":[],"history":[],"dismissedToBuy":[],"counterIDs":[],
+        "userRecipes":[],"archivedAte":4,"archivedTossed":2,
+        "aiRecipes":[{"id":"ai-1","name":{"en":"Ghost Dish","ko":null},"minutes":10,
+        "ingredients":[{"ref":null,"en":"x","ko":null}],"steps":{"en":["s"],"ko":null},"origin":"ai"}]}
+        """.replacingOccurrences(of: "\n", with: "")
+        let snap = try #require(FridgeStore.decodeSnapshot(Data(json.utf8)))
+        #expect(snap.archivedAte == 4)
+        #expect(snap.archivedTossed == 2)
+        #expect(snap.userRecipes?.isEmpty == true)
+    }
+
+    @Test func recipesPoolIsCustomPlusSeed() {
+        let seed = Recipe(id: "seed-1", name: Recipe.LocalizedName(en: "Seed Dish", ko: nil),
+                          cuisine: nil, minutes: 10,
+                          ingredients: [Recipe.Item(ref: nil, en: "x", ko: nil)],
+                          steps: Recipe.LocalizedSteps(en: ["s"], ko: nil), isUser: nil)
+        let store = FridgeStore(ingredients: [], recipes: [seed], history: [])
+        store.addUserRecipe(Recipe.userRecipe(name: "Mine", ingredientNames: ["egg"],
+                                              minutes: 5, steps: ["cook"]))
+        #expect(store.recipes.map(\.name.en) == ["Mine", "Seed Dish"])   // 커스텀 우선 + 시드
+    }
+
+    /// 영속 데이터 호환 — origin 필드는 제거된 AI 기능이 남긴 값을 잃지 않게 모델에 남아 있다.
+    @Test func recipeKeepsOriginFieldForPersistedData() throws {
+        let json = #"{"id":"ai-1","name":{"en":"Legacy"},"minutes":10,"ingredients":[{"en":"x"}],"steps":{"en":["s"]},"origin":"ai"}"#
+        let recipe = try JSONDecoder().decode(Recipe.self, from: Data(json.utf8))
+        #expect(recipe.origin == "ai")
+        #expect(recipe.displayName == "Legacy")
+    }
+
     @Test func unknownStorageFallsBackToFridge() throws {
         let json = """
         {"ingredients":[{"id":"3E29D5C3-99D5-44A5-BB80-1E1B62F0A6DE","name":"X","category":"Veg",

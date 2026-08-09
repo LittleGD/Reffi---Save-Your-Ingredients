@@ -50,10 +50,9 @@ xcrun simctl io booted screenshot reffi-home.png
 `-resetOnboarding` 온보딩 초기화 · `-skipOnboarding` 온보딩 건너뛰고 곧장 게이트 통과 ·
 `-skipAuth` 게스트로 게이트 통과 · `-authGate` 게스트 해제 ·
 `-fridge.compact YES` 간편보기 · `-fridge.sort recent|freshest|expiry` 정렬 ·
-`-loadSample` 샘플 시드 · `-previewCarousel` 캐러셀 바로 열기(`-previewAIBadge` 동시 지정 시 AI 배지 티켓도 얹음) ·
+`-loadSample` 샘플 시드 · `-previewCarousel` 캐러셀 바로 열기 ·
 `-cookTicket` 샘플로 강제 발주 후 조리 티켓(CookingStepsView) 바로 열기 ·
-`-shareCardPreview` 공유용 레시피 영수증 카드(RecipeShareCard) 미리보기 ·
-`-profileAI` Profile을 AI recipes 영수증까지 스크롤
+`-shareCardPreview` 공유용 레시피 영수증 카드(RecipeShareCard) 미리보기
 (인증 콘솔 설정은 `docs/AUTH_SETUP.md`)
 
 ## 기술 스택

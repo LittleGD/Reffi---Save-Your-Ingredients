@@ -137,30 +137,12 @@ struct OrderMemoCard: View {
             HStack(alignment: .firstTextBaseline) {
                 Text("ORDER").reffiType(.monoTicketLabel).foregroundStyle(ReffiColor.ink)
                 Spacer()
-                // AI 생성 배지(§13.5) — 헤더 콘텐츠 분기라 카드 컨테이너 정체성엔 영향 없음(body 최상위 불변식 참고).
-                if result.recipe.isAI { aiBadge }
                 Text(String(format: "#%02d", number))
                     .font(.reffiNum(14, relativeTo: .caption)).foregroundStyle(ReffiColor.ink2)
             }
             Text(verbatim: "TABLE · REFFI KITCHEN")
                 .reffiType(.monoEyebrow).foregroundStyle(ReffiColor.ink2)   // §2.6 — 소형 텍스트 대비
         }
-    }
-
-    /// AI 생성 미니 배지 — sparkle + "AI"(고유 표기, 비로컬라이즈). `blue-light` 종이 칩.
-    private var aiBadge: some View {
-        HStack(spacing: 3) {
-            ReffiIcon.ai.reffi(13).foregroundStyle(ReffiColor.blueDark)
-            Text(verbatim: "AI")
-                .reffiType(.monoEyebrow).foregroundStyle(ReffiColor.blueDark)
-        }
-        .padding(.horizontal, ReffiSpace.s2)
-        .padding(.vertical, 3)
-        .background {
-            let shape = PaperRect(cornerRadius: ReffiRadius.xs, seed: number)
-            shape.fill(ReffiColor.blueLight)
-        }
-        .accessibilityLabel(Text("AI generated recipe"))
     }
 
     /// 조리 메모(§13.6 payoff) — 발주 전부터 티켓에 짧은 순서를 보여줘 "누르면 뭘 하게 되는지"가 보인다.
