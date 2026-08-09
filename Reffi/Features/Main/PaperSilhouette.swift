@@ -2,10 +2,11 @@ import SwiftUI
 
 /// 재료 일러스트(§13.3) — **각진 면분할 컷페이퍼**(faceted cut-paper) 풍. 곡선 대신 5~9각 직선 면,
 /// 몸통 2~3톤 면분할, 아웃라인 없음, 잘라 붙인 종이 조각 디테일, 장난기 있는 오프컬러 액센트
-/// (양파 뿌리 보라 등). 색은 재료의 실제 색(신선도색 아님 — 신선도는 뱃지·라벨).
+/// (양파 뿌리 보라 등). 색은 재료의 실제 색(신선도색으로 갈아끼우지 않는다 — 정체성 유지).
+/// 다만 **신선도에 따라 시든다**: 자연색 위에 채도·명도 감쇠와 밑변 고정 스쿼시·기울임을 얹는다(`WiltStyle`).
 struct PaperSilhouette: View {
     let glyph: FoodGlyph
-    let fresh: Freshness   // 시그니처 유지(색엔 미사용; 신선도는 뱃지·라벨)
+    let fresh: Freshness   // 시듦(WiltStyle) 강도 — 색조는 그대로, 채도·명도·자세만 바뀐다
     /// false면 외곽 그림자 필터를 끈다 — 물리 바디용 텍스처는 알파 임계로 모양을 뜨므로
     /// 그림자가 실제 글리프보다 큰 충돌체를 만든다(재료 사이 빈틈). 표시용은 기본값 그대로.
     var shadowed: Bool = true
@@ -19,6 +20,14 @@ struct PaperSilhouette: View {
             if shadowed {
                 shaded.addFilter(.shadow(color: .black.opacity(0.20),
                                          radius: size.width * 0.04, x: 0, y: size.height * 0.015))
+            }
+            // 시듦 — 52종 개별 draw 함수는 손대지 않고 **이 이음매 한 곳**에서만 적용한다.
+            // 색행렬은 hue를 안 건드리는 선형 변환(채도·명도 곱)이라 재료 색이 남고,
+            // 트랜스폼은 인셋(10%) 안에서만 기울어 캔버스 밖으로 잘리지 않는다(최대 4° ≈ 폭의 5.6%).
+            let wilt = WiltStyle.for(fresh)
+            if !wilt.isIdentity {
+                shaded.addFilter(.colorMatrix(wilt.colorMatrix))
+                shaded.concatenate(wilt.transform(baselineY: r.maxY))
             }
             shaded.drawLayer { layer in
                 Self.draw(glyph, in: r, ctx: &layer)

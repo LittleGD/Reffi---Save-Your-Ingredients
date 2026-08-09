@@ -466,7 +466,9 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     /// 캐시 키에 side가 들어가 리사이즈로 변이 달라지면 자동 무효(캐시 removeAll은 didChangeSize).
     private func texture(for ing: Ingredient, side: CGFloat, shadowed: Bool) -> SKTexture? {
         // 캐시 키에 스킴은 없다 — PaperSilhouette 팔레트는 전량 고정색이라 라이트/다크가 픽셀 동일.
-        let key = "\(ing.glyph.rawValue)@\(Int(side))" + (shadowed ? "" : "#body")
+        // 신선도는 들어간다 — 같은 글리프라도 시듦(채도·명도·스쿼시·기울임)이 달라 픽셀이 다르다.
+        let key = "\(ing.glyph.rawValue)@\(Int(side))@\(WiltStyle.for(ing.freshness).token)"
+            + (shadowed ? "" : "#body")
         if let t = textureCache[key] { return t }
         let view = PaperSilhouette(glyph: ing.glyph, fresh: ing.freshness, shadowed: shadowed)
             .frame(width: side, height: side)
@@ -493,6 +495,9 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
                 if (node.userData?["name"] as? String) != ing.name {
                     popOut(node, id: ing.id)
                     addChip(ing, order: i, count: ingredients.count)
+                } else if (node.userData?["wilt"] as? String) != WiltStyle.for(ing.freshness).token {
+                    // 날짜가 넘어가 신선도만 바뀐 경우 — 칩을 다시 떨어뜨리지 않고 제자리에서 시들게 한다.
+                    rewilt(node, ing)
                 }
             } else {
                 addChip(ing, order: i, count: ingredients.count)
@@ -534,7 +539,7 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         let body = makeBody(for: ing.glyph, side: s)
         node.physicsBody = body
         node.name = "chip:\(ing.id.uuidString)"
-        node.userData = ["name": ing.name]
+        node.userData = ["name": ing.name, "wilt": WiltStyle.for(ing.freshness).token]
         body.restitution = 0.12          // 살짝 통통 — 가벼운 느낌
         body.friction = 0.55
         body.linearDamping = 0.2         // 둥둥 뜨진 않게, 빨리 안착
@@ -563,6 +568,20 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         }
         addChild(node)
         chips[ing.id] = node
+    }
+
+    /// 신선도 변화(날짜 롤오버·소비기한 편집) 반영 — **텍스처만** 다시 구워 쌓인 자리를 지킨 채 시들게 한다.
+    /// 물리 바디는 일부러 그대로 둔다: 충돌체는 `.fresh` 기준 실측(`GlyphBodyMetrics`) 폴리곤이고
+    /// 시듦은 3~7% 시각 스쿼시라, 콜라이더를 같이 줄이면 이미 안착한 더미가 통째로 재정렬되며
+    /// 무너진다(쌓임·무게 튜닝도 전부 흔들린다). 시각-충돌 오차 3~7%는 허용한다.
+    private func rewilt(_ node: SKSpriteNode, _ ing: Ingredient) {
+        if let t = texture(for: ing, side: node.size.width, shadowed: true) {
+            node.texture = t
+            node.colorBlendFactor = 0    // 폴백 단색이었다면 텍스처가 틴트에 먹히지 않게 해제
+        } else {
+            node.color = resolvedUIColor(ing.freshness.main)   // 렌더 실패 시 폴백 틴트만 갱신
+        }
+        node.userData?["wilt"] = WiltStyle.for(ing.freshness).token
     }
 
     /// 글리프별 볼록 폴리곤 충돌체 — **실측 알파 bbox 기반**(`GlyphBodyMetrics`, `-glyphMetrics`로 재측정).
