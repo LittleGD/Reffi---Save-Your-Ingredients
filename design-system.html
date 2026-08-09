@@ -695,9 +695,11 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
 .memo .ticket-head { display: flex; justify-content: space-between; align-items: baseline;
   font-weight: 700; letter-spacing: 2.5px; font-size: 13px; }
 .memo .ticket-head .right { display: flex; align-items: baseline; gap: 8px; letter-spacing: 0; }
-.memo .ai-badge { display: inline-flex; align-items: center; gap: 3px; background: var(--color-blue-light);
-  color: var(--color-blue-dark); font-size: 10px; font-weight: 700; letter-spacing: 1.6px;
-  padding: 3px 7px; border-radius: var(--radius-xs); }
+/* 추정 소비기한 배지 — 실물(ReceiptScanView)은 soonDark 글자 + soonLight 캡슐(pillLabel 13/SemiBold).
+   예전 파랑 radius-xs 사각은 제거된 AI 배지의 잔재였다. */
+.memo .est-badge { display: inline-flex; align-items: center; gap: 3px; background: var(--color-soon-light);
+  color: var(--color-soon-dark); font-size: 13px; font-weight: 600; letter-spacing: 0;
+  padding: 2px 8px; border-radius: var(--radius-pill); }
 .memo .rule { height: 1px; margin: 12px 0; background: repeating-linear-gradient(90deg,
   oklch(25% 0.012 80 / 0.22) 0 4px, transparent 4px 8px); }
 .memo .menu { font-weight: 700; font-size: 26px; letter-spacing: -0.3px; }
@@ -1516,7 +1518,7 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
             <div class="rule"></div>
             <div class="line"><span class="box" style="box-shadow:inset 0 0 0 1.5px var(--color-blue-dark);background:var(--color-blue-dark)"></span><span class="text">연두부</span><span class="dn num" style="color:var(--color-ink-2)">D-0</span></div>
             <div class="line"><span class="box" style="box-shadow:inset 0 0 0 1.5px var(--color-blue-dark);background:var(--color-blue-dark)"></span><span class="text">애호박</span><span class="dn num" style="color:var(--color-ink-2)">D-2</span></div>
-            <div class="line"><span class="box"></span><span class="text">토마토소스 <span class="ai-badge" style="letter-spacing:0.6px">Est. date: check</span></span><span class="dn num" style="color:var(--color-soon-dark)">D+3</span></div>
+            <div class="line"><span class="box"></span><span class="text">토마토소스 <span class="est-badge">Est. date: check</span></span><span class="dn num" style="color:var(--color-soon-dark)">D+3</span></div>
           </div>
           <p class="lbl">체크(선택) → 연필(편집 시트에서 이름·수량·보관·기한·구매처 수정, 사전 밖 이름도 여기서) → 하단 "Add N items"로 일괄 등록.</p>
         </div>

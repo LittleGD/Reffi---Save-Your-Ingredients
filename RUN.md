@@ -40,20 +40,33 @@ xcrun simctl io booted screenshot reffi-home.png
 ```
 
 ### QA 런치 인자 (DEBUG)
-`-glyphGallery` `-buttonGallery` 갤러리 · `-profileTab` `-fridgeTab` 탭 직행 ·
-`-showHistory` History 시트 · `-authView` 로그인 화면 · `-onboarding` 온보딩(+`-onboardingPage N`) ·
-`-onboardingSetup` 셋업 시트 바로 열기 · `-onboardingSetupPage N` 셋업 시트 특정 장 직행 ·
-`-onboardingSetupAutoAdvance` 셋업 시트 장 자동 순환(전환 QA용) ·
-`-titleClipLab` StoryScript 줄 끝 글리프 클리핑 실험실(폰트 advance 패치 회귀 검증용) ·
-`-fridgeExpand` 냉장고 첫 재료 펼침 · `-fridgeExpandSolo` 재료 1개만 남기고 펼침(네비 클리어런스 QA) ·
-`-fridge.sortOpen` 정렬 드롭다운(`PaperDropdown`) 자동 오픈(스크린샷용) · `-fridgeEdit` 첫 재료 편집 시트 자동 표시(+`-loadSample`) ·
-`-resetOnboarding` 온보딩 초기화 · `-skipOnboarding` 온보딩 건너뛰고 곧장 게이트 통과 ·
-`-skipAuth` 게스트로 게이트 통과 · `-authGate` 게스트 해제 ·
-`-fridge.compact YES` 간편보기 · `-fridge.sort recent|freshest|expiry` 정렬 ·
-`-loadSample` 샘플 시드 · `-previewCarousel` 캐러셀 바로 열기 ·
-`-cookTicket` 샘플로 강제 발주 후 조리 티켓(CookingStepsView) 바로 열기 ·
-`-shareCardPreview` 공유용 레시피 영수증 카드(RecipeShareCard) 미리보기
-(인증 콘솔 설정은 `docs/AUTH_SETUP.md`)
+전부 `#if DEBUG` 경로다(릴리스 빌드엔 없다). 정본은 소스의 `ProcessInfo.processInfo.arguments` 분기 —
+새 인자를 추가하면 이 목록도 같이 갱신한다.
+
+**전용 루트 화면**(`ReffiApp.rootContent` — 아래 인자 하나만 주면 앱 대신 그 화면이 뜬다. 위에서부터 우선)
+- `-glyphGallery` 전 글리프 그리드 · `-titleClipLab` StoryScript 줄 끝 글리프 클리핑 실험실(폰트 advance 패치 회귀 검증)
+- `-shareCardPreview` 공유용 레시피 영수증 카드(`RecipeShareCard`) 미리보기 · `-myRecipesPreview` 커스텀 레시피 목록/편집
+- `-glyphMetrics` 글리프 알파 bbox 실측(물리 바디 파라미터 재계측) · `-buttonGallery` 버튼 갤러리 · `-authView` 로그인 화면
+
+**게이트 · 인증**
+- `-onboarding` 온보딩 처음부터(초기화 + 정상 진입) · `-resetOnboarding` 온보딩 초기화만
+- `-skipOnboarding` 온보딩 건너뛰고 곧장 게이트 통과 · `-onboarding.done YES` 온보딩 완료 플래그 직접 주입(UserDefaults 인자)
+- `-onboardingPage N` 인트로 N장 직행 · `-onboardingSetup` 셋업 시트 바로 열기 · `-onboardingSetupPage N` 셋업 N장 직행
+- `-onboardingSetupAutoAdvance` 셋업 장 자동 순환(전환 QA용)
+- `-skipAuth` 게스트로 게이트 통과 · `-authGate` 게스트 해제 (인증 콘솔 설정은 `docs/AUTH_SETUP.md`)
+
+**탭 · 데이터**
+- `-fridgeTab` `-profileTab` 탭 직행 · `-profileBottom` 프로필 하단(Data·Account)까지 스크롤
+- `-loadSample` 샘플 시드(첫 실행 = 데이터 전무일 때만) · `-uiTestSampleFridge` 샘플 냉장고 **강제** 리셋 + 냉장고 보기 기본값 복원(UI 테스트 전용)
+
+**메인 (물리 씬 · 티켓)**
+- `-previewCarousel` 추천 캐러셀 바로 열기 · `-previewAdd` 재료 추가 시트 바로 열기
+- `-cookTicket` 샘플로 강제 발주 후 조리 티켓(`CookingStepsView`) 바로 열기
+
+**냉장고**
+- `-showHistory` History 커버 · `-fridgeExpand` 첫 재료 펼침 · `-fridgeExpandSolo` 재료 1개만 남기고 펼침(네비 클리어런스 QA)
+- `-fridgeEdit` 첫 재료 편집 시트(+`-loadSample`) · `-fridge.sortOpen` 정렬 드롭다운(`PaperDropdown`) 자동 오픈
+- `-fridge.compact YES` 간편보기 · `-fridge.sort recent|freshest|expiry` 정렬 (둘 다 `@AppStorage` 키를 덮는 UserDefaults 인자)
 
 ## 기술 스택
 - **SwiftUI / Swift 6.3** · 배포 타깃 **iOS 18+** · 데이터는 `@Observable` + 샘플(SwiftData는 다음 단계)
