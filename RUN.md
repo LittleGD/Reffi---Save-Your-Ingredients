@@ -31,7 +31,9 @@ xcodebuild -project Reffi.xcodeproj -scheme Reffi \
 # 시뮬레이터에 설치 후 실행
 xcrun simctl boot "iPhone 17" || true
 open -a Simulator
-APP=$(find ~/Library/Developer/Xcode/DerivedData/Reffi-*/Build/Products/Debug-iphonesimulator -name 'Reffi.app' | head -1)
+# 주의: DerivedData에 Reffi-<해시> 폴더가 여러 개 남아 있을 수 있다(xcodegen 재생성 시 해시가 바뀜).
+# head -1은 무엇이 걸릴지 보장이 없어 몇 주 전 빌드를 집을 수 있다 — 반드시 실행 바이너리 mtime 최신순으로 고른다.
+APP=$(ls -td ~/Library/Developer/Xcode/DerivedData/Reffi-*/Build/Products/Debug-iphonesimulator/Reffi.app 2>/dev/null | while read -r a; do echo "$(stat -f '%m' "$a/Reffi") $a"; done | sort -rn | head -1 | cut -d' ' -f2-)
 xcrun simctl install booted "$APP"
 xcrun simctl launch booted com.reffi.app
 
