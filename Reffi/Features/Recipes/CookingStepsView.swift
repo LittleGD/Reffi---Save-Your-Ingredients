@@ -150,14 +150,17 @@ struct CookingStepsView: View {
 
     private func ticket(_ cook: FridgeStore.CookSession) -> some View {
         VStack(alignment: .leading, spacing: ReffiSpace.s3) {
-            // 헤더 — 오더 티켓과 같은 모노 크롬.
+            // 헤더 — 오더 티켓과 같은 모노 크롬. 공유 카드(RecipeShareCard)와 같은 규칙으로
+            // 셀 게 없으면(count 0) 수치를 아예 빼, 두 종이가 서로 다른 말을 하지 않게 한다.
             HStack(alignment: .firstTextBaseline) {
                 Text(verbatim: "ORDER · FIRED")
                     .reffiType(.monoTicketLabel).foregroundStyle(ReffiColor.urgentDark)
                 Spacer()
-                Text("\(cook.count) used")
-                    .reffiType(.metaText)
-                    .foregroundStyle(ReffiColor.ink2)
+                if cook.count > 0 {
+                    Text("\(cook.count) used")
+                        .reffiType(.metaText)
+                        .foregroundStyle(ReffiColor.ink2)
+                }
             }
 
             Text(verbatim: cook.recipeName)

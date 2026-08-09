@@ -29,6 +29,8 @@ struct FridgeView: View {
     /// 카테고리 필터(nil = 전체) — **영속화하지 않는다**. 정렬은 재방문 비용을 줄이지만 필터는
     /// "지금 이 순간 좁혀 보기"라, 다음 실행에 살아 있으면 재고가 사라진 것처럼 보인다(세션 한정).
     @State private var activeCategory: String?
+    /// 직전에 본 전체 재고 id — 이번 변화에서 **새로 나타난** 재료를 가려내는 기준(필터 자동 해제).
+    @State private var knownIDs: Set<Ingredient.ID> = []
 
     private let cardHeight: CGFloat = 170   // 길게 늘려 슬립·틸트로 생기는 측면 빈틈을 덮음
     private let overlap: CGFloat = -60   // advance(=높이+겹침)=110 유지 → 이름 안전 구간 불변
@@ -121,13 +123,22 @@ struct FridgeView: View {
             }
         }
         .sensoryFeedback(.impact(weight: .light), trigger: decisionHaptic)
-        // 필터 안전장치 — 재고 변화(먹음·버림·추가)로 표시 목록이 비면 필터를 전체로 되돌린다.
-        // 사용자를 "빈 화면"에 가둬 두지 않기 위한 것이라 전용 빈 상태가 필요 없다.
-        // 같은 훅에서 펼쳐 둔 카드가 목록 밖으로 밀려나면 선택도 접는다(유령 상세 방지).
-        .onChange(of: items.map(\.id)) { _, ids in
-            if activeCategory != nil, ids.isEmpty {
-                withAnimation(motion) { activeCategory = nil }
+        // 필터 안전장치 — 판정은 전부 `FridgeCategoryFilter.resolved`(순수 함수, 유닛 테스트 대상)가 하고
+        // 여기선 상태만 옮긴다. 카테고리가 비었을 때뿐 아니라 **필터 밖 재료가 새로 들어왔을 때**도
+        // 전체로 풀어, 추가한 결과가 화면에서 사라지는 일이 없게 한다.
+        // `initial: true`로 첫 표시에서 knownIDs를 채운다(그 시점 activeCategory는 nil이라 부작용 없음).
+        .onChange(of: sortedItems.map(\.id), initial: true) { _, ids in
+            let current = Set(ids)
+            let added = current.subtracting(knownIDs)
+            knownIDs = current
+            let next = FridgeCategoryFilter.resolved(activeCategory, in: sortedItems, added: added)
+            if next != activeCategory {
+                withAnimation(motion) { activeCategory = next }   // 값이 실제로 바뀔 때만 — 재진입 안전
             }
+        }
+        // 펼쳐 둔 카드가 표시 목록 밖으로 밀려나면 선택을 접는다(유령 상세 방지).
+        // 위 훅이 필터를 풀면 목록이 넓어지므로, 그 결과까지 반영된 최종 목록을 기준으로 판단한다.
+        .onChange(of: items.map(\.id)) { _, ids in
             if let id = selectedID, !ids.contains(id) {
                 withAnimation(motion) { selectedID = nil }
             }
@@ -368,7 +379,7 @@ struct FridgeView: View {
                     categoryChip(name: FridgeCategoryFilter.displayName(bucket.category),
                                  count: bucket.count,
                                  on: activeCategory == bucket.category,
-                                 seed: bucket.count &+ 11) { setCategory(bucket.category) }
+                                 seed: FridgeCategoryFilter.chipSeed(bucket.category)) { setCategory(bucket.category) }
                 }
             }
             // 스크롤 콘텐츠 자체에 마진을 줘 첫/마지막 칩이 화면 끝에 붙지 않게. 세로 패딩은
@@ -584,11 +595,30 @@ enum FridgeCategoryFilter {
         return items.filter { key(of: $0) == category }
     }
 
-    /// 필터 유지 가능 여부 — 해당 카테고리 재고가 하나도 없으면 nil(= 전체로 되돌려야 함).
-    /// 마지막 한 개를 먹거나 버렸을 때 사용자를 빈 화면에 가두지 않기 위한 판정.
-    static func resolved(_ category: String?, in items: [Ingredient]) -> String? {
+    /// 재고 변화 후 필터가 어떤 값이어야 하는지 — **뷰의 자동 해제가 그대로 호출하는 유일한 규칙**이다
+    /// (뷰에 같은 판단을 다시 적으면 테스트가 실물과 어긋난다). 전체(nil)로 풀어야 하는 경우 둘:
+    ///   ① 해당 카테고리 재고가 하나도 안 남음 — 마지막 한 개를 먹거나 버렸을 때 빈 화면에 가두지 않는다.
+    ///   ② **새로 들어온 재료가 전부 필터 밖** — 필터를 켠 채 재료를 추가하면 화면에 아무 변화가 없어
+    ///      "추가가 안 됐다"로 읽힌다. 추가 결과는 언제나 눈에 보여야 한다.
+    /// - Parameters:
+    ///   - category: 현재 활성 필터(nil = 전체).
+    ///   - items: 필터 **이전**의 전체 표시 목록.
+    ///   - added: 이번 변화에서 새로 나타난 재료 id. 비어 있으면 ②는 판정하지 않는다.
+    static func resolved(_ category: String?, in items: [Ingredient],
+                         added: Set<Ingredient.ID> = []) -> String? {
         guard let category, items.contains(where: { key(of: $0) == category }) else { return nil }
+        guard added.isEmpty
+                || items.contains(where: { added.contains($0.id) && key(of: $0) == category })
+        else { return nil }
         return category
+    }
+
+    /// 칩 종이 셰이프 시드 — **카테고리 키**에서 유도한다(재고 개수가 아니라). 개수를 쓰면 먹거나
+    /// 추가할 때마다 손으로 오린 윤곽이 다시 랜덤해지고(§13.1: 시드가 같으면 항상 같은 모양),
+    /// 개수가 같은 칩끼리는 똑같이 생긴다. 20 오프셋은 같은 화면의 다른 종이 면
+    /// (빈 상태 3 · 정렬 칩 5 · 보기 토글 6 · 요약 카드 7/8 · All 칩 9)과 겹치지 않기 위한 것.
+    static func chipSeed(_ category: String) -> Int {
+        20 + (order.firstIndex(of: category) ?? order.count)
     }
 
     /// 표시명 — 저장·비교는 영문 캐논, 표시만 로컬라이즈(카테고리 키는 이미 카탈로그에 등록돼 있다).

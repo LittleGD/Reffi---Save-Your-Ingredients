@@ -26,9 +26,9 @@ struct Recipe: Identifiable, Codable, Equatable {
     var steps: LocalizedSteps
     /// 사용자 커스텀 여부 — 커스텀만 편집·삭제 가능(시드 생략 시 nil = false).
     var isUser: Bool?
-    /// 공급 출처. 현재 앱에서 이 값을 채우는 경로는 없다 — 제거된 AI 생성 기능이 남긴 영속 데이터
-    /// (origin "ai"가 박힌 사용자 레시피)를 그대로 디코드하려고 필드만 유지한다. 지우면 옛 스냅샷의
-    /// 해당 레시피가 손실되므로 두되, 표시·분기 로직은 이 값을 읽지 않는다.
+    /// 공급 출처. AI 생성 기능이 제거되기 전에 저장한 기기에는 origin "ai"가 박힌 사용자 레시피가
+    /// 아직 남아 있다 — 그 레코드가 디코드·재인코드를 왕복해도 값이 사라지지 않도록 필드만 유지한다.
+    /// 새로 이 값을 채우는 경로도, 이 값을 읽는 로직도 없다(표시·분기 어디에도 쓰이지 않는다).
     var origin: String? = nil
 
     struct LocalizedName: Codable, Equatable {

@@ -9,9 +9,12 @@ import SwiftUI
 struct RecipeShareCard: View {
     let recipeName: String
     /// 표시용 재료 이름(전체) — 카드는 앞 5개만 그리고 나머지는 "+N" 줄로 접는다.
+    /// **비어 있으면 "ON THE TICKET" 섹션(라벨 + 구분선)을 통째로 생략한다** — 예약 모델 이전(v1)
+    /// 세션은 예약 재료가 없어, 그대로 두면 빈 라벨만 남는다.
     let ingredientNames: [String]
     /// 조리 시간(분). 구버전 세션엔 없어 nil이면 줄 자체를 생략한다.
     let minutes: Int?
+    /// 소비 확정 예정 재료 수. 0이면 헤더의 "N used"도 생략한다(빈 수치를 인쇄하지 않는다).
     let count: Int
 
     private static let cardWidth: CGFloat = 340
@@ -27,13 +30,16 @@ struct RecipeShareCard: View {
     private var ticket: some View {
         VStack(alignment: .leading, spacing: ReffiSpace.s3) {
             // 헤더 — 조리 티켓과 같은 모노 크롬(CookingStepsView.ticket 참고).
+            // "N used"는 셀 게 있을 때만 — 예약 모델 이전(v1) 세션은 count가 0이라 "0 used"가 남는다.
             HStack(alignment: .firstTextBaseline) {
                 Text(verbatim: "ORDER · FIRED")
                     .reffiType(.monoTicketLabel).foregroundStyle(ReffiColor.urgentDark)
                 Spacer()
-                Text("\(count) used")
-                    .reffiType(.metaText)
-                    .foregroundStyle(ReffiColor.ink2)
+                if count > 0 {
+                    Text("\(count) used")
+                        .reffiType(.metaText)
+                        .foregroundStyle(ReffiColor.ink2)
+                }
             }
 
             Text(verbatim: recipeName)
@@ -46,23 +52,27 @@ struct RecipeShareCard: View {
                     .foregroundStyle(ReffiColor.ink2)
             }
 
-            DashedRule()
+            // 재료 블록은 **이름이 있을 때만** 통째로 그린다(라벨·구분선 포함) — 예약 모델 이전 세션엔
+            // 예약 재료가 없어, 없으면 빈 "ON THE TICKET" 라벨만 덩그러니 남는다.
+            if !ingredientNames.isEmpty {
+                DashedRule()
 
-            // 티켓 크롬은 형제 라벨(ORDER · FIRED)과 같이 verbatim — 인쇄 문자열이라 번역하지 않는다.
-            Text(verbatim: "ON THE TICKET")
-                .reffiType(.sectionLabel).foregroundStyle(ReffiColor.ink2)
+                // 티켓 크롬은 형제 라벨(ORDER · FIRED)과 같이 verbatim — 인쇄 문자열이라 번역하지 않는다.
+                Text(verbatim: "ON THE TICKET")
+                    .reffiType(.sectionLabel).foregroundStyle(ReffiColor.ink2)
 
-            VStack(alignment: .leading, spacing: ReffiSpace.s1 + 2) {
-                ForEach(Array(ingredientNames.prefix(Self.namePreview).enumerated()), id: \.offset) { _, name in
-                    Text(verbatim: name)
-                        .reffiType(.checklistItem)
-                        .foregroundStyle(ReffiColor.ink)
-                        .lineLimit(1).truncationMode(.tail)
-                }
-                if ingredientNames.count > Self.namePreview {
-                    Text("+\(ingredientNames.count - Self.namePreview) more on the ticket")
-                        .reffiType(.metaText)
-                        .foregroundStyle(ReffiColor.ink2)
+                VStack(alignment: .leading, spacing: ReffiSpace.s1 + 2) {
+                    ForEach(Array(ingredientNames.prefix(Self.namePreview).enumerated()), id: \.offset) { _, name in
+                        Text(verbatim: name)
+                            .reffiType(.checklistItem)
+                            .foregroundStyle(ReffiColor.ink)
+                            .lineLimit(1).truncationMode(.tail)
+                    }
+                    if ingredientNames.count > Self.namePreview {
+                        Text("+\(ingredientNames.count - Self.namePreview) more on the ticket")
+                            .reffiType(.metaText)
+                            .foregroundStyle(ReffiColor.ink2)
+                    }
                 }
             }
 

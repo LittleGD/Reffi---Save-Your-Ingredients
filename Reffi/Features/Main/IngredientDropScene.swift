@@ -37,12 +37,15 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     private var calmSnapshot: [UUID: CGPoint] = [:]  // calm 창 시작 시점의 칩 위치
     private let settleBand: CGFloat = 80             // 이 미만 = 착지 후 잔여 운동(자유낙하·던지기 아님)
     private let jitterDamp: CGFloat = 0.8            // 잔여 운동의 프레임당 곱셈 감쇠 — 접촉 임펄스를 이긴다
-    private var foregroundObserver: NSObjectProtocol?   // 블록 옵저버라 명시 해제 필요
+    private var foregroundObserver: NSObjectProtocol?      // 블록 옵저버라 명시 해제 필요
+    private var memoryWarningObserver: NSObjectProtocol?   // 텍스처 캐시 비우기 — 동일 패턴
 
     // 기울임 중력 — CMDeviceMotion.gravity로 물리 중력을 돌린다(§13.4). 매핑·데드밴드 판정은
     // 순수 계산(GravityMapper)이라 테스트로 고정, 씬은 수명주기와 씬 상태 결합만 책임진다.
     private let motionManager = CMMotionManager()
     private var lastAppliedGravity = GravityMapper.fallback
+    /// 무방향 대역(기기를 눕힘) 히스테리시스의 유일한 상태 — 판정은 GravityMapper가 순수 계산으로 한다.
+    private var gravityDirectionless = false
 
     // 착지 임팩트 — 충돌 임펄스를 질량으로 나눈 근사 속도변화(pt/s)로 판정한다. calmSpeed(40)·
     // settleBand(80)와 **같은 단위**라 기존 안착 튜닝과 임계가 일관된다.
@@ -123,6 +126,15 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
                 DispatchQueue.main.async { self?.refreshPaused() }
             }
         }
+        // 메모리 경고 — 텍스처 캐시는 통째로 버린다(살아 있는 칩은 노드가 텍스처를 직접 붙들고 있어
+        // 화면이 깨지지 않고, 다음 재료 변화에서 필요한 것만 다시 굽는다).
+        if memoryWarningObserver == nil {
+            memoryWarningObserver = NotificationCenter.default.addObserver(
+                forName: UIApplication.didReceiveMemoryWarningNotification, object: nil, queue: .main
+            ) { [weak self] _ in
+                self?.textureCache.removeAll()
+            }
+        }
         syncMotionUpdates()
     }
 
@@ -134,6 +146,10 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
             NotificationCenter.default.removeObserver(o)
             foregroundObserver = nil
         }
+        if let o = memoryWarningObserver {
+            NotificationCenter.default.removeObserver(o)
+            memoryWarningObserver = nil
+        }
         if let r = traitRegistration {
             view.unregisterForTraitChanges(r)
             traitRegistration = nil
@@ -143,6 +159,7 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
 
     deinit {
         if let o = foregroundObserver { NotificationCenter.default.removeObserver(o) }
+        if let o = memoryWarningObserver { NotificationCenter.default.removeObserver(o) }
         motionManager.stopDeviceMotionUpdates()   // 안전망(willMove가 정상 경로)
     }
 
@@ -166,22 +183,29 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     }
 
     /// 모션 중단 — 중력은 상수 폴백으로 되돌려 놓는다(기울인 채 탭을 벗어나도 다음 표시가 정상 감각).
+    /// 중력이 **실제로 바뀌었으면 깨운다** — 기울인 채 잠든 더미는 기울어진 배치 그대로 얼어붙어 있어,
+    /// 상수 중력만 되돌려 놓고 재우면 다음에 봤을 때 비스듬히 굳은 더미가 그대로 보인다.
     private func stopMotionUpdates() {
         if motionManager.isDeviceMotionActive { motionManager.stopDeviceMotionUpdates() }
+        gravityDirectionless = false
         guard physicsWorld.gravity != GravityMapper.fallback else { return }
         physicsWorld.gravity = GravityMapper.fallback
         lastAppliedGravity = GravityMapper.fallback
-        calmFrames = 0
-        calmSnapshot.removeAll()
+        wake()   // calm 카운터·스냅샷 리셋 + idle 해제 → 복원된 중력으로 다시 굴러 재안착
     }
 
     /// 측정 중력 반영. 휴면 중엔 **깨울 만한 기울임**(wakeAngle)일 때만 적용한다 —
     /// 데드밴드(2°)로 야금야금 갱신하면 느린 회전이 영원히 wake 임계를 못 넘어 더미가 굳는다.
     /// 적용할 때마다 calm 창을 리셋해 안착 판정이 새 중력에서 다시 검증되게 한다.
     private func applyDeviceGravity(x: Double, y: Double) {
-        let candidate = GravityMapper.mapped(x: x, y: y)
+        // 인플라이트 콜백 방어 — 모션 콜백은 메인 큐에 이미 실려 있을 수 있어, stopMotionUpdates()
+        // 직후에도 한 번 더 도착한다. 그대로 받으면 방금 가려진(또는 뷰를 떠난) 씬을 다시 기울이고 깨운다.
+        guard view != nil, !externallyPaused else { return }
+        let sample = GravityMapper.sample(x: x, y: y, wasDirectionless: gravityDirectionless)
+        gravityDirectionless = sample.directionless
+        let candidate = sample.gravity
         if idle {
-            guard GravityMapper.shouldWake(candidate, lastApplied: lastAppliedGravity) else { return }
+            guard GravityMapper.shouldWake(sample, lastApplied: lastAppliedGravity) else { return }
             physicsWorld.gravity = candidate
             lastAppliedGravity = candidate
             wake()   // calm 카운터·스냅샷 리셋 포함
@@ -463,12 +487,10 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
 
     /// 표시용 실루엣 텍스처(종이 그림자 포함)를 캐시한다. 충돌체는 이 텍스처 알파가 아니라
     /// 실측 폴리곤(`makeBody`)이라, 여기선 표시용(shadowed: true)만 쓴다(shadowless는 진단용 잔존).
-    /// 캐시 키에 side가 들어가 리사이즈로 변이 달라지면 자동 무효(캐시 removeAll은 didChangeSize).
+    /// 무효화 경로 셋: 리사이즈(didChangeSize의 removeAll — 키에 side가 박혀 있다),
+    /// 동기화 직후 미사용분 제거(`evictUnusedTextures`), 메모리 경고(전량 removeAll).
     private func texture(for ing: Ingredient, side: CGFloat, shadowed: Bool) -> SKTexture? {
-        // 캐시 키에 스킴은 없다 — PaperSilhouette 팔레트는 전량 고정색이라 라이트/다크가 픽셀 동일.
-        // 신선도는 들어간다 — 같은 글리프라도 시듦(채도·명도·스쿼시·기울임)이 달라 픽셀이 다르다.
-        let key = "\(ing.glyph.rawValue)@\(Int(side))@\(WiltStyle.for(ing.freshness).token)"
-            + (shadowed ? "" : "#body")
+        let key = Self.textureKey(for: ing, side: side, shadowed: shadowed)
         if let t = textureCache[key] { return t }
         let view = PaperSilhouette(glyph: ing.glyph, fresh: ing.freshness, shadowed: shadowed)
             .frame(width: side, height: side)
@@ -478,6 +500,29 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         let t = SKTexture(image: img)
         textureCache[key] = t
         return t
+    }
+
+    /// 캐시 키 — 캐시에 넣는 쪽과 청소하는 쪽이 **같은 식**을 쓰도록 한 곳에 둔다.
+    /// 스킴은 없다 — PaperSilhouette 팔레트는 전량 고정색이라 라이트/다크가 픽셀 동일.
+    /// 신선도는 들어간다 — 같은 글리프라도 시듦(채도·명도·스쿼시·기울임)이 달라 픽셀이 다르다.
+    private static func textureKey(for ing: Ingredient, side: CGFloat, shadowed: Bool) -> String {
+        "\(ing.glyph.rawValue)@\(Int(side))@\(WiltStyle.for(ing.freshness).token)" + (shadowed ? "" : "#body")
+    }
+
+    /// 캐시 상한 — 키에 (글리프·변·시듦)이 들어가 재료가 바뀌거나 날이 넘어갈 때마다 새 키가 생긴다.
+    /// 방치하면 세션 내내 단조 증가하므로(시듦 3단계가 글리프당 키를 3배로 불린다), 동기화 직후
+    /// **지금 화면에 있는 칩이 실제로 쓰는 키만** 남긴다. 변은 칩 노드의 실측을 쓴다 — 리사이즈 전에
+    /// 만들어진 칩은 옛 변을 그대로 갖고 있어(rewilt가 그 변으로 다시 굽는다) 현재 chipSide와 다를 수 있다.
+    private func evictUnusedTextures() {
+        guard !textureCache.isEmpty else { return }
+        var live = Set<String>()
+        for ing in pending {
+            let side = chips[ing.id]?.size.width ?? chipSide
+            live.insert(Self.textureKey(for: ing, side: side, shadowed: true))
+            live.insert(Self.textureKey(for: ing, side: side, shadowed: false))
+        }
+        // live에는 아직 굽지 않은 키(#body 진단 변형)도 섞이므로 개수 비교로 건너뛰지 않는다 — 항상 훑는다.
+        textureCache = textureCache.filter { live.contains($0.key) }
     }
 
     func sync(_ ingredients: [Ingredient]) {
@@ -503,6 +548,7 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
                 addChip(ing, order: i, count: ingredients.count)
             }
         }
+        evictUnusedTextures()   // 칩 확정 후 — 더 이상 아무도 안 쓰는 텍스처를 버린다(캐시 상한)
     }
 
     /// 제거 연출 — 살짝 커졌다(easeOut) → 뿅 줄며 사라짐(easeIn). Reduce Motion이면 빠른 페이드만.

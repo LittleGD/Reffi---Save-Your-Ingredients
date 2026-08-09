@@ -457,6 +457,8 @@ struct FridgeStoreTests {
         #expect(FridgeCategoryFilter.apply("Meat", to: [beef]).count == 1)
     }
 
+    /// `FridgeView`의 필터 자동 해제는 이 함수만 호출한다 — 뷰에 같은 판단이 중복되지 않으므로
+    /// 여기서 검증하는 규칙이 곧 화면 동작이다.
     @Test func resolvedClearsFilterWhenCategoryEmpties() {
         let items = mixedItems
         #expect(FridgeCategoryFilter.resolved("Dairy", in: items) == "Dairy")
@@ -465,6 +467,33 @@ struct FridgeStoreTests {
         #expect(FridgeCategoryFilter.resolved("Dairy", in: withoutDairy) == nil)
         #expect(FridgeCategoryFilter.resolved("Veg", in: []) == nil)
         #expect(FridgeCategoryFilter.resolved(nil, in: items) == nil)
+    }
+
+    @Test func resolvedClearsFilterWhenNewItemLandsOutsideIt() {
+        // Dairy 필터를 켠 채 고기를 추가 — 화면이 그대로면 "추가가 안 됐다"로 읽힌다.
+        let fish = categorized(.fish, "Salmon")
+        let after = mixedItems + [fish]
+        #expect(FridgeCategoryFilter.resolved("Dairy", in: after, added: [fish.id]) == nil)
+
+        // 필터 안쪽에 추가되면 유지 — 굳이 넓힐 이유가 없다(추가분이 이미 보인다).
+        let yogurt = categorized(.yogurt, "Yogurt")
+        #expect(FridgeCategoryFilter.resolved("Dairy", in: mixedItems + [yogurt],
+                                              added: [yogurt.id]) == "Dairy")
+        // 여러 개를 한꺼번에(영수증 스캔) 추가해 하나라도 필터 안이면 유지.
+        #expect(FridgeCategoryFilter.resolved("Dairy", in: mixedItems + [yogurt, fish],
+                                              added: [yogurt.id, fish.id]) == "Dairy")
+        // 추가가 없는 변화(먹음·버림)는 ②를 판정하지 않는다 — 재고만 남아 있으면 필터 유지.
+        #expect(FridgeCategoryFilter.resolved("Dairy", in: mixedItems, added: []) == "Dairy")
+    }
+
+    @Test func chipSeedIsStablePerCategoryNotPerCount() {
+        // 시드는 카테고리 키에서만 나온다 — 재고가 늘고 줄어도 칩 윤곽이 다시 랜덤해지지 않는다.
+        #expect(FridgeCategoryFilter.chipSeed("Veg") == FridgeCategoryFilter.chipSeed("Veg"))
+        // 카테고리가 다르면 시드도 다르다(개수가 같아도 똑같이 생기지 않는다).
+        let seeds = FridgeCategoryFilter.order.map(FridgeCategoryFilter.chipSeed)
+        #expect(Set(seeds).count == FridgeCategoryFilter.order.count)
+        // 같은 화면의 다른 종이 면 시드(빈 상태 3 · 정렬 칩 5 · 보기 토글 6 · 요약 7/8 · All 9)와 겹치지 않는다.
+        #expect(seeds.allSatisfy { $0 > 9 })
     }
 
     @Test func promoteUrgentSwapsInMoreUrgentWhenCounterFull() {

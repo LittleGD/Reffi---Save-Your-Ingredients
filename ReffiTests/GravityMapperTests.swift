@@ -83,6 +83,69 @@ struct GravityMapperTests {
         #expect(GravityMapper.shouldWake(other, lastApplied: base))
     }
 
+    // MARK: 무방향 대역(기기를 눕힘) — 노이즈가 데드밴드·깨우기를 뚫지 못해야 한다
+
+    @Test func flatNoiseCollapsesToASingleDirectionlessGravity() {
+        // 책상에 눕힌 기기: 평면 성분 ≈0.009 + 센서 노이즈로 방향이 매 프레임 난수다.
+        // 정규화하면 각도가 크게 흔들리지만, 무방향 판정이 먼저라 결과 벡터는 항상 동일해야 한다.
+        var directionless = false
+        var applied = GravityMapper.fallback
+        var applications = 0
+        var wakes = 0
+
+        // 진짜 노이즈처럼 부호·크기가 제각각인 표본(전부 flatEnter 0.06 미만).
+        let noise: [(Double, Double)] = [
+            (0.009, -0.004), (-0.006, 0.011), (0.002, 0.013), (-0.014, -0.003),
+            (0.011, 0.007), (-0.001, -0.012), (0.013, 0.002), (-0.008, 0.009),
+        ]
+        for (x, y) in noise {
+            let s = GravityMapper.sample(x: x, y: y, wasDirectionless: directionless)
+            directionless = s.directionless
+            #expect(s.directionless)
+            #expect(s.gravity == GravityMapper.flatGravity)   // 노이즈와 무관하게 같은 벡터
+            if GravityMapper.shouldWake(s, lastApplied: applied) { wakes += 1 }
+            if GravityMapper.shouldApply(s.gravity, lastApplied: applied) {
+                applications += 1
+                applied = s.gravity
+            }
+        }
+        #expect(applications == 1)   // 상수 중력 → 무방향으로 한 번만 갈아끼운다
+        #expect(wakes == 0)          // 눕혀 둔 기기의 노이즈로는 잠든 씬을 절대 깨우지 않는다
+    }
+
+    @Test func directionlessBandHasHysteresis() {
+        // 밖 → 안: flatEnter(0.06) 아래로 내려가야 들어간다.
+        #expect(!GravityMapper.isDirectionless(rawMagnitude: 0.08, wasDirectionless: false))
+        #expect(GravityMapper.isDirectionless(rawMagnitude: 0.05, wasDirectionless: false))
+        // 안 → 밖: flatExit(0.10)을 넘어야 나온다 — 밴드 안(0.08)에선 그대로 무방향.
+        #expect(GravityMapper.isDirectionless(rawMagnitude: 0.08, wasDirectionless: true))
+        #expect(!GravityMapper.isDirectionless(rawMagnitude: 0.12, wasDirectionless: true))
+
+        // 밴드를 오가는 표본 — 경계에서 상태가 깜빡이지 않는다(진입 후 0.08은 계속 무방향).
+        var directionless = false
+        for m in [0.30, 0.08, 0.04, 0.08, 0.09, 0.14, 0.08] as [Double] {
+            let s = GravityMapper.sample(x: m, y: 0, wasDirectionless: directionless)
+            directionless = s.directionless
+        }
+        #expect(!directionless)   // 마지막은 0.14로 이미 빠져나온 뒤라 0.08도 방향이 있다
+
+        // 무방향을 벗어나면 다시 정상 매핑 — 방향이 살아나고 크기는 하한.
+        let out = GravityMapper.sample(x: 0.2, y: 0, wasDirectionless: true)
+        #expect(!out.directionless)
+        #expect(out.gravity.dx > 0)
+        #expect(close(hypot(out.gravity.dx, out.gravity.dy), 42 * 0.35, 0.01))
+    }
+
+    @Test func directionlessGravityMatchesFlatMapping() {
+        // 무방향 벡터 = 완전 수평 매핑과 동일(아래로, 크기 하한) — 두 경로가 다른 감각을 주지 않는다.
+        #expect(GravityMapper.flatGravity == GravityMapper.mapped(x: 0, y: 0))
+        #expect(close(GravityMapper.flatGravity.dy, -42 * 0.35))
+        // 확실한 기울임은 무방향으로 접히지 않는다(회귀 가드).
+        let upright = GravityMapper.sample(x: 0, y: -1, wasDirectionless: true)
+        #expect(!upright.directionless)
+        #expect(upright.gravity == GravityMapper.fallback)
+    }
+
     @Test func angleIsSymmetricAndUnsigned() {
         let a = CGVector(dx: 0, dy: -42)
         let b = CGVector(dx: 42, dy: 0)

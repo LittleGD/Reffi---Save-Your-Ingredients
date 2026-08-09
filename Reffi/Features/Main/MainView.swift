@@ -48,8 +48,12 @@ struct MainView: View {
     private var topF: Freshness { counter.first?.freshness ?? .fresh }
     private var urgentCount: Int { counter.lazy.filter { $0.freshness == .urgent }.count }
     private var soonCount: Int { counter.lazy.filter { $0.freshness == .soon }.count }
-    /// 씬 일시정지 — 다른 탭, 캐러셀·판정 커버에 가려진 동안은 물리 렌더를 멈춘다.
-    private var scenePaused: Bool { !isActive || showCarousel || deciding != nil }
+    /// 씬 일시정지 — 다른 탭, 그리고 씬을 완전히 덮는 **풀스크린 커버**(캐러셀·조리 화면·판정)에
+    /// 가려진 동안은 물리 렌더와 60Hz 모션 갱신을 멈춘다. 조리 화면(`showSteps`)은 불투명 커버라
+    /// 여기서 빠지면 안 보이는 씬이 계속 돌고 손 움직임이 그 씬을 다시 깨운다.
+    /// `showAdd`는 뺀다 — 풀스크린 커버가 아니라 시트(`.large` detent)라 위쪽에 표시 뷰가 남고,
+    /// 시트를 닫는 순간 정지화면이 잠깐 보이는 쪽이 더 나쁘다.
+    private var scenePaused: Bool { !isActive || showCarousel || showSteps || deciding != nil }
     /// 씬 동기화 트리거 — id·이름·글리프·신선도 어느 것이 바뀌어도 칩이 따라간다.
     private var sceneSyncKey: [String] {
         counter.map { "\($0.id.uuidString)#\($0.name)#\($0.glyph.rawValue)#\($0.freshness)" }
