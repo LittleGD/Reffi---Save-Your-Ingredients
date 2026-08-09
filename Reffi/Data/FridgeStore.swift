@@ -31,12 +31,14 @@ final class FridgeStore {
     /// 발주 후 "지금 요리 중" 세션(§13.6 C) — 메인 상단 카드의 소스. Finish/Cancel로 닫는다.
     private(set) var activeCook: CookSession?
 
+    /// 조리 세션 스냅샷. 단계(steps·completedSteps)는 더 이상 담지 않는다 — 앱이 조리 단계를 보여주지
+    /// 않으므로(조리법은 영상 링크가 맡는다) 저장할 이유가 없다. 옛 파일에 남은 두 키는 디코드 시
+    /// 그냥 무시된다(Codable은 모르는 키를 버린다) — 마이그레이션 불필요.
     struct CookSession: Codable, Equatable {
         var recipeName: String
         var startedAt: Date
         var count: Int                    // 발주로 예약한 재료 수
-        var steps: [String]?              // 단계 레시피(발주 시점 스냅샷) — 구버전 파일 호환용 옵셔널
-        var completedSteps: [Int]?        // 체크한 단계 인덱스
+        var minutes: Int?                 // 조리 시간(공유 카드 표시용) — 구버전 세션엔 없음
         var usedIDs: [UUID]?              // 예약된 재료 — v1 세션(발주 즉시 소비)엔 없음
     }
 
@@ -172,8 +174,8 @@ final class FridgeStore {
     private static let ioQueue = DispatchQueue(label: "com.reffi.app.store-io", qos: .utility)
 
     /// 스냅샷 저장(+기본으로 임박 알림 재스케줄). 인코드는 메인에서 값을 캡처하고 쓰기는 직렬 큐로.
-    /// 재료가 안 바뀌는 변이(단계 체크·쇼핑 skip·커스텀 레시피)는 `reschedulesAlerts: false`로
-    /// 알림 재구성을 건너뛴다 — 판정 제스처·체크 토글의 메인 스레드 비용을 줄인다.
+    /// 재료가 안 바뀌는 변이(작업대 교체·쇼핑 skip·커스텀 레시피)는 `reschedulesAlerts: false`로
+    /// 알림 재구성을 건너뛴다 — 판정 제스처의 메인 스레드 비용을 줄인다.
     /// 메모리 전용 스토어(프리뷰·테스트)는 아무것도 하지 않는다.
     private func persist(reschedulesAlerts: Bool = true) {
         guard persists else { return }
@@ -340,7 +342,7 @@ final class FridgeStore {
         // 진행 중 세션이 있으면 교체 — 이전 예약은 자동 해제되고, undo가 이전 세션을 복원한다.
         let replaced = activeCook
         activeCook = CookSession(recipeName: result.recipe.displayName, startedAt: Date(),
-                                 count: used.count, steps: result.recipe.displaySteps,
+                                 count: used.count, minutes: result.recipe.minutes,
                                  usedIDs: used.map(\.id))
         let reserved = reservedIDs
         counterIDs.removeAll { reserved.contains($0) }
@@ -348,16 +350,6 @@ final class FridgeStore {
         beginUndo(.fired(recipe: result.recipe.displayName, count: used.count),
                   logIDs: [], counterSnapshot: counterBefore, previousSession: replaced)
         persist()
-    }
-
-    /// 단계 체크 토글 — 조리 진행 상태도 영속화(중간에 앱을 꺼도 이어서).
-    func toggleCookStep(_ index: Int) {
-        guard var cook = activeCook else { return }
-        var done = Set(cook.completedSteps ?? [])
-        if !done.insert(index).inserted { done.remove(index) }
-        cook.completedSteps = done.sorted()
-        activeCook = cook
-        persist(reschedulesAlerts: false)   // 재료 불변 — 알림 재구성 불필요
     }
 
     /// 요리 완료 — 예약 재료의 소비를 **확정**한다(이력 기록·재고 차감은 여기서).

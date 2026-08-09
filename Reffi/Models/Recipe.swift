@@ -21,6 +21,8 @@ struct Recipe: Identifiable, Codable, Equatable {
     var cuisine: String?
     var minutes: Int
     var ingredients: [Item]
+    /// 조리 단계 — 화면에 그리는 경로는 없다(티켓은 단서까지, 조리법은 영상). 시드 JSON과 이미 저장된
+    /// 커스텀 레시피가 이 키를 갖고 있어 **디코드 호환**을 위해 유지한다. 지우면 기존 데이터가 깨진다.
     var steps: LocalizedSteps
     /// 사용자 커스텀 여부 — 커스텀만 편집·삭제 가능(시드 생략 시 nil = false).
     var isUser: Bool?
@@ -46,10 +48,6 @@ struct Recipe: Identifiable, Codable, Equatable {
     // MARK: - 표시 접근자
 
     var displayName: String { Self.isKorean ? (name.ko ?? name.en) : name.en }
-    var displaySteps: [String] {
-        if Self.isKorean, let ko = steps.ko, !ko.isEmpty { return ko }
-        return steps.en
-    }
     var isUserRecipe: Bool { isUser ?? false }
 
     /// 히어로 대표 모티프 — 첫 번째 비상비 재료의 글리프에서 파생.
@@ -64,8 +62,9 @@ struct Recipe: Identifiable, Codable, Equatable {
     }
 
     /// 커스텀 레시피 생성 편의 — 현재 로케일 표기를 en 슬롯에 담는다(en은 필수 캐논).
+    /// `steps`는 편집기가 더 이상 입력받지 않아 기본 빈 배열이다(모델 필드는 디코드 호환으로 남아 있다).
     static func userRecipe(name: String, ingredientNames: [String], minutes: Int,
-                           steps: [String]) -> Recipe {
+                           steps: [String] = []) -> Recipe {
         Recipe(id: UUID().uuidString,
                name: LocalizedName(en: name, ko: nil),
                cuisine: nil,

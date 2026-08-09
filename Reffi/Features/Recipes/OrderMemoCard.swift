@@ -1,9 +1,13 @@
 import SwiftUI
 import PhosphorSwift
 
-/// 오더 메모 카드(§13) — 주방 오더 티켓: 크림 종이 + 톱니 엣지 + 모노 헤더 + 판정문 + 메뉴/시간 +
-/// 재료 체크리스트 + **"이걸로 요리" 발주 CTA**. 발주하면 START 스탬프가 쾅 찍히고 사용 재료가 비워진다
-/// (Fire the Ticket). affordance(탭할 스탬프)와 payoff(비우기 증명)가 같은 오브젝트.
+/// 오더 메모 카드(§13) — 주방 오더 티켓이자 **단서 카드**: 크림 종이 + 톱니 엣지 + 모노 헤더 + 판정문 +
+/// 메뉴/시간 + 재료 이름 블록 + **"이걸로 요리" 발주 CTA**. 발주하면 START 스탬프가 쾅 찍히고 사용 재료가
+/// 비워진다(Fire the Ticket). affordance(탭할 스탬프)와 payoff(비우기 증명)가 같은 오브젝트.
+///
+/// 티켓은 "무엇을 만들지"의 단서까지만 준다 — 조리 방법(단계)은 티켓에 싣지 않고 조리 화면의
+/// 영상 링크가 맡는다. 카드에 남는 건 판단에 필요한 것뿐: 왜 이 티켓인가(판정문), 무엇인가(메뉴·시간),
+/// 무엇이 빠지나(Short), 그리고 임박 재료의 D-day.
 struct OrderMemoCard: View {
     let result: RecipeRecommender.Result
     let number: Int
@@ -62,7 +66,10 @@ struct OrderMemoCard: View {
                 radius: 10, x: 0, y: 8)
     }
 
-    /// 중간 섹션 — 헤더·fireBand는 고정, 'ON THE TICKET'~PREP(+ Short 문구)만 내부 스크롤(§13.6).
+    /// 중간 섹션 — 헤더·fireBand는 고정, 판정문~'ON THE TICKET'(+ Short 문구)만 내부 스크롤(§13.6).
+    /// 단계 미리보기를 걷어낸 뒤로는 기본 텍스트 크기에서 항상 다 들어간다 — 스크롤·페이드는
+    /// 극단 Dynamic Type(접근성 크기)에서만 발동하는 **오버플로 안전망**으로만 남긴다.
+    /// 지우면 큰 글자에서 마지막 재료 줄과 Short 문구가 잘려 판단 근거가 사라진다.
     private var middleScroll: some View {
         let r = result.recipe
         // 콘텐츠가 프레임보다 작으면 스크롤이 비활성이라 시각 무변화, 극단 Dynamic Type에서만 발동.
@@ -87,11 +94,13 @@ struct OrderMemoCard: View {
 
                 DashedRule()
 
-                Text("ON THE TICKET")
+                // 모노 올캡 티켓 크롬은 형제 라벨(ORDER · FIRED · TABLE · REFFI KITCHEN)과 같이 verbatim —
+                // 주방 티켓의 인쇄 문자열이라 번역하지 않는다.
+                Text(verbatim: "ON THE TICKET")
                     .reffiType(.sectionLabel).foregroundStyle(ReffiColor.ink2)   // §2.6 — 소형 텍스트는 불투명 토큰으로
 
-                // 체크리스트는 최대 5줄 미리보기(+N more) — 소비는 result.used 전체를 쓰므로 표시만 축약.
-                VStack(alignment: .leading, spacing: ReffiSpace.s2) {
+                // 이름 블록은 최대 5줄 미리보기(+N more) — 소비는 result.used 전체를 쓰므로 표시만 축약.
+                VStack(alignment: .leading, spacing: ReffiSpace.s1 + 2) {
                     ForEach(result.used.prefix(5)) { ing in ticketLine(ing, done: fired) }
                     if result.used.count > 5 {
                         Text("+\(result.used.count - 5) more on the ticket")
@@ -104,11 +113,6 @@ struct OrderMemoCard: View {
                     Text("Short: \(result.missing.joined(separator: ", "))")
                         .reffiType(.metaText)
                         .foregroundStyle(ReffiColor.ink2).lineLimit(2).padding(.top, 1)
-                }
-
-                if !r.displaySteps.isEmpty {
-                    DashedRule()
-                    prepSection(r.displaySteps)
                 }
             }
         }
@@ -142,30 +146,6 @@ struct OrderMemoCard: View {
             }
             Text(verbatim: "TABLE · REFFI KITCHEN")
                 .reffiType(.monoEyebrow).foregroundStyle(ReffiColor.ink2)   // §2.6 — 소형 텍스트 대비
-        }
-    }
-
-    /// 조리 메모(§13.6 payoff) — 발주 전부터 티켓에 짧은 순서를 보여줘 "누르면 뭘 하게 되는지"가 보인다.
-    /// 미리보기는 최대 3단계(+N more) — 전체 단계는 발주 후 CookingStepsView가 정본이다.
-    private func prepSection(_ steps: [String]) -> some View {
-        VStack(alignment: .leading, spacing: ReffiSpace.s1 + 2) {
-            Text("PREP")
-                .reffiType(.sectionLabel).foregroundStyle(ReffiColor.ink2)
-            ForEach(Array(steps.prefix(3).enumerated()), id: \.offset) { i, step in
-                HStack(alignment: .firstTextBaseline, spacing: ReffiSpace.s2) {
-                    Text(verbatim: "\(i + 1).")
-                        .font(.reffiNum(12, relativeTo: .caption)).foregroundStyle(ReffiColor.ink2)
-                    Text(verbatim: step)
-                        .reffiType(.metaText)
-                        .foregroundStyle(ReffiColor.ink)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
-            if steps.count > 3 {
-                Text("+\(steps.count - 3) more steps")
-                    .reffiType(.metaText)
-                    .foregroundStyle(ReffiColor.ink2)
-            }
         }
     }
 
@@ -219,28 +199,27 @@ struct OrderMemoCard: View {
             .accessibilityHidden(true)
     }
 
-    /// 티켓 한 줄 — 체크 박스 + 이름 + D-N. 발주하면 체크가 채워지고 줄이 그어진다.
+    /// 티켓 한 줄 — 이름 + (임박할 때만) D-day 칩. 체크박스는 없다: 티켓은 체크하며 따라가는 목록이 아니라
+    /// "무엇이 들어가나"를 한눈에 읽는 단서 블록이다. 발주하면 줄이 그어져 비웠음이 남는다(payoff).
+    ///
+    /// D-day는 `.soon`·`.urgent`에만 붙인다 — 신선도는 앱의 본체지만, 아직 여유 있는 재료의 카운트다운은
+    /// 노이즈일 뿐이라 "지금 급한 것"만 눈에 띄게 남긴다(색+텍스트 동반, §1).
     private func ticketLine(_ ing: Ingredient, done: Bool) -> some View {
         HStack(spacing: ReffiSpace.s2) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 3, style: .continuous)
-                    .stroke(ing.freshness.dark.opacity(0.7), lineWidth: 1.5)
-                    .frame(width: 14, height: 14)
-                if done {
-                    RoundedRectangle(cornerRadius: 3, style: .continuous)
-                        .fill(ing.freshness.dark).frame(width: 14, height: 14)
-                    // 다크에서 freshness.dark 도트가 밝아지므로 체크는 onInk(어두운 콘텐츠)여야 산다.
-                    Image(systemName: "checkmark").font(.system(size: 8, weight: .heavy)).foregroundStyle(ReffiColor.onInk)
-                }
-            }
             Text(verbatim: ing.name)
                 .reffiType(.checklistItem)
                 .foregroundStyle(done ? ReffiColor.muted : ReffiColor.ink)
                 .strikethrough(done, color: ReffiColor.muted)
+                .lineLimit(1).truncationMode(.tail)
             Spacer(minLength: ReffiSpace.s2)
-            Text(verbatim: ing.dDayText)
-                .font(.reffiNum(13, relativeTo: .caption))
-                .foregroundStyle(ing.freshness.dark)
+            if ing.freshness != .fresh {
+                Text(verbatim: ing.dDayText)
+                    .font(.reffiNum(12, relativeTo: .caption))
+                    .foregroundStyle(ing.freshness.dark)
+                    .padding(.horizontal, ReffiSpace.s2)
+                    .padding(.vertical, 1)
+                    .background(ing.freshness.light, in: Capsule())
+            }
         }
     }
 }

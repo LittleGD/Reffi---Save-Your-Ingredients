@@ -235,34 +235,6 @@
         }
       }
     },
-    "+%lld more steps": {
-      "localizations": {
-        "en": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "+1 more step"
-                }
-              },
-              "other": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "+%lld more steps"
-                }
-              }
-            }
-          }
-        },
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "+%lld단계 더"
-          }
-        }
-      }
-    },
     "2 people": {
       "localizations": {
         "ko": {
@@ -681,16 +653,6 @@
         }
       }
     },
-    "Chop, stir-fry, season…": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "썰고, 볶고, 간하기…"
-          }
-        }
-      }
-    },
     "Clears %lld before they spoil": {
       "localizations": {
         "ko": {
@@ -767,6 +729,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Google로 계속하기"
+          }
+        }
+      }
+    },
+    "Cook it your way. The video has the details.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "자기 방식대로 요리하세요. 자세한 건 영상에 있어요."
           }
         }
       }
@@ -997,16 +969,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "비선호"
-          }
-        }
-      }
-    },
-    "Done": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "완료"
           }
         }
       }
@@ -1741,16 +1703,6 @@
         }
       }
     },
-    "No steps on this ticket. Cook it your way.": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "이 티켓엔 단계 메모가 없어요. 자유롭게 요리하세요."
-          }
-        }
-      }
-    },
     "No tickets yet": {
       "localizations": {
         "ko": {
@@ -1901,16 +1853,6 @@
         }
       }
     },
-    "One step per line.": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "한 줄에 한 단계씩 적어 주세요."
-          }
-        }
-      }
-    },
     "Onion, Egg, Rice…": {
       "localizations": {
         "ko": {
@@ -1927,6 +1869,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "무낭비 리포트 열기, %lld퍼센트 낭비"
+          }
+        }
+      }
+    },
+    "Open recipe videos": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "레시피 영상 보기"
           }
         }
       }
@@ -2861,6 +2813,16 @@
         }
       }
     },
+    "Try again with a clearer photo.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "더 선명한 사진으로 다시 시도해 주세요."
+          }
+        }
+      }
+    },
     "Tuned for %@": {
       "localizations": {
         "ko": {
@@ -3021,16 +2983,6 @@
         }
       }
     },
-    "Watch examples on YouTube": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "유튜브에서 예시 영상 보기"
-          }
-        }
-      }
-    },
     "Watch your no-waste streak grow, day by day.": {
       "localizations": {
         "ko": {
@@ -3117,16 +3069,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "구매처"
-          }
-        }
-      }
-    },
-    "YouTube": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "YouTube"
           }
         }
       }
@@ -3277,16 +3219,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "장"
-          }
-        }
-      }
-    },
-    "Try again with a clearer photo.": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "더 선명한 사진으로 다시 시도해 주세요."
           }
         }
       }

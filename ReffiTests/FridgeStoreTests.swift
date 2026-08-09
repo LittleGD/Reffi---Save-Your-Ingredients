@@ -66,6 +66,23 @@ struct FridgeStoreTests {
         #expect(snap.userRecipes?.isEmpty == true)
     }
 
+    @Test func decodesSnapshotWithRemovedCookStepKeys() throws {
+        // 단계 체크리스트 제거 전에 저장된 파일 — CookSession에 더 이상 없는 steps·completedSteps 키가 남아 있다.
+        // 모르는 키는 무시되고 진행 중 세션(이름·개수·예약 재료)은 그대로 살아야 한다.
+        let json = """
+        {"schemaVersion":2,"ingredients":[],"history":[],"dismissedToBuy":[],"counterIDs":[],
+        "activeCook":{"recipeName":"Bibimbap","startedAt":773236800,"count":3,
+        "steps":["chop","stir"],"completedSteps":[0],
+        "usedIDs":["3E29D5C3-99D5-44A5-BB80-1E1B62F0A6DF"]}}
+        """.replacingOccurrences(of: "\n", with: "")
+        let snap = try #require(FridgeStore.decodeSnapshot(Data(json.utf8)))
+        let cook = try #require(snap.activeCook)
+        #expect(cook.recipeName == "Bibimbap")
+        #expect(cook.count == 3)
+        #expect(cook.minutes == nil)              // 없던 필드는 nil — 공유 카드가 시간 줄을 생략한다
+        #expect(cook.usedIDs?.count == 1)         // 예약(되돌릴 수 있는 재료)은 온전히 보존
+    }
+
     @Test func recipesPoolIsCustomPlusSeed() {
         let seed = Recipe(id: "seed-1", name: Recipe.LocalizedName(en: "Seed Dish", ko: nil),
                           cuisine: nil, minutes: 10,
@@ -286,18 +303,16 @@ struct FridgeStoreTests {
 
     @Test func replacingSessionUndoRestoresPreviousSession() {
         let store = makeStore()
-        let a = Recipe.userRecipe(name: "A", ingredientNames: ["Item0"], minutes: 10, steps: ["s1"])
-        let b = Recipe.userRecipe(name: "B", ingredientNames: ["Item1"], minutes: 10, steps: [])
+        let a = Recipe.userRecipe(name: "A", ingredientNames: ["Item0"], minutes: 10)
+        let b = Recipe.userRecipe(name: "B", ingredientNames: ["Item1"], minutes: 20)
         store.cook(RecipeRecommender.result(for: a, ingredients: store.sorted))
-        store.toggleCookStep(0)
         let sessionA = store.activeCook
 
         store.cook(RecipeRecommender.result(for: b, ingredients: store.sorted))   // 교체
         #expect(store.activeCook?.recipeName == "B")
 
-        store.undoPending()   // B 발주 취소 → A 세션(체크 진행 포함) 복원
-        #expect(store.activeCook?.recipeName == "A")
-        #expect(store.activeCook?.completedSteps == sessionA?.completedSteps)
+        store.undoPending()   // B 발주 취소 → A 세션 전체(시작 시각·예약 재료까지) 복원
+        #expect(store.activeCook == sessionA)
     }
 
     @Test func unknownGlyphDecodesToGeneric() throws {
