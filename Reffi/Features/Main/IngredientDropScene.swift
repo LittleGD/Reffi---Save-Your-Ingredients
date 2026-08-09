@@ -1,3 +1,4 @@
+import CoreMotion
 import SpriteKit
 import SwiftUI
 import os
@@ -6,7 +7,7 @@ import os
 /// 떨어져 충돌·바운스하며 **쌓여서 그대로 남는다**(사라지지 않음). 끌어서 던질 수 있고, 짧게 탭하면 판정을 묻는다.
 /// 재료 식별·신선도는 실루엣 + 아래 뱃지 행이 전달한다(씬 위 이름 라벨 없음, §13.4).
 /// 바닥은 씬 하단보다 위(요리시작 버튼 충돌 마진). 터치는 **한 손가락만** 추적해 멀티터치에 상태가 안 꼬인다.
-final class IngredientDropScene: SKScene {
+final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     private var chips: [UUID: SKSpriteNode] = [:]
     private var textureCache: [String: SKTexture] = [:]
     private var pending: [Ingredient] = []
@@ -16,10 +17,14 @@ final class IngredientDropScene: SKScene {
     private var dragTarget: CGPoint = .zero
     private var dragStart: CGPoint = .zero   // 탭 판정은 시작점 기준 누적 이동으로(느린 드래그 오판 방지)
     private var dragMoved = false
+    private var dragGrabOffset: CGPoint = .zero   // 잡은 지점 - 칩 중심(놓을 때 토크 암으로 회전 유도)
 
     /// 외부 일시정지(탭 전환·커버 가림) — idle과 합성해 isPaused를 만든다. isPaused는 절대
     /// 직접 대입하지 않고 refreshPaused()만 만진다(SSOT). 외부에서 이 값만 바꾼다.
-    var externallyPaused = false { didSet { if externallyPaused != oldValue { refreshPaused() } } }
+    /// 가려진 동안엔 모션 갱신도 멈춘다(안 보이는 씬 때문에 자이로를 돌릴 이유가 없다).
+    var externallyPaused = false {
+        didSet { if externallyPaused != oldValue { refreshPaused(); syncMotionUpdates() } }
+    }
     /// 모든 칩이 정착하면 씬을 스스로 재운다 — 유휴 프레임에서 물리·렌더 비용 0.
     private var idle = false
     // 강제 안착(force-settle) — 알파 텍스처의 오목 충돌체는 접촉 해소 지터(v 4~30pt/s)가 영원히
@@ -34,6 +39,27 @@ final class IngredientDropScene: SKScene {
     private let jitterDamp: CGFloat = 0.8            // 잔여 운동의 프레임당 곱셈 감쇠 — 접촉 임펄스를 이긴다
     private var foregroundObserver: NSObjectProtocol?   // 블록 옵저버라 명시 해제 필요
 
+    // 기울임 중력 — CMDeviceMotion.gravity로 물리 중력을 돌린다(§13.4). 매핑·데드밴드 판정은
+    // 순수 계산(GravityMapper)이라 테스트로 고정, 씬은 수명주기와 씬 상태 결합만 책임진다.
+    private let motionManager = CMMotionManager()
+    private var lastAppliedGravity = GravityMapper.fallback
+
+    // 착지 임팩트 — 충돌 임펄스를 질량으로 나눈 근사 속도변화(pt/s)로 판정한다. calmSpeed(40)·
+    // settleBand(80)와 **같은 단위**라 기존 안착 튜닝과 임계가 일관된다.
+    private let squashImpact: CGFloat = 30       // 이 이상이면 눈에 보이는 착지 — 스쿼시
+    private let hapticImpact: CGFloat = 90       // settleBand 위 — 쌓이는 더미의 잔접촉엔 안 울린다
+    private let hapticImpactMax: CGFloat = 260   // 이 이상은 최대 세기(자유낙하·던지기)
+    private let hapticInterval: TimeInterval = 0.12   // 연쇄 충돌이 진동으로 번지지 않게
+    private var lastHapticAt: TimeInterval = 0
+    private lazy var impactHaptic = UIImpactFeedbackGenerator(style: .light)
+
+    /// 충돌 카테고리 — 접촉 콜백을 받으려면 마스크가 필요하다. collisionBitMask는 기본값(전체)을
+    /// 유지해 **충돌 거동은 그대로**이고, contactTest만 새로 켠다.
+    private enum Category {
+        static let chip: UInt32 = 1 << 0
+        static let wall: UInt32 = 1 << 1
+    }
+
     // 컬러 스킴 — SpriteKit은 동적 UIColor를 트레이트 변화에 따라 다시 해석하지 않고,
     // ImageRenderer도 명시하지 않으면 항상 라이트로 렌더한다. 스킴을 씬이 직접 들고 있다가
     // 바뀌면 텍스처를 다시 굽는다(SKView의 trait 변경을 구독 — SwiftUI 쪽 배선 불필요).
@@ -44,7 +70,10 @@ final class IngredientDropScene: SKScene {
     var onRemove: ((UUID) -> Void)?
     /// 제스처 판정(§13.6 B) — 칩을 존에 끌어다 놓으면 (id, wasted). 탭 오버레이는 접근성 경로로 유지.
     var onDecide: ((UUID, Bool) -> Void)?
-    var reduceMotion = false { didSet { if reduceMotion != oldValue { wake() } } }
+    /// Reduce Motion이면 기울임 중력을 끄고 상수 중력으로 되돌린다(예측 불가한 화면 움직임 제거, §7.4).
+    var reduceMotion = false {
+        didSet { if reduceMotion != oldValue { syncMotionUpdates(); wake() } }
+    }
 
     // 판정 바스켓 — 드래그 중에만 나타나는 휴지통(좌상)·냄비(우상) 종이 블롭.
     // 손가락이 근처에 오면 재료가 자석처럼 끌려 들어간다(마그네틱 캡처).
@@ -52,6 +81,10 @@ final class IngredientDropScene: SKScene {
     private var ateZone: SKSpriteNode?
     private let zoneSide: CGFloat = 86
     private let magnetRadius: CGFloat = 88
+
+    // 던지기 회전 — 토크 암 계수(작을수록 잘 돈다)와 각속도 상한(rad/s).
+    private let spinArm: CGFloat = 0.25
+    private let spinCap: CGFloat = 6
 
     private var chipSide: CGFloat { chipSideFor(size) }
     private func chipSideFor(_ s: CGSize) -> CGFloat { min(max(124, s.width * 0.42), 188) }
@@ -62,7 +95,10 @@ final class IngredientDropScene: SKScene {
     override func didMove(to view: SKView) {
         backgroundColor = .clear
         scaleMode = .resizeFill
-        physicsWorld.gravity = CGVector(dx: 0, dy: -42)   // 적당히 — 가볍게 떨어지되 둥둥 뜨진 않게
+        // 기본 = 상수 중력(적당히 — 가볍게 떨어지되 둥둥 뜨진 않게). 기기 모션이 붙으면 여기서 회전만 한다.
+        physicsWorld.gravity = GravityMapper.fallback
+        lastAppliedGravity = GravityMapper.fallback
+        physicsWorld.contactDelegate = self   // 착지 스쿼시·햅틱
         view.preferredFramesPerSecond = 60
         view.ignoresSiblingOrder = true   // 칩 z가 전부 달라(§안착 z-순서) 순서 결정적 — 안전
         // 칩·존을 굽기 **전에** 현재 스킴을 확정한다(첫 렌더부터 올바른 팔레트로).
@@ -87,11 +123,13 @@ final class IngredientDropScene: SKScene {
                 DispatchQueue.main.async { self?.refreshPaused() }
             }
         }
+        syncMotionUpdates()
     }
 
     /// 프레젠테이션 해제 — 옵저버를 여기서 풀어 SpriteView 재구성 시 중복 등록·누수를 막는다
     /// (didMove가 다시 등록). deinit은 안전망.
     override func willMove(from view: SKView) {
+        stopMotionUpdates()
         if let o = foregroundObserver {
             NotificationCenter.default.removeObserver(o)
             foregroundObserver = nil
@@ -105,6 +143,55 @@ final class IngredientDropScene: SKScene {
 
     deinit {
         if let o = foregroundObserver { NotificationCenter.default.removeObserver(o) }
+        motionManager.stopDeviceMotionUpdates()   // 안전망(willMove가 정상 경로)
+    }
+
+    // MARK: - 기울임 중력 (CoreMotion)
+
+    /// 모션 갱신 on/off를 씬 상태에서 **파생**시킨다 — 표시 중 + 안 가려짐 + Reduce Motion 아님 + 기기 지원.
+    /// 조건이 하나라도 깨지면 즉시 멈춘다(시뮬레이터는 deviceMotion 미지원 → 항상 상수 중력).
+    private func syncMotionUpdates() {
+        let wanted = view != nil && !externallyPaused && !reduceMotion && motionManager.isDeviceMotionAvailable
+        if wanted { startMotionUpdates() } else { stopMotionUpdates() }
+    }
+
+    private func startMotionUpdates() {
+        guard !motionManager.isDeviceMotionActive else { return }
+        motionManager.deviceMotionUpdateInterval = 1.0 / 60.0
+        // 콜백을 메인 큐로 받아 씬 상태(중력·wake)를 렌더 스레드와 같은 큐에서만 만진다.
+        motionManager.startDeviceMotionUpdates(to: .main) { [weak self] motion, _ in
+            guard let self, let g = motion?.gravity else { return }
+            self.applyDeviceGravity(x: g.x, y: g.y)
+        }
+    }
+
+    /// 모션 중단 — 중력은 상수 폴백으로 되돌려 놓는다(기울인 채 탭을 벗어나도 다음 표시가 정상 감각).
+    private func stopMotionUpdates() {
+        if motionManager.isDeviceMotionActive { motionManager.stopDeviceMotionUpdates() }
+        guard physicsWorld.gravity != GravityMapper.fallback else { return }
+        physicsWorld.gravity = GravityMapper.fallback
+        lastAppliedGravity = GravityMapper.fallback
+        calmFrames = 0
+        calmSnapshot.removeAll()
+    }
+
+    /// 측정 중력 반영. 휴면 중엔 **깨울 만한 기울임**(wakeAngle)일 때만 적용한다 —
+    /// 데드밴드(2°)로 야금야금 갱신하면 느린 회전이 영원히 wake 임계를 못 넘어 더미가 굳는다.
+    /// 적용할 때마다 calm 창을 리셋해 안착 판정이 새 중력에서 다시 검증되게 한다.
+    private func applyDeviceGravity(x: Double, y: Double) {
+        let candidate = GravityMapper.mapped(x: x, y: y)
+        if idle {
+            guard GravityMapper.shouldWake(candidate, lastApplied: lastAppliedGravity) else { return }
+            physicsWorld.gravity = candidate
+            lastAppliedGravity = candidate
+            wake()   // calm 카운터·스냅샷 리셋 포함
+        } else {
+            guard GravityMapper.shouldApply(candidate, lastApplied: lastAppliedGravity) else { return }
+            physicsWorld.gravity = candidate
+            lastAppliedGravity = candidate
+            calmFrames = 0
+            calmSnapshot.removeAll()
+        }
     }
 
     // MARK: - 컬러 스킴 (라이트/다크)
@@ -261,7 +348,12 @@ final class IngredientDropScene: SKScene {
 
     /// 정착 → idle. 정밀 충돌은 '움직일 가능성이 있는 동안'만이라 여기서 전부 내린다(B6).
     private func settleToIdle() {
-        for node in chips.values { node.physicsBody?.usesPreciseCollisionDetection = false }
+        for node in chips.values {
+            node.physicsBody?.usesPreciseCollisionDetection = false
+            // 스쿼시 액션이 남은 채 pause되면 눌린 모양으로 얼어붙는다 — 여기서 끊고 배율을 1로 굳힌다.
+            node.removeAction(forKey: "squash")
+            node.setScale(1)
+        }
         idle = true
         refreshPaused()
         #if DEBUG
@@ -274,6 +366,7 @@ final class IngredientDropScene: SKScene {
     private func wake() {
         calmFrames = 0
         calmSnapshot.removeAll()
+        impactHaptic.prepare()   // 곧 물리 이벤트가 온다 — 첫 착지 진동의 지연을 없앤다
         guard idle else { return }
         idle = false
         for node in chips.values { node.physicsBody?.usesPreciseCollisionDetection = true }
@@ -363,6 +456,8 @@ final class IngredientDropScene: SKScene {
         walls.name = "walls"
         walls.physicsBody = SKPhysicsBody(edgeLoopFrom: rect)   // 닫힌 루프(상자)
         walls.physicsBody?.friction = 0.7
+        walls.physicsBody?.categoryBitMask = Category.wall
+        walls.physicsBody?.contactTestBitMask = Category.chip   // 바닥 착지도 임팩트로 친다
         addChild(walls)
     }
 
@@ -445,7 +540,12 @@ final class IngredientDropScene: SKScene {
         body.linearDamping = 0.2         // 둥둥 뜨진 않게, 빨리 안착
         body.angularDamping = 0.85       // 자연스럽게 기울며 안착하되 무한 회전은 억제
         body.allowsRotation = true       // 자연스러운 물리 — 기울고 굴러 빈틈에 안착
-        body.mass = 0.7                  // 가볍게
+        // 질량은 실측 바디 면적비에서 파생 — 큰 칩이 작은 칩을 밀어내는 게 눈에 보인다.
+        // 드래그 추종·던지기 상한은 **속도를 직접 조종**하므로 질량과 무관하다(감각 불변).
+        // 즉 질량 차이는 충돌·밀침에서만 드러난다.
+        body.mass = Self.mass(for: ing.glyph)
+        body.categoryBitMask = Category.chip
+        body.contactTestBitMask = Category.chip | Category.wall   // collisionBitMask는 기본값 유지
         body.usesPreciseCollisionDetection = true
 
         // 가운데 좁은 밴드로 모아 떨어뜨려 **한 더미로 쌓이게** 한다(좌우로 흩지 않음).
@@ -499,6 +599,20 @@ final class IngredientDropScene: SKScene {
         .generic: (0.60, 0.56, 0.01),
     ]
 
+    /// 바디 면적(폭비×높이비)의 전체 평균 — 질량비의 기준. 타원 면적의 π/4는 비율에서 약분된다.
+    private static let meanFootprint: CGFloat = {
+        let areas = bodyMetrics.values.map { $0.w * $0.h }
+        return areas.isEmpty ? 1 : areas.reduce(0, +) / CGFloat(areas.count)
+    }()
+
+    /// 글리프별 질량 — 기준 0.7에 면적비를 곱하고 [0.45, 1.1]로 클램프한다.
+    /// 클램프가 없으면 납작한 글리프(고구마·버터)가 깃털처럼 튕겨 나가고 큰 글리프가 불도저가 된다.
+    private static func mass(for glyph: FoodGlyph) -> CGFloat {
+        let m = bodyMetrics[glyph] ?? (0.62, 0.60, 0)
+        let ratio = (m.w * m.h) / meanFootprint
+        return min(max(0.7 * ratio, 0.45), 1.1)
+    }
+
     /// 볼록 N각형 타원 바디(dy로 중심 오프셋) — SpriteKit `polygonFrom`은 볼록만 허용해 끼임·진동이 없다.
     private static func ovalBody(_ w: CGFloat, _ h: CGFloat, dy: CGFloat = 0, sides: Int = 14) -> SKPhysicsBody {
         let path = CGMutablePath()
@@ -509,6 +623,50 @@ final class IngredientDropScene: SKScene {
         }
         path.closeSubpath()
         return SKPhysicsBody(polygonFrom: path)
+    }
+
+    // MARK: - 착지 임팩트 (스쿼시 + 햅틱)
+
+    /// 접촉 시작 — 임펄스를 질량으로 나눠 **근사 속도변화(pt/s)**로 환산한 뒤 판정한다.
+    /// 임펄스 절대값은 질량 스케일에 딸려 다니지만, 나눈 값은 calmSpeed·settleBand와 같은 축이라
+    /// "쌓이는 더미의 잔접촉"과 "실제 착지"를 기존 튜닝과 같은 기준으로 가른다.
+    func didBegin(_ contact: SKPhysicsContact) {
+        guard !idle, !externallyPaused else { return }
+        let impulse = contact.collisionImpulse
+        guard impulse > 0 else { return }
+        var strongest: CGFloat = 0
+        for body in [contact.bodyA, contact.bodyB] where body.categoryBitMask & Category.chip != 0 {
+            let dv = impulse / max(0.2, body.mass)
+            strongest = max(strongest, dv)
+            guard dv >= squashImpact, let node = body.node as? SKSpriteNode else { continue }
+            squash(node, strength: min(1, (dv - squashImpact) / (hapticImpactMax - squashImpact)))
+        }
+        if strongest >= hapticImpact { fireImpactHaptic(strongest) }
+    }
+
+    /// 착지 눌림 — 가로로 퍼지고 세로로 눌렸다가 복귀(최대 6%). 배율은 **정확히 1로** 되돌린다.
+    /// 드래그 중인 칩과 Reduce Motion·휴면은 제외(손끝 추종이 흔들리지 않게, §7.4).
+    private func squash(_ node: SKSpriteNode, strength: CGFloat) {
+        guard !reduceMotion, !idle, node !== dragged else { return }
+        guard node.action(forKey: "squash") == nil else { return }   // 연쇄 접촉으로 겹쳐 실행 금지
+        let amt = 0.03 + 0.03 * min(1, max(0, strength))
+        let d = ReffiMotion.dur2
+        let press = SKAction.scaleX(to: 1 + amt, y: 1 - amt, duration: d * 0.35)
+        press.timingMode = .easeOut
+        let back = SKAction.scaleX(to: 1, y: 1, duration: d * 0.65)
+        back.timingMode = .easeOut
+        // 마지막에 한 번 더 확정 대입 — 중간에 액션이 끊겨도 배율 잔차가 남지 않는다.
+        node.run(.sequence([press, back, .run { [weak node] in node?.setScale(1) }]), withKey: "squash")
+    }
+
+    /// 임팩트 진동 — 세기는 임팩트에 비례, 최소 간격을 둬 더미가 안착할 때 드르륵 울리지 않게 한다.
+    private func fireImpactHaptic(_ dv: CGFloat) {
+        let now = CACurrentMediaTime()
+        guard now - lastHapticAt >= hapticInterval else { return }
+        lastHapticAt = now
+        let t = min(1, (dv - hapticImpact) / (hapticImpactMax - hapticImpact))
+        impactHaptic.impactOccurred(intensity: 0.35 + 0.65 * t)
+        impactHaptic.prepare()
     }
 
     // MARK: - Drag / throw / tap (단일 터치 추적)
@@ -534,7 +692,10 @@ final class IngredientDropScene: SKScene {
         dragMoved = false
         dragStart = loc
         dragTarget = clampToBox(loc)
+        dragGrabOffset = CGPoint(x: loc.x - node.position.x, y: loc.y - node.position.y)
         setZones(visible: true)
+        node.removeAction(forKey: "squash")   // 잡는 순간 눌림 연출은 끊고 배율 원복
+        node.setScale(1)
         if let body = node.physicsBody {
             body.affectedByGravity = false   // 잡는 동안 중력 off → 손가락 추종(동적 유지)
             body.angularVelocity = 0
@@ -567,6 +728,13 @@ final class IngredientDropScene: SKScene {
         let m = hypot(body.velocity.dx, body.velocity.dy)
         if m > cap { body.velocity = CGVector(dx: body.velocity.dx * cap / m,
                                               dy: body.velocity.dy * cap / m) }
+        // 던질 때 회전 — 중심에서 벗어난 지점을 잡을수록 크게 돈다(토크 암). ω ≈ (r × v) / (side²·k),
+        // side로 정규화해 칩 크기가 달라져도 감각이 같다. 잡을 때 각속도를 0으로 만든 뒤라 순수 발사 회전.
+        let v = body.velocity
+        let torque = dragGrabOffset.x * v.dy - dragGrabOffset.y * v.dx
+        let s = chipSide
+        let spin = torque / (s * s * spinArm)
+        body.angularVelocity = min(max(spin, -spinCap), spinCap)
         let id = node.name.flatMap { UUID(uuidString: String($0.dropFirst(5))) }
         // 캡처된 채 놓으면 제스처 판정 — 휴지통 = Tossed, 냄비 = Ate.
         if dragMoved, let id, let zone = captureZone(near: dragTarget) {
