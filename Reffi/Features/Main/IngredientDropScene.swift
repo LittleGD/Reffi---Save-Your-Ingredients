@@ -216,8 +216,6 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
 
     // MARK: - 기울임 중력 (CoreMotion)
 
-    /// 모션 갱신 on/off를 씬 상태에서 **파생**시킨다 — 표시 중 + 안 가려짐 + Reduce Motion 아님 + 기기 지원.
-    /// 조건이 하나라도 깨지면 즉시 멈춘다(시뮬레이터는 deviceMotion 미지원 → 항상 상수 중력).
     #if DEBUG
     /// `-tiltLab` 주입 중력 방향(정규화 x, y) — 있으면 CoreMotion보다 우선한다.
     /// 시뮬레이터엔 자이로가 없어 기울기 QA는 이 경로로만 가능하다.
@@ -242,6 +240,8 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     }
     #endif
 
+    /// 모션 갱신 on/off를 씬 상태에서 **파생**시킨다 — 표시 중 + 안 가려짐 + Reduce Motion 아님 + 기기 지원.
+    /// 조건이 하나라도 깨지면 즉시 멈춘다(시뮬레이터는 deviceMotion 미지원 → 항상 상수 중력).
     private func syncMotionUpdates() {
         #if DEBUG
         // -tiltLab 주입이 정본 — 센서를 끄고 주입값을 **다시 적용**한다. 여기서 그냥 넘어가면
