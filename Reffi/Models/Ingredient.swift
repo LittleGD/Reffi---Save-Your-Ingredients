@@ -31,6 +31,29 @@ enum FoodGlyph: String, Codable, CaseIterable {
         self = FoodGlyph(rawValue: raw) ?? .generic
     }
 
+    /// 요리형 글리프 키워드 — **메뉴 자체가 모티프**인 완성 요리만 등재한다(재료가 아니라 메뉴가 정체성).
+    /// `excludeSuffixes`는 "그 요리에 **쓰는** 재료" 표기를 재료 경로로 되돌려 보내는 가드다.
+    ///
+    /// 이 표는 **히어로 체인(`Recipe.heroIcon` ②)에서만** 조회한다 — `match`(재료명 경로)에 끼워 넣지
+    /// 않는 이유: 냉장고에 "김밥"이라고 적으면 재료 목록에 완성 요리 그림이 뜬다. 요리형 글리프가
+    /// 늘어날수록 재료/요리 경계가 무너지므로 진입점을 레시피 쪽에만 둔다.
+    private static let dishKeywords: [(needles: [String], excludeSuffixes: [String], glyph: FoodGlyph)] = [
+        (["김밥", "gimbap", "kimbap"], ["김"], .gimbap),
+    ]
+
+    /// 요리 이름 → 전용 글리프. 표에 없으면 nil(재료 경로로 넘어간다).
+    static func dishGlyph(for rawName: String) -> FoodGlyph? {
+        let n = rawName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !n.isEmpty else { return nil }
+        for row in dishKeywords {
+            guard row.needles.contains(where: { n.contains($0) }) else { continue }
+            // "김밥김"·"김밥용 김"은 김밥에 쓰는 **김 시트**라 롤이 아니다 — 사전 경로로 돌려보낸다.
+            if row.excludeSuffixes.contains(where: { n.hasSuffix($0) }) { continue }
+            return row.glyph
+        }
+        return nil
+    }
+
     /// 재료명 → 글리프. 1순위 정본 재료 사전(`IngredientLexicon`), 2순위 레거시 키워드 폴백.
     /// 한 글자 키워드("배"·"파"·"무")는 정확 일치만 — "배추"→과일, "파프리카"→양파 같은 오분류를 막는다.
     static func match(_ name: String) -> FoodGlyph {

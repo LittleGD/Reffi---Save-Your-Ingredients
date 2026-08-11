@@ -36,6 +36,7 @@ final class FridgeStore {
     /// 그냥 무시된다(Codable은 모르는 키를 버린다) — 마이그레이션 불필요.
     struct CookSession: Codable, Equatable {
         var recipeName: String
+        var recipeID: String?             // 원본 레시피 되찾기(히어로 아이콘 체인) — 구버전 세션엔 없음
         var startedAt: Date
         var count: Int                    // 발주로 예약한 재료 수
         var minutes: Int?                 // 조리 시간(공유 카드 표시용) — 구버전 세션엔 없음
@@ -341,7 +342,8 @@ final class FridgeStore {
         let counterBefore = counterIDs
         // 진행 중 세션이 있으면 교체 — 이전 예약은 자동 해제되고, undo가 이전 세션을 복원한다.
         let replaced = activeCook
-        activeCook = CookSession(recipeName: result.recipe.displayName, startedAt: Date(),
+        activeCook = CookSession(recipeName: result.recipe.displayName, recipeID: result.recipe.id,
+                                 startedAt: Date(),
                                  count: used.count, minutes: result.recipe.minutes,
                                  usedIDs: used.map(\.id))
         let reserved = reservedIDs

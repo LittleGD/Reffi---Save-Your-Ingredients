@@ -1,0 +1,67 @@
+import SwiftUI
+
+/// 레시피 대표 아이콘의 **정체** — 완성된 요리로 그릴지(`DishSilhouette` §13.7), 재료로 그릴지
+/// (`PaperSilhouette` §13.3). 두 일러스트 시스템이 공존하므로 어느 쪽인지는 **모델이 정하고
+/// 뷰는 switch로 렌더만 한다** — 뷰마다 조건을 다시 쓰면 같은 레시피가 표면마다 다른 그림이 된다
+/// (오더 티켓의 아이콘과 조리 화면·공유 카드·내 레시피의 아이콘이 갈리는 식).
+enum RecipeHeroIcon: Equatable {
+    /// 요리 그림 — 원형 + 변주(`DishGlyphCatalog`).
+    case dish(DishLook)
+    /// 재료 그림 — 요리형 글리프(김밥 등) 또는 첫 비상비 재료(`FoodGlyph`).
+    case food(FoodGlyph)
+
+    /// 이름만 남은 조리 세션의 히어로 — 발주한 레시피가 지워졌거나 id가 없는 구버전 세션이라
+    /// `Recipe` 객체를 되찾지 못할 때의 폴백. ②를 맨 앞에 둔다 — `heroIcon`(①→②)과 달리 여기선
+    /// ②가 시드 표보다 먼저라, 표 등재와 ② 적중이 겹치는 이름(현재 시드 `gimbap` 하나)은 요리형
+    /// 글리프가 이긴다: 손으로 그린 김밥이 있는데 카탈로그의 이름 추론이 아무 색 롤로 덮으면
+    /// 조리 화면·공유 카드만 티켓과 다른 그림이 된다.
+    ///
+    /// 두 번째 줄은 조리 화면이 쓰던 카탈로그 호출과 **문자 그대로 같다** — ②에 안 걸리는 이름의
+    /// 기존 아이콘이 그대로 보존된다. ①(시드 매핑 표)은 그 줄의 `look(id:)`가 표를 먼저 보므로 ② 뒤에서 포함된다.
+    /// ④(재료 글리프)는 원천 불가 — 세션은 재료를 들고 있지 않다. 대신 `look`이 nil을 내지 않아
+    /// 빈 아이콘도 나오지 않는다.
+    static func session(name: String, id: String?) -> RecipeHeroIcon {
+        if let dish = Recipe.dishGlyph(for: Recipe.LocalizedName(en: name, ko: nil)) { return .food(dish) }
+        return .dish(DishGlyphCatalog.look(id: id ?? name, name: name, cuisine: nil))
+    }
+}
+
+extension Recipe {
+
+    /// 티켓 히어로 아이콘 — **요리 정체성 카탈로그 우선, 커스텀 요리명은 큐레이션 표, 최후엔 재료**.
+    ///
+    /// ① **시드 매핑 표**(`DishGlyphCatalog.table`) — 손으로 배정한 80종의 정본 요리 그림.
+    /// ② **요리형 글리프 큐레이션 표**(`FoodGlyph.dishKeywords`) — 김밥처럼 *그려 둔 요리 그림이 있는* 이름.
+    ///    카탈로그의 이름 추론(③)보다 **앞서야** 한다: 추론은 원형만 맞히고 색·고명은 id 해시로 흔들어
+    ///    커스텀 "김밥"이 아무 색 롤이 된다 — 손으로 그린 김밥이 있는데 짐작으로 덮을 이유가 없다.
+    /// ③ **카탈로그 이름 추론** — 이름이 요리를 지목할 때만("된장찌개" → 뚝배기, "새우 파스타" → 접시).
+    /// ④ **재료 글리프**(`glyph`) — 이름이 아무 요리도 지목하지 않을 때. cuisine 기본값만 보고
+    ///    "한식이니 찌개"라고 단정하느니, 실제로 들어가는 재료를 보여주는 편이 정직하다.
+    ///
+    /// 티켓 메뉴명 옆의 아이콘(`ReffiDishIcon.ticket`)이 곧 메뉴 식별자다(§13.5·§13.7) — 재료에서
+    /// 파생하면 비빔밥이 시금치 잎으로, 김밥이 김 시트로 뜬다.
+    var heroIcon: RecipeHeroIcon {
+        if let curated = DishGlyphCatalog.curatedLook(id: id) { return .dish(curated) }
+        if let dish = Self.dishGlyph(for: name) { return .food(dish) }
+        if let named = DishGlyphCatalog.nameMatchedLook(for: self) { return .dish(named) }
+        return .food(glyph)
+    }
+}
+
+/// 대표 아이콘 렌더 — 정체는 `Recipe.heroIcon`이 정하고 여기선 그리기만 한다.
+/// 크기는 호출부가 `.frame`으로 준다(둘 다 `Canvas`라 어느 크기에서도 같은 그림).
+/// 두 실루엣 모두 `accessibilityHidden` 장식이라 읽히는 정보는 옆·아래의 메뉴명이 맡는다.
+struct RecipeHeroIconView: View {
+    let icon: RecipeHeroIcon
+
+    var body: some View {
+        switch icon {
+        case .dish(let look):
+            DishSilhouette(look: look)
+        case .food(let glyph):
+            // `fresh:`는 색에 쓰이지 않는 시그니처 유지용 인자다 — 색은 신선도 코딩과 분리(§13.3)라
+            // 티켓 글리프는 재료의 남은 기한과 무관하게 항상 같은 톤으로 그려야 한다.
+            PaperSilhouette(glyph: glyph, fresh: .fresh)
+        }
+    }
+}

@@ -50,8 +50,12 @@ struct Recipe: Identifiable, Codable, Equatable {
     var displayName: String { Self.isKorean ? (name.ko ?? name.en) : name.en }
     var isUserRecipe: Bool { isUser ?? false }
 
-    /// 히어로 대표 모티프 — 첫 번째 비상비 재료의 글리프에서 파생.
+    /// 히어로 대표 모티프 — ① 요리 이름 큐레이션 표, ② 첫 번째 비상비 재료의 글리프.
+    /// **메뉴 정체성 > 재료 구성**이라 이름이 재료보다 앞선다: "김밥"의 정체는 김도 밥도 계란도 아니라
+    /// 김밥 그 자체인데, 재료에서 파생하면 첫 재료(김·계란)가 대표로 올라와 티켓 메뉴명 옆
+    /// 아이콘(`ReffiDishIcon.ticket`)에서 메뉴를 못 읽는다.
     var glyph: FoodGlyph {
+        if let dish = Self.dishGlyph(for: name) { return dish }
         for item in ingredients {
             let key = item.ref ?? item.en
             if IngredientLexicon.shared.isStaple(key) { continue }
@@ -59,6 +63,18 @@ struct Recipe: Identifiable, Codable, Equatable {
             if g != .generic { return g }
         }
         return .generic
+    }
+
+    /// 요리 이름 → 전용 글리프. 없으면 nil(재료 폴백으로 넘어간다).
+    /// 표는 `FoodGlyph.dishKeywords` **한 곳**에만 둔다 — 진입점이 갈리면 "김밥"이 어디서 들어오느냐에
+    /// 따라 그림이 달라진다.
+    /// en·ko를 모두 보는 건 글리프가 **시각 정체성**이라 로케일에 따라 그림이 바뀌면 안 되기 때문
+    /// (시드는 en이 서술형 "Gimbap (Seaweed Rice Rolls)", 커스텀은 현재 로케일 표기가 en 슬롯).
+    static func dishGlyph(for name: LocalizedName) -> FoodGlyph? {
+        for slot in [name.en, name.ko].compactMap({ $0 }) {
+            if let g = FoodGlyph.dishGlyph(for: slot) { return g }
+        }
+        return nil
     }
 
     /// 커스텀 레시피 생성 편의 — 현재 로케일 표기를 en 슬롯에 담는다(en은 필수 캐논).
