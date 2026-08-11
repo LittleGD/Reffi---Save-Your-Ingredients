@@ -26,9 +26,16 @@ struct IngredientLexicon {
         }
 
         /// 로케일 대표 표기.
+        ///
+        /// JSON의 영문 표기는 **매칭용 소문자 캐논**이다(223개 전부 "onion"·"green onion" 꼴).
+        /// 저장은 캐논으로, 표시만 다듬는다는 규칙대로 **표시 시점에** 단어 첫 글자를 올린다 —
+        /// 안 그러면 To buy 그리드만 "onion"이고 냉장고·레시피는 "Onion"이라 한 화면 건너 표기가 갈린다.
+        /// 한글은 대소문자 개념이 없어 그대로 둔다(`localizedCapitalized`는 한글에서 무동작이지만
+        /// 의도를 분명히 하려고 분기를 유지한다).
         var displayName: String {
             if Recipe.isKorean, let ko = names.ko.first { return ko }
-            return names.en.first ?? id
+            guard let en = names.en.first else { return id }
+            return en.localizedCapitalized
         }
     }
 

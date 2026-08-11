@@ -65,6 +65,40 @@ struct NicknameGeneratorTests {
         #expect(NicknameGenerator.adjectivesEn.contains(String(enParts[0])))
         #expect(NicknameGenerator.nounsEn.contains(String(enParts[1])))
     }
+
+    /// **드리프트 가드** — 명사 풀 60개는 `ingredient-lexicon.json`의 1순위 표기를 손으로 복사한
+    /// 두 번째 사본이다(생성기가 번들 로드 실패와 무관하게 동작해야 해서 런타임 조회를 안 한다).
+    /// 사본이라 사전 표기를 고치면 여기가 조용히 어긋나고, 닉네임만 앱의 다른 화면과 다른 재료
+    /// 이름을 쓰게 된다. 그 침묵을 이 테스트가 깨뜨린다 — 표기가 갈리는 순간 빌드가 빨개진다.
+    ///
+    /// 세 가지를 한꺼번에 못 박는다:
+    /// ① 두 풀의 모든 표기가 정본 사전에 **정확 일치**로 존재한다(포함 매칭 폴백을 허용하지 않는다).
+    /// ② 각 표기가 그 항목의 **1순위 표기**다(`displayName`이 고르는 바로 그 값 = 다른 화면과 동일).
+    /// ③ ko/en 풀이 같은 인덱스에서 **같은 사전 항목**을 가리킨다(로케일이 바뀌어도 같은 재료).
+    @Test func nounPoolsMatchTheLexiconVerbatim() {
+        let lexicon = IngredientLexicon.shared
+        try? #require(!lexicon.entries.isEmpty)   // 번들 리소스가 안 실렸으면 아래 단언이 전부 무의미
+
+        #expect(NicknameGenerator.nounsKo.count == NicknameGenerator.nounsEn.count)
+
+        for (ko, en) in zip(NicknameGenerator.nounsKo, NicknameGenerator.nounsEn) {
+            guard let koID = lexicon.exactCanonicalID(for: ko) else {
+                Issue.record("닉네임 명사 '\(ko)'가 정본 사전에 없다"); continue
+            }
+            guard let enID = lexicon.exactCanonicalID(for: en) else {
+                Issue.record("닉네임 명사 '\(en)'가 정본 사전에 없다"); continue
+            }
+            #expect(koID == enID, "'\(ko)'와 '\(en)'가 서로 다른 항목을 가리킨다(\(koID) vs \(enID))")
+
+            guard let entry = lexicon.entry(id: koID) else {
+                Issue.record("\(koID) 항목 조회 실패"); continue
+            }
+            // 사전의 영문 캐논은 소문자라, 비교 대상은 `displayName`이 쓰는 표시형(첫 글자 대문자)이다.
+            let enDisplay = entry.names.en.first?.localizedCapitalized
+            #expect(entry.names.ko.first == ko, "\(koID)의 1순위 한글 표기가 바뀌었다(\(entry.names.ko.first ?? "nil") ≠ \(ko))")
+            #expect(enDisplay == en, "\(koID)의 1순위 영문 표기가 바뀌었다(\(enDisplay ?? "nil") ≠ \(en))")
+        }
+    }
 }
 
 /// ProfileStore의 자동 닉네임 배정 가드 — "미설정일 때만" 생성하고, 사용자가 지은 닉네임은

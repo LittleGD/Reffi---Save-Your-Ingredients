@@ -235,7 +235,8 @@ struct OnboardingView: View {
         return VStack(alignment: .leading, spacing: ReffiSpace.s2) {
             // 헤더 — 주방 오더 티켓
             HStack(alignment: .firstTextBaseline) {
-                Text("ORDER").reffiType(.monoTicketLabel).foregroundStyle(ReffiColor.ink)
+                // 모노 티켓 크롬은 verbatim 영문 고정 — 실제 OrderMemoCard와 같은 규칙(§13.5).
+                Text(verbatim: "ORDER").reffiType(.monoTicketLabel).foregroundStyle(ReffiColor.ink)
                 Spacer(minLength: 0)
                 Text(verbatim: "#01").font(.reffiNum(13, relativeTo: .caption)).foregroundStyle(ReffiColor.ink2)
             }
@@ -255,13 +256,14 @@ struct OnboardingView: View {
                 if let minutes = ticket.minutes {
                     HStack(spacing: 3) {
                         ReffiIcon.time.reffi(11).foregroundStyle(ReffiColor.ink2)
-                        Text(verbatim: "\(minutes) min").reffiType(.metaText)
+                        // 조리 시간은 크롬이 아니라 본문 문구 — 기존 "%lld min" 키를 타야 한국어에서 "N분"이 된다.
+                        Text("\(minutes) min").reffiType(.metaText)
                             .foregroundStyle(ReffiColor.ink2)
                     }
                 }
             }
             DashedRule()
-            Text("ON THE TICKET")
+            Text(verbatim: "ON THE TICKET")   // 위 "ORDER"와 같은 모노 크롬 규칙
                 .reffiType(.sectionLabel).foregroundStyle(ReffiColor.ink2)
             ForEach(Array(ticket.rows.enumerated()), id: \.offset) { _, row in
                 ticketMiniRow(row.name, row.dDay, row.color)

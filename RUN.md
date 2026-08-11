@@ -1,11 +1,11 @@
 # Reffi — 실행 가이드
 
-냉장고 속 임박 재료를 오늘 먹게 만드는 iOS 앱. 이 빌드는 **홈 화면 + 하단 네비**(나머지 탭 플레이스홀더) + 샘플 데이터.
+냉장고 속 임박 재료를 오늘 먹게 만드는 iOS 앱. 메인(물리 낙하 필드 · 티켓 덱) · 냉장고 · 마이 세 탭이 모두 실동작한다.
 
 ## 요구 사항
 - **Xcode 26.x** (이 코드는 26.5 / Swift 6.3.2에서 작성)
-- **iOS 26.x 시뮬레이터 런타임** — *이 머신엔 26.2/26.4만 있고 26.5가 없어 빌드가 막혔습니다.*
-  설치: **Xcode › Settings › Components**에서 iOS 런타임 추가, 또는
+- **iOS 26.x 시뮬레이터 런타임** — 이 머신엔 26.2 / 26.4 / 26.5가 설치돼 있다.
+  없을 때 설치: **Xcode › Settings › Components**에서 iOS 런타임 추가, 또는
   ```sh
   xcodebuild -downloadPlatform iOS        # iOS 26.5 런타임 내려받기
   ```
@@ -88,17 +88,24 @@ xcrun simctl io booted screenshot reffi-home.png
 ```
 project.yml                  XcodeGen 정의
 Reffi/
-  ReffiApp.swift             앱 엔트리(+ 폰트 등록 확인)
+  ReffiApp.swift             앱 엔트리(+ 폰트 등록 확인, 전용 루트 QA 화면 분기)
   DesignSystem/              Color(OKLCH)·Typography(DynamicType)·Layout·Elevation·Motion
-  Models/                    Ingredient·Freshness·Recipe·AlternativeAction
-  Data/                      SampleData·RecipeRecommender·FridgeStore(@Observable)
-  Components/                ReffiIcon·FoodMotif(색면 음식 일러스트)·Chips·PillButton·PlaceholderScreen
-  Features/Home/             HomeView·RecipeBannerView·IngredientStackView·StackCardView·ExpandedIngredientCard
-  Features/Fridge · MyPage · AddIngredient
-  Navigation/RootTabView     홈·냉장고·중앙＋·마이
-  Resources/Fonts · Assets.xcassets
+  Models/                    Ingredient(FoodGlyph)·Freshness·Recipe·RemovalLog·NicknameGenerator
+  Data/                      IngredientLexicon·RecipeCatalog·RecipeRecommender·FridgeStore/ProfileStore(@Observable)
+  Components/                ReffiIcon·FoodMotif·PaperButton/PaperCloseButton·PaperDropdown·UndoToast
+  Features/Main/             MainView·IngredientDropScene(SpriteKit)·PaperSilhouette·WiltStyle·GravityMapper
+  Features/Recipes/          RecipeMemoCarousel(티켓 덱)·OrderMemoCard(단서 카드)·CookingStepsView·RecipeShareCard
+  Features/Fridge · MyPage · AddIngredient · Onboarding · Auth
+  Navigation/RootTabView     메인·냉장고·중앙＋·마이
+  Resources/Fonts · ingredient-lexicon.json · recipes seed · Localizable.xcstrings
 ```
 
 ## 검증 상태
-- 전체 27개 소스 **`swiftc -typecheck` 통과**(에러 0). Phosphor는 동일 시그니처로 대체해 타입 검증, 실제 케이스명·API는 사전 확인.
-- **전체 빌드/실행/스크린샷은 iOS 26.x 런타임 설치 후 위 명령으로 진행.**
+- **빌드 통과**(iPhone 17 / iOS 26.5 시뮬레이터) — 위 `xcodebuild build` 명령 그대로.
+- **유닛 186 / UI 10 전부 통과**:
+  ```sh
+  xcodebuild -project Reffi.xcodeproj -scheme Reffi \
+    -destination 'platform=iOS Simulator,name=iPhone 17' test -only-testing:ReffiTests
+  xcodebuild -project Reffi.xcodeproj -scheme Reffi \
+    -destination 'platform=iOS Simulator,name=iPhone 17' test -only-testing:ReffiUITests
+  ```
