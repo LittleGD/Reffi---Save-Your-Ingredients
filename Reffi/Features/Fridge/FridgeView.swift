@@ -126,9 +126,11 @@ struct FridgeView: View {
         // 필터 안전장치 — 판정은 전부 `FridgeCategoryFilter.resolved`(순수 함수, 유닛 테스트 대상)가 하고
         // 여기선 상태만 옮긴다. 카테고리가 비었을 때뿐 아니라 **필터 밖 재료가 새로 들어왔을 때**도
         // 전체로 풀어, 추가한 결과가 화면에서 사라지는 일이 없게 한다.
+        // 감지 키는 id가 아니라 `changeKey`(id + 카테고리)다 — 이름을 고치면 글리프·카테고리가 다시
+        // 파생되는데 id는 그대로라, id만 보면 "필터 켠 카테고리가 비었는데 훅이 안 도는" 갇힘이 생긴다.
         // `initial: true`로 첫 표시에서 knownIDs를 채운다(그 시점 activeCategory는 nil이라 부작용 없음).
-        .onChange(of: sortedItems.map(\.id), initial: true) { _, ids in
-            let current = Set(ids)
+        .onChange(of: sortedItems.map(FridgeCategoryFilter.changeKey(of:)), initial: true) { _, _ in
+            let current = Set(sortedItems.map(\.id))
             let added = current.subtracting(knownIDs)
             knownIDs = current
             let next = FridgeCategoryFilter.resolved(activeCategory, in: sortedItems, added: added)
@@ -581,6 +583,15 @@ enum FridgeCategoryFilter {
 
     /// 재료의 필터 키(캐논 영문).
     static func key(of ingredient: Ingredient) -> String { ingredient.glyph.categoryLabel }
+
+    /// 뷰의 자동 해제 훅이 쓰는 **변화 감지 키** — id만으로는 부족하다. 이름을 고치면
+    /// `FridgeStore.update`가 글리프와 카테고리를 다시 파생시키는데 id는 그대로라, id 배열만 보는
+    /// 훅은 아예 돌지 않는다. 그러면 필터가 방금 비워진 카테고리를 계속 가리켜 재고가 가득한데도
+    /// 빈 상태 화면에 갇힌다(칩 행도 그 카테고리를 잃어 선택 표시가 사라진다). 카테고리를 키에 섞어
+    /// 재료의 **소속이 바뀌는 것도 변화로** 잡는다.
+    static func changeKey(of ingredient: Ingredient) -> String {
+        "\(ingredient.id.uuidString)|\(key(of: ingredient))"
+    }
 
     /// 재고에 실제로 존재하는 카테고리만, 고정 순서로 + 개수. 목록에 없는 카테고리 칩은 만들지 않는다.
     static func buckets(of items: [Ingredient]) -> [Bucket] {

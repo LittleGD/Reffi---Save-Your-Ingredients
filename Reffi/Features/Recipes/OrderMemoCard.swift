@@ -139,7 +139,9 @@ struct OrderMemoCard: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: ReffiSpace.s2) {
             HStack(alignment: .firstTextBaseline) {
-                Text("ORDER").reffiType(.monoTicketLabel).foregroundStyle(ReffiColor.ink)
+                // 모노 티켓 크롬은 번역하지 않는다(§13.5) — "ON THE TICKET"·"TABLE · REFFI KITCHEN"과
+                // 같은 규칙. verbatim으로 카탈로그 조회 자체를 끊어, 누가 키를 등록해도 흔들리지 않게 한다.
+                Text(verbatim: "ORDER").reffiType(.monoTicketLabel).foregroundStyle(ReffiColor.ink)
                 Spacer()
                 Text(String(format: "#%02d", number))
                     .font(.reffiNum(14, relativeTo: .caption)).foregroundStyle(ReffiColor.ink2)
@@ -188,8 +190,9 @@ struct OrderMemoCard: View {
     }
 
     /// 발주 도장 — "START"가 쾅(scale 1.5→1, pop) 찍힌다. 빨강 잉크(키친 fired).
+    /// 도장 텍스트도 모노 티켓 크롬이라 번역하지 않는다(§13.5, `stampLabel`).
     private var slamStamp: some View {
-        Text("START")
+        Text(verbatim: "START")
             .reffiType(.stampLabel).foregroundStyle(ReffiColor.urgentDark.opacity(0.88))
             .padding(.horizontal, ReffiSpace.s4).padding(.vertical, ReffiSpace.s2)
             .overlay(PaperRect(cornerRadius: ReffiRadius.sm, seed: 2)

@@ -486,6 +486,27 @@ struct FridgeStoreTests {
         #expect(FridgeCategoryFilter.resolved("Dairy", in: mixedItems, added: []) == "Dairy")
     }
 
+    /// 이름 수정으로 카테고리만 바뀌는 경우 — id가 그대로라 뷰의 감지 키가 id였을 땐 훅이 아예 돌지
+    /// 않아 필터가 빈 카테고리를 계속 가리켰다(재고가 가득한데 빈 상태 화면). 감지 키에 카테고리를
+    /// 섞어 변화로 잡히는지, 그리고 그때 `resolved`가 전체로 풀어 주는지 함께 고정한다.
+    @Test func renameThatChangesCategoryIsDetectedAndClearsFilter() {
+        let milk = categorized(.milk, "Milk")
+        var renamed = milk
+        renamed.name = "Beef"
+        renamed.glyph = .meat            // FridgeStore.update가 이름 변경 때 다시 파생시키는 값
+        renamed.category = renamed.glyph.categoryLabel
+
+        #expect(renamed.id == milk.id)   // 전제 — id는 그대로다
+        #expect(FridgeCategoryFilter.changeKey(of: renamed) != FridgeCategoryFilter.changeKey(of: milk))
+
+        let before = [milk, categorized(.leaf, "Lettuce")]
+        let after = [renamed, categorized(.leaf, "Lettuce")]
+        #expect(FridgeCategoryFilter.resolved("Dairy", in: before) == "Dairy")
+        #expect(FridgeCategoryFilter.resolved("Dairy", in: after) == nil)
+        // 같은 재료가 그대로면 키도 그대로 — 불필요한 재판정을 만들지 않는다.
+        #expect(FridgeCategoryFilter.changeKey(of: milk) == FridgeCategoryFilter.changeKey(of: milk))
+    }
+
     @Test func chipSeedIsStablePerCategoryNotPerCount() {
         // 시드는 카테고리 키에서만 나온다 — 재고가 늘고 줄어도 칩 윤곽이 다시 랜덤해지지 않는다.
         #expect(FridgeCategoryFilter.chipSeed("Veg") == FridgeCategoryFilter.chipSeed("Veg"))

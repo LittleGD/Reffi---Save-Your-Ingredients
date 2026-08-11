@@ -20,13 +20,31 @@ struct CookingStepsView: View {
     @State private var showFinishSheet = false
     @State private var showCancelConfirm = false
     @State private var leftovers: Set<UUID> = []   // '조금 남았어요'로 표시한 재료
-    @State private var shareImage: Image?   // 공유 카드 오프스크린 렌더 결과 — 세션당 1회(체크 상태와 무관)
+    @State private var shareImage: Image?   // 공유 카드 오프스크린 렌더 결과 — 아래 ShareCardKey가 바뀔 때만 갱신
 
     /// 예약된 재료(아직 냉장고에 있는 것) — 완료 확인 시트의 목록.
     private var reservedIngredients: [Ingredient] {
         guard let ids = store.activeCook?.usedIDs else { return [] }
         let byID = Dictionary(store.ingredients.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
         return ids.compactMap { byID[$0] }
+    }
+
+    /// 공유 카드 재렌더 키 — **카드에 인쇄되는 값 전부**를 담는다. 재료 이름은 세션 스냅샷이 아니라
+    /// 라이브 재고에서 파생되므로(`reservedIngredients`), 조리 중에 예약 재료를 버리거나 지우면
+    /// 화면은 갱신되는데 이미지만 옛 이름을 그대로 들고 있게 된다. 키를 이름 목록까지 넓혀 막는다.
+    /// 항목을 늘릴 땐 `RecipeShareCard`의 입력과 1:1을 유지할 것.
+    private struct ShareCardKey: Hashable {
+        var recipeName: String
+        var ingredientNames: [String]
+        var minutes: Int?
+        var count: Int
+    }
+
+    private func shareCardKey(for cook: FridgeStore.CookSession) -> ShareCardKey {
+        ShareCardKey(recipeName: cook.recipeName,
+                     ingredientNames: reservedIngredients.map(\.name),
+                     minutes: cook.minutes,
+                     count: cook.count)
     }
 
     var body: some View {
@@ -39,8 +57,9 @@ struct CookingStepsView: View {
                         .padding(.top, 104)
                         .padding(.bottom, ReffiSpace.s6)
                 }
-                // 공유 카드는 레시피+스텝 스냅샷이라 체크 상태와 무관 — recipeName이 바뀔 때(새 세션)만 다시 렌더.
-                .task(id: cook.recipeName) {
+                // 공유 카드에 인쇄되는 값(메뉴명·예약 재료 이름·시간·개수)이 바뀔 때만 다시 렌더한다.
+                // 새 세션은 물론, 조리 중 예약 재료가 사라지는 경우까지 이 키가 덮는다.
+                .task(id: shareCardKey(for: cook)) {
                     shareImage = renderShareImage(for: cook)
                 }
             }
