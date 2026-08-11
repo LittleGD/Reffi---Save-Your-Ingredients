@@ -52,12 +52,22 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
 
     // 착지 임팩트 — 충돌 임펄스를 질량으로 나눈 근사 속도변화(pt/s)로 판정한다. calmSpeed(40)·
     // settleBand(80)와 **같은 단위**라 기존 안착 튜닝과 임계가 일관된다.
+    // 이 축은 **시각(스쿼시) 전용**이다. 햅틱은 질량으로 나누지 않은 **생 임펄스**를 쓴다 —
+    // 눌림은 속도의 문제(같은 높이서 떨어진 무거운/가벼운 칩이 같게 눌려야 한다)지만,
+    // 촉감은 운동량 전달의 문제(소고기가 잎사귀보다 묵직하게 느껴져야 한다)라 축이 다르다.
     private let squashImpact: CGFloat = 30       // 이 이상이면 눈에 보이는 착지 — 스쿼시
-    private let hapticImpact: CGFloat = 90       // settleBand 위 — 쌓이는 더미의 잔접촉엔 안 울린다
-    private let hapticImpactMax: CGFloat = 260   // 이 이상은 최대 세기(자유낙하·던지기)
-    private let hapticInterval: TimeInterval = 0.12   // 연쇄 충돌이 진동으로 번지지 않게
-    private var lastHapticAt: TimeInterval = 0
-    private lazy var impactHaptic = UIImpactFeedbackGenerator(style: .light)
+    private let squashImpactMax: CGFloat = 260   // 이 이상은 최대 눌림(자유낙하·던지기)
+
+    // 달그락 햅틱(§13.4) — CoreHaptics 직접 구동. 세기·날카로움 두 축이 있어야 재료별 촉감이
+    // 생기고, SwiftUI `.sensoryFeedback`은 파라미터가 없어 쓸 수 없다(§7.6 의미별 매핑은 그대로).
+    private let clatter = IngredientClatterHaptics()
+    private var clatterThrottle = ClatterThrottle()
+    /// 임펄스가 이 값이면 최대 세기 — 이 위는 전부 1.0으로 포화(클램프 곡선의 상한).
+    private let clatterImpulseCeiling: CGFloat = 90
+    /// 스로틀 판정용 현재 시각 — `didBegin`엔 시간 인자가 없어 update에서 받아 둔다.
+    private var lastUpdateTime: TimeInterval = 0
+    /// QA 계측용 — 햅틱이 실제로 발화할 때마다 호출된다(TILT LAB 카운터).
+    var onClatter: (() -> Void)?
 
     /// 충돌 카테고리 — 접촉 콜백을 받으려면 마스크가 필요하다. collisionBitMask는 기본값(전체)을
     /// 유지해 **충돌 거동은 그대로**이고, contactTest만 새로 켠다.
@@ -198,6 +208,16 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     private func syncMotionUpdates() {
         let wanted = view != nil && !externallyPaused && !reduceMotion && motionManager.isDeviceMotionAvailable
         if wanted { startMotionUpdates() } else { stopMotionUpdates() }
+        // 달그락 엔진 수명주기도 여기서 함께 파생시킨다(별도 채널을 만들지 않는다). 다만 조건은
+        // **보이는 씬**까지만 — Reduce Motion은 시각 배려지 촉각 배려가 아니고(§7.4), 자이로가 없는
+        // 시뮬레이터·구형 기기에서도 던져서 부딪히는 충돌은 그대로 일어난다. 안 보이는 씬에서만 내린다.
+        let hapticsWanted = view != nil && !externallyPaused
+        if hapticsWanted {
+            clatter.start()
+        } else {
+            clatter.stop()
+            clatterThrottle.reset()
+        }
     }
 
     private func startMotionUpdates() {
@@ -297,6 +317,7 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     /// 거리 비례 목표 속도 + 가속 제한 → 약간의 딜레이·관성(실감, §13.4). 동적 바디라 이웃을
     /// 부드럽게 밀 뿐 튕겨내지 않는다. 속도 상한으로 과격한 밀침을 막는다.
     override func update(_ currentTime: TimeInterval) {
+        lastUpdateTime = currentTime   // didBegin엔 시간 인자가 없어 여기서 받아 둔다(햅틱 스로틀용)
         maintainCeiling(currentTime)   // 낙하 끝나면 밀폐, 위쪽에 갇힌 칩은 회수(§13.4 컨테인먼트)
         if let node = dragged, let body = node.physicsBody {
             // 마그네틱 캡처 — 손가락이 바스켓 근처면 추종 목표가 바스켓 중심으로 스냅되어
@@ -429,7 +450,7 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     private func wake() {
         calmFrames = 0
         calmSnapshot.removeAll()
-        impactHaptic.prepare()   // 곧 물리 이벤트가 온다 — 첫 착지 진동의 지연을 없앤다
+        clatterThrottle.reset()   // 묵은 쌍 쿨다운을 버린다 — lastUpdateTime은 휴면을 건너뛰며 튄다
         dampSuppression = dampSuppressionFrames   // 기울임 반응 창 — idle 여부와 무관하게 갱신
         guard idle else { return }
         idle = false
@@ -673,11 +694,16 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         let body = makeBody(for: ing.glyph, side: s)
         node.physicsBody = body
         node.name = "chip:\(ing.id.uuidString)"
-        node.userData = ["name": ing.name, "wilt": WiltStyle.for(ing.freshness).token]
-        body.restitution = 0.12          // 살짝 통통 — 가벼운 느낌
-        body.friction = 0.55
-        body.linearDamping = 0.2         // 둥둥 뜨진 않게, 빨리 안착
-        body.angularDamping = 0.85       // 자연스럽게 기울며 안착하되 무한 회전은 억제
+        // glyph는 충돌 시 촉감(sharpness·세기)을 되찾기 위해 — 물리 바디에서 노드로 거슬러 읽는다.
+        node.userData = ["name": ing.name, "glyph": ing.glyph.rawValue,
+                         "wilt": WiltStyle.for(ing.freshness).token]
+        // 물성은 글리프 클래스별 차등(위 ChipMaterial) — 계란은 굴러가고 두부는 눌러앉는다.
+        // **낙하 축은 차등하지 않는다**: linearDamping 0.2와 중력 42는 §13.4의 "쿵" 감각이다.
+        let mat = Self.material(for: ing.glyph)
+        body.restitution = mat.restitution
+        body.friction = mat.friction
+        body.linearDamping = 0.2         // 둥둥 뜨진 않게, 빨리 안착 (전 클래스 공통)
+        body.angularDamping = mat.angularDamping
         body.allowsRotation = true       // 자연스러운 물리 — 기울고 굴러 빈틈에 안착
         // 질량은 실측 바디 면적비에서 파생 — 큰 칩이 작은 칩을 밀어내는 게 눈에 보인다.
         // 드래그 추종·던지기 상한은 **속도를 직접 조종**하므로 질량과 무관하다(감각 불변).
@@ -768,6 +794,79 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         return min(max(0.7 * ratio, 0.45), 1.1)
     }
 
+    // MARK: - 재료 물성 (§13.4)
+
+    /// 칩 하나의 물성 — **회전·마찰 축만** 차등한다. 질량 차이만으론 부딪히기 전까지 아무것도 안 보이지만,
+    /// 마찰과 각감쇠는 기울이는 순간 바로 읽힌다(계란은 데굴데굴, 두부는 그 자리에 눌러앉는다).
+    ///
+    /// **낙하 축(중력 42 · linearDamping 0.2)은 일부러 건드리지 않는다.** §13.4가 규정한 감각은
+    /// "묵직하게 — 큰 중력 + 낮은 반발로 쿵 떨어져 거의 안 튄다"이고, 클래스별 종단속도를 주는
+    /// 튜닝은 그 반대(둥둥 뜨는 수중감)라 SSOT와 충돌한다. 그래서 `linearDamping` 필드 자체를 두지 않는다.
+    private struct ChipMaterial {
+        /// **햅틱 대표자 선정 전용 랭킹 키**다. `body.mass`에는 절대 대입하지 않는다 —
+        /// 실제 질량은 실측 바디 면적비에서 파생한다(`mass(for:)`, 52종 전부 자동 커버).
+        /// 칩-칩 충돌에서 "어느 쪽 촉감이 소리를 주도하나"를 가를 때만 쓴다(`clatterMaterial`).
+        let mass: CGFloat
+        let restitution: CGFloat       // 0 = 안 튐, 클수록 통통 (기준 0.12에서 클래스별 ±0.02)
+        let friction: CGFloat          // 클수록 안 미끄러짐
+        let angularDamping: CGFloat    // 작을수록 잘 구른다
+        /// 달그락 햅틱의 날카로움 — 1에 가까울수록 쨍한 '클링'(캔·병), 0에 가까울수록 둔탁한 '툭'(고기).
+        var sharpness: Float = 0.5
+        /// 달그락 햅틱의 세기 배율 — 여린 재료(잎·두부)는 같은 임펄스라도 약하게 친다.
+        var hapticScale: Float = 0.8
+
+        /// 기본 — 대부분의 채소·과일. **기존 값 그대로**라 표에 없는 글리프는 완전한 무변화다.
+        static let standard = ChipMaterial(mass: 0.70, restitution: 0.12, friction: 0.55,
+                                           angularDamping: 0.85)
+        /// 가벼움 — 잎채소·해조·버섯·빵. 살짝 더 통통 튀고 잘 미끄러지지 않는다.
+        /// 촉감: 여린 '틱' — 잎사귀가 스치는 정도라 세기를 크게 낮춘다.
+        static let light = ChipMaterial(mass: 0.40, restitution: 0.13, friction: 0.66,
+                                        angularDamping: 0.90, sharpness: 0.55, hapticScale: 0.42)
+        /// 잘 구름 — 계란·토마토·사과처럼 둥글고 매끈한 것. 마찰·각감쇠가 낮아 기울이면 데굴데굴 굴러간다.
+        /// 촉감: 또각 — 단단한 껍질이 부딪히는 중간 날카로움.
+        static let rolling = ChipMaterial(mass: 0.80, restitution: 0.14, friction: 0.30,
+                                          angularDamping: 0.78, sharpness: 0.68, hapticScale: 0.85)
+        /// 묵직함 — 소고기·연어 등 덩어리 단백질. 안 튀고, 기울여도 굼뜨게 미끄러지며 가벼운 재료를 밀어낸다.
+        /// 촉감: 둔탁한 '툭' — 살덩이가 떨어지는 소리. 세기는 크되 날카로움은 최소.
+        static let heavy = ChipMaterial(mass: 1.40, restitution: 0.11, friction: 0.70,
+                                        angularDamping: 0.96, sharpness: 0.18, hapticScale: 1.0)
+        /// 용기 — 우유갑·소스병·캔. 표면이 매끈해 잘 미끄러진다.
+        /// 촉감: 쨍한 '클링' — 캔·유리병끼리 부딪히는 금속성. 이 계열이 달그락의 주인공이다.
+        static let container = ChipMaterial(mass: 1.15, restitution: 0.12, friction: 0.46,
+                                            angularDamping: 0.92, sharpness: 0.95, hapticScale: 1.0)
+        /// 물렁함 — 두부·밥·면·만두. 닿은 자리에 착 붙어 거의 안 구른다.
+        /// 촉감: 퍽 — 물먹은 덩어리라 거의 촉감이 없다(가장 약하고 가장 뭉툭).
+        static let soft = ChipMaterial(mass: 0.75, restitution: 0.11, friction: 0.82,
+                                       angularDamping: 0.98, sharpness: 0.10, hapticScale: 0.50)
+    }
+
+    /// 글리프 → 물성. 52종을 하나씩 손으로 매기면 유지도 안 되고 의도도 흐려져,
+    /// 손에 잡히는 느낌 6종으로 묶었다. **표에 없는 글리프는 전부 `.standard`**(= 기존 값)로 떨어진다
+    /// (뿌리채소·오이·고추·가지·고구마·생강·새우·옥수수 등 무난한 중간 물성 재료들).
+    // TODO: `gimbap` 글리프가 들어오면 `.soft` 행을 추가한다(밥·면과 같은 계열).
+    private static let materials: [FoodGlyph: ChipMaterial] = [
+        // 가벼움 — 잎·해조·버섯·빵
+        .leaf: .light, .cabbage: .light, .seaweed: .light, .mushroom: .light,
+        .broccoli: .light, .pea: .light, .bread: .light,
+        // 잘 구름 — 둥글고 매끈
+        .egg: .rolling, .tomato: .rolling, .apple: .rolling, .citrus: .rolling, .grape: .rolling,
+        .berry: .rolling, .potato: .rolling, .onion: .rolling, .garlic: .rolling, .mango: .rolling,
+        // 묵직함 — 덩어리 단백질·큰 과채
+        .meat: .heavy, .fish: .heavy, .poultry: .heavy, .sausage: .heavy, .bacon: .heavy,
+        .crab: .heavy, .squid: .heavy, .clam: .heavy,
+        .pumpkin: .heavy, .watermelon: .heavy, .pineapple: .heavy,
+        // 용기 — 갑·병·캔·유제품
+        .milk: .container, .sauceBottle: .container, .can: .container, .honey: .container,
+        .yogurt: .container, .butter: .container, .cheese: .container,
+        // 물렁함 — 눌러 붙는 것
+        .tofu: .soft, .rice: .soft, .noodles: .soft, .dumpling: .soft,
+        .avocado: .soft, .banana: .soft,
+    ]
+
+    private static func material(for glyph: FoodGlyph) -> ChipMaterial {
+        materials[glyph] ?? .standard
+    }
+
     /// 볼록 N각형 타원 바디(dy로 중심 오프셋) — SpriteKit `polygonFrom`은 볼록만 허용해 끼임·진동이 없다.
     private static func ovalBody(_ w: CGFloat, _ h: CGFloat, dy: CGFloat = 0, sides: Int = 14) -> SKPhysicsBody {
         let path = CGMutablePath()
@@ -780,23 +879,48 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         return SKPhysicsBody(polygonFrom: path)
     }
 
-    // MARK: - 착지 임팩트 (스쿼시 + 햅틱)
+    // MARK: - 착지 임팩트 (스쿼시 + 달그락 햅틱)
 
-    /// 접촉 시작 — 임펄스를 질량으로 나눠 **근사 속도변화(pt/s)**로 환산한 뒤 판정한다.
-    /// 임펄스 절대값은 질량 스케일에 딸려 다니지만, 나눈 값은 calmSpeed·settleBand와 같은 축이라
-    /// "쌓이는 더미의 잔접촉"과 "실제 착지"를 기존 튜닝과 같은 기준으로 가른다.
+    /// 접촉 시작 — **두 가지 일을 한 번에** 한다. 축이 일부러 다르다.
+    /// ① 스쿼시: 임펄스를 질량으로 나눠 **근사 속도변화(pt/s)**로 환산한다. 나눈 값은
+    ///    calmSpeed·settleBand와 같은 축이라 "쌓이는 더미의 잔접촉"과 "실제 착지"를 기존 튜닝과
+    ///    같은 기준으로 가른다.
+    /// ② 달그락: **생 임펄스** 그대로 세 관문(임펄스·전역간격·쌍 쿨다운)에 태운다. 운동량 전달이
+    ///    곧 체감 크기라, 질량으로 나누면 소고기와 잎사귀가 같은 세기로 느껴진다.
     func didBegin(_ contact: SKPhysicsContact) {
         guard !idle, !externallyPaused else { return }
         let impulse = contact.collisionImpulse
         guard impulse > 0 else { return }
-        var strongest: CGFloat = 0
         for body in [contact.bodyA, contact.bodyB] where body.categoryBitMask & Category.chip != 0 {
             let dv = impulse / max(0.2, body.mass)
-            strongest = max(strongest, dv)
             guard dv >= squashImpact, let node = body.node as? SKSpriteNode else { continue }
-            squash(node, strength: min(1, (dv - squashImpact) / (hapticImpactMax - squashImpact)))
+            squash(node, strength: min(1, (dv - squashImpact) / (squashImpactMax - squashImpact)))
         }
-        if strongest >= hapticImpact { fireImpactHaptic(strongest) }
+        // 햅틱은 Reduce Motion과 무관하게 살아 있다 — 시각 배려지 촉각 배려가 아니다(§7.4).
+        let pair = ClatterPair(ObjectIdentifier(contact.bodyA).hashValue,
+                               ObjectIdentifier(contact.bodyB).hashValue)
+        guard clatterThrottle.allow(impulse: impulse, pair: pair, now: lastUpdateTime) else { return }
+        let mat = clatterMaterial(contact.bodyA, contact.bodyB)
+        clatter.play(intensity: clatterIntensity(impulse) * mat.hapticScale, sharpness: mat.sharpness)
+        onClatter?()
+    }
+
+    /// 두 바디 중 촉감을 대표할 물성 — 칩-벽이면 그 칩, 칩-칩이면 **무거운 쪽**이 소리를 주도한다.
+    private func clatterMaterial(_ a: SKPhysicsBody, _ b: SKPhysicsBody) -> ChipMaterial {
+        let mats = [a, b].compactMap { body -> ChipMaterial? in
+            guard let raw = body.node?.userData?["glyph"] as? String,
+                  let glyph = FoodGlyph(rawValue: raw) else { return nil }
+            return Self.material(for: glyph)
+        }
+        return mats.max(by: { $0.mass < $1.mass }) ?? .standard
+    }
+
+    /// 임펄스 → 세기. 임계값에서 0.18로 시작해 상한에서 1.0으로 포화한다.
+    /// 바닥을 0이 아니라 0.18로 둔 이유 — 통과한 충돌은 '느껴져야' 의미가 있다. 0 근처면 헛발질이다.
+    private func clatterIntensity(_ impulse: CGFloat) -> Float {
+        let span = clatterImpulseCeiling - clatterThrottle.minImpulse
+        let t = span > 0 ? (impulse - clatterThrottle.minImpulse) / span : 1
+        return Float(min(1, max(0, t))) * 0.82 + 0.18
     }
 
     /// 착지 눌림 — 가로로 퍼지고 세로로 눌렸다가 복귀(최대 6%). 배율은 **정확히 1로** 되돌린다.
@@ -812,16 +936,6 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         back.timingMode = .easeOut
         // 마지막에 한 번 더 확정 대입 — 중간에 액션이 끊겨도 배율 잔차가 남지 않는다.
         node.run(.sequence([press, back, .run { [weak node] in node?.setScale(1) }]), withKey: "squash")
-    }
-
-    /// 임팩트 진동 — 세기는 임팩트에 비례, 최소 간격을 둬 더미가 안착할 때 드르륵 울리지 않게 한다.
-    private func fireImpactHaptic(_ dv: CGFloat) {
-        let now = CACurrentMediaTime()
-        guard now - lastHapticAt >= hapticInterval else { return }
-        lastHapticAt = now
-        let t = min(1, (dv - hapticImpact) / (hapticImpactMax - hapticImpact))
-        impactHaptic.impactOccurred(intensity: 0.35 + 0.65 * t)
-        impactHaptic.prepare()
     }
 
     // MARK: - Drag / throw / tap (단일 터치 추적)
