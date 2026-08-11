@@ -100,7 +100,13 @@ final class IngredientClatterHaptics {
     /// 충돌 하나의 촉감을 친다. `intensity`·`sharpness`는 0...1.
     /// sharpness가 클수록 쨍한 '클링', 작을수록 둔탁한 '툭'.
     func play(intensity: Float, sharpness: Float) {
-        guard supportsHaptics, running, let engine else { return }
+        guard supportsHaptics, !failed, let engine else { return }
+        // 유휴 자동 종료(.idleTimeout) 뒤엔 stoppedHandler가 running을 내린다. 여기서 재기동하지
+        // 않으면 첫 정적 이후 세션 내내 무음이 된다 — stop()으로 내려간 경우엔 didBegin 자체가
+        // 게이트(씬 pause)로 막히므로 이 지연 재기동이 의도치 않게 켜질 일은 없다.
+        if !running {
+            do { try engine.start(); running = true } catch { return }
+        }
         let event = CHHapticEvent(eventType: .hapticTransient, parameters: [
             CHHapticEventParameter(parameterID: .hapticIntensity, value: max(0, min(1, intensity))),
             CHHapticEventParameter(parameterID: .hapticSharpness, value: max(0, min(1, sharpness))),

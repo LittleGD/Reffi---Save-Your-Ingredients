@@ -338,6 +338,9 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     /// 중력 벡터만으론 흔들기가 전달되지 않는다(저역 신호라 흔드는 동안에도 거의 안 변한다).
     /// Reduce Motion이면 통째로 건너뛴다 — 예측 불가한 화면 움직임을 없애는 것이 그 설정의 요지다(§7.4).
     private func applyShake(_ sample: TiltSample) {
+        // applyDeviceGravity와 같은 콜백에서 갈라져 들어오므로 같은 표시 가드를 건다 —
+        // 화면에 없는 씬을 in-flight 샘플이 걷어차지 않게.
+        guard view != nil, !externallyPaused else { return }
         guard !reduceMotion else { return }
         let mag = hypot(sample.shakeX, sample.shakeY)
         guard mag > shakeThreshold else { return }
@@ -423,7 +426,10 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         // 칩 변이 실제로 달라졌으면 텍스처 캐시를 버린다(캐시 키에 side가 박혀 있음).
         if chipSideFor(oldSize) != chipSide { textureCache.removeAll() }
         buildWalls()
-        tuckStraysUnderCeiling()   // 천장이 내려오면 그 위에 남은 칩은 즉시 회수(스스로 못 들어온다)
+        // 천장이 내려오면 그 위에 남은 칩은 즉시 회수(스스로 못 들어온다). 단 **밀폐 상태일 때만** —
+        // 낙하 캐스케이드 중(천장 열림) 리플로우가 오면, 정상 낙하 중인 칩을 순간이동시키게 된다.
+        // 열린 동안의 회수는 maintainCeiling의 상태 기계(sealTimeout 백스톱 포함)가 맡는다.
+        if ceilingSealed { tuckStraysUnderCeiling() }
         layoutZones()
         wake()   // 리사이즈로 레이아웃이 바뀌었으니 한 번 굴려 재안착
     }
@@ -538,6 +544,10 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     /// 변위 검증 통과 → 강제 안착(freeze). 지터로 요동하던 미세 속도를 그 자리에서 0으로 굳혀
     /// 시각적 '꿈틀'까지 없애고 재운다. 물리 파라미터는 건드리지 않는다.
     private func forceSettle() {
+        // 천장이 열려 있는 동안(= 가시 영역 위에 표류칩이 있음)은 잠들지 않는다. 여기서 잠들면
+        // update()가 멈춰 maintainCeiling의 sealTimeout 강제 회수가 영영 돌지 않는다 —
+        // §13.4의 "6초 넘게 열려 있으면 구조적으로 막는다"는 보증은 이 가드가 지킨다.
+        guard ceilingSealed else { return }
         for node in chips.values {
             node.physicsBody?.velocity = .zero
             node.physicsBody?.angularVelocity = 0

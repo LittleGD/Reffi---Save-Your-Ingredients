@@ -53,9 +53,11 @@ final class IngredientTiltMotion {
 
     /// 정지 — 탭을 벗어나거나 백그라운드로 가면 반드시 부른다(센서 갱신은 배터리를 먹는다).
     func stop() {
+        // 핸들러를 먼저 비운다 — 업데이트가 활성이 아니어도 클로저를 붙들고 있지 않도록
+        // (in-flight 콜백 자가 취소 계약은 이 nil 처리에 의존한다).
+        onSample = nil
         guard manager.isDeviceMotionActive else { return }
         manager.stopDeviceMotionUpdates()
-        onSample = nil
     }
 
     /// 안전망 — 소유자(씬)가 stop 없이 사라져도 센서가 계속 돌지 않게.
