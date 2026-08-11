@@ -99,6 +99,18 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     private let zoneSide: CGFloat = 86
     private let magnetRadius: CGFloat = 88
 
+    #if DEBUG
+    /// `-zoneLab` — 판정 존을 드래그 없이 **항상 표시**한다. 존은 SpriteKit 노드라 접근성 트리에
+    /// 없고 드래그 중에만 보여서, 위치 회귀를 스크린샷으로 잡으려면 강제 표시 경로가 필요하다.
+    private let zoneLab = ProcessInfo.processInfo.arguments.contains("-zoneLab")
+
+    /// 회귀 테스트용 존 중심(씬 좌표) — 생성 전이면 nil. `debugTilt` 선례와 같은 QA 주입/관찰구.
+    var debugZoneCenters: (toss: CGPoint, ate: CGPoint)? {
+        guard let t = tossZone, let a = ateZone else { return nil }
+        return (t.position, a.position)
+    }
+    #endif
+
     // 던지기 회전 — 토크 암 계수(작을수록 잘 돈다)와 각속도 상한(rad/s).
     private let spinArm: CGFloat = 0.25
     private let spinCap: CGFloat = 6
@@ -206,14 +218,51 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
 
     /// 모션 갱신 on/off를 씬 상태에서 **파생**시킨다 — 표시 중 + 안 가려짐 + Reduce Motion 아님 + 기기 지원.
     /// 조건이 하나라도 깨지면 즉시 멈춘다(시뮬레이터는 deviceMotion 미지원 → 항상 상수 중력).
+    #if DEBUG
+    /// `-tiltLab` 주입 중력 방향(정규화 x, y) — 있으면 CoreMotion보다 우선한다.
+    /// 시뮬레이터엔 자이로가 없어 기울기 QA는 이 경로로만 가능하다.
+    ///
+    /// **실사용 경로(`applyDeviceGravity`)를 타지 않는다.** 그쪽은 무방향 대역(hypot < 0.06)·
+    /// 재적용 데드밴드(2°/5%)·깨우기 임계(6°)를 차례로 통과해야 하는데, 그 필터들이 바로 이 실험실이
+    /// **검증하려는 대상**이다. 슬라이더를 원점 근처에 두면 값이 flatGravity로 접히고, 천천히 끌면
+    /// 데드밴드에 먹히고, 잠든 씬은 무방향 판정 탓에 영영 안 깨어난다 — 그런 건 실험실이 아니다.
+    /// 그래서 여기선 순수 매핑(`GravityMapper.mapped`)을 그대로 쓰고 **무조건** 깨운다.
+    var debugTilt: CGVector? {
+        didSet { syncMotionUpdates() }
+    }
+
+    /// 주입값을 물리 중력에 **직접** 쓴다 — 필터 없이, 무조건 깨워서.
+    private func applyDebugTilt(_ d: CGVector) {
+        tilt.stop()
+        let g = GravityMapper.mapped(x: Double(d.dx), y: Double(d.dy))
+        physicsWorld.gravity = g
+        lastAppliedGravity = g
+        gravityDirectionless = false
+        wake()
+    }
+    #endif
+
     private func syncMotionUpdates() {
+        #if DEBUG
+        // -tiltLab 주입이 정본 — 센서를 끄고 주입값을 **다시 적용**한다. 여기서 그냥 넘어가면
+        // didMove의 `gravity = fallback`이 주입을 덮은 채로 남는다(프레젠트 전에 주입된 경우:
+        // 슬라이더 표시값은 y=+1인데 더미는 아래로 떨어지던 버그).
+        if let d = debugTilt {
+            applyDebugTilt(d)
+            syncClatterEngine()
+            return
+        }
+        #endif
         let wanted = view != nil && !externallyPaused && !reduceMotion && tilt.isAvailable
         if wanted { startMotionUpdates() } else { stopMotionUpdates() }
-        // 달그락 엔진 수명주기도 여기서 함께 파생시킨다(별도 채널을 만들지 않는다). 다만 조건은
-        // **보이는 씬**까지만 — Reduce Motion은 시각 배려지 촉각 배려가 아니고(§7.4), 자이로가 없는
-        // 시뮬레이터·구형 기기에서도 던져서 부딪히는 충돌은 그대로 일어난다. 안 보이는 씬에서만 내린다.
-        let hapticsWanted = view != nil && !externallyPaused
-        if hapticsWanted {
+        syncClatterEngine()
+    }
+
+    /// 달그락 엔진 수명주기도 같은 자리에서 파생시킨다(별도 채널을 만들지 않는다). 다만 조건은
+    /// **보이는 씬**까지만 — Reduce Motion은 시각 배려지 촉각 배려가 아니고(§7.4), 자이로가 없는
+    /// 시뮬레이터·구형 기기에서도 던져서 부딪히는 충돌은 그대로 일어난다. 안 보이는 씬에서만 내린다.
+    private func syncClatterEngine() {
+        if view != nil, !externallyPaused {
             clatter.start()
         } else {
             clatter.stop()
@@ -572,6 +621,10 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         let y = size.height - zoneSide * 0.5 - 12
         tossZone?.position = CGPoint(x: zoneSide * 0.5 + 14, y: y)
         ateZone?.position = CGPoint(x: size.width - zoneSide * 0.5 - 14, y: y)
+        #if DEBUG
+        // `-zoneLab`은 재생성(다크 전환 리틴트) 뒤에도 계속 보여야 하므로 여기서 알파를 되돌린다.
+        if zoneLab { tossZone?.alpha = 0.96; ateZone?.alpha = 0.96 }
+        #endif
     }
 
     /// 드래그 시작/끝에만 보인다 — 평소엔 물리 필드를 어지럽히지 않는다.

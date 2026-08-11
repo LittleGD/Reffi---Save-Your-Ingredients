@@ -147,6 +147,8 @@ struct MainView: View {
             scene.sync(counter)
         }
         #if DEBUG
+        // `-tiltLab` — 기울기 QA용 하단 오버레이. overlay라 헤더·배너·뱃지 행·CTA 레이아웃은 그대로다.
+        .overlay(alignment: .bottom) { tiltLabOverlay }
         .onAppear {   // 미리보기/검증용: `-loadSample`로 샘플 시드, `-previewCarousel 1`로 캐러셀 바로 열기.
             let args = ProcessInfo.processInfo.arguments
             if args.contains("-loadSample"), store.isPristine {
@@ -172,6 +174,127 @@ struct MainView: View {
     }
 
     @State private var dayTick = 0   // 자정 리렌더 트리거
+
+    // MARK: - Tilt lab (`-tiltLab`, DEBUG)
+
+    #if DEBUG
+    /// 런치 인자 순수 파서 — `-tiltLab.x -0.9`처럼 값이 음수면 NSArgumentDomain(UserDefaults)이 `-0.9`를
+    /// 다음 키로 오인해 바인딩을 통째로 잃는다(`-fridge.compact YES` 선례는 값이 항상 양수/문자라 문제가
+    /// 없었다). 그래서 ProcessInfo.arguments를 직접 순회해 값을 뽑는다 — 순수 함수라 음수·클램프·누락
+    /// 같은 케이스를 실기기/시뮬레이터 없이 유닛 테스트로 고정할 수 있다.
+    /// `internal`(비-private) — TiltLabLaunchArgTests가 `@testable import Reffi`로 직접 호출한다.
+    /// 반환: x/y는 파싱 성공 시에만 값이 실리고(실패·누락이면 nil, 다음 토큰은 소비하지 않음) -1...1로
+    /// 클램프된다. labOn은 `-tiltLab` 존재, x 파싱 성공, y 파싱 성공, `-tiltLab.shake` 존재 중 하나만
+    /// 참이어도 true. shake는 `-tiltLab.shake` 존재 여부.
+    static func tiltLabLaunchConfig(from args: [String]) -> (x: Double?, y: Double?, labOn: Bool, shake: Bool) {
+        func value(after flag: String) -> Double? {
+            guard let i = args.firstIndex(of: flag), i + 1 < args.count,
+                  let raw = Double(args[i + 1]) else { return nil }
+            return min(1, max(-1, raw))
+        }
+        let x = value(after: "-tiltLab.x")
+        let y = value(after: "-tiltLab.y")
+        let shake = args.contains("-tiltLab.shake")
+        let labOn = args.contains("-tiltLab") || x != nil || y != nil || shake
+        return (x, y, labOn, shake)
+    }
+
+    /// 프로세스당 한 번만 파싱 — 아래 여러 프로퍼티가 ProcessInfo.arguments를 반복해 읽지 않도록 캐싱.
+    private static let tiltLabConfig = Self.tiltLabLaunchConfig(from: ProcessInfo.processInfo.arguments)
+
+    @State private var tiltLabX: Double = Self.tiltLabConfig.x ?? 0    // 주입 중력 x(정규화) — 오른쪽이 +
+    @State private var tiltLabY: Double = Self.tiltLabConfig.y ?? -1   // 주입 중력 y(정규화) — 위가 +, 세워 든 기본 자세가 -1
+
+    /// `-tiltLab` 또는 `-tiltLab.x/.y`(파싱 성공) 또는 `-tiltLab.shake` 중 하나만 있어도 실험실을 켠다.
+    private var tiltLabOn: Bool { Self.tiltLabConfig.labOn }
+
+    /// 기울기 실험실 — X/Y 슬라이더로 씬 중력 벡터를 직접 주입한다. 시뮬레이터엔 자이로가 없어
+    /// CoreMotion 경로를 탈 수 없으므로, 굴러가는 모양 QA는 사실상 이 경로로만 가능하다.
+    /// CTA 위에 얹어(하단 패딩) 요리시작 버튼은 계속 누를 수 있게 둔다.
+    @ViewBuilder private var tiltLabOverlay: some View {
+        if tiltLabOn {
+            VStack(alignment: .leading, spacing: 2) {
+                HStack {
+                    Text(verbatim: "TILT LAB")
+                        .reffiType(.monoEyebrow).foregroundStyle(ReffiColor.blueDark)
+                    Spacer()
+                    Text(verbatim: String(format: "x %.2f   y %.2f", tiltLabX, tiltLabY))
+                        .reffiType(.metaText).foregroundStyle(ReffiColor.ink2)
+                }
+                tiltLabSlider("X", value: $tiltLabX)
+                tiltLabSlider("Y", value: $tiltLabY)
+                HStack(spacing: ReffiSpace.s3) {
+                    Button { scene.shakeBurst() } label: {
+                        Text(verbatim: "SHAKE")
+                            .reffiType(.monoEyebrow)
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, ReffiSpace.s3)
+                            .padding(.vertical, 4)
+                            .background(ReffiColor.blue, in: Capsule())
+                    }
+                    .buttonStyle(.reffiPress)
+                    clatterCounter
+                    Spacer()
+                }
+                .padding(.top, 2)
+            }
+            .padding(.horizontal, ReffiSpace.s4)
+            .padding(.vertical, ReffiSpace.s2)
+            .background {
+                let shape = PaperRect(cornerRadius: ReffiRadius.md)
+                shape.fill(ReffiColor.paper).paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
+            }
+            .reffiShadow1()
+            .padding(.horizontal, margin)
+            .padding(.bottom, navClearance + 60)
+            .onAppear {
+                pushTiltLab()
+                scene.onClatter = { [clatterLog] in
+                    clatterLog.times.append(ProcessInfo.processInfo.systemUptime)
+                    if clatterLog.times.count > 240 { clatterLog.times.removeFirst(120) }
+                }
+                // `-tiltLab.shake` — 버튼을 코드로 못 눌러서, 런치 1.5초 뒤 버스트를 한 번 자동 발동한다
+                // (재료가 자리를 잡은 뒤라야 충돌이 의미 있다). 단독 지정 시에도 tiltLabConfig.labOn이
+                // true가 되어 이 오버레이(및 onAppear)가 열리므로 스케줄이 정상 발동한다.
+                if Self.tiltLabConfig.shake {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { scene.shakeBurst() }
+                }
+            }
+            .onChange(of: tiltLabX) { _, _ in pushTiltLab() }
+            .onChange(of: tiltLabY) { _, _ in pushTiltLab() }
+        }
+    }
+
+    /// 햅틱 발화 시각 로그 — @State가 아니라 **참조 박스**에 담는다. 초당 수십 회 발화를 @State에
+    /// 쓰면 그때마다 SwiftUI가 물리 필드까지 다시 그린다. TimelineView가 자기 주기로 읽어 가면 충분하다.
+    private final class ClatterLog { var times: [TimeInterval] = [] }
+    @State private var clatterLog = ClatterLog()
+
+    /// 최근 1초 햅틱 발화 수 — 시뮬레이터엔 햅틱 하드웨어가 없어 **이 숫자가 유일한 관측 수단**이다.
+    /// 정지한 더미에서 0으로 떨어지는지(웅웅 방지 증명)도 여기서 본다.
+    private var clatterCounter: some View {
+        TimelineView(.periodic(from: .now, by: 0.25)) { _ in
+            let now = ProcessInfo.processInfo.systemUptime
+            let recent = clatterLog.times.filter { now - $0 < 1 }.count
+            Text(verbatim: "HAPTIC \(recent)/s")
+                .reffiType(.metaText)
+                .foregroundStyle(recent > 0 ? ReffiColor.blueDark : ReffiColor.ink2)
+        }
+    }
+
+    private func tiltLabSlider(_ label: String, value: Binding<Double>) -> some View {
+        HStack(spacing: ReffiSpace.s2) {
+            Text(verbatim: label)
+                .reffiType(.metaText).foregroundStyle(ReffiColor.ink2).frame(width: 12)
+            Slider(value: value, in: -1...1)
+        }
+    }
+
+    /// 슬라이더 값을 씬에 주입 — 씬은 이 값을 CoreMotion보다 우선한다.
+    private func pushTiltLab() {
+        scene.debugTilt = CGVector(dx: tiltLabX, dy: tiltLabY)
+    }
+    #endif
 
     // MARK: - Header
 

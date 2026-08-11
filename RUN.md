@@ -64,6 +64,10 @@ xcrun simctl io booted screenshot reffi-home.png
 **메인 (물리 씬 · 티켓)**
 - `-previewCarousel` 추천 캐러셀 바로 열기 · `-previewAdd` 재료 추가 시트 바로 열기
 - `-cookTicket` 샘플로 강제 발주 후 조리 티켓(`CookingStepsView`) 바로 열기
+- `-tiltLab` 기울기 실험실 하단 오버레이 — X/Y 슬라이더로 씬 중력을 직접 주입한다. 시뮬레이터엔 자이로가 없어 굴러가는 모양·컨테인먼트 QA는 사실상 이 경로로만 가능하다. SHAKE 버튼 + `HAPTIC n/s` 카운터(햅틱 하드웨어가 없으니 발화 수가 유일한 관측 수단 — 정지한 더미에서 0으로 떨어지는지도 여기서 본다)
+- `-tiltLab.x <-1…1>` `-tiltLab.y <-1…1>` 중력 방향 주입(실험실도 함께 켜짐). 값 파싱은 `ProcessInfo.arguments` 직접 순회 — UserDefaults 인자로 두면 `-tiltLab.x -0.9`의 음수를 다음 키로 오인해 바인딩을 통째로 잃는다
+- `-tiltLab.shake` 런치 1.5초 뒤 셰이크 버스트 자동 발동(재료가 자리를 잡은 뒤라야 충돌이 의미 있다)
+- `-zoneLab` 판정 존(휴지통·냄비) 상시 표시 — 존은 SpriteKit 노드라 접근성 트리에 없고 드래그 중에만 보여서, 위치 회귀를 스크린샷으로 잡으려면 강제 표시가 필요하다
 
 **냉장고**
 - `-showHistory` History 커버 · `-fridgeExpand` 첫 재료 펼침 · `-fridgeExpandSolo` 재료 1개만 남기고 펼침(네비 클리어런스 QA)
