@@ -93,6 +93,9 @@ struct OrderMemoCard: View {
                         Text(verbatim: r.displayName)
                             .reffiType(.menuName).foregroundStyle(ReffiColor.ink)
                             .lineLimit(2).minimumScaleFactor(0.8).fixedSize(horizontal: false, vertical: true)
+                            // UI 테스트 훅 — 앞 티켓의 메뉴명을 이름 하드코딩 없이 집어 조리 화면과 대조한다
+                            // (오른쪽 플릭이 덱을 넘기지 않고 **1번** 티켓을 발주했다는 증거). 라벨은 그대로다.
+                            .accessibilityIdentifier("ticket.menuName")
                         HStack(spacing: 4) {
                             ReffiIcon.time.reffi(13).foregroundStyle(ReffiColor.ink2)
                             Text("\(r.minutes) min · \(result.used.count) to use")
