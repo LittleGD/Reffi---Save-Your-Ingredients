@@ -75,6 +75,7 @@ xcrun simctl io booted screenshot reffi-home.png
 - `-showHistory` History 커버 · `-fridgeExpand` 첫 재료 펼침 · `-fridgeExpandSolo` 재료 1개만 남기고 펼침(네비 클리어런스 QA)
 - `-fridgeEdit` 첫 재료 편집 시트(+`-loadSample`) · `-fridge.sortOpen` 정렬 드롭다운(`PaperDropdown`) 자동 오픈
 - `-fridge.compact YES` 간편보기 · `-fridge.sort recent|freshest|expiry` 정렬 (둘 다 `@AppStorage` 키를 덮는 UserDefaults 인자)
+- `-toBuy` To buy 커버 직행(`-fridgeTab`·`-loadSample`과 함께) · `-toBuy.search` 재료 검색 바텀시트까지 자동 오픈(단독 지정해도 커버가 열린다 — 커버 전환과 같은 프레임에 시트를 올리면 씹혀서 전환 뒤로 미룬다)
 
 ## 기술 스택
 - **SwiftUI / Swift 6.3** · 배포 타깃 **iOS 18+** · 데이터는 `@Observable` + 샘플(SwiftData는 다음 단계)

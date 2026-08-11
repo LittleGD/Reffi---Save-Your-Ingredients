@@ -29,6 +29,92 @@ struct LexiconTests {
         #expect(lex.canonicalID(for: "서울우유1L") == "milk")
     }
 
+    // MARK: 타이핑 검색 (To buy 직접 담기 시트)
+
+    @Test func searchRanksPrefixAboveContains() {
+        // "onion" — 양파(이름 자체가 prefix)가 대파("green onion", 포함)보다 앞.
+        let ids = lex.search(query: "onion").map(\.id)
+        #expect(ids.first == "onion")
+        #expect(ids.contains("green-onion"))
+    }
+
+    @Test func searchRanksShorterNameFirstWithinPrefixHits() throws {
+        // 같은 prefix 적중이면 쿼리를 더 꽉 채운(짧은) 이름이 먼저 — "배" → 배 > 배추 > 배추김치.
+        let ids = lex.search(query: "배").map(\.id)
+        #expect(ids.first == "pear")
+        let napa = try #require(ids.firstIndex(of: "napa-cabbage"))
+        let kimchi = try #require(ids.firstIndex(of: "kimchi"))
+        #expect(napa < kimchi)
+    }
+
+    @Test func singleCharQueryMatchesPrefixOnly() {
+        // 한 글자가 이름 안쪽에까지 걸리면 목록이 무의미해진다 — "양배추"(배가 중간)는 안 뜬다.
+        let ids = lex.search(query: "배").map(\.id)
+        #expect(!ids.contains("cabbage"))
+        #expect(!ids.contains("brussels-sprout"))
+        // 두 글자부터는 포함 매칭이 살아난다 — "양배추" → 양배추(prefix) + 방울양배추(포함).
+        let two = lex.search(query: "양배추").map(\.id)
+        #expect(two.first == "cabbage")
+        #expect(two.contains("brussels-sprout"))
+    }
+
+    @Test func searchIsCappedAndEmptyForBlankQuery() {
+        #expect(lex.search(query: "s").count == 20)        // 기본 상한
+        #expect(lex.search(query: "s", limit: 3).count == 3)
+        #expect(lex.search(query: "   ").isEmpty)          // 공백만 = 검색 아님
+        #expect(lex.search(query: "zzz").isEmpty)
+    }
+
+    @Test func searchLimit60CoversToBuySearchSheetPath() {
+        // `ToBuySearchSheet`가 실제로 넘기는 상한(60) — 기본값(20)만 덮던 공백. 쿼리 "c"는 (en+ko
+        // prefix·contains 합쳐) 47개 항목에 걸린다 — 기본 상한(20)에서는 잘리지만, 60을 넘기면 커스텀
+        // limit이 실제로 관철돼 전부(< 60) 담긴다. 정확히 60개를 채우는 단일 쿼리는 사전 223종 규모에서
+        // 존재하지 않는다(브루트포스로 확인 — 최댓값이 47) — 그래서 "상한이 넘어간다"가 아니라
+        // "커스텀 limit이 기본값 대신 적용된다"를 검증축으로 삼는다.
+        #expect(lex.search(query: "c").count == 20)              // 기본 상한(20)에 잘림
+        #expect(lex.search(query: "c", limit: 60).count == 47)   // 커스텀 60에선 전부 담김(자연 히트 < 60)
+    }
+
+    // MARK: 카테고리 섹션 (To buy 검색 시트의 재료 배열)
+
+    @Test func categorySectionsCoverEveryEntryExactlyOnce() {
+        // 섹션 그리드가 사전의 단일 뷰라는 계약 — 한 항목이 빠지면 UI에서 영영 도달 불가해지고,
+        // 두 번 들어가면 같은 재료가 두 칸으로 뜬다.
+        let sectioned = lex.categorySections.flatMap { $0.entries.map(\.id) }
+        #expect(sectioned.count == lex.entries.count)
+        #expect(Set(sectioned) == Set(lex.entries.map(\.id)))
+    }
+
+    @Test func categorySectionsFollowFixedOrderAndSkipEmpty() {
+        let cats = lex.categorySections.map(\.category)
+        #expect(!cats.isEmpty)
+        // 순서는 `FoodGlyph.categoryOrder`(냉장고 필터 칩과 공유)의 부분 수열이어야 한다 — 항목 없는 카테고리만 빠지고, 남은 것들의
+        // 상대 순서는 선언 순서 그대로다(빈 섹션 헤더도, 뒤죽박죽 순서도 안 된다).
+        #expect(cats == FoodGlyph.categoryOrder.filter { cats.contains($0) })
+        #expect(cats.first == "Veg")   // 사전에 채소가 없을 리 없다
+    }
+
+    @Test func categorySectionsGroupByGlyphCategoryAndSortByName() throws {
+        for section in lex.categorySections {
+            for entry in section.entries {
+                let glyph = try #require(FoodGlyph(rawValue: entry.glyph))
+                #expect(glyph.categoryLabel == section.category)
+            }
+            // 인접 쌍만 본다 — 동명이인(같은 표기)이 있으면 `sorted`와의 전량 비교는 불안정하다.
+            let names = section.entries.map(\.displayName)
+            for (a, b) in zip(names, names.dropFirst()) {
+                #expect(a.localizedStandardCompare(b) != .orderedDescending,
+                        "\(section.category): '\(a)' before '\(b)'")
+            }
+        }
+        // 대표 샘플 — 분류 축이 글리프라는 사실이 바뀌면 여기가 먼저 깨진다.
+        let veg = try #require(lex.categorySections.first { $0.category == "Veg" })
+        #expect(veg.entries.contains { $0.id == "onion" })
+        let dairy = try #require(lex.categorySections.first { $0.category == "Dairy" })
+        #expect(dairy.entries.contains { $0.id == "milk" })
+        #expect(!dairy.entries.contains { $0.id == "onion" })
+    }
+
     @Test func staplesAreFlagged() {
         #expect(lex.isStaple("소금"))
         #expect(lex.isStaple("soy-sauce"))

@@ -157,6 +157,9 @@ struct FridgeView: View {
         // 스크린샷·QA용 — `-showHistory` 런치 인자로 History 시트 바로 열기(-previewCarousel 선례).
         .onAppear {
             if ProcessInfo.processInfo.arguments.contains("-showHistory") { showHistory = true }
+            // `-toBuy` To buy 커버 직행. `-toBuy.search`(검색 시트 자동 오픈)는 단독 지정해도 커버가 열린다.
+            if ProcessInfo.processInfo.arguments.contains("-toBuy")
+                || ProcessInfo.processInfo.arguments.contains("-toBuy.search") { showShopping = true }
             // `-fridgeExpand` — 첫 재료를 바로 펼침(Ate/Tossed 버튼 QA용). 샘플 시드가 늦을 수 있어 지연 재시도.
             if ProcessInfo.processInfo.arguments.contains("-fridgeExpand") {
                 selectedID = items.first?.id
@@ -572,8 +575,8 @@ struct FridgeView: View {
 /// (History 도넛 그룹핑도 같은 키를 쓴다 — 한 화면 두 기준을 만들지 않는다).
 enum FridgeCategoryFilter {
     /// 칩 고정 순서 — 사용 빈도(신선식품 → 저장식품 → 기타). 재고에 있는 것만 이 순서로 노출된다.
-    static let order = ["Veg", "Fruit", "Dairy", "Meat", "Seafood",
-                        "Protein", "Bakery", "Grain", "Pantry", "Other"]
+    /// 정본은 `FoodGlyph.categoryOrder` 하나 — To buy 검색 시트의 픽커 섹션도 같은 상수를 본다.
+    static let order = FoodGlyph.categoryOrder
 
     /// 칩 한 개분 — 캐논 카테고리 키 + 재고 개수.
     struct Bucket: Equatable {

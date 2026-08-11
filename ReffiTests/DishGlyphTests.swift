@@ -104,8 +104,8 @@ struct DishGlyphCatalogTests {
 
     @Test func fallbackIsStableAcrossRuns() {
         // `String.hashValue`는 실행마다 시드가 달라진다 — 그걸 쓰면 같은 레시피가 런치마다 색이 바뀐다.
-        #expect(DishGlyphCatalog.stableHash("kimchi-jjigae") == DishGlyphCatalog.stableHash("kimchi-jjigae"))
-        #expect(DishGlyphCatalog.stableHash("a") != DishGlyphCatalog.stableHash("b"))
+        #expect(ReffiHash.stable("kimchi-jjigae") == ReffiHash.stable("kimchi-jjigae"))
+        #expect(ReffiHash.stable("a") != ReffiHash.stable("b"))
         let a = DishGlyphCatalog.look(id: "same-id", name: "Mystery", cuisine: "korean")
         let b = DishGlyphCatalog.look(id: "same-id", name: "Mystery", cuisine: "korean")
         #expect(a == b)

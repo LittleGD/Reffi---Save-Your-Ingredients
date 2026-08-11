@@ -277,6 +277,13 @@ struct Ingredient: Identifiable, Codable, Equatable {
 }
 
 extension FoodGlyph {
+    /// 카테고리 노출 순서 — `categoryLabel`이 낼 수 있는 값 **전체**와 1:1이고, 아래 switch의
+    /// 선언 순서를 그대로 따른다(신선식품 → 저장식품 → 기타). 냉장고 필터 칩과 To buy 검색 시트의
+    /// 픽커 섹션이 **같은 상수**를 본다 — 두 화면이 카테고리 순서를 두고 어긋나지 않게 하는 단일 소스.
+    /// 재료 지식이 아니라 노출 순서(UX)라 JSON이 아니라 코드 상수다.
+    static let categoryOrder = ["Veg", "Fruit", "Dairy", "Meat", "Seafood",
+                                "Protein", "Bakery", "Grain", "Pantry", "Other"]
+
     /// 거친 카테고리 라벨 — 직접 입력의 자동 카테고리, History 도넛 그룹핑 공용.
     var categoryLabel: String {
         switch self {

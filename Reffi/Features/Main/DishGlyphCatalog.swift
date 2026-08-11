@@ -476,14 +476,6 @@ enum DishGlyphCatalog {
         }
     }
 
-    /// 프로세스 간에 안정적인 해시(FNV-1a) — `String.hashValue`는 실행마다 시드가 바뀌어
-    /// 같은 레시피가 런치마다 다른 색이 된다(스크린샷 회귀가 불가능해진다).
-    static func stableHash(_ s: String) -> UInt64 {
-        var h: UInt64 = 0xcbf2_9ce4_8422_2325
-        for b in s.utf8 { h = (h ^ UInt64(b)) &* 0x0000_0100_0000_01b3 }
-        return h
-    }
-
     /// 나라 이름은 키워드 매칭에서 **먼저 지운다** — "중국식 가지볶음"의 "중국"이 `국`(수프)에,
     /// "태국식 볶음면"의 "태국"이 같은 규칙에 걸려 요리가 통째로 엉뚱한 원형으로 간다.
     /// 나라는 `cuisine` 필드가 이미 들고 있으므로 이름에서 지워도 정보가 사라지지 않는다.
@@ -502,7 +494,7 @@ enum DishGlyphCatalog {
         let (defaultArchetype, dl, dc, dh) = cuisineDefault(cuisine)
         let archetype = keywordArchetype(name: name, koreanName: koreanName) ?? defaultArchetype
         // 색상은 id 해시로 흔든다 — 매핑 없는 레시피 여럿이 같은 원형에 몰려도 서로 다른 색이 된다.
-        let h = stableHash(id)
+        let h = ReffiHash.stable(id)   // 시각 결정용 안정 해시(공유 유틸)
         let fill = ReffiColor.oklch(dl + Double(h % 5) * 0.012 - 0.024,
                                     dc,
                                     (dh + Double((h >> 8) % 7) * 9).truncatingRemainder(dividingBy: 360))

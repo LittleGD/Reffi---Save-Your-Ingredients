@@ -373,6 +373,16 @@
         }
       }
     },
+    "Add item": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "직접 담기"
+          }
+        }
+      }
+    },
     "Add place": {
       "localizations": {
         "ko": {
@@ -393,6 +403,16 @@
         }
       }
     },
+    "Add to list": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "목록에 담기"
+          }
+        }
+      }
+    },
     "Add what you buy. We'll count down the expiry dates.": {
       "localizations": {
         "ko": {
@@ -409,6 +429,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "나만의 레시피 추가"
+          }
+        }
+      }
+    },
+    "Added %@": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 담김"
+          }
+        }
+      }
+    },
+    "Added by you": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "직접 담은 것"
           }
         }
       }
@@ -649,6 +689,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "사진에서 선택"
+          }
+        }
+      }
+    },
+    "Clear search": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "검색어 지우기"
           }
         }
       }
@@ -1119,6 +1169,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "임박 알림"
+          }
+        }
+      }
+    },
+    "FREQUENT": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "자주 쓰는 재료"
           }
         }
       }
@@ -1689,6 +1749,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "닉네임"
+          }
+        }
+      }
+    },
+    "No match": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "찾는 재료가 없어요"
           }
         }
       }
@@ -2363,6 +2433,16 @@
         }
       }
     },
+    "Search ingredients": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "재료 검색"
+          }
+        }
+      }
+    },
     "Selected": {
       "localizations": {
         "ko": {
@@ -2819,6 +2899,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "더 선명한 사진으로 다시 시도해 주세요."
+          }
+        }
+      }
+    },
+    "Try another name.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "다른 이름으로 찾아보세요."
           }
         }
       }
