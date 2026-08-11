@@ -18,6 +18,9 @@ struct OrderMemoCard: View {
     /// 카드가 제거+삽입(기본 opacity 트랜지션)되어 번쩍인다.
     var headerOnly: Bool = false
     var onFire: () -> Void = {}
+    /// 오른쪽 플릭(Cook) 발주 트리거 — 덱이 값을 올리면 "Cook this" 버튼과 **같은** `fire()`를 태운다.
+    /// 발주 상태(슬램·줄긋기·이중 발주 가드)를 카드가 소유하므로 부모가 `fired`를 직접 켜지 않는다.
+    var fireTrigger: Int = 0
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var fired = false
@@ -64,6 +67,7 @@ struct OrderMemoCard: View {
                 radius: headerOnly ? 4 : 1.5, x: 0, y: headerOnly ? 2 : 1)
         .shadow(color: ReffiColor.shadowTint.opacity(headerOnly ? 0 : 0.05),
                 radius: 10, x: 0, y: 8)
+        .onChange(of: fireTrigger) { _, _ in fire() }
     }
 
     /// 중간 섹션 — 헤더·fireBand는 고정, 판정문~'ON THE TICKET'(+ Short 문구)만 내부 스크롤(§13.6).
