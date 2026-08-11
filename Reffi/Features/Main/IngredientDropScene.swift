@@ -95,8 +95,33 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     private var chipSide: CGFloat { chipSideFor(size) }
     private func chipSideFor(_ s: CGSize) -> CGFloat { min(max(124, s.width * 0.42), 188) }
     private var floorY: CGFloat { max(6, size.height * 0.03) }
-    private var boxInset: CGFloat { 2 }
-    private var boxTop: CGFloat { size.height + 700 }   // 스폰 상한보다 위 → 닫힌 천장
+
+    // MARK: - 컨테인먼트 경계 (§13.4)
+
+    /// 좌·우 벽을 화면 끝이 아니라 **이만큼 안쪽**에 세운다.
+    /// 칩 스프라이트는 s×s지만 실제로 그려지는 건 알파 bbox뿐이고, 충돌체는 다시 그 bbox의 **90%** 다
+    /// (`bodyMetrics`). 그래서 바디가 화면 끝 벽에 닿아도 **그림은 계속 바깥으로 삐져나가** 잘려 보인다.
+    /// 삐져나가는 양 = bbox반폭 - 바디반폭 = 바디폭 × (1/0.9 - 1) / 2 ≈ 바디폭 × 0.056.
+    /// 표의 최대 바디폭이 0.68s이므로 약 0.038s. 테이블이 버린 가로 중심 오프셋(`dx`)과 회전 여유까지
+    /// 얹어 0.09s로 잡았다.
+    private var wallInset: CGFloat { max(2, chipSide * 0.09) }
+    /// 밀폐 천장 — 가시 영역의 위끝. 벽·회수 목표·드래그 클램프가 모두 이 선을 쓴다.
+    /// 밀폐되면 상자가 가시 영역과 일치해 **어느 중력 방향에서도** 재료가 화면 밖으로 안 샌다.
+    private var sealedCeiling: CGFloat { max(1, size.height) - wallInset }
+    /// 스폰 천장 — 재료는 화면 위에서 떨어져 들어오므로(§13) 낙하 중엔 천장을 스폰 위치 위로 올려 둔다.
+    /// 값은 기존 `boxTop`(+700)을 그대로 유지한다 — 스폰 클램프가 이 값을 읽어 낙하 스태거 구성이
+    /// 정해지므로, 낮추면 런치 캐스케이드의 그림이 통째로 달라진다.
+    private var spawnCeiling: CGFloat { size.height + 700 }
+    /// 천장이 지금 밀폐돼 있나 — 낙하가 끝나면 true가 되어 상자가 가시 영역과 일치한다.
+    private var ceilingSealed = false
+    /// 천장이 열린 채 흘러간 시간의 기준점(아래 maintainCeiling의 타임아웃용).
+    private var unsealedSince: TimeInterval?
+    /// 열린 천장을 이 시간 넘게 유지하지 않는다 — 낙하 도중 중력이 옆·위로 향하면 칩이 보이지 않는
+    /// 위쪽에 갇혀 영원히 안 내려온다. 지나면 강제로 끌어내리고 밀폐한다.
+    /// 값은 **런치 캐스케이드(스폰 +599pt에서 화면까지)를 넉넉히 넘도록** 잡은 안전값이다 —
+    /// 짧게 잡으면 정상적으로 내려오는 중인 칩을 순간이동시킨다. 실낙하 시간은 계산식(v_term = g/λ)이
+    /// 아니라 기기 실측(tiltLab 도입 후)으로 다시 유도해야 한다. TODO: 실측 후 재조정.
+    private let sealTimeout: TimeInterval = 6.0
 
     override func didMove(to view: SKView) {
         backgroundColor = .clear
@@ -263,6 +288,7 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         // 칩 변이 실제로 달라졌으면 텍스처 캐시를 버린다(캐시 키에 side가 박혀 있음).
         if chipSideFor(oldSize) != chipSide { textureCache.removeAll() }
         buildWalls()
+        tuckStraysUnderCeiling()   // 천장이 내려오면 그 위에 남은 칩은 즉시 회수(스스로 못 들어온다)
         layoutZones()
         wake()   // 리사이즈로 레이아웃이 바뀌었으니 한 번 굴려 재안착
     }
@@ -271,6 +297,7 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     /// 거리 비례 목표 속도 + 가속 제한 → 약간의 딜레이·관성(실감, §13.4). 동적 바디라 이웃을
     /// 부드럽게 밀 뿐 튕겨내지 않는다. 속도 상한으로 과격한 밀침을 막는다.
     override func update(_ currentTime: TimeInterval) {
+        maintainCeiling(currentTime)   // 낙하 끝나면 밀폐, 위쪽에 갇힌 칩은 회수(§13.4 컨테인먼트)
         if let node = dragged, let body = node.physicsBody {
             // 마그네틱 캡처 — 손가락이 바스켓 근처면 추종 목표가 바스켓 중심으로 스냅되어
             // 재료가 자석처럼 끌려 들어간다. 손가락이 벗어나면 다시 손가락을 따른다.
@@ -483,12 +510,14 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     }
 
     /// 바닥(요리시작 버튼 마진) + 좌·우 벽 + 천장으로 **완전히 닫힌 상자**.
-    /// 닫혀 있으므로 끌거나 던져도 재료가 화면 밖으로 새지 않는다.
+    /// 좌·우는 `wallInset`만큼 안쪽이라 그림까지 화면 안에 남고, 천장은 낙하 중에만 열려 있다
+    /// (`ceilingSealed`). 밀폐되면 상자가 가시 영역과 일치해 **어느 중력 방향에서도** 재료가 안 샌다.
     private func buildWalls() {
         guard size.width > 1, size.height > 1 else { return }
         childNode(withName: "walls")?.removeFromParent()
-        let rect = CGRect(x: boxInset, y: floorY,
-                          width: size.width - boxInset * 2, height: boxTop - floorY)
+        let top = ceilingSealed ? sealedCeiling : spawnCeiling
+        let rect = CGRect(x: wallInset, y: floorY,
+                          width: max(1, size.width - wallInset * 2), height: max(1, top - floorY))
         let walls = SKNode()
         walls.name = "walls"
         walls.physicsBody = SKPhysicsBody(edgeLoopFrom: rect)   // 닫힌 루프(상자)
@@ -496,6 +525,52 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         walls.physicsBody?.categoryBitMask = Category.wall
         walls.physicsBody?.contactTestBitMask = Category.chip   // 바닥 착지도 임팩트로 친다
         addChild(walls)
+    }
+
+    /// 천장을 연다 — 새 재료가 화면 위에서 떨어져 들어오기 직전에 부른다.
+    /// 밀폐된 채로 스폰하면 칩이 천장 **위**에 얹혀 영영 안 보인다.
+    private func openCeiling() {
+        guard ceilingSealed else { return }
+        ceilingSealed = false
+        buildWalls()
+    }
+
+    /// 천장 관리(매 프레임) — 모든 칩이 가시 영역 안으로 들어오면 밀폐하고, 낙하 중이면 열어 둔다.
+    /// 열린 채 `sealTimeout`이 지나면(= 기울기 탓에 위쪽에 갇힌 칩이 있다는 뜻) 강제로 끌어내리고 밀폐해
+    /// "화면 밖으로 나가서 안 돌아옴"을 구조적으로 불가능하게 만든다.
+    private func maintainCeiling(_ now: TimeInterval) {
+        guard size.width > 1, size.height > 1 else { return }
+        let strays = chips.values.filter { $0.position.y > sealedCeiling }
+        guard !strays.isEmpty else {
+            unsealedSince = nil
+            if !ceilingSealed { ceilingSealed = true; buildWalls() }
+            return
+        }
+        openCeiling()
+        let since = unsealedSince ?? now
+        unsealedSince = since
+        guard now - since > sealTimeout else { return }
+        // 갇힌 칩 회수 — 천장 바로 아래로 내려놓고 속도를 죽인 뒤 상자를 닫는다.
+        tuckStraysUnderCeiling()
+        unsealedSince = nil
+        ceilingSealed = true
+        buildWalls()
+        wake()
+    }
+
+    /// 천장 **위**에 남은 칩을 상자 안으로 끌어들인다.
+    ///
+    /// 밀폐된 상자 바깥(위)에 놓인 칩은 스스로 못 들어온다 — 위로 기울인 상태면 그대로 떠올라
+    /// 감쇠(`jitterDamp`)에 얼어붙고, 그러면 씬이 안착으로 판정해 잠들어(`forceSettle`) `maintainCeiling`의
+    /// 타임아웃이 **영영 돌지 않는다**(재료가 화면 밖에서 사라진 것처럼 보였다).
+    /// 그래서 `maintainCeiling`의 지연 회수와 별개로, 천장이 내려오는 순간에도 즉시 회수한다.
+    private func tuckStraysUnderCeiling() {
+        let ceiling = sealedCeiling
+        for node in chips.values where node.position.y > ceiling {
+            node.position.y = ceiling - chipSide * 0.5
+            node.physicsBody?.velocity = .zero
+            node.physicsBody?.angularVelocity = 0
+        }
     }
 
     /// 표시용 실루엣 텍스처(종이 그림자 포함)를 캐시한다. 충돌체는 이 텍스처 알파가 아니라
@@ -621,8 +696,10 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         if reduceMotion {
             node.position = CGPoint(x: x, y: floorY + s * (0.45 + CGFloat(order % 3) * 0.5))
         } else {
-            // 위에서 스태거 낙하 → 더미. 스폰은 항상 닫힌 천장 **아래**(상자 밖 탈출 방지).
-            let y = min(size.height + s * (0.4 + CGFloat(order) * 0.85), boxTop - s * 0.6)
+            // 위에서 스태거 낙하 → 더미. 스폰은 항상 **스폰 천장** 아래로 클램프하고, 밀폐돼 있으면
+            // 먼저 연다 — 밀폐된 채로 화면 위에 놓으면 칩이 천장 **위**에 얹혀 영영 안 보인다.
+            openCeiling()
+            let y = min(size.height + s * (0.4 + CGFloat(order) * 0.85), spawnCeiling - s * 0.6)
             node.position = CGPoint(x: x, y: y)
         }
         addChild(node)
@@ -792,8 +869,8 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     /// 끌고 있는 재료의 중심을 상자 내부(반지름 마진)로 제한. 화면 위로도 못 끈다.
     private func clampToBox(_ p: CGPoint) -> CGPoint {
         let r = chipSide * 0.42
-        let minX = boxInset + r, maxX = max(boxInset + r, size.width - boxInset - r)
-        let minY = floorY + r,   maxY = max(floorY + r, size.height - r)
+        let minX = wallInset + r, maxX = max(wallInset + r, size.width - wallInset - r)
+        let minY = floorY + r,    maxY = max(floorY + r, sealedCeiling - r)
         return CGPoint(x: min(max(p.x, minX), maxX), y: min(max(p.y, minY), maxY))
     }
 
