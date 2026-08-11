@@ -819,7 +819,8 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
       <li><a href="#grid"><span class="idx num">09</span>그리드 &amp; 반응형</a></li>
       <li><a href="#checklist"><span class="idx num">10</span>적용 체크리스트</a></li>
       <li><a href="#paper"><span class="idx num">11</span>종이 · 글래스 · 모션</a></li>
-      <li><a href="#modal"><span class="idx num">12</span>모달 · 시트 · 닫기</a></li>
+      <li><a href="#dish"><span class="idx num">12</span>요리 아이콘</a></li>
+      <li><a href="#modal"><span class="idx num">13</span>모달 · 시트 · 닫기</a></li>
     </ul>
   </nav>
 
@@ -1416,6 +1417,7 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">종이 X 닫기가 <code class="inline">PaperCloseButton</code>인가 (시각 40 · 히트 44 · <code class="inline">paper</code> 단일 토큰, 인라인 재조립 금지 §14)</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">시트에 dragIndicator(핸들)와 콘텐츠 양에 맞는 detent가 있는가 (§14)</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">판정·확정은 <code class="inline">.impact</code>, 성공 완료는 <code class="inline">.success</code>, 파괴 확인은 <code class="inline">.warning</code>인가 · 정보성 전환에 햅틱을 넣지 않았는가 (§7.6)</span></li>
+          <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">레시피 대표 아이콘을 그리는 새 표면이 뷰에서 <code class="inline">DishGlyphCatalog</code>를 직접 부르지 않고 <code class="inline">Recipe.heroIcon</code>/<code class="inline">RecipeHeroIcon.session</code>만 쓰는가 (§13.7)</span></li>
         </ul>
       </section>
 
@@ -1559,9 +1561,62 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
         <div class="note" style="margin-top:var(--space-5)"><strong>경계.</strong> 이 레이어는 메인·캐러셀의 행동 표면에 한정한다. 냉장고 목록·카드 스택(§08)·일반 정보 화면은 §02~§09 규율(파스텔 색-블로킹·보더 금지·평소 그림자 금지)을 그대로 따른다.</div>
       </section>
 
-      <!-- 12. Modal · Sheet · Close (§14) -->
-      <section class="section" id="modal">
+      <!-- 12. Dish Icons (§13.7) -->
+      <section class="section" id="dish">
         <span class="section__num num">12</span>
+        <h2 class="text">요리 아이콘 <span class="t-caption" style="color:var(--color-muted)">— MD §13.7</span></h2>
+        <p class="section__lead text">레시피 80종(+커스텀 무한)을 하나씩 그리지 않으려고 세운 축 — <strong>원형(archetype) 15종</strong>. 60pt 섬네일에서 먼저 읽히는 건 색이 아니라 실루엣이라, 원형끼리는 외곽이 전부 다르다.</p>
+
+        <table class="tbl">
+          <thead><tr><th>원형</th><th>모티프</th></tr></thead>
+          <tbody>
+            <tr><td><code class="inline">stewPot</code></td><td>깊은 냄비 — 찌개·탕·조림</td></tr>
+            <tr><td><code class="inline">soupBowl</code></td><td>대접 — 국·수프·죽</td></tr>
+            <tr><td><code class="inline">riceBowl</code></td><td>덮밥 공기</td></tr>
+            <tr><td><code class="inline">noodleBowl</code></td><td>면기</td></tr>
+            <tr><td><code class="inline">pastaPlate</code></td><td>파스타 접시</td></tr>
+            <tr><td><code class="inline">skillet</code></td><td>볶음 팬</td></tr>
+            <tr><td><code class="inline">platedMound</code></td><td>밥 산 접시 — 볶음밥·리조또·매쉬</td></tr>
+            <tr><td><code class="inline">grillPlate</code></td><td>구이 접시 — 구이·스테이크·커틀릿</td></tr>
+            <tr><td><code class="inline">discStack</code></td><td>원판 — 전·팬케이크·크레페·프리타타</td></tr>
+            <tr><td><code class="inline">rollSlices</code></td><td>롤 단면 — 김밥·계란말이</td></tr>
+            <tr><td><code class="inline">sandwichStack</code></td><td>샌드위치 층</td></tr>
+            <tr><td><code class="inline">foldedWrap</code></td><td>반달 또띠아 — 타코·퀘사디아·파히타</td></tr>
+            <tr><td><code class="inline">curryPlate</code></td><td>커리 두 존 — 밥 + 소스</td></tr>
+            <tr><td><code class="inline">sideBowl</code></td><td>낮은 볼 — 샐러드·나물·딥</td></tr>
+            <tr><td><code class="inline">bakeDish</code></td><td>오븐 그릇 — 그라탕·라자냐·베이크</td></tr>
+          </tbody>
+        </table>
+
+        <p class="t-body text" style="color:var(--color-ink-2);margin-top:var(--space-4)"><strong>변주 축</strong>(<code class="inline">DishLook</code>) — <code class="inline">fill</code>(주 내용물) · <code class="inline">accent</code>(원형마다 해석이 다른 보조 면) · <code class="inline">vessel</code>(그릇 재질 6종: <code class="inline">clay</code>·<code class="inline">porcelain</code>·<code class="inline">indigo</code>·<code class="inline">wood</code>·<code class="inline">iron</code>·<code class="inline">glaze</code>) · <code class="inline">mark</code>/<code class="inline">mark2</code>(고명 — 모양 9종: <code class="inline">cube</code>·<code class="inline">ring</code>·<code class="inline">baton</code>·<code class="inline">disc</code>·<code class="inline">dot</code>·<code class="inline">leafy</code>·<code class="inline">yolk</code>·<code class="inline">strip</code>·<code class="inline">wedge</code>) · <code class="inline">layers</code>. 같은 원형이라도 색·고명 변주로 다른 요리로 읽힌다(김치찌개=두부 큐브 vs 순두부찌개=노른자).</p>
+
+        <div class="note" style="margin-top:var(--space-4)"><strong>역할 분담.</strong> <code class="inline">DishSilhouette</code>는 렌더러다 — 재료 글리프와 같은 컷페이퍼 문법(직선 면 5~12각, 몸통 2~3톤 면분할, 아웃라인 없음)으로 그리고, <code class="inline">Canvas</code> 기반이라 크기와 무관하게 항상 같은 그림이다. <code class="inline">DishGlyphCatalog</code>는 정체를 결정한다 — 시드 80종 손 배정 표(<code class="inline">table</code>) + 이름 키워드 추론 + cuisine 기본값 + <code class="inline">stableHash</code> id 변주로, 실행마다 값이 흔들리지 않는다. 팔레트(<code class="inline">DishPalette</code>)는 §11(MD §13.3)과 같은 규율 — OKLCH 정본, hex 금지, 스킴 불변 고정색. <strong><code class="inline">FoodGlyph</code>와의 분업</strong> — 재료 글리프는 재료를, 요리 아이콘은 완성된 요리를 그린다. 다만 김밥처럼 메뉴 자체가 모티프인 요리형 글리프는 <code class="inline">FoodGlyph</code> 쪽에 손으로 그려 두었고(<code class="inline">FoodGlyph.dishKeywords</code> 큐레이션 표), <strong>히어로 체인에서만</strong> 조회된다 — 재료명 매칭(<code class="inline">FoodGlyph.match</code>)에 끼워 넣으면 냉장고에 "김밥"이라 적었을 때 재료 목록에 완성 요리 그림이 뜬다.</div>
+
+        <p class="subhead text">히어로 체인 — <code class="inline">Recipe.heroIcon</code></p>
+        <table class="tbl">
+          <thead><tr><th>순서</th><th>소스</th><th>조건</th></tr></thead>
+          <tbody>
+            <tr><td>①</td><td><code class="inline">curatedLook</code></td><td>시드 매핑 표 적중(정본)</td></tr>
+            <tr><td>②</td><td><code class="inline">Recipe.dishGlyph</code></td><td>요리형 글리프 큐레이션(김밥 등, ③보다 우선)</td></tr>
+            <tr><td>③</td><td><code class="inline">nameMatchedLook</code></td><td>이름이 요리를 지목할 때만(침묵하면 nil)</td></tr>
+            <tr><td>④</td><td><code class="inline">glyph</code></td><td>재료 글리프(최후 폴백)</td></tr>
+          </tbody>
+        </table>
+        <div class="note" style="margin-top:var(--space-3)">정체는 <strong>모델</strong>이 정하고 <strong>뷰</strong>(<code class="inline">RecipeHeroIconView</code>)는 switch 렌더만 한다 — 오더 티켓, 조리 화면, 공유 카드, 내 레시피 목록마다 조건을 다시 쓰면 같은 레시피가 다른 그림이 된다. <strong>②가 ③보다 앞서는 이유</strong> — 추론은 원형만 맞히고 색은 id 해시라, 손으로 그린 김밥이 있는데 커스텀 "김밥"이 짐작에 덮여 아무 색 롤이 된다. <strong>이름만 남은 세션 폴백</strong>(<code class="inline">RecipeHeroIcon.session(name:id:)</code>)은 발주 후 레시피가 삭제된 조리 세션용 — ② 큐레이션이 먼저고, 나머지는 종전 카탈로그 호출과 동일해 기존 동작을 보존한다(빈 아이콘 없음). ④는 세션에 재료가 없어 원천 불가하다. 공유 카드 재렌더 키가 이 아이콘까지 담아, 화면만 폴백으로 갈아타고 공유 이미지가 옛 그림을 든 채 남지 않게 한다.</div>
+
+        <table class="tbl" style="margin-top:var(--space-4)">
+          <thead><tr><th>토큰</th><th>크기</th><th>용도</th></tr></thead>
+          <tbody>
+            <tr><td><code class="inline">ReffiDishIcon.row</code></td><td>36pt</td><td>내 레시피 행</td></tr>
+            <tr><td><code class="inline">ReffiDishIcon.card</code></td><td>56pt</td><td>공유 카드(340pt 폭)</td></tr>
+            <tr><td><code class="inline">ReffiDishIcon.ticket</code></td><td>68pt</td><td>오더·조리 티켓 메뉴명 옆(두 티켓이 같은 자리·같은 크기)</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- 13. Modal · Sheet · Close (§14) -->
+      <section class="section" id="modal">
+        <span class="section__num num">13</span>
         <h2 class="text">모달 · 시트 · 닫기 <span class="t-caption" style="color:var(--color-muted)">— MD §14</span></h2>
         <p class="section__lead text">화면마다 손으로 다시 조립하던 닫기·헤더·저장·detent를 컴포넌트와 규칙으로 수렴한다. §11(종이·글래스·모션)이 행동 표면에 한정되는 것과 달리, 이 절은 표면 종류와 무관하게 <strong>앱 전체</strong>에 적용된다 — 다만 종이 X의 시각 언어는 §11의 어휘를 그대로 쓴다.</p>
 

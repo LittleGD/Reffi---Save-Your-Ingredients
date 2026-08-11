@@ -36,7 +36,8 @@ struct CookingStepsView: View {
     /// 이미지가 옛 그림을 들고 있으면 화면과 공유 이미지가 다른 요리를 보인다.
     /// 항목을 늘릴 땐 `RecipeShareCard`의 입력과 1:1을 유지할 것.
     /// `.task(id:)`는 Equatable만 요구한다 — `RecipeHeroIcon`에 Hashable을 더할 필요가 없다.
-    private struct ShareCardKey: Equatable {
+    /// 테스트가 키 조합을 직접 잠그므로 internal(`DishGlyphTests.CookingShareCardKeyTests`).
+    struct ShareCardKey: Equatable {
         var recipeName: String
         var ingredientNames: [String]
         var minutes: Int?

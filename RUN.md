@@ -47,7 +47,8 @@ xcrun simctl io booted screenshot reffi-home.png
 
 **전용 루트 화면**(`ReffiApp.rootContent` — 아래 인자 하나만 주면 앱 대신 그 화면이 뜬다. 위에서부터 우선)
 - `-glyphGallery` 전 글리프 그리드 · `-titleClipLab` StoryScript 줄 끝 글리프 클리핑 실험실(폰트 advance 패치 회귀 검증)
-- `-shareCardPreview` 공유용 레시피 영수증 카드(`RecipeShareCard`) 미리보기 · `-myRecipesPreview` 커스텀 레시피 목록/편집
+- `-dishGallery` 시드 레시피 전체를 요리 아이콘 그리드로(§13.7 히어로 체인 검증). `-dishGallery.archetype YES`면 라벨이 요리명 대신 **원형 이름**(클러스터 분포 확인용). 스크롤 화면이라 스크린샷은 첫 판만 담는다 — 80개 전수 대조는 오프스크린 콘택트 시트(`ReffiTests/DishContactSheetTests`)가 맡는다
+- `-shareCardPreview` 공유용 레시피 영수증 카드(`RecipeShareCard`) 미리보기 · `-myRecipesPreview` 커스텀 레시피 목록/편집 — 목록이 비어 있으면 시드 앞 5개를 커스텀으로 복제해 채운다(새 UUID라 요리 아이콘이 **폴백 경로**를 탄다 = 실제 커스텀 레시피와 같은 조건)
 - `-glyphMetrics` 글리프 알파 bbox 실측(물리 바디 파라미터 재계측) · `-buttonGallery` 버튼 갤러리 · `-authView` 로그인 화면
 
 **게이트 · 인증**
