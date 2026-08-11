@@ -81,15 +81,29 @@ struct OrderMemoCard: View {
                 verdictKicker
                     .reffiType(.pillLabel).foregroundStyle(verdictColor)
 
-                // 메뉴명 + 시간
-                Text(verbatim: r.displayName)
-                    .reffiType(.menuName).foregroundStyle(ReffiColor.ink)
-                    .lineLimit(2).minimumScaleFactor(0.8).fixedSize(horizontal: false, vertical: true)
-                HStack(spacing: 4) {
-                    ReffiIcon.time.reffi(13).foregroundStyle(ReffiColor.ink2)
-                    Text("\(r.minutes) min · \(result.used.count) to use")
-                        .reffiType(.metaText)
-                        .foregroundStyle(ReffiColor.ink2)
+                // 메뉴명 + 시간 + 요리 아이콘. 아이콘은 **오른쪽 여백에 얹힌 그림**이고 글이 주인공이다 —
+                // 이름 위에 한 줄로 올리면 티켓 상단이 그림에 밀려 "주문서"가 아니라 메뉴판이 된다.
+                // 배경 타일 없이 종이 위에 그대로 둔다(§13.3 — 일러스트는 색면 박스에 담지 않는다).
+                HStack(alignment: .top, spacing: ReffiSpace.s3) {
+                    VStack(alignment: .leading, spacing: ReffiSpace.s3) {
+                        Text(verbatim: r.displayName)
+                            .reffiType(.menuName).foregroundStyle(ReffiColor.ink)
+                            .lineLimit(2).minimumScaleFactor(0.8).fixedSize(horizontal: false, vertical: true)
+                        HStack(spacing: 4) {
+                            ReffiIcon.time.reffi(13).foregroundStyle(ReffiColor.ink2)
+                            Text("\(r.minutes) min · \(result.used.count) to use")
+                                .reffiType(.metaText)
+                                .foregroundStyle(ReffiColor.ink2)
+                        }
+                    }
+                    Spacer(minLength: ReffiSpace.s2)
+                    // 조리 화면·공유 카드·내 레시피와 **같은** `heroIcon`을 쓴다 — 표면마다 다른 그림이면
+                    // 발주 전후로 다른 요리로 바뀐 것처럼 읽힌다.
+                    // 크기도 조리 티켓과 같은 68pt(`ReffiDishIcon.ticket`)로 고정한다 — 카드 아래쪽이
+                    // 비어 보인다고 여기만 키우면 발주 전후로 아이콘이 점프하고, 그림이 메뉴명과
+                    // 시간 줄을 합친 높이를 넘어서면 글이 주인공인 티켓이 메뉴판으로 넘어간다.
+                    RecipeHeroIconView(icon: r.heroIcon)
+                        .frame(width: ReffiDishIcon.ticket, height: ReffiDishIcon.ticket)
                 }
 
                 DashedRule()

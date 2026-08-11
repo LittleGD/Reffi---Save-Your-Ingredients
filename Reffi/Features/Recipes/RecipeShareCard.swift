@@ -16,6 +16,10 @@ struct RecipeShareCard: View {
     let minutes: Int?
     /// 소비 확정 예정 재료 수. 0이면 헤더의 "N used"도 생략한다(빈 수치를 인쇄하지 않는다).
     let count: Int
+    /// 대표 아이콘 — 이 카드는 표시 전용(데이터는 전부 파라미터)이라 레시피→아이콘 체인은 호출부가 푼다.
+    /// 정체(요리 그림/재료 글리프)까지 `RecipeHeroIcon`으로 받는다 — 여기서 카탈로그를 다시 부르면
+    /// 커스텀 "김밥"이 공유 카드에서만 티켓과 다른 그림이 된다.
+    let icon: RecipeHeroIcon
 
     private static let cardWidth: CGFloat = 340
     private static let namePreview = 5
@@ -42,9 +46,16 @@ struct RecipeShareCard: View {
                 }
             }
 
-            Text(verbatim: recipeName)
-                .reffiType(.menuName).foregroundStyle(ReffiColor.ink)
-                .fixedSize(horizontal: false, vertical: true)
+            // 메뉴명 + 요리 아이콘 — 조리 티켓과 같은 배치(글 왼쪽·그림 오른쪽). 카드가 340pt로 좁아
+            // 아이콘만 한 단계 작게 잡아 같은 시각 비중을 유지한다(`ReffiDishIcon.card`).
+            HStack(alignment: .top, spacing: ReffiSpace.s3) {
+                Text(verbatim: recipeName)
+                    .reffiType(.menuName).foregroundStyle(ReffiColor.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: ReffiSpace.s2)
+                RecipeHeroIconView(icon: icon)
+                    .frame(width: ReffiDishIcon.card, height: ReffiDishIcon.card)
+            }
 
             if let minutes {
                 Text("\(minutes) min")

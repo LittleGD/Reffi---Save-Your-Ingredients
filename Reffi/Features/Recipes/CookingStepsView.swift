@@ -32,19 +32,35 @@ struct CookingStepsView: View {
     /// 공유 카드 재렌더 키 — **카드에 인쇄되는 값 전부**를 담는다. 재료 이름은 세션 스냅샷이 아니라
     /// 라이브 재고에서 파생되므로(`reservedIngredients`), 조리 중에 예약 재료를 버리거나 지우면
     /// 화면은 갱신되는데 이미지만 옛 이름을 그대로 들고 있게 된다. 키를 이름 목록까지 넓혀 막는다.
+    /// `icon`도 같은 이유다 — 조리 중 원본 레시피가 삭제되면 화면 아이콘은 세션 폴백으로 갈아타는데
+    /// 이미지가 옛 그림을 들고 있으면 화면과 공유 이미지가 다른 요리를 보인다.
     /// 항목을 늘릴 땐 `RecipeShareCard`의 입력과 1:1을 유지할 것.
-    private struct ShareCardKey: Hashable {
+    /// `.task(id:)`는 Equatable만 요구한다 — `RecipeHeroIcon`에 Hashable을 더할 필요가 없다.
+    private struct ShareCardKey: Equatable {
         var recipeName: String
         var ingredientNames: [String]
         var minutes: Int?
         var count: Int
+        var icon: RecipeHeroIcon
     }
 
     private func shareCardKey(for cook: FridgeStore.CookSession) -> ShareCardKey {
         ShareCardKey(recipeName: cook.recipeName,
                      ingredientNames: reservedIngredients.map(\.name),
                      minutes: cook.minutes,
-                     count: cook.count)
+                     count: cook.count,
+                     icon: heroIcon(for: cook))
+    }
+
+    /// 세션의 히어로 아이콘 — 발주 때 남긴 레시피 id로 **원본 레시피를 되찾아** 오더 티켓과 같은
+    /// `heroIcon` 체인을 탄다. 카탈로그를 직접 부르면 커스텀 "김밥"이 티켓에선 손으로 그린 김밥,
+    /// 여기선 아무 색 롤로 갈린다.
+    /// 레시피가 지워졌거나 id가 없는 구버전 세션이면 이름만으로 폴백한다(빈 아이콘은 나오지 않는다).
+    private func heroIcon(for cook: FridgeStore.CookSession) -> RecipeHeroIcon {
+        if let id = cook.recipeID, let recipe = store.recipes.first(where: { $0.id == id }) {
+            return recipe.heroIcon
+        }
+        return .session(name: cook.recipeName, id: cook.recipeID)
     }
 
     var body: some View {
@@ -60,7 +76,7 @@ struct CookingStepsView: View {
                 // 공유 카드에 인쇄되는 값(메뉴명·예약 재료 이름·시간·개수)이 바뀔 때만 다시 렌더한다.
                 // 새 세션은 물론, 조리 중 예약 재료가 사라지는 경우까지 이 키가 덮는다.
                 .task(id: shareCardKey(for: cook)) {
-                    shareImage = renderShareImage(for: cook)
+                    shareImage = renderShareImage(for: cook, icon: heroIcon(for: cook))
                 }
             }
             topBar
@@ -182,9 +198,16 @@ struct CookingStepsView: View {
                 }
             }
 
-            Text(verbatim: cook.recipeName)
-                .reffiType(.menuName).foregroundStyle(ReffiColor.ink)
-                .fixedSize(horizontal: false, vertical: true)
+            // 메뉴명 + 요리 아이콘 — 오더 티켓(`OrderMemoCard`)과 **같은 자리·같은 크기**로 둔다.
+            // 발주 전후로 아이콘이 움직이면 같은 티켓이 조리 티켓이 됐다는 연결이 끊긴다.
+            HStack(alignment: .top, spacing: ReffiSpace.s3) {
+                Text(verbatim: cook.recipeName)
+                    .reffiType(.menuName).foregroundStyle(ReffiColor.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: ReffiSpace.s2)
+                RecipeHeroIconView(icon: heroIcon(for: cook))
+                    .frame(width: ReffiDishIcon.ticket, height: ReffiDishIcon.ticket)
+            }
 
             DashedRule()
 
@@ -288,13 +311,14 @@ struct CookingStepsView: View {
     /// 공유 카드 이미지 렌더 — `RecipeShareCard`를 레티나 스케일로 오프스크린 래스터라이즈한다. 실패하면 nil.
     /// 재료 이름은 예약 재료(=지금 냉장고에 있는 그 재료)에서 읽는다 — 세션 스냅샷에 이름을 또 박지 않는다.
     @MainActor
-    private func renderShareImage(for cook: FridgeStore.CookSession) -> Image? {
+    private func renderShareImage(for cook: FridgeStore.CookSession, icon: RecipeHeroIcon) -> Image? {
         // 공유 이미지는 물리 산출물(인쇄된 영수증)이라 기기 다크모드와 무관하게 항상 라이트 종이로 렌더한다.
         // ImageRenderer는 환경을 명시하지 않으면 항상 라이트로 해석하지만, 명시적으로 고정해 의도를 문서화한다.
         let card = RecipeShareCard(recipeName: cook.recipeName,
                                    ingredientNames: reservedIngredients.map(\.name),
                                    minutes: cook.minutes,
-                                   count: cook.count)
+                                   count: cook.count,
+                                   icon: icon)
             .environment(\.colorScheme, .light)
         let renderer = ImageRenderer(content: card)
         renderer.scale = 3   // 레티나

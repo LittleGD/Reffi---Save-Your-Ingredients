@@ -12,7 +12,9 @@ struct ShareCardPreviewView: View {
                 // 시드 재료 표기를 그대로(레시피 콘텐츠는 코드에 리터럴로 두지 않는다 — 시드가 없으면 빈 목록).
                 ingredientNames: recipe?.ingredients.map(\.displayName) ?? [],
                 minutes: recipe?.minutes,
-                count: recipe?.ingredients.count ?? 0
+                count: recipe?.ingredients.count ?? 0,
+                // 시드가 없으면 세션 폴백이 같은 표 키(bibimbap)를 타므로 같은 그림이 나온다.
+                icon: recipe?.heroIcon ?? RecipeHeroIcon.session(name: "Bibimbap", id: "bibimbap")
             )
             // 실제 공유 경로(CookingStepsView.renderShareImage)와 같은 라이트 고정 렌더를 검증용에서도 재현.
             .environment(\.colorScheme, .light)
