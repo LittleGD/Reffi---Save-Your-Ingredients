@@ -193,6 +193,11 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     /// (didMove가 다시 등록). deinit은 안전망.
     override func willMove(from view: SKView) {
         stopMotionUpdates()
+        // 달그락 엔진도 여기서 내린다 — `syncClatterEngine`의 조건은 `view != nil`인데 willMove
+        // 시점엔 아직 view가 붙어 있어, 이 줄이 없으면 씬이 화면을 떠난 뒤에도 CHHapticEngine이
+        // 살아 있다(다음 didMove의 syncMotionUpdates가 다시 켠다).
+        clatter.stop()
+        clatterThrottle.reset()
         if let o = foregroundObserver {
             NotificationCenter.default.removeObserver(o)
             foregroundObserver = nil

@@ -45,7 +45,9 @@ struct DishContactSheetTests {
 
     @Test func renderAllDishesContactSheet() throws {
         let recipes = seedRecipesForTests()
-        #expect(recipes.count == 80)
+        // 개수는 하한만 본다 — `DishGlyphCatalogTests.everySeedRecipeIsExplicitlyMapped`와 같은 이유로,
+        // 정확한 수를 단언하면 시드에 레시피를 한 줄 더하는 것만으로 CI가 빨개진다(변경 억제 장치).
+        #expect(!recipes.isEmpty, "시드가 로드되지 않았다 — 콘택트 시트를 그릴 수 없다")
         let sheet = DishContactSheet(recipes: recipes)
         try write(sheet, size: DishContactSheet.size(for: recipes.count), to: "dish-contact-sheet.png")
     }
