@@ -82,9 +82,14 @@
   --receipt:           oklch(98.5% 0.004 90);         /* "흰 영수증" 면(§2.7 신규) */
 
   /* ---- Wilt (§13.3) — 신선도별 일러스트 채도·명도·자세 배수. 스킴 불변(라이트/다크 동일 값) ---- */
-  --wilt-fresh-saturation:  1.00; --wilt-fresh-brightness:  1.00; --wilt-fresh-squash:  1.00; --wilt-fresh-lean:  0deg;
-  --wilt-soon-saturation:   0.85; --wilt-soon-brightness:   0.97; --wilt-soon-squash:   0.97; --wilt-soon-lean:   2deg;
-  --wilt-urgent-saturation: 0.68; --wilt-urgent-brightness: 0.93; --wilt-urgent-squash: 0.93; --wilt-urgent-lean: 4deg;
+  /* 강도 축 — 신선도 3단계. weight는 재질 축 값을 항등에서 보간하는 가중치(배율이 아니다). */
+  --wilt-fresh-saturation:  1.00; --wilt-fresh-brightness:  1.00; --wilt-fresh-weight:  0;
+  --wilt-soon-saturation:   0.85; --wilt-soon-brightness:   0.97; --wilt-soon-weight:   0.5;
+  --wilt-urgent-saturation: 0.68; --wilt-urgent-brightness: 0.93; --wilt-urgent-weight: 1;
+  /* 재질 축 — 글리프별 강성(w=1일 때 최대치). rigidContainer는 기하 불변이라 토큰이 없다. */
+  --wilt-leafy-tilt: -7.0deg; --wilt-leafy-squash: 0.935; --wilt-leafy-spread: 1.030; --wilt-leafy-rounding: 0.17;
+  --wilt-soft-tilt:  -4.5deg; --wilt-soft-squash:  0.955; --wilt-soft-spread:  1.022; --wilt-soft-rounding:  0.15;
+  --wilt-firm-tilt:  -4.5deg; --wilt-firm-squash:  0.965; --wilt-firm-spread:  1.000; --wilt-firm-rounding:  0.09;
 
   /* ---- Dark-only surfaces (§2.8), 라이트 스킴 기본값 — 다크 오버라이드에서 값이 뒤집힌다 ---- */
   --shadow-tint: oklch(25% 0.012 80);  /* 그림자 전용 — 다크에서 순검정으로 뒤집혀야 ink 위 밝은 글로우를 피한다 */
@@ -651,8 +656,8 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
 .glass-nav span { width: 22px; height: 22px; border-radius: 7px; background: oklch(25% 0.012 80 / 0.55); }
 .glass-nav span:first-child { background: var(--color-blue); }
 
-/* 각진 면분할 컷페이퍼 실루엣 — 일러스트는 자연색(FoodGlyph 52종) 베이스, 신선도색으로 갈아끼우지
-   않는다(hue 고정, §13.3). 대신 신선도에 따라 아래 .wilt-* 배수로 채도·명도·자세가 시든다. */
+/* 각진 면분할 컷페이퍼 실루엣 — 일러스트는 자연색(FoodGlyph 53종) 베이스, 신선도색으로 갈아끼우지
+   않는다(hue 고정, §13.3). 대신 신선도에 따라 아래 .wilt-* 배수로 채도·명도·형태가 시든다. */
 .silo-row { display: flex; gap: var(--space-3); align-items: center; }
 .silo { width: 54px; height: 54px; filter: drop-shadow(0 2px 3px rgba(0,0,0,.14));
   clip-path: polygon(50% 2%, 88% 22%, 98% 62%, 74% 96%, 28% 96%, 4% 60%, 14% 22%); }
@@ -660,17 +665,30 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
 .silo.f-soon   { background: oklch(70% 0.16 56); border-radius: 58% 42% 50% 50% / 60% 46% 54% 40%; }   /* 당근 */
 .silo.f-fresh  { background: oklch(55% 0.13 148); border-radius: 50% 50% 44% 56% / 42% 58% 42% 58%; }   /* 잎채소 */
 
-/* 시듦(Wilt, §13.3) — 팔레트는 그대로, 채도·명도·밑변 고정 스쿼시·기울임만 신선도에 따라 얹는다.
-   토큰은 :root --wilt-*(§12) 그대로 옮긴 값. skewX 방향은 쇼케이스용 근사(실제는 밑변 고정 전단). */
-.wilt-demo { display: flex; gap: var(--space-6); align-items: flex-end; }
+/* 시듦(Wilt, §13.3) — 팔레트는 그대로, 두 축(강도 × 재질)만 얹는다. 토큰은 :root --wilt-*(§12)
+   그대로 옮긴 값이고, 중간 단계는 **항등에서 보간**한다(1 + (v-1)*w). 회전 앵커는 밑변 가운데.
+   꼭짓점 라운딩은 앱에선 다각형 패스를 깎는 연산(clip-path 실루엣으로는 재현되지 않는다)이라
+   여기선 토큰 값을 라벨로 병기한다. */
+.wilt-demo { display: flex; gap: var(--space-6); align-items: flex-end; flex-wrap: wrap; }
 .wilt-item { display: flex; flex-direction: column; align-items: center; gap: var(--space-2); }
 .wilt-item .silo { transform-origin: bottom center; }
-.wilt-item.is-fresh .silo  { filter: drop-shadow(0 2px 3px rgba(0,0,0,.14)) saturate(var(--wilt-fresh-saturation)) brightness(var(--wilt-fresh-brightness));
-  transform: scaleY(var(--wilt-fresh-squash)) skewX(calc(-1 * var(--wilt-fresh-lean))); }
-.wilt-item.is-soon .silo   { filter: drop-shadow(0 2px 3px rgba(0,0,0,.14)) saturate(var(--wilt-soon-saturation)) brightness(var(--wilt-soon-brightness));
-  transform: scaleY(var(--wilt-soon-squash)) skewX(calc(-1 * var(--wilt-soon-lean))); }
-.wilt-item.is-urgent .silo { filter: drop-shadow(0 2px 3px rgba(0,0,0,.14)) saturate(var(--wilt-urgent-saturation)) brightness(var(--wilt-urgent-brightness));
-  transform: scaleY(var(--wilt-urgent-squash)) skewX(calc(-1 * var(--wilt-urgent-lean))); }
+/* 강도 축 — 잎채소(leafy) 재질로 3단계를 보여준다. */
+.wilt-item.is-fresh .silo  { --w: var(--wilt-fresh-weight);
+  filter: drop-shadow(0 2px 3px rgba(0,0,0,.14)) saturate(var(--wilt-fresh-saturation)) brightness(var(--wilt-fresh-brightness)); }
+.wilt-item.is-soon .silo   { --w: var(--wilt-soon-weight);
+  filter: drop-shadow(0 2px 3px rgba(0,0,0,.14)) saturate(var(--wilt-soon-saturation)) brightness(var(--wilt-soon-brightness)); }
+.wilt-item.is-urgent .silo { --w: var(--wilt-urgent-weight);
+  filter: drop-shadow(0 2px 3px rgba(0,0,0,.14)) saturate(var(--wilt-urgent-saturation)) brightness(var(--wilt-urgent-brightness)); }
+/* 재질 축 — 기본은 leafy, .m-firm/.m-rigid로 갈아 끼운다. rigidContainer는 형태 변환 자체가 없다. */
+.wilt-item .silo { --tilt: var(--wilt-leafy-tilt); --squash: var(--wilt-leafy-squash);
+  --spread: var(--wilt-leafy-spread); --round: var(--wilt-leafy-rounding);
+  transform: rotate(calc(var(--tilt) * var(--w)))
+             scaleX(calc(1 + (var(--spread) - 1) * var(--w)))
+             scaleY(calc(1 + (var(--squash) - 1) * var(--w))); }
+.wilt-item.m-firm .silo  { --tilt: var(--wilt-firm-tilt); --squash: var(--wilt-firm-squash);
+  --spread: var(--wilt-firm-spread); --round: var(--wilt-firm-rounding); }
+.wilt-item.m-rigid .silo { transform: none; }   /* 용기류 — 색 감쇠만, 기하 불변 */
+.wilt-item .lbl3 { font-size: 11px; color: var(--color-ink-2); opacity: .75; font-variant-numeric: tabular-nums; }
 .wilt-item .lbl2 { font-size: 12px; font-weight: 500; color: var(--color-ink-2); }
 
 /* 통통 낙하 데모 */
@@ -980,7 +998,7 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
         <div class="note" style="margin-top:var(--space-4)"><strong>파스텔 면 위 글자는 ink, Blue 면 위는 white.</strong> 파스텔은 크림 캔버스와 명도차(1.4~2.2:1)가 작아 면 경계는 색이 아니라 카드 스택 그림자·여백으로 만든다. 불투명도로 글자색을 만들지 않는다(neutral-700 솔리드).</div>
 
         <p class="subhead text" id="dark">2.8 다크 모드 — "밤의 주방 패스"</p>
-        <p class="t-body text" style="color:var(--color-ink-2);margin-bottom:var(--space-4)">라이트를 반전한 흑백이 아니라, 조명 낮은 주방에서 보이는 <strong>웜 차콜</strong>(hue 78~90 유지)이다. <strong>순검정은 쓰지 않는다</strong> — 예외는 그림자(<code class="inline">shadowTint</code>)와 모달 딤(<code class="inline">scrim</code>)뿐, 둘 다 "빛이 없는" 레이어라 온기가 필요 없다. 시맨틱 토큰만 적응하고 <strong>일러스트(FoodGlyph) 팔레트는 스킴 불변 고정색</strong>이다(§13.3) — 재료 식별이 스킴에 흔들리면 안 된다. 신선도에 따른 시듦(Wilt)도 같은 원칙 — 채도·명도 배수는 스킴과 무관한 순수 상수라 라이트·다크에서 동일하게 적용된다. 공유 카드(<code class="inline">RecipeShareCard</code>)는 항상 라이트로 굽는다. 그림자는 항상 <code class="inline">shadowTint</code>(<code class="inline">ink</code> 금지 — 다크에서 크림으로 뒤집혀 밝은 글로우가 된다). <code class="inline">paperEdge</code> 헤어라인의 다크 반전은 "종이 두께" 표현으로 의도적으로 둔다.</p>
+        <p class="t-body text" style="color:var(--color-ink-2);margin-bottom:var(--space-4)">라이트를 반전한 흑백이 아니라, 조명 낮은 주방에서 보이는 <strong>웜 차콜</strong>(hue 78~90 유지)이다. <strong>순검정은 쓰지 않는다</strong> — 예외는 그림자(<code class="inline">shadowTint</code>)와 모달 딤(<code class="inline">scrim</code>)뿐, 둘 다 "빛이 없는" 레이어라 온기가 필요 없다. 시맨틱 토큰만 적응하고 <strong>일러스트(FoodGlyph) 팔레트는 스킴 불변 고정색</strong>이다(§13.3) — 재료 식별이 스킴에 흔들리면 안 된다. 신선도에 따른 시듦(Wilt)도 같은 원칙 — 채도·명도 배수와 재질별 형태 값은 스킴과 무관한 순수 상수라 라이트·다크에서 동일하게 적용된다. 공유 카드(<code class="inline">RecipeShareCard</code>)는 항상 라이트로 굽는다. 그림자는 항상 <code class="inline">shadowTint</code>(<code class="inline">ink</code> 금지 — 다크에서 크림으로 뒤집혀 밝은 글로우가 된다). <code class="inline">paperEdge</code> 헤어라인의 다크 반전은 "종이 두께" 표현으로 의도적으로 둔다.</p>
 
         <p class="t-caption text" style="color:var(--color-ink-2);margin-bottom:var(--space-3)">신규 토큰 5종 — 우측 상단 토글로 전환해 보면 스와치가 실시간으로 바뀐다(라이브 CSS 변수). <code class="inline">toastAction</code>만 고정색(비적응)이다.</p>
         <div class="swatch-row">
@@ -1481,16 +1499,22 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
 
           <div class="demo-pane">
             <p class="subhead text">일러스트 · 물리 낙하</p>
-            <p class="lbl">재료는 <strong>각진 면분할(faceted) 컷페이퍼</strong> 일러스트(곡선 대신 5~9각 직선 면 + 몸통 2~3톤 면분할 + 오프컬러 액센트[양파 뿌리 보라], `FoodGlyph` <strong>52종</strong> — 채소·과일·고기·생선·유제품·<strong>곡류·저장식품</strong>)로, <strong>진짜 물리 엔진</strong>으로 <strong>묵직하게</strong> 떨어져 쌓이고 그대로 남는다(끌어서 던지기, 던지면 릴리스 속도 기반으로 회전도 한다). <strong>기기를 기울이면 중력도 함께 기운다</strong>(자이로, `GravityMapper`) — 방향은 기기 중력 벡터를 그대로 따르고 크기는 42×[0.35, 1.0]로 클램프, 손떨림은 데드밴드(2°/5%)로 걸러내고 잠든 더미는 6° 넘게 기울여야 다시 깨운다. 깨우는 것만으로는 부족해 <strong>감쇠 유예(≈1.5s, 90프레임)</strong>를 함께 둔다 — 잔여 운동 감쇠(프레임당 ×0.8)가 그대로 돌면 기울임이 만든 느린 가속이 종단 ~2pt/s에 갇혀 더미가 사실상 꿈쩍하지 않는다. 시뮬레이터·Reduce Motion에선 상수 중력 (0,-42)로 폴백. <strong>흔들면 달그락거린다</strong> — 중력은 저역 신호라 흔들기를 못 싣기 때문에 <code>userAcceleration</code>을 따로 받아 임펄스 킥으로 바꾼다(0.35G 미만 무시 · 킥 간격 90ms · 킥당 최대 210pt/s = 터널링 상한). 칩마다 각도 ±0.65rad·세기 0.65~1.35배로 흩뿌려야 서로 부딪힌다(전부 같은 벡터면 더미가 평행이동만 하고 충돌이 0이다), 흩는 값은 UUID 기반 결정적 해시라 실행마다 같다. 중력을 아무 방향으로나 돌릴 수 있으므로 <strong>필드 컨테인먼트</strong>가 따라붙는다 — 좌·우 벽은 <code>chipSide × 0.09</code>만큼 안쪽에 세우고(충돌체가 알파 bbox의 90%라 그림이 화면 밖으로 삐져나가는 걸 막는다), 천장은 2단이다: 낙하 중엔 화면 위 +700pt(스폰 천장), 다 내려오면 화면 위끝(밀폐 천장)으로 닫힌다. 천장이 6초 넘게 열려 있으면 위쪽에 갇힌 칩을 끌어내려 회수해 "화면 밖으로 나가서 안 돌아옴"을 구조적으로 막는다(타임아웃은 실측 후 재조정 예정). 착지 임팩트가 크면 통통 스쿼시(질량으로 나눈 Δv 30 이상, 상한 260)가 들어가고, <strong>부딪히면 달그락 햅틱</strong>이 따로 울린다 — 이쪽은 질량으로 나누지 않은 <strong>생 임펄스</strong>로 재는 CoreHaptics transient이고, 세 관문(임펄스 6 · 전역 45ms=22Hz · 같은 쌍 140ms)을 통과한 충돌만 발화해 정지한 더미가 웅웅대지 않는다. 세기는 임펄스 6→90 구간에서 0.18→1.0으로 포화하고, <strong>날카로움은 재료 물성</strong>이 정한다(두부 0.10의 뭉툭한 '퍽' ~ 캔·병 0.95의 쨍한 '클링'). §7.6의 의미별 햅틱 매핑은 그대로 두고 그 옆에 <strong>물리 질감 계열</strong>을 새로 놓은 것이며, Reduce Motion에서도 햅틱은 살아 있다(시각 배려지 촉각 배려가 아니다). 물성은 <strong>6종 클래스</strong>(standard·light·rolling·heavy·container·soft)로 묶되 <strong>마찰(0.30~0.82)·각감쇠(0.78~0.98)·반발(0.12±0.02)과 햅틱 날카로움만</strong> 차등한다 — 중력 42와 linearDamping 0.2는 전 클래스 공통으로 유지해 "쿵" 감각을 지킨다(클래스별 종단속도를 주면 수중감이 되어 정반대가 된다). 질량은 글리프 크기에서 유도한다(클래스의 mass 값은 햅틱 대표자 선정용 랭킹 키일 뿐 바디 질량이 아니다). 충돌체는 각 글리프 <strong>실측 알파 bbox 기반 볼록 폴리곤</strong>(bbox의 ~90% + 시각 중심 정렬)이라 겹침·지터 없이 안착한다. 일러스트는 자연색(hue 고정)이 베이스이고, 위 <strong>시듦(Wilt)</strong> 데모처럼 신선도가 채도·명도·자세를 감쇠시킨다 — 그래도 확정 신호는 <strong>뱃지</strong>가 맡는다(§2.5 행동표면 예외) — 씬 위에 이름 라벨을 얹지 않는다. 카테고리 라벨은 기존 8종에 <strong>Grain(곡류)·Pantry(저장식품)</strong>를 더한 10종이며, v2 신규 17종(가지·고구마·생강·김·포도·수박·파인애플·망고·소시지·베이컨·게·오징어·조개·요거트·버터·꿀·만두)은 전부 이 기존 라벨로 편입한다(신규 라벨 없음). 칩을 드래그하면 <strong>판정 바스켓(마그네틱)</strong> — 좌상 휴지통(Tossed)·우상 냄비(Ate) 종이 블롭이 나타나고, 반경 ≈88pt에 들면 재료가 자석처럼 끌려 들어가(1.14× 확대) 놓는 즉시 확정된다(되돌리기 토스트가 안전망). 배경은 리퀴드글래스.</p>
+            <p class="lbl">재료는 <strong>각진 면분할(faceted) 컷페이퍼</strong> 일러스트(곡선 대신 5~9각 직선 면 + 몸통 2~3톤 면분할 + 오프컬러 액센트[양파 뿌리 보라], `FoodGlyph` <strong>53종</strong> — 채소·과일·고기·생선·유제품·<strong>곡류·저장식품</strong> + 요리형 김밥)로, <strong>진짜 물리 엔진</strong>으로 <strong>묵직하게</strong> 떨어져 쌓이고 그대로 남는다(끌어서 던지기, 던지면 릴리스 속도 기반으로 회전도 한다). <strong>기기를 기울이면 중력도 함께 기운다</strong>(자이로, `GravityMapper`) — 방향은 기기 중력 벡터를 그대로 따르고 크기는 42×[0.35, 1.0]로 클램프, 손떨림은 데드밴드(2°/5%)로 걸러내고 잠든 더미는 6° 넘게 기울여야 다시 깨운다. 깨우는 것만으로는 부족해 <strong>감쇠 유예(≈1.5s, 90프레임)</strong>를 함께 둔다 — 잔여 운동 감쇠(프레임당 ×0.8)가 그대로 돌면 기울임이 만든 느린 가속이 종단 ~2pt/s에 갇혀 더미가 사실상 꿈쩍하지 않는다. 시뮬레이터·Reduce Motion에선 상수 중력 (0,-42)로 폴백. <strong>흔들면 달그락거린다</strong> — 중력은 저역 신호라 흔들기를 못 싣기 때문에 <code>userAcceleration</code>을 따로 받아 임펄스 킥으로 바꾼다(0.35G 미만 무시 · 킥 간격 90ms · 킥당 최대 210pt/s = 터널링 상한). 칩마다 각도 ±0.65rad·세기 0.65~1.35배로 흩뿌려야 서로 부딪힌다(전부 같은 벡터면 더미가 평행이동만 하고 충돌이 0이다), 흩는 값은 UUID 기반 결정적 해시라 실행마다 같다. 중력을 아무 방향으로나 돌릴 수 있으므로 <strong>필드 컨테인먼트</strong>가 따라붙는다 — 좌·우 벽은 <code>chipSide × 0.09</code>만큼 안쪽에 세우고(충돌체가 알파 bbox의 90%라 그림이 화면 밖으로 삐져나가는 걸 막는다), 천장은 2단이다: 낙하 중엔 화면 위 +700pt(스폰 천장), 다 내려오면 화면 위끝(밀폐 천장)으로 닫힌다. 천장이 6초 넘게 열려 있으면 위쪽에 갇힌 칩을 끌어내려 회수해 "화면 밖으로 나가서 안 돌아옴"을 구조적으로 막는다(타임아웃은 실측 후 재조정 예정). 착지 임팩트가 크면 통통 스쿼시(질량으로 나눈 Δv 30 이상, 상한 260)가 들어가고, <strong>부딪히면 달그락 햅틱</strong>이 따로 울린다 — 이쪽은 질량으로 나누지 않은 <strong>생 임펄스</strong>로 재는 CoreHaptics transient이고, 세 관문(임펄스 6 · 전역 45ms=22Hz · 같은 쌍 140ms)을 통과한 충돌만 발화해 정지한 더미가 웅웅대지 않는다. 세기는 임펄스 6→90 구간에서 0.18→1.0으로 포화하고, <strong>날카로움은 재료 물성</strong>이 정한다(두부 0.10의 뭉툭한 '퍽' ~ 캔·병 0.95의 쨍한 '클링'). §7.6의 의미별 햅틱 매핑은 그대로 두고 그 옆에 <strong>물리 질감 계열</strong>을 새로 놓은 것이며, Reduce Motion에서도 햅틱은 살아 있다(시각 배려지 촉각 배려가 아니다). 물성은 <strong>6종 클래스</strong>(standard·light·rolling·heavy·container·soft)로 묶되 <strong>마찰(0.30~0.82)·각감쇠(0.78~0.98)·반발(0.12±0.02)과 햅틱 날카로움만</strong> 차등한다 — 중력 42와 linearDamping 0.2는 전 클래스 공통으로 유지해 "쿵" 감각을 지킨다(클래스별 종단속도를 주면 수중감이 되어 정반대가 된다). 질량은 글리프 크기에서 유도한다(클래스의 mass 값은 햅틱 대표자 선정용 랭킹 키일 뿐 바디 질량이 아니다). 충돌체는 각 글리프 <strong>실측 알파 bbox 기반 볼록 폴리곤</strong>(bbox의 ~90% + 시각 중심 정렬)이라 겹침·지터 없이 안착한다. 일러스트는 자연색(hue 고정)이 베이스이고, 위 <strong>시듦(Wilt)</strong> 데모처럼 신선도가 채도·명도를 감쇠시키고 재질별로 형태를 무너뜨린다(용기류는 기하 불변) — 그래도 확정 신호는 <strong>뱃지</strong>가 맡는다(§2.5 행동표면 예외) — 씬 위에 이름 라벨을 얹지 않는다. 카테고리 라벨은 기존 8종에 <strong>Grain(곡류)·Pantry(저장식품)</strong>를 더한 10종이며, v2 신규 17종(가지·고구마·생강·김·포도·수박·파인애플·망고·소시지·베이컨·게·오징어·조개·요거트·버터·꿀·만두)은 전부 이 기존 라벨로 편입한다(신규 라벨 없음). 칩을 드래그하면 <strong>판정 바스켓(마그네틱)</strong> — 좌상 휴지통(Tossed)·우상 냄비(Ate) 종이 블롭이 나타나고, 반경 ≈88pt에 들면 재료가 자석처럼 끌려 들어가(1.14× 확대) 놓는 즉시 확정된다(되돌리기 토스트가 안전망). 배경은 리퀴드글래스.</p>
             <div class="silo-row">
               <span class="silo f-urgent"></span><span class="silo f-soon"></span><span class="silo f-fresh"></span>
             </div>
             <div class="bounce-stage"><span class="silo f-urgent"></span><span class="silo f-soon"></span><span class="silo f-fresh"></span></div>
-            <p class="lbl" style="margin-top:var(--space-4)">시듦(Wilt) — 같은 실루엣, 신선도만 다르다. 채도·명도가 낮아지고 밑변이 고정된 채 주저앉으며 기운다(§13.3, 항등인 fresh는 렌더 비용 0).</p>
+            <p class="lbl" style="margin-top:var(--space-4)"><strong>시듦(Wilt) ① 강도 축</strong> — 같은 실루엣, 신선도만 다르다. 채도·명도가 낮아지고 밑변 가운데를 축으로 숙으며 각이 무뎌진다. D-3에서 예산을 다 쓰지 않고 D-0까지 계속 시든다(형태 가중치 w = 0 → 0.5 → 1, 항등에서 보간). §13.3, 항등인 fresh는 렌더 비용 0.</p>
             <div class="wilt-demo">
-              <div class="wilt-item is-fresh"><span class="silo f-soon"></span><span class="lbl2">Fresh · D-5</span></div>
-              <div class="wilt-item is-soon"><span class="silo f-soon"></span><span class="lbl2">Soon · D-2</span></div>
-              <div class="wilt-item is-urgent"><span class="silo f-soon"></span><span class="lbl2">Urgent · D-0</span></div>
+              <div class="wilt-item is-fresh"><span class="silo f-soon"></span><span class="lbl2">Fresh · D-5</span><span class="lbl3">w 0 · 라운딩 0</span></div>
+              <div class="wilt-item is-soon"><span class="silo f-soon"></span><span class="lbl2">Soon · D-2</span><span class="lbl3">w 0.5 · 라운딩 0.085</span></div>
+              <div class="wilt-item is-urgent"><span class="silo f-soon"></span><span class="lbl2">Urgent · D-0</span><span class="lbl3">w 1 · 라운딩 0.17</span></div>
+            </div>
+            <p class="lbl" style="margin-top:var(--space-4)"><strong>시듦(Wilt) ② 재질 축</strong> — <strong>얼마나 무너지는지는 재질이 정한다</strong>. 아래 세 타일은 같은 Urgent(w = 1)인데, <strong>용기류(캔·갑·병·단지·달걀)는 색 감쇠만 받고 기하는 불변</strong>이다 — 캔은 시들지 않는다. 축은 History 도넛이 소유한 <code class="inline">categoryLabel</code>이 아니라 일러스트 전용 강성 enum(<code class="inline">rigidContainer</code>·<code class="inline">firm</code>·<code class="inline">soft</code>·<code class="inline">leafy</code>)이다.</p>
+            <div class="wilt-demo">
+              <div class="wilt-item is-urgent m-rigid"><span class="silo f-soon"></span><span class="lbl2">용기 · can</span><span class="lbl3">기하 불변 · 라운딩 —</span></div>
+              <div class="wilt-item is-urgent m-firm"><span class="silo f-soon"></span><span class="lbl2">단단한 몸통 · meat</span><span class="lbl3">−4.5° · 0.965 · 1.000 · 0.09</span></div>
+              <div class="wilt-item is-urgent"><span class="silo f-soon"></span><span class="lbl2">잎채소 · leaf</span><span class="lbl3">−7.0° · 0.935 · 1.030 · 0.17</span></div>
             </div>
           </div>
 

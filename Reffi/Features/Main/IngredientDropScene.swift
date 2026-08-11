@@ -727,8 +727,10 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
 
     /// 캐시 키 — 캐시에 넣는 쪽과 청소하는 쪽이 **같은 식**을 쓰도록 한 곳에 둔다.
     /// 스킴은 없다 — PaperSilhouette 팔레트는 전량 고정색이라 라이트/다크가 픽셀 동일.
-    /// 신선도는 들어간다 — 같은 글리프라도 시듦(채도·명도·스쿼시·기울임)이 달라 픽셀이 다르다.
-    private static func textureKey(for ing: Ingredient, side: CGFloat, shadowed: Bool) -> String {
+    /// 신선도는 들어간다 — 같은 글리프라도 시듦(채도·명도·처짐·라운딩)이 달라 픽셀이 다르다.
+    /// `internal`(비-private) — `WiltCacheKeyTests`가 `@testable import`로 이 축의 존재를 직접
+    /// 고정한다(`MainView.tiltLabLaunchConfig` 선례). 순수 함수라 씬을 띄우지 않고 검증된다.
+    static func textureKey(for ing: Ingredient, side: CGFloat, shadowed: Bool) -> String {
         "\(ing.glyph.rawValue)@\(Int(side))@\(WiltStyle.for(ing.freshness).token)" + (shadowed ? "" : "#body")
     }
 
@@ -957,7 +959,6 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     /// 글리프 → 물성. 52종을 하나씩 손으로 매기면 유지도 안 되고 의도도 흐려져,
     /// 손에 잡히는 느낌 6종으로 묶었다. **표에 없는 글리프는 전부 `.standard`**(= 기존 값)로 떨어진다
     /// (뿌리채소·오이·고추·가지·고구마·생강·새우·옥수수 등 무난한 중간 물성 재료들).
-    // TODO: `gimbap` 글리프가 들어오면 `.soft` 행을 추가한다(밥·면과 같은 계열).
     private static let materials: [FoodGlyph: ChipMaterial] = [
         // 가벼움 — 잎·해조·버섯·빵
         .leaf: .light, .cabbage: .light, .seaweed: .light, .mushroom: .light,
@@ -973,7 +974,7 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         .milk: .container, .sauceBottle: .container, .can: .container, .honey: .container,
         .yogurt: .container, .butter: .container, .cheese: .container,
         // 물렁함 — 눌러 붙는 것
-        .tofu: .soft, .rice: .soft, .noodles: .soft, .dumpling: .soft,
+        .tofu: .soft, .rice: .soft, .noodles: .soft, .dumpling: .soft, .gimbap: .soft,
         .avocado: .soft, .banana: .soft,
     ]
 

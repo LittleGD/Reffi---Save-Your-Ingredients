@@ -21,6 +21,7 @@ enum FoodGlyph: String, Codable, CaseIterable {
     case rice, noodles, corn                           // 신규 곡류
     case sauceBottle, can                              // 신규 저장식품
     case honey, dumpling                               // v2 신규 저장식품·기타
+    case gimbap                                        // v3 요리형(만두 선례) — 재료가 아니라 메뉴 자체가 모티프
     case generic
 
     /// 톨러런트 디코드 — 미지의 rawValue(향후 케이스 추가·데이터 오염)가 필드 하나로 끝나게
@@ -266,7 +267,8 @@ extension FoodGlyph {
         case .fish, .shrimp, .crab, .squid, .clam: "Seafood"
         case .tofu: "Protein"
         case .bread: "Bakery"
-        case .rice, .noodles, .corn: "Grain"
+        // 김밥은 요리지만 정체는 밥 — Other(잡동사니)보다 Grain이 History 도넛에서 읽힌다.
+        case .rice, .noodles, .corn, .gimbap: "Grain"
         case .sauceBottle, .can, .honey: "Pantry"
         case .generic, .dumpling: "Other"
         }
