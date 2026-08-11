@@ -57,6 +57,7 @@ xcrun simctl io booted screenshot reffi-home.png
 - `-onboardingPage N` 인트로 N장 직행 · `-onboardingSetup` 셋업 시트 바로 열기 · `-onboardingSetupPage N` 셋업 N장 직행
 - `-onboardingSetupAutoAdvance` 셋업 장 자동 순환(전환 QA용)
 - `-skipAuth` 게스트로 게이트 통과 · `-authGate` 게스트 해제 (인증 콘솔 설정은 `docs/AUTH_SETUP.md`)
+- `-resetNickname` 저장된 닉네임을 미설정 취급 — 이번 런치에서 곧장 자동 닉네임 생성을 재현(`NicknameGenerator` QA)
 
 **탭 · 데이터**
 - `-fridgeTab` `-profileTab` 탭 직행 · `-profileBottom` 프로필 하단(Data·Account)까지 스크롤

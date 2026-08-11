@@ -157,6 +157,8 @@ private struct RootGateView: View {
         }
         // previous == nil: 최초 기록(와이프 없음). 어느 경우든 소유자 확정.
         UserDefaults.standard.set(newID, forKey: DataOwner.key)
+        // 가입 완료·계정 전환으로 프로필이 방금 미설정 상태가 됐을 수 있다 — 그럴 때만 자동 닉네임.
+        profile.assignGeneratedNicknameIfUnset()
     }
 
     /// 세션 복원 동안의 정적 스플래시 — 런치 스크린과 같은 크림 + 워드마크(깜빡임 방지).
