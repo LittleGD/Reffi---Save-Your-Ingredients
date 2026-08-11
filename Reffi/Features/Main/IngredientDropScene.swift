@@ -920,7 +920,7 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     /// 튜닝은 그 반대(둥둥 뜨는 수중감)라 SSOT와 충돌한다. 그래서 `linearDamping` 필드 자체를 두지 않는다.
     private struct ChipMaterial {
         /// **햅틱 대표자 선정 전용 랭킹 키**다. `body.mass`에는 절대 대입하지 않는다 —
-        /// 실제 질량은 실측 바디 면적비에서 파생한다(`mass(for:)`, 52종 전부 자동 커버).
+        /// 실제 질량은 실측 바디 면적비에서 파생한다(`mass(for:)`, 53종 전부 자동 커버).
         /// 칩-칩 충돌에서 "어느 쪽 촉감이 소리를 주도하나"를 가를 때만 쓴다(`clatterMaterial`).
         let mass: CGFloat
         let restitution: CGFloat       // 0 = 안 튐, 클수록 통통 (기준 0.12에서 클래스별 ±0.02)
@@ -956,7 +956,7 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
                                        angularDamping: 0.98, sharpness: 0.10, hapticScale: 0.50)
     }
 
-    /// 글리프 → 물성. 52종을 하나씩 손으로 매기면 유지도 안 되고 의도도 흐려져,
+    /// 글리프 → 물성. 53종을 하나씩 손으로 매기면 유지도 안 되고 의도도 흐려져,
     /// 손에 잡히는 느낌 6종으로 묶었다. **표에 없는 글리프는 전부 `.standard`**(= 기존 값)로 떨어진다
     /// (뿌리채소·오이·고추·가지·고구마·생강·새우·옥수수 등 무난한 중간 물성 재료들).
     private static let materials: [FoodGlyph: ChipMaterial] = [
