@@ -37,6 +37,9 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     private var calmSnapshot: [UUID: CGPoint] = [:]  // calm 창 시작 시점의 칩 위치
     private let settleBand: CGFloat = 80             // 이 미만 = 착지 후 잔여 운동(자유낙하·던지기 아님)
     private let jitterDamp: CGFloat = 0.8            // 잔여 운동의 프레임당 곱셈 감쇠 — 접촉 임펄스를 이긴다
+    /// 중력 변화 직후 jitterDamp를 쉬게 할 프레임 수(≈1.5s) — 기울임에 더미가 반응할 시간을 준다.
+    private var dampSuppression = 0
+    private let dampSuppressionFrames = 90
     private var foregroundObserver: NSObjectProtocol?      // 블록 옵저버라 명시 해제 필요
     private var memoryWarningObserver: NSObjectProtocol?   // 텍스처 캐시 비우기 — 동일 패턴
 
@@ -215,6 +218,8 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
             lastAppliedGravity = candidate
             calmFrames = 0
             calmSnapshot.removeAll()
+            // 이 경로는 일부러 wake()를 안 부른다(이미 깨어 있다) — 감쇠 유예는 여기서 직접 갱신한다.
+            dampSuppression = dampSuppressionFrames
         }
     }
 
@@ -289,11 +294,18 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         // 임펄스로 착지 직후 미세 요동이 남을 수 있다. settleBand 미만(= 자유낙하·던지기 아님)만
         // 프레임당 20% 곱셈 감쇠 → 수 프레임 내 calm 대역으로 수렴. 고속 칩은 안 건드려 낙하·던지기의
         // 묵직함(§13.4)은 그대로.
-        for node in chips.values {
-            guard let b = node.physicsBody else { continue }
-            if hypot(b.velocity.dx, b.velocity.dy) < settleBand {
-                b.velocity = CGVector(dx: b.velocity.dx * jitterDamp, dy: b.velocity.dy * jitterDamp)
-                b.angularVelocity *= jitterDamp
+        // 중력이 막 바뀐 직후(= 기울이는 중)엔 이 감쇠를 쉰다. 안 그러면 느린 가속이 매 프레임 20%씩
+        // 깎여 **종단 2pt/s**에 갇히고, 정착한 더미는 기울여도 꿈쩍 않는다(기울임이 아예 안 보인다).
+        // 손을 멈추면 카운터가 소진되며 평소의 감쇠·안착 동작으로 돌아간다.
+        if dampSuppression > 0 {
+            dampSuppression -= 1
+        } else {
+            for node in chips.values {
+                guard let b = node.physicsBody else { continue }
+                if hypot(b.velocity.dx, b.velocity.dy) < settleBand {
+                    b.velocity = CGVector(dx: b.velocity.dx * jitterDamp, dy: b.velocity.dy * jitterDamp)
+                    b.angularVelocity *= jitterDamp
+                }
             }
         }
         // 드래그가 없을 때만 정착 판정 — 지터 때문에 '완전 정지'는 영원히 안 오므로,
@@ -391,6 +403,7 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         calmFrames = 0
         calmSnapshot.removeAll()
         impactHaptic.prepare()   // 곧 물리 이벤트가 온다 — 첫 착지 진동의 지연을 없앤다
+        dampSuppression = dampSuppressionFrames   // 기울임 반응 창 — idle 여부와 무관하게 갱신
         guard idle else { return }
         idle = false
         for node in chips.values { node.physicsBody?.usesPreciseCollisionDetection = true }
