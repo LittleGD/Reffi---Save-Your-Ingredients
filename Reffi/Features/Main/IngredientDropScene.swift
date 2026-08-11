@@ -1,4 +1,3 @@
-import CoreMotion
 import SpriteKit
 import SwiftUI
 import os
@@ -45,7 +44,9 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
 
     // 기울임 중력 — CMDeviceMotion.gravity로 물리 중력을 돌린다(§13.4). 매핑·데드밴드 판정은
     // 순수 계산(GravityMapper)이라 테스트로 고정, 씬은 수명주기와 씬 상태 결합만 책임진다.
-    private let motionManager = CMMotionManager()
+    // 센서 래퍼(IngredientTiltMotion)는 저역(중력)과 고역(userAcceleration = 흔들기)을 함께 넘긴다 —
+    // 중력만으론 흔들기가 전달되지 않는다(저역 신호라 흔드는 동안에도 거의 안 변한다).
+    private let tilt = IngredientTiltMotion()
     private var lastAppliedGravity = GravityMapper.fallback
     /// 무방향 대역(기기를 눕힘) 히스테리시스의 유일한 상태 — 판정은 GravityMapper가 순수 계산으로 한다.
     private var gravityDirectionless = false
@@ -198,7 +199,7 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     deinit {
         if let o = foregroundObserver { NotificationCenter.default.removeObserver(o) }
         if let o = memoryWarningObserver { NotificationCenter.default.removeObserver(o) }
-        motionManager.stopDeviceMotionUpdates()   // 안전망(willMove가 정상 경로)
+        tilt.stop()   // 안전망(willMove가 정상 경로) — 래퍼에도 자체 deinit 안전망이 있다
     }
 
     // MARK: - 기울임 중력 (CoreMotion)
@@ -206,7 +207,7 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     /// 모션 갱신 on/off를 씬 상태에서 **파생**시킨다 — 표시 중 + 안 가려짐 + Reduce Motion 아님 + 기기 지원.
     /// 조건이 하나라도 깨지면 즉시 멈춘다(시뮬레이터는 deviceMotion 미지원 → 항상 상수 중력).
     private func syncMotionUpdates() {
-        let wanted = view != nil && !externallyPaused && !reduceMotion && motionManager.isDeviceMotionAvailable
+        let wanted = view != nil && !externallyPaused && !reduceMotion && tilt.isAvailable
         if wanted { startMotionUpdates() } else { stopMotionUpdates() }
         // 달그락 엔진 수명주기도 여기서 함께 파생시킨다(별도 채널을 만들지 않는다). 다만 조건은
         // **보이는 씬**까지만 — Reduce Motion은 시각 배려지 촉각 배려가 아니고(§7.4), 자이로가 없는
@@ -221,12 +222,11 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     }
 
     private func startMotionUpdates() {
-        guard !motionManager.isDeviceMotionActive else { return }
-        motionManager.deviceMotionUpdateInterval = 1.0 / 60.0
-        // 콜백을 메인 큐로 받아 씬 상태(중력·wake)를 렌더 스레드와 같은 큐에서만 만진다.
-        motionManager.startDeviceMotionUpdates(to: .main) { [weak self] motion, _ in
-            guard let self, let g = motion?.gravity else { return }
-            self.applyDeviceGravity(x: g.x, y: g.y)
+        // 콜백은 래퍼가 메인 큐로 받는다 — 씬 상태(중력·wake)를 렌더 스레드와 같은 큐에서만 만진다.
+        tilt.start { [weak self] sample in
+            guard let self else { return }
+            self.applyDeviceGravity(x: Double(sample.gravityX), y: Double(sample.gravityY))
+            self.applyShake(sample)
         }
     }
 
@@ -234,7 +234,7 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     /// 중력이 **실제로 바뀌었으면 깨운다** — 기울인 채 잠든 더미는 기울어진 배치 그대로 얼어붙어 있어,
     /// 상수 중력만 되돌려 놓고 재우면 다음에 봤을 때 비스듬히 굳은 더미가 그대로 보인다.
     private func stopMotionUpdates() {
-        if motionManager.isDeviceMotionActive { motionManager.stopDeviceMotionUpdates() }
+        tilt.stop()   // 인플라이트 콜백은 래퍼가 onSample을 nil로 만들며 스스로 취소한다
         gravityDirectionless = false
         guard physicsWorld.gravity != GravityMapper.fallback else { return }
         physicsWorld.gravity = GravityMapper.fallback
@@ -267,6 +267,67 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
             dampSuppression = dampSuppressionFrames
         }
     }
+
+    // MARK: - 흔들기 에너지 주입
+
+    /// 이 G 미만은 손떨림·걷기 — 무시한다.
+    private let shakeThreshold: CGFloat = 0.35
+    /// 킥 사이 최소 간격(초) — 매 프레임 밀면 흔들기가 아니라 연속 가속이 된다.
+    private let shakeInterval: TimeInterval = 0.09
+    /// 킥 하나가 줄 수 있는 최대 속도 변화(pt/s). **벽 터널링 방지 상한** — 60fps에서 프레임당
+    /// 3.5pt라 두께 0인 edge loop도 못 뚫는다(게다가 wake로 CCD가 켜진 상태다).
+    private let shakeMaxDeltaV: CGFloat = 210
+    private let shakeGain: CGFloat = 150
+    private var lastShakeTime: TimeInterval = 0
+
+    /// `userAcceleration`(중력 제외 고역) → 칩들에 임펄스 킥. 이게 있어야 "흔들면 달그락"이 성립한다.
+    /// 중력 벡터만으론 흔들기가 전달되지 않는다(저역 신호라 흔드는 동안에도 거의 안 변한다).
+    /// Reduce Motion이면 통째로 건너뛴다 — 예측 불가한 화면 움직임을 없애는 것이 그 설정의 요지다(§7.4).
+    private func applyShake(_ sample: TiltSample) {
+        guard !reduceMotion else { return }
+        let mag = hypot(sample.shakeX, sample.shakeY)
+        guard mag > shakeThreshold else { return }
+        guard lastUpdateTime - lastShakeTime >= shakeInterval else { return }
+        lastShakeTime = lastUpdateTime
+        kickChips(angle: atan2(sample.shakeY, sample.shakeX),
+                  deltaV: min((mag - shakeThreshold) * shakeGain, shakeMaxDeltaV))
+    }
+
+    /// 칩들을 한 방향으로 밀되 **칩마다 각도·세기를 흩는다** — 똑같이 밀면 나란히 움직여서
+    /// 서로 부딪히지 않고, 부딪히지 않으면 달그락도 없다.
+    private func kickChips(angle: CGFloat, deltaV: CGFloat) {
+        guard !chips.isEmpty else { return }
+        for (id, node) in chips {
+            guard let body = node.physicsBody else { continue }
+            let j = Self.stableJitter(id)                 // 0..1 결정적
+            let a = angle + (j - 0.5) * 1.3               // ±0.65rad 흩뿌림
+            let dv = deltaV * (0.65 + 0.7 * j)
+            body.applyImpulse(CGVector(dx: cos(a) * dv * body.mass,
+                                       dy: sin(a) * dv * body.mass))
+            body.applyAngularImpulse((j - 0.5) * 0.02 * body.mass)
+        }
+        wake()   // CCD 복구 + 감쇠 유예 — 킥이 감쇠에 바로 먹히지 않게
+    }
+
+    #if DEBUG
+    /// QA용 셰이크 버스트 — 시뮬레이터엔 자이로가 없어 손으로 흔들 수 없다.
+    /// TILT LAB의 SHAKE 버튼과 `-tiltLab.shake`가 이걸 부른다.
+    /// 실제 흔들기는 **왕복 운동**이라 한 번 미는 것으론 재현이 안 된다 — 방향을 바꿔 3연타를 넣는다.
+    func shakeBurst() {
+        wake()   // 휴면 중이면 먼저 깨운다(멈춘 씬은 SKAction도 안 돈다)
+        kickChips(angle: .pi * 0.5, deltaV: shakeMaxDeltaV * 0.9)
+        let followUps: [CGFloat] = [-.pi * 0.35, .pi * 0.8]
+        for (i, angle) in followUps.enumerated() {
+            run(.sequence([
+                .wait(forDuration: 0.13 * Double(i + 1)),
+                .run { [weak self] in
+                    guard let self else { return }
+                    self.kickChips(angle: angle, deltaV: self.shakeMaxDeltaV * 0.75)
+                },
+            ]))
+        }
+    }
+    #endif
 
     // MARK: - 컬러 스킴 (라이트/다크)
 
@@ -865,6 +926,19 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
 
     private static func material(for glyph: FoodGlyph) -> ChipMaterial {
         materials[glyph] ?? .standard
+    }
+
+    /// 락스텝 방지용 결정적 지터 0..1 — 흔들기 킥의 각도·세기를 칩마다 흩어
+    /// 완전히 같은 벡터로 나란히 이동하는 "판박이 이동"(= 충돌 0, 달그락 0)을 없앤다.
+    /// `Hasher`/`hashValue`는 프로세스마다 시드가 달라 재현되지 않으므로(스크린샷 QA가 흔들린다)
+    /// UUID 바이트를 직접 접는 djb2로 **실행 간 동일한 값**을 만든다.
+    private static func stableJitter(_ id: UUID) -> CGFloat {
+        let u = id.uuid
+        let bytes = [u.0, u.1, u.2, u.3, u.4, u.5, u.6, u.7,
+                     u.8, u.9, u.10, u.11, u.12, u.13, u.14, u.15]
+        var h: UInt64 = 5381
+        for b in bytes { h = (h &* 33) &+ UInt64(b) }
+        return CGFloat(h % 1000) / 1000
     }
 
     /// 볼록 N각형 타원 바디(dy로 중심 오프셋) — SpriteKit `polygonFrom`은 볼록만 허용해 끼임·진동이 없다.

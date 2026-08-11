@@ -11,6 +11,9 @@ struct MainView: View {
     @Environment(FridgeStore.self) private var store
     @Environment(ProfileStore.self) private var profile
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// 앱이 백그라운드로 내려가면 씬을 확실히 멈춘다(아래 scenePaused). `.inactive`는 **일부러 뺐다** —
+    /// 앱 전환기·알림 배너 같은 잠깐의 상태에서도 씬이 멈춰 첫 프레임이 회색으로 남는다.
+    @Environment(\.scenePhase) private var scenePhase
 
     // 알림 유도(프리퍼미션) — 첫 임박 재료가 생긴 순간이 가치가 증명되는 순간이다.
     // 알림은 기본 OFF + 스위치가 MyPage에만 있어, 여기서 한 번 제안하지 않으면 발견되지 않는다.
@@ -53,7 +56,11 @@ struct MainView: View {
     /// 여기서 빠지면 안 보이는 씬이 계속 돌고 손 움직임이 그 씬을 다시 깨운다.
     /// `showAdd`는 뺀다 — 풀스크린 커버가 아니라 시트(`.large` detent)라 위쪽에 표시 뷰가 남고,
     /// 시트를 닫는 순간 정지화면이 잠깐 보이는 쪽이 더 나쁘다.
-    private var scenePaused: Bool { !isActive || showCarousel || showSteps || deciding != nil }
+    /// **백그라운드**도 포함한다 — iOS가 서스펜드하며 모션 콜백을 알아서 끊긴 하지만,
+    /// 여기서 명시하면 SKView 렌더 루프까지 결정적으로 멈추고 달그락 엔진도 함께 내려간다.
+    private var scenePaused: Bool {
+        !isActive || scenePhase == .background || showCarousel || showSteps || deciding != nil
+    }
     /// 씬 동기화 트리거 — id·이름·글리프·신선도 어느 것이 바뀌어도 칩이 따라간다.
     private var sceneSyncKey: [String] {
         counter.map { "\($0.id.uuidString)#\($0.name)#\($0.glyph.rawValue)#\($0.freshness)" }
