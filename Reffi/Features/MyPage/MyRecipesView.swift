@@ -92,6 +92,10 @@ struct MyRecipesView: View {
     private func recipeCard(_ recipe: Recipe, seed: Int) -> some View {
         Button { editing = recipe } label: {
             HStack(spacing: ReffiSpace.s3) {
+                // 대표 아이콘 — 티켓·조리 화면과 **같은 `heroIcon` 체인**을 탄다. 카탈로그를 직접 부르면
+                // 커스텀 "김밥"이 여기서만 이름 추론의 아무 색 롤이 되어 표면마다 그림이 갈린다.
+                RecipeHeroIconView(icon: recipe.heroIcon)
+                    .frame(width: ReffiDishIcon.row, height: ReffiDishIcon.row)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(verbatim: recipe.displayName)
                         .reffiType(.body).foregroundStyle(ReffiColor.ink)
@@ -136,8 +140,12 @@ struct MyRecipesView: View {
     }
 }
 
-/// 커스텀 레시피 편집기 — 이름·재료(쉼표 구분)·단계(줄바꿈 구분)·시간.
+/// 커스텀 레시피 편집기 — 이름·재료(쉼표 구분)·시간.
 /// 재료는 저장 시 정본 사전으로 canonical 매칭돼 추천·발주에 정확히 물린다.
+///
+/// 단계 입력은 없다: 티켓·조리 화면 어디에서도 단계를 보여주지 않으므로(조리법은 영상 링크가 맡는다)
+/// 받아만 두고 쓰지 않는 입력이 된다(MVP 원칙 — 위약 UI 금지). 기존 레시피에 저장돼 있던 단계 데이터는
+/// 저장 시 그대로 보존한다(편집기가 건드리지 않는 필드를 지우지 않는다).
 ///
 /// 표면은 `IngredientEditView`와 같은 종이 문법(룰 ⑤): 크림 캔버스 + `SheetHeader` + 흰 영수증 카드
 /// (`ReceiptShape`) + 모노 섹션 라벨 + `DashedRule` + 도킹된 `PaperButton`. 시스템 폼·글래스 툴바를 쓰지 않는다.
@@ -151,14 +159,12 @@ struct RecipeEditorView: View {
 
     @State private var name = ""
     @State private var ingredientsText = ""
-    @State private var stepsText = ""
     @State private var minutes = 20
     @State private var didLoad = false
 
     // 룰 ⑨(미저장 보호) — load 시점의 baseline. 현재값과 다르면 isDirty.
     @State private var baseName = ""
     @State private var baseIngredients = ""
-    @State private var baseSteps = ""
     @State private var baseMinutes = 20
 
     @State private var showDiscardConfirm = false
@@ -171,15 +177,9 @@ struct RecipeEditorView: View {
         ingredientsText.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
     }
-    private var parsedSteps: [String] {
-        stepsText.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }
-            .filter { !$0.isEmpty }
-    }
-
     private var canSave: Bool { !trimmedName.isEmpty && !parsedIngredients.isEmpty }
     private var isDirty: Bool {
-        name != baseName || ingredientsText != baseIngredients
-            || stepsText != baseSteps || minutes != baseMinutes
+        name != baseName || ingredientsText != baseIngredients || minutes != baseMinutes
     }
 
     var body: some View {
@@ -192,7 +192,6 @@ struct RecipeEditorView: View {
                 VStack(spacing: ReffiSpace.s3) {
                     recipeCard
                     ingredientsCard
-                    stepsCard
                     if recipe != nil { deleteSection }   // 삭제는 편집 시에만(정정 경로).
                 }
                 .padding(.horizontal, ReffiGrid.margin)
@@ -277,21 +276,6 @@ struct RecipeEditorView: View {
         }
     }
 
-    // MARK: - STEPS 카드 (한 줄 = 한 단계)
-
-    private var stepsCard: some View {
-        receiptCard {
-            sectionLabel("STEPS")
-            TextField("Chop, stir-fry, season…", text: $stepsText,
-                      prompt: Text("Chop, stir-fry, season…").foregroundStyle(ReffiColor.ink2),
-                      axis: .vertical)
-                .reffiType(.body).foregroundStyle(ReffiColor.ink)
-                .lineLimit(3...8)
-            Text("One step per line.")
-                .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
-        }
-    }
-
     // MARK: - 삭제 (편집 시에만 — 이력 없는 정정 경로, Save보다 조용한 면 · 룰 ⑦⑧)
 
     private var deleteSection: some View {
@@ -340,21 +324,20 @@ struct RecipeEditorView: View {
         if let r = recipe {
             name = r.displayName
             ingredientsText = r.ingredients.map(\.displayName).joined(separator: ", ")
-            stepsText = r.displaySteps.joined(separator: "\n")
             minutes = r.minutes
         }
         // baseline = 로드 직후 값. 새 레시피는 기본값 그대로라 시작은 not dirty.
         baseName = name
         baseIngredients = ingredientsText
-        baseSteps = stepsText
         baseMinutes = minutes
     }
 
     private func save() {
         var new = Recipe.userRecipe(name: trimmedName, ingredientNames: parsedIngredients,
-                                    minutes: minutes, steps: parsedSteps)
+                                    minutes: minutes)
         if let existing = recipe {
             new.id = existing.id
+            new.steps = existing.steps   // 편집기가 다루지 않는 필드 — 옛 데이터를 덮어쓰지 않고 그대로 넘긴다.
             store.updateUserRecipe(new)
         } else {
             store.addUserRecipe(new)

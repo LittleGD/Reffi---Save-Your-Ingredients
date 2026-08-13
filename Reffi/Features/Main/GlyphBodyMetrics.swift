@@ -10,6 +10,8 @@ enum GlyphBodyMetrics {
         let minYf: CGFloat; let maxYf: CGFloat }   // minYf/maxYf: 버퍼 row 프랙션(0=버퍼 첫 행)
 
     /// 글리프 하나를 side×side로 래스터해 top-down 버퍼에서 알파를 읽는다(임계 0.5).
+    /// 계측은 **항상 `.fresh`**(시듦 없는 직립 원형)에서 한다 — 충돌체는 신선도와 무관한 상수여야
+    /// 날짜가 넘어가도 쌓인 더미가 재정렬되지 않는다(시듦은 3~7% 시각 스쿼시로만 나타난다).
     @MainActor
     static func measure(_ glyph: FoodGlyph, side: Int = 220) -> Metric? {
         let renderer = ImageRenderer(content:

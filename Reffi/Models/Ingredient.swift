@@ -21,6 +21,7 @@ enum FoodGlyph: String, Codable, CaseIterable {
     case rice, noodles, corn                           // 신규 곡류
     case sauceBottle, can                              // 신규 저장식품
     case honey, dumpling                               // v2 신규 저장식품·기타
+    case gimbap                                        // v3 요리형(만두 선례) — 재료가 아니라 메뉴 자체가 모티프
     case generic
 
     /// 톨러런트 디코드 — 미지의 rawValue(향후 케이스 추가·데이터 오염)가 필드 하나로 끝나게
@@ -28,6 +29,29 @@ enum FoodGlyph: String, Codable, CaseIterable {
     init(from decoder: Decoder) throws {
         let raw = try decoder.singleValueContainer().decode(String.self)
         self = FoodGlyph(rawValue: raw) ?? .generic
+    }
+
+    /// 요리형 글리프 키워드 — **메뉴 자체가 모티프**인 완성 요리만 등재한다(재료가 아니라 메뉴가 정체성).
+    /// `excludeSuffixes`는 "그 요리에 **쓰는** 재료" 표기를 재료 경로로 되돌려 보내는 가드다.
+    ///
+    /// 이 표는 **히어로 체인(`Recipe.heroIcon` ②)에서만** 조회한다 — `match`(재료명 경로)에 끼워 넣지
+    /// 않는 이유: 냉장고에 "김밥"이라고 적으면 재료 목록에 완성 요리 그림이 뜬다. 요리형 글리프가
+    /// 늘어날수록 재료/요리 경계가 무너지므로 진입점을 레시피 쪽에만 둔다.
+    private static let dishKeywords: [(needles: [String], excludeSuffixes: [String], glyph: FoodGlyph)] = [
+        (["김밥", "gimbap", "kimbap"], ["김"], .gimbap),
+    ]
+
+    /// 요리 이름 → 전용 글리프. 표에 없으면 nil(재료 경로로 넘어간다).
+    static func dishGlyph(for rawName: String) -> FoodGlyph? {
+        let n = rawName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !n.isEmpty else { return nil }
+        for row in dishKeywords {
+            guard row.needles.contains(where: { n.contains($0) }) else { continue }
+            // "김밥김"·"김밥용 김"은 김밥에 쓰는 **김 시트**라 롤이 아니다 — 사전 경로로 돌려보낸다.
+            if row.excludeSuffixes.contains(where: { n.hasSuffix($0) }) { continue }
+            return row.glyph
+        }
+        return nil
     }
 
     /// 재료명 → 글리프. 1순위 정본 재료 사전(`IngredientLexicon`), 2순위 레거시 키워드 폴백.
@@ -253,6 +277,13 @@ struct Ingredient: Identifiable, Codable, Equatable {
 }
 
 extension FoodGlyph {
+    /// 카테고리 노출 순서 — `categoryLabel`이 낼 수 있는 값 **전체**와 1:1이고, 아래 switch의
+    /// 선언 순서를 그대로 따른다(신선식품 → 저장식품 → 기타). 냉장고 필터 칩과 To buy 검색 시트의
+    /// 픽커 섹션이 **같은 상수**를 본다 — 두 화면이 카테고리 순서를 두고 어긋나지 않게 하는 단일 소스.
+    /// 재료 지식이 아니라 노출 순서(UX)라 JSON이 아니라 코드 상수다.
+    static let categoryOrder = ["Veg", "Fruit", "Dairy", "Meat", "Seafood",
+                                "Protein", "Bakery", "Grain", "Pantry", "Other"]
+
     /// 거친 카테고리 라벨 — 직접 입력의 자동 카테고리, History 도넛 그룹핑 공용.
     var categoryLabel: String {
         switch self {
@@ -266,7 +297,8 @@ extension FoodGlyph {
         case .fish, .shrimp, .crab, .squid, .clam: "Seafood"
         case .tofu: "Protein"
         case .bread: "Bakery"
-        case .rice, .noodles, .corn: "Grain"
+        // 김밥은 요리지만 정체는 밥 — Other(잡동사니)보다 Grain이 History 도넛에서 읽힌다.
+        case .rice, .noodles, .corn, .gimbap: "Grain"
         case .sauceBottle, .can, .honey: "Pantry"
         case .generic, .dumpling: "Other"
         }

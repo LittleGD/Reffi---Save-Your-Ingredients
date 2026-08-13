@@ -26,9 +26,16 @@ struct IngredientLexicon {
         }
 
         /// 로케일 대표 표기.
+        ///
+        /// JSON의 영문 표기는 **매칭용 소문자 캐논**이다(223개 전부 "onion"·"green onion" 꼴).
+        /// 저장은 캐논으로, 표시만 다듬는다는 규칙대로 **표시 시점에** 단어 첫 글자를 올린다 —
+        /// 안 그러면 To buy 그리드만 "onion"이고 냉장고·레시피는 "Onion"이라 한 화면 건너 표기가 갈린다.
+        /// 한글은 대소문자 개념이 없어 그대로 둔다(`localizedCapitalized`는 한글에서 무동작이지만
+        /// 의도를 분명히 하려고 분기를 유지한다).
         var displayName: String {
             if Recipe.isKorean, let ko = names.ko.first { return ko }
-            return names.en.first ?? id
+            guard let en = names.en.first else { return id }
+            return en.localizedCapitalized
         }
     }
 
@@ -38,6 +45,15 @@ struct IngredientLexicon {
     private let byID: [String: Entry]
     private let exactKeyword: [String: String]          // 정규화 표기 → id (한 글자 포함)
     private let containsKeywords: [(keyword: String, id: String)]  // 2글자+ — 길이 내림차순
+    /// 타이핑 검색용 정규화 이름(en+ko) — `entries`와 같은 순서. 키 입력마다 사전 전체를
+    /// 다시 정규화하지 않으려고 로드 때 한 번만 만든다(어차피 아래 키워드 색인이 같은 값을 훑는다).
+    private let searchNames: [[String]]
+
+    /// 사전 전체를 `FoodGlyph.categoryLabel`로 묶은 섹션 — 항목이 있는 카테고리만,
+    /// `FoodGlyph.categoryOrder`(냉장고 필터 칩과 공유하는 단일 순서 상수)대로, 섹션 안은 표기 오름차순.
+    /// To buy 검색 시트의 재료 배열이 소비한다.
+    /// 로드 때 한 번만 만든다: 그리드가 body 평가마다 223종을 다시 묶고 정렬하면 키 입력이 끊긴다.
+    let categorySections: [(category: String, entries: [Entry])]
 
     init(bundle: Bundle = .main) {
         struct File: Decodable { var version: Int; var entries: [Entry] }
@@ -52,7 +68,10 @@ struct IngredientLexicon {
 
         var exact: [String: String] = [:]
         var contains: [(String, String)] = []
+        var names: [[String]] = []
         for e in loaded {
+            let displayNames = (e.names.en + e.names.ko).map(Self.norm).filter { !$0.isEmpty }
+            names.append(displayNames)
             var keywords = e.names.en + e.names.ko
             keywords.append(e.id.replacingOccurrences(of: "-", with: " "))
             for raw in keywords {
@@ -63,9 +82,23 @@ struct IngredientLexicon {
                 if k.count > 1 { contains.append((k, e.id)) }
             }
         }
+        searchNames = names
         exactKeyword = exact
         // 긴 키워드 우선("green onion"이 "onion"보다 먼저) — 포함 매칭의 특이도 보장.
         containsKeywords = contains.sorted { $0.0.count > $1.0.count }
+
+        // 카테고리 버킷 — 글리프가 곧 카테고리다(사전에 카테고리 필드를 새로 만들지 않는다).
+        var buckets: [String: [Entry]] = [:]
+        for e in loaded {
+            let glyph = FoodGlyph(rawValue: e.glyph) ?? .generic
+            buckets[glyph.categoryLabel, default: []].append(e)
+        }
+        categorySections = FoodGlyph.categoryOrder.compactMap { category in
+            guard let items = buckets[category], !items.isEmpty else { return nil }
+            return (category, items.sorted {
+                $0.displayName.localizedStandardCompare($1.displayName) == .orderedAscending
+            })
+        }
     }
 
     static func norm(_ s: String) -> String {
@@ -101,6 +134,39 @@ struct IngredientLexicon {
     /// 엉뚱한 재료에 붙는 것을 막아야 하는 호출부용.
     func exactCanonicalID(for rawName: String) -> String? {
         exactKeyword[Self.norm(rawName)]
+    }
+
+    /// 타이핑 검색 — 이름(en/ko)이 쿼리로 **시작**하는 항목이 먼저, 그 다음 포함하는 항목.
+    /// `canonicalID`(단건 정규화)와 목적이 다르다: 여기선 후보 **목록**을 만든다.
+    /// - 한 글자 쿼리는 prefix만 본다 — "무"·"배" 같은 한 글자가 아무 이름 안쪽에나 걸리면 목록이 무의미해진다
+    ///   (색인이 한 글자 표기를 포함 매칭에서 빼는 것과 같은 이유).
+    /// - 정렬: prefix 적중 > 짧은 이름(쿼리를 더 꽉 채운 이름) > id(동률에서도 순서가 흔들리지 않게).
+    /// - 초성 검색은 범위 밖(자모 분해 유틸이 앱에 없다).
+    func search(query: String, limit: Int = 20) -> [Entry] {
+        let q = Self.norm(query)
+        guard !q.isEmpty else { return [] }
+        let prefixOnly = q.count < 2
+        var hits: [(index: Int, rank: Int, length: Int)] = []
+        for (index, names) in searchNames.enumerated() {
+            var best: (rank: Int, length: Int)?
+            for n in names {
+                let rank: Int
+                if n.hasPrefix(q) { rank = 0 }
+                else if !prefixOnly, n.contains(q) { rank = 1 }
+                else { continue }
+                if let b = best, (b.rank, b.length) <= (rank, n.count) { continue }
+                best = (rank, n.count)
+            }
+            if let best { hits.append((index, best.rank, best.length)) }
+        }
+        return hits
+            .sorted {
+                if $0.rank != $1.rank { return $0.rank < $1.rank }
+                if $0.length != $1.length { return $0.length < $1.length }
+                return entries[$0.index].id < entries[$1.index].id
+            }
+            .prefix(limit)
+            .map { entries[$0.index] }
     }
 
     func entry(id: String) -> Entry? { byID[id] }

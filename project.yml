@@ -53,6 +53,7 @@ targets:
         UIApplicationSupportsIndirectInputEvents: true
         ITSAppUsesNonExemptEncryption: false
         NSCameraUsageDescription: "Reffi uses the camera to scan grocery receipts so items are added automatically."
+        NSMotionUsageDescription: "Reffi tilts the ingredients on your counter with your device's motion."
         CFBundleURLTypes:
           - CFBundleURLName: com.reffi.app.auth
             CFBundleURLSchemes:

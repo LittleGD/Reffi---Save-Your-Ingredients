@@ -6,7 +6,7 @@ import os
 /// 떨어져 충돌·바운스하며 **쌓여서 그대로 남는다**(사라지지 않음). 끌어서 던질 수 있고, 짧게 탭하면 판정을 묻는다.
 /// 재료 식별·신선도는 실루엣 + 아래 뱃지 행이 전달한다(씬 위 이름 라벨 없음, §13.4).
 /// 바닥은 씬 하단보다 위(요리시작 버튼 충돌 마진). 터치는 **한 손가락만** 추적해 멀티터치에 상태가 안 꼬인다.
-final class IngredientDropScene: SKScene {
+final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     private var chips: [UUID: SKSpriteNode] = [:]
     private var textureCache: [String: SKTexture] = [:]
     private var pending: [Ingredient] = []
@@ -16,10 +16,14 @@ final class IngredientDropScene: SKScene {
     private var dragTarget: CGPoint = .zero
     private var dragStart: CGPoint = .zero   // 탭 판정은 시작점 기준 누적 이동으로(느린 드래그 오판 방지)
     private var dragMoved = false
+    private var dragGrabOffset: CGPoint = .zero   // 잡은 지점 - 칩 중심(놓을 때 토크 암으로 회전 유도)
 
     /// 외부 일시정지(탭 전환·커버 가림) — idle과 합성해 isPaused를 만든다. isPaused는 절대
     /// 직접 대입하지 않고 refreshPaused()만 만진다(SSOT). 외부에서 이 값만 바꾼다.
-    var externallyPaused = false { didSet { if externallyPaused != oldValue { refreshPaused() } } }
+    /// 가려진 동안엔 모션 갱신도 멈춘다(안 보이는 씬 때문에 자이로를 돌릴 이유가 없다).
+    var externallyPaused = false {
+        didSet { if externallyPaused != oldValue { refreshPaused(); syncMotionUpdates() } }
+    }
     /// 모든 칩이 정착하면 씬을 스스로 재운다 — 유휴 프레임에서 물리·렌더 비용 0.
     private var idle = false
     // 강제 안착(force-settle) — 알파 텍스처의 오목 충돌체는 접촉 해소 지터(v 4~30pt/s)가 영원히
@@ -32,7 +36,46 @@ final class IngredientDropScene: SKScene {
     private var calmSnapshot: [UUID: CGPoint] = [:]  // calm 창 시작 시점의 칩 위치
     private let settleBand: CGFloat = 80             // 이 미만 = 착지 후 잔여 운동(자유낙하·던지기 아님)
     private let jitterDamp: CGFloat = 0.8            // 잔여 운동의 프레임당 곱셈 감쇠 — 접촉 임펄스를 이긴다
-    private var foregroundObserver: NSObjectProtocol?   // 블록 옵저버라 명시 해제 필요
+    /// 중력 변화 직후 jitterDamp를 쉬게 할 프레임 수(≈1.5s) — 기울임에 더미가 반응할 시간을 준다.
+    private var dampSuppression = 0
+    private let dampSuppressionFrames = 90
+    private var foregroundObserver: NSObjectProtocol?      // 블록 옵저버라 명시 해제 필요
+    private var memoryWarningObserver: NSObjectProtocol?   // 텍스처 캐시 비우기 — 동일 패턴
+
+    // 기울임 중력 — CMDeviceMotion.gravity로 물리 중력을 돌린다(§13.4). 매핑·데드밴드 판정은
+    // 순수 계산(GravityMapper)이라 테스트로 고정, 씬은 수명주기와 씬 상태 결합만 책임진다.
+    // 센서 래퍼(IngredientTiltMotion)는 저역(중력)과 고역(userAcceleration = 흔들기)을 함께 넘긴다 —
+    // 중력만으론 흔들기가 전달되지 않는다(저역 신호라 흔드는 동안에도 거의 안 변한다).
+    private let tilt = IngredientTiltMotion()
+    private var lastAppliedGravity = GravityMapper.fallback
+    /// 무방향 대역(기기를 눕힘) 히스테리시스의 유일한 상태 — 판정은 GravityMapper가 순수 계산으로 한다.
+    private var gravityDirectionless = false
+
+    // 착지 임팩트 — 충돌 임펄스를 질량으로 나눈 근사 속도변화(pt/s)로 판정한다. calmSpeed(40)·
+    // settleBand(80)와 **같은 단위**라 기존 안착 튜닝과 임계가 일관된다.
+    // 이 축은 **시각(스쿼시) 전용**이다. 햅틱은 질량으로 나누지 않은 **생 임펄스**를 쓴다 —
+    // 눌림은 속도의 문제(같은 높이서 떨어진 무거운/가벼운 칩이 같게 눌려야 한다)지만,
+    // 촉감은 운동량 전달의 문제(소고기가 잎사귀보다 묵직하게 느껴져야 한다)라 축이 다르다.
+    private let squashImpact: CGFloat = 30       // 이 이상이면 눈에 보이는 착지 — 스쿼시
+    private let squashImpactMax: CGFloat = 260   // 이 이상은 최대 눌림(자유낙하·던지기)
+
+    // 달그락 햅틱(§13.4) — CoreHaptics 직접 구동. 세기·날카로움 두 축이 있어야 재료별 촉감이
+    // 생기고, SwiftUI `.sensoryFeedback`은 파라미터가 없어 쓸 수 없다(§7.6 의미별 매핑은 그대로).
+    private let clatter = IngredientClatterHaptics()
+    private var clatterThrottle = ClatterThrottle()
+    /// 임펄스가 이 값이면 최대 세기 — 이 위는 전부 1.0으로 포화(클램프 곡선의 상한).
+    private let clatterImpulseCeiling: CGFloat = 90
+    /// 스로틀 판정용 현재 시각 — `didBegin`엔 시간 인자가 없어 update에서 받아 둔다.
+    private var lastUpdateTime: TimeInterval = 0
+    /// QA 계측용 — 햅틱이 실제로 발화할 때마다 호출된다(TILT LAB 카운터).
+    var onClatter: (() -> Void)?
+
+    /// 충돌 카테고리 — 접촉 콜백을 받으려면 마스크가 필요하다. collisionBitMask는 기본값(전체)을
+    /// 유지해 **충돌 거동은 그대로**이고, contactTest만 새로 켠다.
+    private enum Category {
+        static let chip: UInt32 = 1 << 0
+        static let wall: UInt32 = 1 << 1
+    }
 
     // 컬러 스킴 — SpriteKit은 동적 UIColor를 트레이트 변화에 따라 다시 해석하지 않고,
     // ImageRenderer도 명시하지 않으면 항상 라이트로 렌더한다. 스킴을 씬이 직접 들고 있다가
@@ -44,7 +87,10 @@ final class IngredientDropScene: SKScene {
     var onRemove: ((UUID) -> Void)?
     /// 제스처 판정(§13.6 B) — 칩을 존에 끌어다 놓으면 (id, wasted). 탭 오버레이는 접근성 경로로 유지.
     var onDecide: ((UUID, Bool) -> Void)?
-    var reduceMotion = false { didSet { if reduceMotion != oldValue { wake() } } }
+    /// Reduce Motion이면 기울임 중력을 끄고 상수 중력으로 되돌린다(예측 불가한 화면 움직임 제거, §7.4).
+    var reduceMotion = false {
+        didSet { if reduceMotion != oldValue { syncMotionUpdates(); wake() } }
+    }
 
     // 판정 바스켓 — 드래그 중에만 나타나는 휴지통(좌상)·냄비(우상) 종이 블롭.
     // 손가락이 근처에 오면 재료가 자석처럼 끌려 들어간다(마그네틱 캡처).
@@ -53,16 +99,60 @@ final class IngredientDropScene: SKScene {
     private let zoneSide: CGFloat = 86
     private let magnetRadius: CGFloat = 88
 
+    #if DEBUG
+    /// `-zoneLab` — 판정 존을 드래그 없이 **항상 표시**한다. 존은 SpriteKit 노드라 접근성 트리에
+    /// 없고 드래그 중에만 보여서, 위치 회귀를 스크린샷으로 잡으려면 강제 표시 경로가 필요하다.
+    private let zoneLab = ProcessInfo.processInfo.arguments.contains("-zoneLab")
+
+    /// 회귀 테스트용 존 중심(씬 좌표) — 생성 전이면 nil. `debugTilt` 선례와 같은 QA 주입/관찰구.
+    var debugZoneCenters: (toss: CGPoint, ate: CGPoint)? {
+        guard let t = tossZone, let a = ateZone else { return nil }
+        return (t.position, a.position)
+    }
+    #endif
+
+    // 던지기 회전 — 토크 암 계수(작을수록 잘 돈다)와 각속도 상한(rad/s).
+    private let spinArm: CGFloat = 0.25
+    private let spinCap: CGFloat = 6
+
     private var chipSide: CGFloat { chipSideFor(size) }
     private func chipSideFor(_ s: CGSize) -> CGFloat { min(max(124, s.width * 0.42), 188) }
     private var floorY: CGFloat { max(6, size.height * 0.03) }
-    private var boxInset: CGFloat { 2 }
-    private var boxTop: CGFloat { size.height + 700 }   // 스폰 상한보다 위 → 닫힌 천장
+
+    // MARK: - 컨테인먼트 경계 (§13.4)
+
+    /// 좌·우 벽을 화면 끝이 아니라 **이만큼 안쪽**에 세운다.
+    /// 칩 스프라이트는 s×s지만 실제로 그려지는 건 알파 bbox뿐이고, 충돌체는 다시 그 bbox의 **90%** 다
+    /// (`bodyMetrics`). 그래서 바디가 화면 끝 벽에 닿아도 **그림은 계속 바깥으로 삐져나가** 잘려 보인다.
+    /// 삐져나가는 양 = bbox반폭 - 바디반폭 = 바디폭 × (1/0.9 - 1) / 2 ≈ 바디폭 × 0.056.
+    /// 표의 최대 바디폭이 0.68s이므로 약 0.038s. 테이블이 버린 가로 중심 오프셋(`dx`)과 회전 여유까지
+    /// 얹어 0.09s로 잡았다.
+    private var wallInset: CGFloat { max(2, chipSide * 0.09) }
+    /// 밀폐 천장 — 가시 영역의 위끝. 벽·회수 목표·드래그 클램프가 모두 이 선을 쓴다.
+    /// 밀폐되면 상자가 가시 영역과 일치해 **어느 중력 방향에서도** 재료가 화면 밖으로 안 샌다.
+    private var sealedCeiling: CGFloat { max(1, size.height) - wallInset }
+    /// 스폰 천장 — 재료는 화면 위에서 떨어져 들어오므로(§13) 낙하 중엔 천장을 스폰 위치 위로 올려 둔다.
+    /// 값은 기존 `boxTop`(+700)을 그대로 유지한다 — 스폰 클램프가 이 값을 읽어 낙하 스태거 구성이
+    /// 정해지므로, 낮추면 런치 캐스케이드의 그림이 통째로 달라진다.
+    private var spawnCeiling: CGFloat { size.height + 700 }
+    /// 천장이 지금 밀폐돼 있나 — 낙하가 끝나면 true가 되어 상자가 가시 영역과 일치한다.
+    private var ceilingSealed = false
+    /// 천장이 열린 채 흘러간 시간의 기준점(아래 maintainCeiling의 타임아웃용).
+    private var unsealedSince: TimeInterval?
+    /// 열린 천장을 이 시간 넘게 유지하지 않는다 — 낙하 도중 중력이 옆·위로 향하면 칩이 보이지 않는
+    /// 위쪽에 갇혀 영원히 안 내려온다. 지나면 강제로 끌어내리고 밀폐한다.
+    /// 값은 **런치 캐스케이드(스폰 +599pt에서 화면까지)를 넉넉히 넘도록** 잡은 안전값이다 —
+    /// 짧게 잡으면 정상적으로 내려오는 중인 칩을 순간이동시킨다. 실낙하 시간은 계산식(v_term = g/λ)이
+    /// 아니라 기기 실측(tiltLab 도입 후)으로 다시 유도해야 한다. TODO: 실측 후 재조정.
+    private let sealTimeout: TimeInterval = 6.0
 
     override func didMove(to view: SKView) {
         backgroundColor = .clear
         scaleMode = .resizeFill
-        physicsWorld.gravity = CGVector(dx: 0, dy: -42)   // 적당히 — 가볍게 떨어지되 둥둥 뜨진 않게
+        // 기본 = 상수 중력(적당히 — 가볍게 떨어지되 둥둥 뜨진 않게). 기기 모션이 붙으면 여기서 회전만 한다.
+        physicsWorld.gravity = GravityMapper.fallback
+        lastAppliedGravity = GravityMapper.fallback
+        physicsWorld.contactDelegate = self   // 착지 스쿼시·햅틱
         view.preferredFramesPerSecond = 60
         view.ignoresSiblingOrder = true   // 칩 z가 전부 달라(§안착 z-순서) 순서 결정적 — 안전
         // 칩·존을 굽기 **전에** 현재 스킴을 확정한다(첫 렌더부터 올바른 팔레트로).
@@ -87,14 +177,34 @@ final class IngredientDropScene: SKScene {
                 DispatchQueue.main.async { self?.refreshPaused() }
             }
         }
+        // 메모리 경고 — 텍스처 캐시는 통째로 버린다(살아 있는 칩은 노드가 텍스처를 직접 붙들고 있어
+        // 화면이 깨지지 않고, 다음 재료 변화에서 필요한 것만 다시 굽는다).
+        if memoryWarningObserver == nil {
+            memoryWarningObserver = NotificationCenter.default.addObserver(
+                forName: UIApplication.didReceiveMemoryWarningNotification, object: nil, queue: .main
+            ) { [weak self] _ in
+                self?.textureCache.removeAll()
+            }
+        }
+        syncMotionUpdates()
     }
 
     /// 프레젠테이션 해제 — 옵저버를 여기서 풀어 SpriteView 재구성 시 중복 등록·누수를 막는다
     /// (didMove가 다시 등록). deinit은 안전망.
     override func willMove(from view: SKView) {
+        stopMotionUpdates()
+        // 달그락 엔진도 여기서 내린다 — `syncClatterEngine`의 조건은 `view != nil`인데 willMove
+        // 시점엔 아직 view가 붙어 있어, 이 줄이 없으면 씬이 화면을 떠난 뒤에도 CHHapticEngine이
+        // 살아 있다(다음 didMove의 syncMotionUpdates가 다시 켠다).
+        clatter.stop()
+        clatterThrottle.reset()
         if let o = foregroundObserver {
             NotificationCenter.default.removeObserver(o)
             foregroundObserver = nil
+        }
+        if let o = memoryWarningObserver {
+            NotificationCenter.default.removeObserver(o)
+            memoryWarningObserver = nil
         }
         if let r = traitRegistration {
             view.unregisterForTraitChanges(r)
@@ -105,7 +215,176 @@ final class IngredientDropScene: SKScene {
 
     deinit {
         if let o = foregroundObserver { NotificationCenter.default.removeObserver(o) }
+        if let o = memoryWarningObserver { NotificationCenter.default.removeObserver(o) }
+        tilt.stop()   // 안전망(willMove가 정상 경로) — 래퍼에도 자체 deinit 안전망이 있다
     }
+
+    // MARK: - 기울임 중력 (CoreMotion)
+
+    #if DEBUG
+    /// `-tiltLab` 주입 중력 방향(정규화 x, y) — 있으면 CoreMotion보다 우선한다.
+    /// 시뮬레이터엔 자이로가 없어 기울기 QA는 이 경로로만 가능하다.
+    ///
+    /// **실사용 경로(`applyDeviceGravity`)를 타지 않는다.** 그쪽은 무방향 대역(hypot < 0.06)·
+    /// 재적용 데드밴드(2°/5%)·깨우기 임계(6°)를 차례로 통과해야 하는데, 그 필터들이 바로 이 실험실이
+    /// **검증하려는 대상**이다. 슬라이더를 원점 근처에 두면 값이 flatGravity로 접히고, 천천히 끌면
+    /// 데드밴드에 먹히고, 잠든 씬은 무방향 판정 탓에 영영 안 깨어난다 — 그런 건 실험실이 아니다.
+    /// 그래서 여기선 순수 매핑(`GravityMapper.mapped`)을 그대로 쓰고 **무조건** 깨운다.
+    var debugTilt: CGVector? {
+        didSet { syncMotionUpdates() }
+    }
+
+    /// 주입값을 물리 중력에 **직접** 쓴다 — 필터 없이, 무조건 깨워서.
+    private func applyDebugTilt(_ d: CGVector) {
+        tilt.stop()
+        let g = GravityMapper.mapped(x: Double(d.dx), y: Double(d.dy))
+        physicsWorld.gravity = g
+        lastAppliedGravity = g
+        gravityDirectionless = false
+        wake()
+    }
+    #endif
+
+    /// 모션 갱신 on/off를 씬 상태에서 **파생**시킨다 — 표시 중 + 안 가려짐 + Reduce Motion 아님 + 기기 지원.
+    /// 조건이 하나라도 깨지면 즉시 멈춘다(시뮬레이터는 deviceMotion 미지원 → 항상 상수 중력).
+    private func syncMotionUpdates() {
+        #if DEBUG
+        // -tiltLab 주입이 정본 — 센서를 끄고 주입값을 **다시 적용**한다. 여기서 그냥 넘어가면
+        // didMove의 `gravity = fallback`이 주입을 덮은 채로 남는다(프레젠트 전에 주입된 경우:
+        // 슬라이더 표시값은 y=+1인데 더미는 아래로 떨어지던 버그).
+        if let d = debugTilt {
+            applyDebugTilt(d)
+            syncClatterEngine()
+            return
+        }
+        #endif
+        let wanted = view != nil && !externallyPaused && !reduceMotion && tilt.isAvailable
+        if wanted { startMotionUpdates() } else { stopMotionUpdates() }
+        syncClatterEngine()
+    }
+
+    /// 달그락 엔진 수명주기도 같은 자리에서 파생시킨다(별도 채널을 만들지 않는다). 다만 조건은
+    /// **보이는 씬**까지만 — Reduce Motion은 시각 배려지 촉각 배려가 아니고(§7.4), 자이로가 없는
+    /// 시뮬레이터·구형 기기에서도 던져서 부딪히는 충돌은 그대로 일어난다. 안 보이는 씬에서만 내린다.
+    private func syncClatterEngine() {
+        if view != nil, !externallyPaused {
+            clatter.start()
+        } else {
+            clatter.stop()
+            clatterThrottle.reset()
+        }
+    }
+
+    private func startMotionUpdates() {
+        // 콜백은 래퍼가 메인 큐로 받는다 — 씬 상태(중력·wake)를 렌더 스레드와 같은 큐에서만 만진다.
+        tilt.start { [weak self] sample in
+            guard let self else { return }
+            self.applyDeviceGravity(x: Double(sample.gravityX), y: Double(sample.gravityY))
+            self.applyShake(sample)
+        }
+    }
+
+    /// 모션 중단 — 중력은 상수 폴백으로 되돌려 놓는다(기울인 채 탭을 벗어나도 다음 표시가 정상 감각).
+    /// 중력이 **실제로 바뀌었으면 깨운다** — 기울인 채 잠든 더미는 기울어진 배치 그대로 얼어붙어 있어,
+    /// 상수 중력만 되돌려 놓고 재우면 다음에 봤을 때 비스듬히 굳은 더미가 그대로 보인다.
+    private func stopMotionUpdates() {
+        tilt.stop()   // 인플라이트 콜백은 래퍼가 onSample을 nil로 만들며 스스로 취소한다
+        gravityDirectionless = false
+        guard physicsWorld.gravity != GravityMapper.fallback else { return }
+        physicsWorld.gravity = GravityMapper.fallback
+        lastAppliedGravity = GravityMapper.fallback
+        wake()   // calm 카운터·스냅샷 리셋 + idle 해제 → 복원된 중력으로 다시 굴러 재안착
+    }
+
+    /// 측정 중력 반영. 휴면 중엔 **깨울 만한 기울임**(wakeAngle)일 때만 적용한다 —
+    /// 데드밴드(2°)로 야금야금 갱신하면 느린 회전이 영원히 wake 임계를 못 넘어 더미가 굳는다.
+    /// 적용할 때마다 calm 창을 리셋해 안착 판정이 새 중력에서 다시 검증되게 한다.
+    private func applyDeviceGravity(x: Double, y: Double) {
+        // 인플라이트 콜백 방어 — 모션 콜백은 메인 큐에 이미 실려 있을 수 있어, stopMotionUpdates()
+        // 직후에도 한 번 더 도착한다. 그대로 받으면 방금 가려진(또는 뷰를 떠난) 씬을 다시 기울이고 깨운다.
+        guard view != nil, !externallyPaused else { return }
+        let sample = GravityMapper.sample(x: x, y: y, wasDirectionless: gravityDirectionless)
+        gravityDirectionless = sample.directionless
+        let candidate = sample.gravity
+        if idle {
+            guard GravityMapper.shouldWake(sample, lastApplied: lastAppliedGravity) else { return }
+            physicsWorld.gravity = candidate
+            lastAppliedGravity = candidate
+            wake()   // calm 카운터·스냅샷 리셋 포함
+        } else {
+            guard GravityMapper.shouldApply(candidate, lastApplied: lastAppliedGravity) else { return }
+            physicsWorld.gravity = candidate
+            lastAppliedGravity = candidate
+            calmFrames = 0
+            calmSnapshot.removeAll()
+            // 이 경로는 일부러 wake()를 안 부른다(이미 깨어 있다) — 감쇠 유예는 여기서 직접 갱신한다.
+            dampSuppression = dampSuppressionFrames
+        }
+    }
+
+    // MARK: - 흔들기 에너지 주입
+
+    /// 이 G 미만은 손떨림·걷기 — 무시한다.
+    private let shakeThreshold: CGFloat = 0.35
+    /// 킥 사이 최소 간격(초) — 매 프레임 밀면 흔들기가 아니라 연속 가속이 된다.
+    private let shakeInterval: TimeInterval = 0.09
+    /// 킥 하나가 줄 수 있는 최대 속도 변화(pt/s). **벽 터널링 방지 상한** — 60fps에서 프레임당
+    /// 3.5pt라 두께 0인 edge loop도 못 뚫는다(게다가 wake로 CCD가 켜진 상태다).
+    private let shakeMaxDeltaV: CGFloat = 210
+    private let shakeGain: CGFloat = 150
+    private var lastShakeTime: TimeInterval = 0
+
+    /// `userAcceleration`(중력 제외 고역) → 칩들에 임펄스 킥. 이게 있어야 "흔들면 달그락"이 성립한다.
+    /// 중력 벡터만으론 흔들기가 전달되지 않는다(저역 신호라 흔드는 동안에도 거의 안 변한다).
+    /// Reduce Motion이면 통째로 건너뛴다 — 예측 불가한 화면 움직임을 없애는 것이 그 설정의 요지다(§7.4).
+    private func applyShake(_ sample: TiltSample) {
+        // applyDeviceGravity와 같은 콜백에서 갈라져 들어오므로 같은 표시 가드를 건다 —
+        // 화면에 없는 씬을 in-flight 샘플이 걷어차지 않게.
+        guard view != nil, !externallyPaused else { return }
+        guard !reduceMotion else { return }
+        let mag = hypot(sample.shakeX, sample.shakeY)
+        guard mag > shakeThreshold else { return }
+        guard lastUpdateTime - lastShakeTime >= shakeInterval else { return }
+        lastShakeTime = lastUpdateTime
+        kickChips(angle: atan2(sample.shakeY, sample.shakeX),
+                  deltaV: min((mag - shakeThreshold) * shakeGain, shakeMaxDeltaV))
+    }
+
+    /// 칩들을 한 방향으로 밀되 **칩마다 각도·세기를 흩는다** — 똑같이 밀면 나란히 움직여서
+    /// 서로 부딪히지 않고, 부딪히지 않으면 달그락도 없다.
+    private func kickChips(angle: CGFloat, deltaV: CGFloat) {
+        guard !chips.isEmpty else { return }
+        for (id, node) in chips {
+            guard let body = node.physicsBody else { continue }
+            let j = Self.stableJitter(id)                 // 0..1 결정적
+            let a = angle + (j - 0.5) * 1.3               // ±0.65rad 흩뿌림
+            let dv = deltaV * (0.65 + 0.7 * j)
+            body.applyImpulse(CGVector(dx: cos(a) * dv * body.mass,
+                                       dy: sin(a) * dv * body.mass))
+            body.applyAngularImpulse((j - 0.5) * 0.02 * body.mass)
+        }
+        wake()   // CCD 복구 + 감쇠 유예 — 킥이 감쇠에 바로 먹히지 않게
+    }
+
+    #if DEBUG
+    /// QA용 셰이크 버스트 — 시뮬레이터엔 자이로가 없어 손으로 흔들 수 없다.
+    /// TILT LAB의 SHAKE 버튼과 `-tiltLab.shake`가 이걸 부른다.
+    /// 실제 흔들기는 **왕복 운동**이라 한 번 미는 것으론 재현이 안 된다 — 방향을 바꿔 3연타를 넣는다.
+    func shakeBurst() {
+        wake()   // 휴면 중이면 먼저 깨운다(멈춘 씬은 SKAction도 안 돈다)
+        kickChips(angle: .pi * 0.5, deltaV: shakeMaxDeltaV * 0.9)
+        let followUps: [CGFloat] = [-.pi * 0.35, .pi * 0.8]
+        for (i, angle) in followUps.enumerated() {
+            run(.sequence([
+                .wait(forDuration: 0.13 * Double(i + 1)),
+                .run { [weak self] in
+                    guard let self else { return }
+                    self.kickChips(angle: angle, deltaV: self.shakeMaxDeltaV * 0.75)
+                },
+            ]))
+        }
+    }
+    #endif
 
     // MARK: - 컬러 스킴 (라이트/다크)
 
@@ -129,8 +408,12 @@ final class IngredientDropScene: SKScene {
     /// 스킴 전환 반영 — 적응형 색을 쓰는 표면만 다시 렌더한다.
     /// 실루엣 칩은 스킴 불변(캐시 유지)이라 폴백 틴트 사각형만 재해석하면 된다.
     private func retintForCurrentStyle() {
+        // 폴백 칩(텍스처 실패) 판별은 **텍스처 유무**로 한다. `colorBlendFactor`로 가르던 옛 조건은
+        // 늘 거짓이었다 — `SKSpriteNode(color:size:)`는 blend factor를 기본값 0으로 두고, 이 코드
+        // 어디에도 1을 넣는 곳이 없어 재틴트가 한 번도 돌지 않았다(텍스처 없는 스프라이트는 blend
+        // factor와 무관하게 `color`를 그대로 칠하므로 대입은 그대로 픽셀에 도달한다).
         for ing in pending {
-            guard let node = chips[ing.id], node.colorBlendFactor == 1 else { continue }
+            guard let node = chips[ing.id], node.texture == nil else { continue }
             node.color = resolvedUIColor(ing.freshness.main)   // 폴백 칩(텍스처 실패)만 적응형
         }
         // 존은 렌더된 텍스처라 다시 만들어야 팔레트가 갱신된다(드래그 중이면 보이는 상태 유지).
@@ -147,6 +430,10 @@ final class IngredientDropScene: SKScene {
         // 칩 변이 실제로 달라졌으면 텍스처 캐시를 버린다(캐시 키에 side가 박혀 있음).
         if chipSideFor(oldSize) != chipSide { textureCache.removeAll() }
         buildWalls()
+        // 천장이 내려오면 그 위에 남은 칩은 즉시 회수(스스로 못 들어온다). 단 **밀폐 상태일 때만** —
+        // 낙하 캐스케이드 중(천장 열림) 리플로우가 오면, 정상 낙하 중인 칩을 순간이동시키게 된다.
+        // 열린 동안의 회수는 maintainCeiling의 상태 기계(sealTimeout 백스톱 포함)가 맡는다.
+        if ceilingSealed { tuckStraysUnderCeiling() }
         layoutZones()
         wake()   // 리사이즈로 레이아웃이 바뀌었으니 한 번 굴려 재안착
     }
@@ -155,6 +442,14 @@ final class IngredientDropScene: SKScene {
     /// 거리 비례 목표 속도 + 가속 제한 → 약간의 딜레이·관성(실감, §13.4). 동적 바디라 이웃을
     /// 부드럽게 밀 뿐 튕겨내지 않는다. 속도 상한으로 과격한 밀침을 막는다.
     override func update(_ currentTime: TimeInterval) {
+        // 일시정지 공백은 개봉 시간으로 세지 않는다. `currentTime`은 시스템 시계라 씬이 멈춘
+        // 동안에도 계속 흐르는데 `unsealedSince`를 되돌리는 경로가 없어, 탭 전환·백그라운드에서
+        // 6초 넘게 머물다 돌아오면 재개 첫 프레임이 곧장 sealTimeout 강제 회수를 돌렸다
+        // (낙하 중이던 칩이 천장 밑 한 줄로 순간이동한 뒤 다시 떨어진다). 프레임 간격이
+        // 비정상적으로 벌어졌으면 타이머만 접는다 — 회수 자체는 다음 프레임부터 정상적으로 잰다.
+        if lastUpdateTime > 0, currentTime - lastUpdateTime > 1.0 { unsealedSince = nil }
+        lastUpdateTime = currentTime   // didBegin엔 시간 인자가 없어 여기서 받아 둔다(햅틱 스로틀용)
+        maintainCeiling(currentTime)   // 낙하 끝나면 밀폐, 위쪽에 갇힌 칩은 회수(§13.4 컨테인먼트)
         if let node = dragged, let body = node.physicsBody {
             // 마그네틱 캡처 — 손가락이 바스켓 근처면 추종 목표가 바스켓 중심으로 스냅되어
             // 재료가 자석처럼 끌려 들어간다. 손가락이 벗어나면 다시 손가락을 따른다.
@@ -178,11 +473,18 @@ final class IngredientDropScene: SKScene {
         // 임펄스로 착지 직후 미세 요동이 남을 수 있다. settleBand 미만(= 자유낙하·던지기 아님)만
         // 프레임당 20% 곱셈 감쇠 → 수 프레임 내 calm 대역으로 수렴. 고속 칩은 안 건드려 낙하·던지기의
         // 묵직함(§13.4)은 그대로.
-        for node in chips.values {
-            guard let b = node.physicsBody else { continue }
-            if hypot(b.velocity.dx, b.velocity.dy) < settleBand {
-                b.velocity = CGVector(dx: b.velocity.dx * jitterDamp, dy: b.velocity.dy * jitterDamp)
-                b.angularVelocity *= jitterDamp
+        // 중력이 막 바뀐 직후(= 기울이는 중)엔 이 감쇠를 쉰다. 안 그러면 느린 가속이 매 프레임 20%씩
+        // 깎여 **종단 2pt/s**에 갇히고, 정착한 더미는 기울여도 꿈쩍 않는다(기울임이 아예 안 보인다).
+        // 손을 멈추면 카운터가 소진되며 평소의 감쇠·안착 동작으로 돌아간다.
+        if dampSuppression > 0 {
+            dampSuppression -= 1
+        } else {
+            for node in chips.values {
+                guard let b = node.physicsBody else { continue }
+                if hypot(b.velocity.dx, b.velocity.dy) < settleBand {
+                    b.velocity = CGVector(dx: b.velocity.dx * jitterDamp, dy: b.velocity.dy * jitterDamp)
+                    b.angularVelocity *= jitterDamp
+                }
             }
         }
         // 드래그가 없을 때만 정착 판정 — 지터 때문에 '완전 정지'는 영원히 안 오므로,
@@ -252,6 +554,10 @@ final class IngredientDropScene: SKScene {
     /// 변위 검증 통과 → 강제 안착(freeze). 지터로 요동하던 미세 속도를 그 자리에서 0으로 굳혀
     /// 시각적 '꿈틀'까지 없애고 재운다. 물리 파라미터는 건드리지 않는다.
     private func forceSettle() {
+        // 천장이 열려 있는 동안(= 가시 영역 위에 표류칩이 있음)은 잠들지 않는다. 여기서 잠들면
+        // update()가 멈춰 maintainCeiling의 sealTimeout 강제 회수가 영영 돌지 않는다 —
+        // §13.4의 "6초 넘게 열려 있으면 구조적으로 막는다"는 보증은 이 가드가 지킨다.
+        guard ceilingSealed else { return }
         for node in chips.values {
             node.physicsBody?.velocity = .zero
             node.physicsBody?.angularVelocity = 0
@@ -261,7 +567,12 @@ final class IngredientDropScene: SKScene {
 
     /// 정착 → idle. 정밀 충돌은 '움직일 가능성이 있는 동안'만이라 여기서 전부 내린다(B6).
     private func settleToIdle() {
-        for node in chips.values { node.physicsBody?.usesPreciseCollisionDetection = false }
+        for node in chips.values {
+            node.physicsBody?.usesPreciseCollisionDetection = false
+            // 스쿼시 액션이 남은 채 pause되면 눌린 모양으로 얼어붙는다 — 여기서 끊고 배율을 1로 굳힌다.
+            node.removeAction(forKey: "squash")
+            node.setScale(1)
+        }
         idle = true
         refreshPaused()
         #if DEBUG
@@ -274,8 +585,14 @@ final class IngredientDropScene: SKScene {
     private func wake() {
         calmFrames = 0
         calmSnapshot.removeAll()
+        dampSuppression = dampSuppressionFrames   // 기울임 반응 창 — idle 여부와 무관하게 갱신
         guard idle else { return }
         idle = false
+        // 스로틀 리셋은 **실제 휴면→기상 전이에서만**. wake()는 셰이크 킥(0.09초마다)·터치·sync가
+        // 깨어 있는 상태에서도 부르는데, 위에 두면 그때마다 쌍 쿨다운(0.14초)이 지워져 같은 두 칩이
+        // 초당 11번까지 다시 울린다 — 셰이크 중, 즉 접촉이 가장 많은 구간에서 게이트가 무력해진다.
+        // 리셋의 근거(lastUpdateTime은 휴면을 건너뛰며 튄다)도 이 전이에서만 성립한다.
+        clatterThrottle.reset()
         for node in chips.values { node.physicsBody?.usesPreciseCollisionDetection = true }
         refreshPaused()
     }
@@ -333,6 +650,10 @@ final class IngredientDropScene: SKScene {
         let y = size.height - zoneSide * 0.5 - 12
         tossZone?.position = CGPoint(x: zoneSide * 0.5 + 14, y: y)
         ateZone?.position = CGPoint(x: size.width - zoneSide * 0.5 - 14, y: y)
+        #if DEBUG
+        // `-zoneLab`은 재생성(다크 전환 리틴트) 뒤에도 계속 보여야 하므로 여기서 알파를 되돌린다.
+        if zoneLab { tossZone?.alpha = 0.96; ateZone?.alpha = 0.96 }
+        #endif
     }
 
     /// 드래그 시작/끝에만 보인다 — 평소엔 물리 필드를 어지럽히지 않는다.
@@ -353,25 +674,78 @@ final class IngredientDropScene: SKScene {
     }
 
     /// 바닥(요리시작 버튼 마진) + 좌·우 벽 + 천장으로 **완전히 닫힌 상자**.
-    /// 닫혀 있으므로 끌거나 던져도 재료가 화면 밖으로 새지 않는다.
+    /// 좌·우는 `wallInset`만큼 안쪽이라 그림까지 화면 안에 남고, 천장은 낙하 중에만 열려 있다
+    /// (`ceilingSealed`). 밀폐되면 상자가 가시 영역과 일치해 **어느 중력 방향에서도** 재료가 안 샌다.
     private func buildWalls() {
         guard size.width > 1, size.height > 1 else { return }
         childNode(withName: "walls")?.removeFromParent()
-        let rect = CGRect(x: boxInset, y: floorY,
-                          width: size.width - boxInset * 2, height: boxTop - floorY)
+        let top = ceilingSealed ? sealedCeiling : spawnCeiling
+        let rect = CGRect(x: wallInset, y: floorY,
+                          width: max(1, size.width - wallInset * 2), height: max(1, top - floorY))
         let walls = SKNode()
         walls.name = "walls"
         walls.physicsBody = SKPhysicsBody(edgeLoopFrom: rect)   // 닫힌 루프(상자)
         walls.physicsBody?.friction = 0.7
+        walls.physicsBody?.categoryBitMask = Category.wall
+        walls.physicsBody?.contactTestBitMask = Category.chip   // 바닥 착지도 임팩트로 친다
         addChild(walls)
+    }
+
+    /// 천장을 연다 — 새 재료가 화면 위에서 떨어져 들어오기 직전에 부른다.
+    /// 밀폐된 채로 스폰하면 칩이 천장 **위**에 얹혀 영영 안 보인다.
+    private func openCeiling() {
+        guard ceilingSealed else { return }
+        ceilingSealed = false
+        buildWalls()
+    }
+
+    /// 천장 관리(매 프레임) — 모든 칩이 가시 영역 안으로 들어오면 밀폐하고, 낙하 중이면 열어 둔다.
+    /// 열린 채 `sealTimeout`이 지나면(= 기울기 탓에 위쪽에 갇힌 칩이 있다는 뜻) 강제로 끌어내리고 밀폐해
+    /// "화면 밖으로 나가서 안 돌아옴"을 구조적으로 불가능하게 만든다.
+    private func maintainCeiling(_ now: TimeInterval) {
+        guard size.width > 1, size.height > 1 else { return }
+        // 매 프레임 도는 자리다 — 불리언 하나 얻자고 배열을 만들지 않고, 계산 프로퍼티 체인
+        // (`sealedCeiling` → `wallInset` → `chipSideFor`)도 칩마다 다시 타지 않게 한 번만 편다
+        // (`tuckStraysUnderCeiling`이 이미 쓰는 방식).
+        let ceiling = sealedCeiling
+        guard chips.values.contains(where: { $0.position.y > ceiling }) else {
+            unsealedSince = nil
+            if !ceilingSealed { ceilingSealed = true; buildWalls() }
+            return
+        }
+        openCeiling()
+        let since = unsealedSince ?? now
+        unsealedSince = since
+        guard now - since > sealTimeout else { return }
+        // 갇힌 칩 회수 — 천장 바로 아래로 내려놓고 속도를 죽인 뒤 상자를 닫는다.
+        tuckStraysUnderCeiling()
+        unsealedSince = nil
+        ceilingSealed = true
+        buildWalls()
+        wake()
+    }
+
+    /// 천장 **위**에 남은 칩을 상자 안으로 끌어들인다.
+    ///
+    /// 밀폐된 상자 바깥(위)에 놓인 칩은 스스로 못 들어온다 — 위로 기울인 상태면 그대로 떠올라
+    /// 감쇠(`jitterDamp`)에 얼어붙고, 그러면 씬이 안착으로 판정해 잠들어(`forceSettle`) `maintainCeiling`의
+    /// 타임아웃이 **영영 돌지 않는다**(재료가 화면 밖에서 사라진 것처럼 보였다).
+    /// 그래서 `maintainCeiling`의 지연 회수와 별개로, 천장이 내려오는 순간에도 즉시 회수한다.
+    private func tuckStraysUnderCeiling() {
+        let ceiling = sealedCeiling
+        for node in chips.values where node.position.y > ceiling {
+            node.position.y = ceiling - chipSide * 0.5
+            node.physicsBody?.velocity = .zero
+            node.physicsBody?.angularVelocity = 0
+        }
     }
 
     /// 표시용 실루엣 텍스처(종이 그림자 포함)를 캐시한다. 충돌체는 이 텍스처 알파가 아니라
     /// 실측 폴리곤(`makeBody`)이라, 여기선 표시용(shadowed: true)만 쓴다(shadowless는 진단용 잔존).
-    /// 캐시 키에 side가 들어가 리사이즈로 변이 달라지면 자동 무효(캐시 removeAll은 didChangeSize).
+    /// 무효화 경로 셋: 리사이즈(didChangeSize의 removeAll — 키에 side가 박혀 있다),
+    /// 동기화 직후 미사용분 제거(`evictUnusedTextures`), 메모리 경고(전량 removeAll).
     private func texture(for ing: Ingredient, side: CGFloat, shadowed: Bool) -> SKTexture? {
-        // 캐시 키에 스킴은 없다 — PaperSilhouette 팔레트는 전량 고정색이라 라이트/다크가 픽셀 동일.
-        let key = "\(ing.glyph.rawValue)@\(Int(side))" + (shadowed ? "" : "#body")
+        let key = Self.textureKey(for: ing, side: side, shadowed: shadowed)
         if let t = textureCache[key] { return t }
         let view = PaperSilhouette(glyph: ing.glyph, fresh: ing.freshness, shadowed: shadowed)
             .frame(width: side, height: side)
@@ -381,6 +755,31 @@ final class IngredientDropScene: SKScene {
         let t = SKTexture(image: img)
         textureCache[key] = t
         return t
+    }
+
+    /// 캐시 키 — 캐시에 넣는 쪽과 청소하는 쪽이 **같은 식**을 쓰도록 한 곳에 둔다.
+    /// 스킴은 없다 — PaperSilhouette 팔레트는 전량 고정색이라 라이트/다크가 픽셀 동일.
+    /// 신선도는 들어간다 — 같은 글리프라도 시듦(채도·명도·처짐·라운딩)이 달라 픽셀이 다르다.
+    /// `internal`(비-private) — `WiltCacheKeyTests`가 `@testable import`로 이 축의 존재를 직접
+    /// 고정한다(`MainView.tiltLabLaunchConfig` 선례). 순수 함수라 씬을 띄우지 않고 검증된다.
+    static func textureKey(for ing: Ingredient, side: CGFloat, shadowed: Bool) -> String {
+        "\(ing.glyph.rawValue)@\(Int(side))@\(WiltStyle.for(ing.freshness).token)" + (shadowed ? "" : "#body")
+    }
+
+    /// 캐시 상한 — 키에 (글리프·변·시듦)이 들어가 재료가 바뀌거나 날이 넘어갈 때마다 새 키가 생긴다.
+    /// 방치하면 세션 내내 단조 증가하므로(시듦 3단계가 글리프당 키를 3배로 불린다), 동기화 직후
+    /// **지금 화면에 있는 칩이 실제로 쓰는 키만** 남긴다. 변은 칩 노드의 실측을 쓴다 — 리사이즈 전에
+    /// 만들어진 칩은 옛 변을 그대로 갖고 있어(rewilt가 그 변으로 다시 굽는다) 현재 chipSide와 다를 수 있다.
+    private func evictUnusedTextures() {
+        guard !textureCache.isEmpty else { return }
+        var live = Set<String>()
+        for ing in pending {
+            let side = chips[ing.id]?.size.width ?? chipSide
+            live.insert(Self.textureKey(for: ing, side: side, shadowed: true))
+            live.insert(Self.textureKey(for: ing, side: side, shadowed: false))
+        }
+        // live에는 아직 굽지 않은 키(#body 진단 변형)도 섞이므로 개수 비교로 건너뛰지 않는다 — 항상 훑는다.
+        textureCache = textureCache.filter { live.contains($0.key) }
     }
 
     func sync(_ ingredients: [Ingredient]) {
@@ -398,11 +797,15 @@ final class IngredientDropScene: SKScene {
                 if (node.userData?["name"] as? String) != ing.name {
                     popOut(node, id: ing.id)
                     addChip(ing, order: i, count: ingredients.count)
+                } else if (node.userData?["wilt"] as? String) != WiltStyle.for(ing.freshness).token {
+                    // 날짜가 넘어가 신선도만 바뀐 경우 — 칩을 다시 떨어뜨리지 않고 제자리에서 시들게 한다.
+                    rewilt(node, ing)
                 }
             } else {
                 addChip(ing, order: i, count: ingredients.count)
             }
         }
+        evictUnusedTextures()   // 칩 확정 후 — 더 이상 아무도 안 쓰는 텍스처를 버린다(캐시 상한)
     }
 
     /// 제거 연출 — 살짝 커졌다(easeOut) → 뿅 줄며 사라짐(easeIn). Reduce Motion이면 빠른 페이드만.
@@ -439,13 +842,23 @@ final class IngredientDropScene: SKScene {
         let body = makeBody(for: ing.glyph, side: s)
         node.physicsBody = body
         node.name = "chip:\(ing.id.uuidString)"
-        node.userData = ["name": ing.name]
-        body.restitution = 0.12          // 살짝 통통 — 가벼운 느낌
-        body.friction = 0.55
-        body.linearDamping = 0.2         // 둥둥 뜨진 않게, 빨리 안착
-        body.angularDamping = 0.85       // 자연스럽게 기울며 안착하되 무한 회전은 억제
+        // glyph는 충돌 시 촉감(sharpness·세기)을 되찾기 위해 — 물리 바디에서 노드로 거슬러 읽는다.
+        node.userData = ["name": ing.name, "glyph": ing.glyph.rawValue,
+                         "wilt": WiltStyle.for(ing.freshness).token]
+        // 물성은 글리프 클래스별 차등(위 ChipMaterial) — 계란은 굴러가고 두부는 눌러앉는다.
+        // **낙하 축은 차등하지 않는다**: linearDamping 0.2와 중력 42는 §13.4의 "쿵" 감각이다.
+        let mat = Self.material(for: ing.glyph)
+        body.restitution = mat.restitution
+        body.friction = mat.friction
+        body.linearDamping = 0.2         // 둥둥 뜨진 않게, 빨리 안착 (전 클래스 공통)
+        body.angularDamping = mat.angularDamping
         body.allowsRotation = true       // 자연스러운 물리 — 기울고 굴러 빈틈에 안착
-        body.mass = 0.7                  // 가볍게
+        // 질량은 실측 바디 면적비에서 파생 — 큰 칩이 작은 칩을 밀어내는 게 눈에 보인다.
+        // 드래그 추종·던지기 상한은 **속도를 직접 조종**하므로 질량과 무관하다(감각 불변).
+        // 즉 질량 차이는 충돌·밀침에서만 드러난다.
+        body.mass = Self.mass(for: ing.glyph)
+        body.categoryBitMask = Category.chip
+        body.contactTestBitMask = Category.chip | Category.wall   // collisionBitMask는 기본값 유지
         body.usesPreciseCollisionDetection = true
 
         // 가운데 좁은 밴드로 모아 떨어뜨려 **한 더미로 쌓이게** 한다(좌우로 흩지 않음).
@@ -457,12 +870,28 @@ final class IngredientDropScene: SKScene {
         if reduceMotion {
             node.position = CGPoint(x: x, y: floorY + s * (0.45 + CGFloat(order % 3) * 0.5))
         } else {
-            // 위에서 스태거 낙하 → 더미. 스폰은 항상 닫힌 천장 **아래**(상자 밖 탈출 방지).
-            let y = min(size.height + s * (0.4 + CGFloat(order) * 0.85), boxTop - s * 0.6)
+            // 위에서 스태거 낙하 → 더미. 스폰은 항상 **스폰 천장** 아래로 클램프하고, 밀폐돼 있으면
+            // 먼저 연다 — 밀폐된 채로 화면 위에 놓으면 칩이 천장 **위**에 얹혀 영영 안 보인다.
+            openCeiling()
+            let y = min(size.height + s * (0.4 + CGFloat(order) * 0.85), spawnCeiling - s * 0.6)
             node.position = CGPoint(x: x, y: y)
         }
         addChild(node)
         chips[ing.id] = node
+    }
+
+    /// 신선도 변화(날짜 롤오버·소비기한 편집) 반영 — **텍스처만** 다시 구워 쌓인 자리를 지킨 채 시들게 한다.
+    /// 물리 바디는 일부러 그대로 둔다: 충돌체는 `.fresh` 기준 실측(`GlyphBodyMetrics`) 폴리곤이고
+    /// 시듦은 3~7% 시각 스쿼시라, 콜라이더를 같이 줄이면 이미 안착한 더미가 통째로 재정렬되며
+    /// 무너진다(쌓임·무게 튜닝도 전부 흔들린다). 시각-충돌 오차 3~7%는 허용한다.
+    private func rewilt(_ node: SKSpriteNode, _ ing: Ingredient) {
+        if let t = texture(for: ing, side: node.size.width, shadowed: true) {
+            node.texture = t
+            node.colorBlendFactor = 0    // 방어적 리셋(폴백 단색 칩도 기본 0) — 텍스처가 틴트에 안 먹히게
+        } else {
+            node.color = resolvedUIColor(ing.freshness.main)   // 렌더 실패 시 폴백 틴트만 갱신
+        }
+        node.userData?["wilt"] = WiltStyle.for(ing.freshness).token
     }
 
     /// 글리프별 볼록 폴리곤 충돌체 — **실측 알파 bbox 기반**(`GlyphBodyMetrics`, `-glyphMetrics`로 재측정).
@@ -499,6 +928,105 @@ final class IngredientDropScene: SKScene {
         .generic: (0.60, 0.56, 0.01),
     ]
 
+    /// 바디 면적(폭비×높이비)의 전체 평균 — 질량비의 기준. 타원 면적의 π/4는 비율에서 약분된다.
+    private static let meanFootprint: CGFloat = {
+        let areas = bodyMetrics.values.map { $0.w * $0.h }
+        return areas.isEmpty ? 1 : areas.reduce(0, +) / CGFloat(areas.count)
+    }()
+
+    /// 글리프별 질량 — 기준 0.7에 면적비를 곱하고 [0.45, 1.1]로 클램프한다.
+    /// 클램프가 없으면 납작한 글리프(고구마·버터)가 깃털처럼 튕겨 나가고 큰 글리프가 불도저가 된다.
+    private static func mass(for glyph: FoodGlyph) -> CGFloat {
+        let m = bodyMetrics[glyph] ?? (0.62, 0.60, 0)
+        let ratio = (m.w * m.h) / meanFootprint
+        return min(max(0.7 * ratio, 0.45), 1.1)
+    }
+
+    // MARK: - 재료 물성 (§13.4)
+
+    /// 칩 하나의 물성 — **회전·마찰 축만** 차등한다. 질량 차이만으론 부딪히기 전까지 아무것도 안 보이지만,
+    /// 마찰과 각감쇠는 기울이는 순간 바로 읽힌다(계란은 데굴데굴, 두부는 그 자리에 눌러앉는다).
+    ///
+    /// **낙하 축(중력 42 · linearDamping 0.2)은 일부러 건드리지 않는다.** §13.4가 규정한 감각은
+    /// "묵직하게 — 큰 중력 + 낮은 반발로 쿵 떨어져 거의 안 튄다"이고, 클래스별 종단속도를 주는
+    /// 튜닝은 그 반대(둥둥 뜨는 수중감)라 SSOT와 충돌한다. 그래서 `linearDamping` 필드 자체를 두지 않는다.
+    private struct ChipMaterial {
+        /// **햅틱 대표자 선정 전용 랭킹 키**다. `body.mass`에는 절대 대입하지 않는다 —
+        /// 실제 질량은 실측 바디 면적비에서 파생한다(`mass(for:)`, 53종 전부 자동 커버).
+        /// 칩-칩 충돌에서 "어느 쪽 촉감이 소리를 주도하나"를 가를 때만 쓴다(`clatterMaterial`).
+        let mass: CGFloat
+        let restitution: CGFloat       // 0 = 안 튐, 클수록 통통 (기준 0.12에서 클래스별 ±0.02)
+        let friction: CGFloat          // 클수록 안 미끄러짐
+        let angularDamping: CGFloat    // 작을수록 잘 구른다
+        /// 달그락 햅틱의 날카로움 — 1에 가까울수록 쨍한 '클링'(캔·병), 0에 가까울수록 둔탁한 '툭'(고기).
+        var sharpness: Float = 0.5
+        /// 달그락 햅틱의 세기 배율 — 여린 재료(잎·두부)는 같은 임펄스라도 약하게 친다.
+        var hapticScale: Float = 0.8
+
+        /// 기본 — 대부분의 채소·과일. **기존 값 그대로**라 표에 없는 글리프는 완전한 무변화다.
+        static let standard = ChipMaterial(mass: 0.70, restitution: 0.12, friction: 0.55,
+                                           angularDamping: 0.85)
+        /// 가벼움 — 잎채소·해조·버섯·빵. 살짝 더 통통 튀고 잘 미끄러지지 않는다.
+        /// 촉감: 여린 '틱' — 잎사귀가 스치는 정도라 세기를 크게 낮춘다.
+        static let light = ChipMaterial(mass: 0.40, restitution: 0.13, friction: 0.66,
+                                        angularDamping: 0.90, sharpness: 0.55, hapticScale: 0.42)
+        /// 잘 구름 — 계란·토마토·사과처럼 둥글고 매끈한 것. 마찰·각감쇠가 낮아 기울이면 데굴데굴 굴러간다.
+        /// 촉감: 또각 — 단단한 껍질이 부딪히는 중간 날카로움.
+        static let rolling = ChipMaterial(mass: 0.80, restitution: 0.14, friction: 0.30,
+                                          angularDamping: 0.78, sharpness: 0.68, hapticScale: 0.85)
+        /// 묵직함 — 소고기·연어 등 덩어리 단백질. 안 튀고, 기울여도 굼뜨게 미끄러지며 가벼운 재료를 밀어낸다.
+        /// 촉감: 둔탁한 '툭' — 살덩이가 떨어지는 소리. 세기는 크되 날카로움은 최소.
+        static let heavy = ChipMaterial(mass: 1.40, restitution: 0.11, friction: 0.70,
+                                        angularDamping: 0.96, sharpness: 0.18, hapticScale: 1.0)
+        /// 용기 — 우유갑·소스병·캔. 표면이 매끈해 잘 미끄러진다.
+        /// 촉감: 쨍한 '클링' — 캔·유리병끼리 부딪히는 금속성. 이 계열이 달그락의 주인공이다.
+        static let container = ChipMaterial(mass: 1.15, restitution: 0.12, friction: 0.46,
+                                            angularDamping: 0.92, sharpness: 0.95, hapticScale: 1.0)
+        /// 물렁함 — 두부·밥·면·만두. 닿은 자리에 착 붙어 거의 안 구른다.
+        /// 촉감: 퍽 — 물먹은 덩어리라 거의 촉감이 없다(가장 약하고 가장 뭉툭).
+        static let soft = ChipMaterial(mass: 0.75, restitution: 0.11, friction: 0.82,
+                                       angularDamping: 0.98, sharpness: 0.10, hapticScale: 0.50)
+    }
+
+    /// 글리프 → 물성. 53종을 하나씩 손으로 매기면 유지도 안 되고 의도도 흐려져,
+    /// 손에 잡히는 느낌 6종으로 묶었다. **표에 없는 글리프는 전부 `.standard`**(= 기존 값)로 떨어진다
+    /// (뿌리채소·오이·고추·가지·고구마·생강·새우·옥수수 등 무난한 중간 물성 재료들).
+    private static let materials: [FoodGlyph: ChipMaterial] = [
+        // 가벼움 — 잎·해조·버섯·빵
+        .leaf: .light, .cabbage: .light, .seaweed: .light, .mushroom: .light,
+        .broccoli: .light, .pea: .light, .bread: .light,
+        // 잘 구름 — 둥글고 매끈
+        .egg: .rolling, .tomato: .rolling, .apple: .rolling, .citrus: .rolling, .grape: .rolling,
+        .berry: .rolling, .potato: .rolling, .onion: .rolling, .garlic: .rolling, .mango: .rolling,
+        // 묵직함 — 덩어리 단백질·큰 과채
+        .meat: .heavy, .fish: .heavy, .poultry: .heavy, .sausage: .heavy, .bacon: .heavy,
+        .crab: .heavy, .squid: .heavy, .clam: .heavy,
+        .pumpkin: .heavy, .watermelon: .heavy, .pineapple: .heavy,
+        // 용기 — 갑·병·캔·유제품
+        .milk: .container, .sauceBottle: .container, .can: .container, .honey: .container,
+        .yogurt: .container, .butter: .container, .cheese: .container,
+        // 물렁함 — 눌러 붙는 것
+        .tofu: .soft, .rice: .soft, .noodles: .soft, .dumpling: .soft, .gimbap: .soft,
+        .avocado: .soft, .banana: .soft,
+    ]
+
+    private static func material(for glyph: FoodGlyph) -> ChipMaterial {
+        materials[glyph] ?? .standard
+    }
+
+    /// 락스텝 방지용 결정적 지터 0..1 — 흔들기 킥의 각도·세기를 칩마다 흩어
+    /// 완전히 같은 벡터로 나란히 이동하는 "판박이 이동"(= 충돌 0, 달그락 0)을 없앤다.
+    /// `Hasher`/`hashValue`는 프로세스마다 시드가 달라 재현되지 않으므로(스크린샷 QA가 흔들린다)
+    /// UUID 바이트를 직접 접는 djb2로 **실행 간 동일한 값**을 만든다.
+    private static func stableJitter(_ id: UUID) -> CGFloat {
+        let u = id.uuid
+        let bytes = [u.0, u.1, u.2, u.3, u.4, u.5, u.6, u.7,
+                     u.8, u.9, u.10, u.11, u.12, u.13, u.14, u.15]
+        var h: UInt64 = 5381
+        for b in bytes { h = (h &* 33) &+ UInt64(b) }
+        return CGFloat(h % 1000) / 1000
+    }
+
     /// 볼록 N각형 타원 바디(dy로 중심 오프셋) — SpriteKit `polygonFrom`은 볼록만 허용해 끼임·진동이 없다.
     private static func ovalBody(_ w: CGFloat, _ h: CGFloat, dy: CGFloat = 0, sides: Int = 14) -> SKPhysicsBody {
         let path = CGMutablePath()
@@ -509,6 +1037,65 @@ final class IngredientDropScene: SKScene {
         }
         path.closeSubpath()
         return SKPhysicsBody(polygonFrom: path)
+    }
+
+    // MARK: - 착지 임팩트 (스쿼시 + 달그락 햅틱)
+
+    /// 접촉 시작 — **두 가지 일을 한 번에** 한다. 축이 일부러 다르다.
+    /// ① 스쿼시: 임펄스를 질량으로 나눠 **근사 속도변화(pt/s)**로 환산한다. 나눈 값은
+    ///    calmSpeed·settleBand와 같은 축이라 "쌓이는 더미의 잔접촉"과 "실제 착지"를 기존 튜닝과
+    ///    같은 기준으로 가른다.
+    /// ② 달그락: **생 임펄스** 그대로 세 관문(임펄스·전역간격·쌍 쿨다운)에 태운다. 운동량 전달이
+    ///    곧 체감 크기라, 질량으로 나누면 소고기와 잎사귀가 같은 세기로 느껴진다.
+    func didBegin(_ contact: SKPhysicsContact) {
+        guard !idle, !externallyPaused else { return }
+        let impulse = contact.collisionImpulse
+        guard impulse > 0 else { return }
+        for body in [contact.bodyA, contact.bodyB] where body.categoryBitMask & Category.chip != 0 {
+            let dv = impulse / max(0.2, body.mass)
+            guard dv >= squashImpact, let node = body.node as? SKSpriteNode else { continue }
+            squash(node, strength: min(1, (dv - squashImpact) / (squashImpactMax - squashImpact)))
+        }
+        // 햅틱은 Reduce Motion과 무관하게 살아 있다 — 시각 배려지 촉각 배려가 아니다(§7.4).
+        let pair = ClatterPair(ObjectIdentifier(contact.bodyA).hashValue,
+                               ObjectIdentifier(contact.bodyB).hashValue)
+        guard clatterThrottle.allow(impulse: impulse, pair: pair, now: lastUpdateTime) else { return }
+        let mat = clatterMaterial(contact.bodyA, contact.bodyB)
+        clatter.play(intensity: clatterIntensity(impulse) * mat.hapticScale, sharpness: mat.sharpness)
+        onClatter?()
+    }
+
+    /// 두 바디 중 촉감을 대표할 물성 — 칩-벽이면 그 칩, 칩-칩이면 **무거운 쪽**이 소리를 주도한다.
+    private func clatterMaterial(_ a: SKPhysicsBody, _ b: SKPhysicsBody) -> ChipMaterial {
+        let mats = [a, b].compactMap { body -> ChipMaterial? in
+            guard let raw = body.node?.userData?["glyph"] as? String,
+                  let glyph = FoodGlyph(rawValue: raw) else { return nil }
+            return Self.material(for: glyph)
+        }
+        return mats.max(by: { $0.mass < $1.mass }) ?? .standard
+    }
+
+    /// 임펄스 → 세기. 임계값에서 0.18로 시작해 상한에서 1.0으로 포화한다.
+    /// 바닥을 0이 아니라 0.18로 둔 이유 — 통과한 충돌은 '느껴져야' 의미가 있다. 0 근처면 헛발질이다.
+    private func clatterIntensity(_ impulse: CGFloat) -> Float {
+        let span = clatterImpulseCeiling - clatterThrottle.minImpulse
+        let t = span > 0 ? (impulse - clatterThrottle.minImpulse) / span : 1
+        return Float(min(1, max(0, t))) * 0.82 + 0.18
+    }
+
+    /// 착지 눌림 — 가로로 퍼지고 세로로 눌렸다가 복귀(최대 6%). 배율은 **정확히 1로** 되돌린다.
+    /// 드래그 중인 칩과 Reduce Motion·휴면은 제외(손끝 추종이 흔들리지 않게, §7.4).
+    private func squash(_ node: SKSpriteNode, strength: CGFloat) {
+        guard !reduceMotion, !idle, node !== dragged else { return }
+        guard node.action(forKey: "squash") == nil else { return }   // 연쇄 접촉으로 겹쳐 실행 금지
+        let amt = 0.03 + 0.03 * min(1, max(0, strength))
+        let d = ReffiMotion.dur2
+        let press = SKAction.scaleX(to: 1 + amt, y: 1 - amt, duration: d * 0.35)
+        press.timingMode = .easeOut
+        let back = SKAction.scaleX(to: 1, y: 1, duration: d * 0.65)
+        back.timingMode = .easeOut
+        // 마지막에 한 번 더 확정 대입 — 중간에 액션이 끊겨도 배율 잔차가 남지 않는다.
+        node.run(.sequence([press, back, .run { [weak node] in node?.setScale(1) }]), withKey: "squash")
     }
 
     // MARK: - Drag / throw / tap (단일 터치 추적)
@@ -534,7 +1121,10 @@ final class IngredientDropScene: SKScene {
         dragMoved = false
         dragStart = loc
         dragTarget = clampToBox(loc)
+        dragGrabOffset = CGPoint(x: loc.x - node.position.x, y: loc.y - node.position.y)
         setZones(visible: true)
+        node.removeAction(forKey: "squash")   // 잡는 순간 눌림 연출은 끊고 배율 원복
+        node.setScale(1)
         if let body = node.physicsBody {
             body.affectedByGravity = false   // 잡는 동안 중력 off → 손가락 추종(동적 유지)
             body.angularVelocity = 0
@@ -553,13 +1143,19 @@ final class IngredientDropScene: SKScene {
     /// 끌고 있는 재료의 중심을 상자 내부(반지름 마진)로 제한. 화면 위로도 못 끈다.
     private func clampToBox(_ p: CGPoint) -> CGPoint {
         let r = chipSide * 0.42
-        let minX = boxInset + r, maxX = max(boxInset + r, size.width - boxInset - r)
-        let minY = floorY + r,   maxY = max(floorY + r, size.height - r)
+        let minX = wallInset + r, maxX = max(wallInset + r, size.width - wallInset - r)
+        let minY = floorY + r,    maxY = max(floorY + r, sealedCeiling - r)
         return CGPoint(x: min(max(p.x, minX), maxX), y: min(max(p.y, minY), maxY))
     }
 
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
-        guard let t = dragTouch, touches.contains(t) else { return }
+        // 드래그 상태가 **밖에서 지워진** 경우에도 존은 내린다. `popOut`은 sync 도중 잡고 있던 칩이
+        // 사라지면 `dragTouch`를 nil로 만드는데, 그 뒤 손을 떼면 옛 가드가 먼저 return하고
+        // 아래 `defer`는 설치조차 되지 않아(Swift defer는 실행이 그 줄에 닿아야 등록된다) 판정
+        // 블롭이 alpha 0.96으로 화면에 남았다 — 다음 드래그가 정상 종료될 때까지 지워지지 않는다.
+        // 반대로 "다른 손가락이 떨어진 경우"는 그대로 무시한다(진행 중인 드래그의 예고를 지우면 안 된다).
+        guard let t = dragTouch else { setZones(visible: false); return }
+        guard touches.contains(t) else { return }
         defer { dragTouch = nil; dragged = nil; setZones(visible: false) }
         guard let node = dragged, let body = node.physicsBody else { return }
         body.affectedByGravity = true   // 놓으면 중력 복귀 — 현재 속도 그대로 자연스럽게 던져짐
@@ -567,6 +1163,13 @@ final class IngredientDropScene: SKScene {
         let m = hypot(body.velocity.dx, body.velocity.dy)
         if m > cap { body.velocity = CGVector(dx: body.velocity.dx * cap / m,
                                               dy: body.velocity.dy * cap / m) }
+        // 던질 때 회전 — 중심에서 벗어난 지점을 잡을수록 크게 돈다(토크 암). ω ≈ (r × v) / (side²·k),
+        // side로 정규화해 칩 크기가 달라져도 감각이 같다. 잡을 때 각속도를 0으로 만든 뒤라 순수 발사 회전.
+        let v = body.velocity
+        let torque = dragGrabOffset.x * v.dy - dragGrabOffset.y * v.dx
+        let s = chipSide
+        let spin = torque / (s * s * spinArm)
+        body.angularVelocity = min(max(spin, -spinCap), spinCap)
         let id = node.name.flatMap { UUID(uuidString: String($0.dropFirst(5))) }
         // 캡처된 채 놓으면 제스처 판정 — 휴지통 = Tossed, 냄비 = Ate.
         if dragMoved, let id, let zone = captureZone(near: dragTarget) {
@@ -579,7 +1182,8 @@ final class IngredientDropScene: SKScene {
     }
 
     override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
-        guard let t = dragTouch, touches.contains(t) else { return }
+        guard let t = dragTouch else { setZones(visible: false); return }   // touchesEnded와 같은 이유
+        guard touches.contains(t) else { return }
         dragged?.physicsBody?.affectedByGravity = true
         dragTouch = nil
         dragged = nil

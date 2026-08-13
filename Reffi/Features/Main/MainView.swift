@@ -11,6 +11,9 @@ struct MainView: View {
     @Environment(FridgeStore.self) private var store
     @Environment(ProfileStore.self) private var profile
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// 앱이 백그라운드로 내려가면 씬을 확실히 멈춘다(아래 scenePaused). `.inactive`는 **일부러 뺐다** —
+    /// 앱 전환기·알림 배너 같은 잠깐의 상태에서도 씬이 멈춰 첫 프레임이 회색으로 남는다.
+    @Environment(\.scenePhase) private var scenePhase
 
     // 알림 유도(프리퍼미션) — 첫 임박 재료가 생긴 순간이 가치가 증명되는 순간이다.
     // 알림은 기본 OFF + 스위치가 MyPage에만 있어, 여기서 한 번 제안하지 않으면 발견되지 않는다.
@@ -32,7 +35,6 @@ struct MainView: View {
     @State private var carouselSnapshot: [RecipeRecommender.Result] = []   // 커버 입력 동결(발주 중 재랭크 방지)
     @State private var firedTicket = false         // 커버당 발주 1회 — 슬램 창의 더블 파이어 방지
     @State private var coverGeneration = 0         // 지연 닫기 타이머가 새로 연 커버를 닫지 못하게
-    @State private var aiGenerating = false        // AI 티켓 생성 Task 진행 중 — 캐러셀 힌트 표시용(store엔 진행 상태가 없음)
     @State private var fireHaptic = 0
     @State private var decisionHaptic = 0
 
@@ -49,8 +51,16 @@ struct MainView: View {
     private var topF: Freshness { counter.first?.freshness ?? .fresh }
     private var urgentCount: Int { counter.lazy.filter { $0.freshness == .urgent }.count }
     private var soonCount: Int { counter.lazy.filter { $0.freshness == .soon }.count }
-    /// 씬 일시정지 — 다른 탭, 캐러셀·판정 커버에 가려진 동안은 물리 렌더를 멈춘다.
-    private var scenePaused: Bool { !isActive || showCarousel || deciding != nil }
+    /// 씬 일시정지 — 다른 탭, 그리고 씬을 완전히 덮는 **풀스크린 커버**(캐러셀·조리 화면·판정)에
+    /// 가려진 동안은 물리 렌더와 60Hz 모션 갱신을 멈춘다. 조리 화면(`showSteps`)은 불투명 커버라
+    /// 여기서 빠지면 안 보이는 씬이 계속 돌고 손 움직임이 그 씬을 다시 깨운다.
+    /// `showAdd`는 뺀다 — 풀스크린 커버가 아니라 시트(`.large` detent)라 위쪽에 표시 뷰가 남고,
+    /// 시트를 닫는 순간 정지화면이 잠깐 보이는 쪽이 더 나쁘다.
+    /// **백그라운드**도 포함한다 — iOS가 서스펜드하며 모션 콜백을 알아서 끊긴 하지만,
+    /// 여기서 명시하면 SKView 렌더 루프까지 결정적으로 멈추고 달그락 엔진도 함께 내려간다.
+    private var scenePaused: Bool {
+        !isActive || scenePhase == .background || showCarousel || showSteps || deciding != nil
+    }
     /// 씬 동기화 트리거 — id·이름·글리프·신선도 어느 것이 바뀌어도 칩이 따라간다.
     private var sceneSyncKey: [String] {
         counter.map { "\($0.id.uuidString)#\($0.name)#\($0.glyph.rawValue)#\($0.freshness)" }
@@ -113,7 +123,6 @@ struct MainView: View {
         }) {
             RecipeMemoCarousel(results: carouselSnapshot,
                                hasIngredients: !store.ingredients.isEmpty,
-                               aiGenerating: aiGenerating,
                                onClose: { showCarousel = false },
                                onFire: fire)
         }
@@ -138,27 +147,30 @@ struct MainView: View {
             scene.sync(counter)
         }
         #if DEBUG
+        // `-tiltLab` — 기울기 QA용 하단 오버레이. overlay라 헤더·배너·뱃지 행·CTA 레이아웃은 그대로다.
+        .overlay(alignment: .bottom) { tiltLabOverlay }
         .onAppear {   // 미리보기/검증용: `-loadSample`로 샘플 시드, `-previewCarousel 1`로 캐러셀 바로 열기.
             let args = ProcessInfo.processInfo.arguments
             if args.contains("-loadSample"), store.isPristine {
                 store.loadSampleData()
             }
             if args.contains("-previewCarousel") {
-                var snapshot = carouselResults
-                // AI 배지 스크린샷 검증용(-previewAIBadge 동시 지정) — 실 생성·store 변이 없이
-                // 최상위 랭크 레시피를 복제해(텍스트는 새로 짓지 않고 기존 시드에서 파생 —
-                // 하드코딩 금지 규칙 준수) 스냅샷 맨 앞에 직접 얹는다.
-                if args.contains("-previewAIBadge"), let base = snapshot.first?.recipe {
-                    var clone = base
-                    clone.id = "ai-preview-" + UUID().uuidString
-                    clone.origin = "ai"
-                    let result = RecipeRecommender.result(for: clone, ingredients: store.available)
-                    snapshot = [result] + snapshot
-                }
-                carouselSnapshot = snapshot
+                carouselSnapshot = carouselResults
                 showCarousel = true
             }
             if args.contains("-previewAdd") { showAdd = true }   // 재료 추가 시트 스크린샷 검증용
+            // `-cookCarousel` — 티켓 덱을 런치 시 자동 오픈(스크린샷·UI 테스트용).
+            // 시드가 부모(RootTabView)의 `-uiTestSampleFridge`로 들어오는 조합도 있어 한 박자 늦게 연다(`-cookTicket` 선례).
+            if args.contains("-cookCarousel") {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                    // 시드 자가 보장 — 스냅샷을 이 시점에 **한 번만** 읽으므로, 부모 시드가 없거나
+                    // 늦으면 덱이 영구히 빈 채로 열린다(테스트는 느려지는 게 아니라 실패한다).
+                    // `-cookTicket`이 loadSampleData()를 직접 부르는 선례를 따라 여기서 채운다.
+                    if store.available.isEmpty { store.loadSampleData() }
+                    carouselSnapshot = carouselResults
+                    showCarousel = true
+                }
+            }
             // `-cookTicket` — 조리 티켓은 fire 없인 열리지 않아 스크린샷 QA가 막힌다.
             // 진행 중 세션이 없으면 샘플로 강제 발주한 뒤 곧장 CookingStepsView를 연다.
             if args.contains("-cookTicket") {
@@ -174,6 +186,127 @@ struct MainView: View {
     }
 
     @State private var dayTick = 0   // 자정 리렌더 트리거
+
+    // MARK: - Tilt lab (`-tiltLab`, DEBUG)
+
+    #if DEBUG
+    /// 런치 인자 순수 파서 — `-tiltLab.x -0.9`처럼 값이 음수면 NSArgumentDomain(UserDefaults)이 `-0.9`를
+    /// 다음 키로 오인해 바인딩을 통째로 잃는다(`-fridge.compact YES` 선례는 값이 항상 양수/문자라 문제가
+    /// 없었다). 그래서 ProcessInfo.arguments를 직접 순회해 값을 뽑는다 — 순수 함수라 음수·클램프·누락
+    /// 같은 케이스를 실기기/시뮬레이터 없이 유닛 테스트로 고정할 수 있다.
+    /// `internal`(비-private) — TiltLabLaunchArgTests가 `@testable import Reffi`로 직접 호출한다.
+    /// 반환: x/y는 파싱 성공 시에만 값이 실리고(실패·누락이면 nil, 다음 토큰은 소비하지 않음) -1...1로
+    /// 클램프된다. labOn은 `-tiltLab` 존재, x 파싱 성공, y 파싱 성공, `-tiltLab.shake` 존재 중 하나만
+    /// 참이어도 true. shake는 `-tiltLab.shake` 존재 여부.
+    static func tiltLabLaunchConfig(from args: [String]) -> (x: Double?, y: Double?, labOn: Bool, shake: Bool) {
+        func value(after flag: String) -> Double? {
+            guard let i = args.firstIndex(of: flag), i + 1 < args.count,
+                  let raw = Double(args[i + 1]) else { return nil }
+            return min(1, max(-1, raw))
+        }
+        let x = value(after: "-tiltLab.x")
+        let y = value(after: "-tiltLab.y")
+        let shake = args.contains("-tiltLab.shake")
+        let labOn = args.contains("-tiltLab") || x != nil || y != nil || shake
+        return (x, y, labOn, shake)
+    }
+
+    /// 프로세스당 한 번만 파싱 — 아래 여러 프로퍼티가 ProcessInfo.arguments를 반복해 읽지 않도록 캐싱.
+    private static let tiltLabConfig = Self.tiltLabLaunchConfig(from: ProcessInfo.processInfo.arguments)
+
+    @State private var tiltLabX: Double = Self.tiltLabConfig.x ?? 0    // 주입 중력 x(정규화) — 오른쪽이 +
+    @State private var tiltLabY: Double = Self.tiltLabConfig.y ?? -1   // 주입 중력 y(정규화) — 위가 +, 세워 든 기본 자세가 -1
+
+    /// `-tiltLab` 또는 `-tiltLab.x/.y`(파싱 성공) 또는 `-tiltLab.shake` 중 하나만 있어도 실험실을 켠다.
+    private var tiltLabOn: Bool { Self.tiltLabConfig.labOn }
+
+    /// 기울기 실험실 — X/Y 슬라이더로 씬 중력 벡터를 직접 주입한다. 시뮬레이터엔 자이로가 없어
+    /// CoreMotion 경로를 탈 수 없으므로, 굴러가는 모양 QA는 사실상 이 경로로만 가능하다.
+    /// CTA 위에 얹어(하단 패딩) 요리시작 버튼은 계속 누를 수 있게 둔다.
+    @ViewBuilder private var tiltLabOverlay: some View {
+        if tiltLabOn {
+            VStack(alignment: .leading, spacing: 2) {
+                HStack {
+                    Text(verbatim: "TILT LAB")
+                        .reffiType(.monoEyebrow).foregroundStyle(ReffiColor.blueDark)
+                    Spacer()
+                    Text(verbatim: String(format: "x %.2f   y %.2f", tiltLabX, tiltLabY))
+                        .reffiType(.metaText).foregroundStyle(ReffiColor.ink2)
+                }
+                tiltLabSlider("X", value: $tiltLabX)
+                tiltLabSlider("Y", value: $tiltLabY)
+                HStack(spacing: ReffiSpace.s3) {
+                    Button { scene.shakeBurst() } label: {
+                        Text(verbatim: "SHAKE")
+                            .reffiType(.monoEyebrow)
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, ReffiSpace.s3)
+                            .padding(.vertical, 4)
+                            .background(ReffiColor.blue, in: Capsule())
+                    }
+                    .buttonStyle(.reffiPress)
+                    clatterCounter
+                    Spacer()
+                }
+                .padding(.top, 2)
+            }
+            .padding(.horizontal, ReffiSpace.s4)
+            .padding(.vertical, ReffiSpace.s2)
+            .background {
+                let shape = PaperRect(cornerRadius: ReffiRadius.md)
+                shape.fill(ReffiColor.paper).paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
+            }
+            .reffiShadow1()
+            .padding(.horizontal, margin)
+            .padding(.bottom, navClearance + 60)
+            .onAppear {
+                pushTiltLab()
+                scene.onClatter = { [clatterLog] in
+                    clatterLog.times.append(ProcessInfo.processInfo.systemUptime)
+                    if clatterLog.times.count > 240 { clatterLog.times.removeFirst(120) }
+                }
+                // `-tiltLab.shake` — 버튼을 코드로 못 눌러서, 런치 1.5초 뒤 버스트를 한 번 자동 발동한다
+                // (재료가 자리를 잡은 뒤라야 충돌이 의미 있다). 단독 지정 시에도 tiltLabConfig.labOn이
+                // true가 되어 이 오버레이(및 onAppear)가 열리므로 스케줄이 정상 발동한다.
+                if Self.tiltLabConfig.shake {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { scene.shakeBurst() }
+                }
+            }
+            .onChange(of: tiltLabX) { _, _ in pushTiltLab() }
+            .onChange(of: tiltLabY) { _, _ in pushTiltLab() }
+        }
+    }
+
+    /// 햅틱 발화 시각 로그 — @State가 아니라 **참조 박스**에 담는다. 초당 수십 회 발화를 @State에
+    /// 쓰면 그때마다 SwiftUI가 물리 필드까지 다시 그린다. TimelineView가 자기 주기로 읽어 가면 충분하다.
+    private final class ClatterLog { var times: [TimeInterval] = [] }
+    @State private var clatterLog = ClatterLog()
+
+    /// 최근 1초 햅틱 발화 수 — 시뮬레이터엔 햅틱 하드웨어가 없어 **이 숫자가 유일한 관측 수단**이다.
+    /// 정지한 더미에서 0으로 떨어지는지(웅웅 방지 증명)도 여기서 본다.
+    private var clatterCounter: some View {
+        TimelineView(.periodic(from: .now, by: 0.25)) { _ in
+            let now = ProcessInfo.processInfo.systemUptime
+            let recent = clatterLog.times.filter { now - $0 < 1 }.count
+            Text(verbatim: "HAPTIC \(recent)/s")
+                .reffiType(.metaText)
+                .foregroundStyle(recent > 0 ? ReffiColor.blueDark : ReffiColor.ink2)
+        }
+    }
+
+    private func tiltLabSlider(_ label: String, value: Binding<Double>) -> some View {
+        HStack(spacing: ReffiSpace.s2) {
+            Text(verbatim: label)
+                .reffiType(.metaText).foregroundStyle(ReffiColor.ink2).frame(width: 12)
+            Slider(value: value, in: -1...1)
+        }
+    }
+
+    /// 슬라이더 값을 씬에 주입 — 씬은 이 값을 CoreMotion보다 우선한다.
+    private func pushTiltLab() {
+        scene.debugTilt = CGVector(dx: tiltLabX, dy: tiltLabY)
+    }
+    #endif
 
     // MARK: - Header
 
@@ -435,15 +568,6 @@ struct MainView: View {
         // 커버 표시를 한 틱 지연 — 80레시피 스코어링(carouselResults)과 커버 첫 프레임이
         // 같은 틱에 겹쳐 프레임드롭 나지 않게 랭킹 계산 틱과 표시 틱을 분리한다.
         DispatchQueue.main.async { showCarousel = true }
-        // AI 티켓 생성 — refreshAIRecipes는 재진입 가드·해시 스킵이 내장돼 매 cook()마다 불러도 안전.
-        // 도착분은 store.aiRecipes 변화를 캐러셀이 직접 관찰해 합류한다(§13.6) — 여기선 진행 힌트만 켠다.
-        aiGenerating = true
-        let gen = coverGeneration
-        Task {
-            await store.refreshAIRecipes(preferences: AIRecipePreferences(profile: profile),
-                                         locale: Recipe.isKorean ? "ko" : "en")
-            if coverGeneration == gen { aiGenerating = false }   // 새 cook()이 이미 시작됐으면 그쪽 힌트를 끄지 않는다
-        }
     }
 
     /// 티켓 발주(Fire the Ticket) — used 재료를 이 레시피로 전량 소비 처리 → 슬램 본 뒤 커버 닫기.

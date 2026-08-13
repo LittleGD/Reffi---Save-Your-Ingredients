@@ -15,10 +15,8 @@ final class FridgeStore {
     private let seedRecipes: [Recipe]
     /// 사용자 커스텀 레시피 — 스냅샷에 영속화.
     private(set) var userRecipes: [Recipe]
-    /// AI 생성 레시피 캐시(오프라인 재사용) — 스냅샷에 영속화. `refreshAIRecipes`가 채운다.
-    private(set) var aiRecipes: [Recipe] = []
-    /// 추천 풀 = 커스텀 + AI + 시드(커스텀·AI 우선 — 내가 만든/생성한 레시피가 위로).
-    var recipes: [Recipe] { userRecipes + aiRecipes + seedRecipes }
+    /// 추천 풀 = 커스텀 + 시드(커스텀 우선 — 내가 만든 레시피가 위로).
+    var recipes: [Recipe] { userRecipes + seedRecipes }
     /// 소비/버림 이력 — History·낭비율의 소스(최신이 앞).
     private(set) var history: [RemovalLog]
     /// 이력 트림으로 접힌 과거 누계(전체 Ate/Tossed 카운트 보존용).
@@ -26,6 +24,9 @@ final class FridgeStore {
     private(set) var archivedTossed: Int
     /// "이번엔 안 살" 항목 — toBuy에서 제외.
     private(set) var dismissedToBuy: Set<String>
+    /// 직접 담은 장보기 항목 — 이력 제안(파생 `toBuy`)을 **보완**하는 수동 메모.
+    /// 이력에 없는 품목(한 번도 안 써본 재료)은 파생으로는 원천적으로 뜰 수 없어 여기에만 산다.
+    private(set) var manualToBuy: [ManualBuyItem]
     /// 메인 작업대(§13.6) — 물리 더미에 올라온 재료. 빈 자리는 다음 임박 재료가 채운다.
     private(set) var counterIDs: [UUID]
     /// 방금 처리한 판정/발주의 되돌리기 창(6초). 탭 전환에도 살아남는다.
@@ -33,20 +34,40 @@ final class FridgeStore {
     /// 발주 후 "지금 요리 중" 세션(§13.6 C) — 메인 상단 카드의 소스. Finish/Cancel로 닫는다.
     private(set) var activeCook: CookSession?
 
+    /// 조리 세션 스냅샷. 단계(steps·completedSteps)는 더 이상 담지 않는다 — 앱이 조리 단계를 보여주지
+    /// 않으므로(조리법은 영상 링크가 맡는다) 저장할 이유가 없다. 옛 파일에 남은 두 키는 디코드 시
+    /// 그냥 무시된다(Codable은 모르는 키를 버린다) — 마이그레이션 불필요.
     struct CookSession: Codable, Equatable {
         var recipeName: String
+        var recipeID: String?             // 원본 레시피 되찾기(히어로 아이콘 체인) — 구버전 세션엔 없음
         var startedAt: Date
         var count: Int                    // 발주로 예약한 재료 수
-        var steps: [String]?              // 단계 레시피(발주 시점 스냅샷) — 구버전 파일 호환용 옵셔널
-        var completedSteps: [Int]?        // 체크한 단계 인덱스
+        var minutes: Int?                 // 조리 시간(공유 카드 표시용) — 구버전 세션엔 없음
         var usedIDs: [UUID]?              // 예약된 재료 — v1 세션(발주 즉시 소비)엔 없음
+    }
+
+    /// 장보기 목록에 손으로 얹은 한 줄. 키가 아니라 **항목**으로 저장한다 — 정규화 키만 남기면
+    /// 사용자가 적은 표기(이력 원문 "서울우유1L")로 다시 그려줄 수 없다. 반대로 사전 표제어를
+    /// 그대로 담은 줄은 **표시할 때** 현재 로케일 표제어로 다시 푼다(`FridgeStore.displayName(for:)`).
+    struct ManualBuyItem: Codable, Equatable, Identifiable {
+        var name: String            // 담을 때의 표기 원문(화면 표기는 displayName(for:)이 정한다)
+        var canonicalID: String?    // 정본 사전 캐논 ID — 사전 밖 이름이면 nil
+        var glyph: FoodGlyph
+
+        var id: String { matchKey }
+        /// 재료 동일성 키 — Ingredient/RemovalLog와 같은 규칙(표기 무관 비교).
+        var matchKey: String { canonicalID ?? name.lowercased() }
     }
 
     /// 예약된 재료(조리 중) — 작업대·추천에서 제외된다.
     var reservedIDs: Set<UUID> { Set(activeCook?.usedIDs ?? []) }
 
     /// 첫 실행(데이터 전무) 여부 — 온보딩 빈 상태에서 샘플 CTA를 보여줄지.
-    var isPristine: Bool { ingredients.isEmpty && history.isEmpty }
+    /// **직접 담은 장보기 메모도 사용자 데이터다**: 이 값이 true면 호출부가 확인 없이
+    /// `loadSampleData()`(복구 불가 — pendingUndo까지 지운다)를 실행하므로, 냉장고·이력이 비어도
+    /// 손으로 적은 To buy 메모가 있으면 '데이터 전무'가 아니다(빈 냉장고 + 메모만 있는 상태는
+    /// 이력 없이도 만들어진다 — 파생 제안이 원천적으로 못 뜨는 그 자리를 메모가 채운다).
+    var isPristine: Bool { ingredients.isEmpty && history.isEmpty && manualToBuy.isEmpty }
 
     private let persists: Bool
     private let counterCapacity = 6
@@ -56,14 +77,6 @@ final class FridgeStore {
     private let historyCap = 2000
     /// undo 창이 한참 지난 로그의 복원 스냅샷은 비워 파일을 가볍게(60일).
     private let snapshotRetentionDays = 60
-    /// AI 캐시 상한 — 초과 시 오래된(뒤) 것부터 제거.
-    private let aiRecipeCap = 30
-    /// AI 생성 진행 중(재진입 방지) — 메모리만.
-    private var isRefreshingAI = false
-    /// 직전 생성의 재시도 시그니처(메모리만) — available 재료 집합 + 가용 소스 상태(클라우드 동의·
-    /// 온디바이스 지원). 같은 시그니처면 재생성 스킵. 재료가 그대로여도 동의를 켜면 시그니처가 달라져
-    /// 다음 cook()에서 재시도된다(불필요 호출 방지 + 동의 토글 후 재시도 양립).
-    private var lastAIRefreshSignature: Int?
 
     static let currentSchemaVersion = 2
     static let log = Logger(subsystem: "com.reffi.app", category: "store")
@@ -86,10 +99,10 @@ final class FridgeStore {
         archivedAte = snap?.archivedAte ?? 0
         archivedTossed = snap?.archivedTossed ?? 0
         dismissedToBuy = snap?.dismissedToBuy ?? []
+        manualToBuy = snap?.manualToBuy ?? []   // 구버전 파일엔 없음 → 빈 목록
         counterIDs = snap?.counterIDs ?? []
         activeCook = snap?.activeCook
         userRecipes = snap?.userRecipes ?? []
-        aiRecipes = snap?.aiRecipes ?? []   // 레거시 파일엔 없음 → 빈 캐시(안전)
         resolveCanonicalIDs()   // 레거시 데이터 승격(nil→사전) — persist는 다음 변이 때 자연 기록
         let have = Set(ingredients.map(\.id))
         counterIDs.removeAll { !have.contains($0) }   // 스테일 정리
@@ -100,17 +113,16 @@ final class FridgeStore {
     /// 프리뷰·테스트용 — 메모리 전용(저장 안 함, 알림 재스케줄도 안 함).
     init(ingredients: [Ingredient],
          recipes: [Recipe]? = nil,
-         history: [RemovalLog] = [],
-         aiRecipes: [Recipe] = []) {
+         history: [RemovalLog] = []) {
         persists = false
         seedRecipes = recipes ?? RecipeCatalog.loadSeed()
         userRecipes = []
-        self.aiRecipes = aiRecipes
         self.ingredients = ingredients
         self.history = history
         archivedAte = 0
         archivedTossed = 0
         dismissedToBuy = []
+        manualToBuy = []
         counterIDs = []
         resolveCanonicalIDs()   // 메모리 스토어도 로드 규칙과 일관되게 해석(프리뷰·테스트)
         replenishCounter()
@@ -136,6 +148,9 @@ final class FridgeStore {
         return lex.canonicalID(for: stored) ?? stored.lowercased()
     }
 
+    /// 영속 스냅샷. 이전 버전이 기록한 `aiRecipes` 키는 더 이상 선언하지 않는다 —
+    /// JSONDecoder는 모르는 키를 무시하므로 AI 기능 제거 전에 저장된 파일도 그대로 열린다
+    /// (다음 persist에서 자연스럽게 사라진다). 필드 추가는 반드시 옵셔널+기본값으로.
     struct Snapshot: Codable {
         var schemaVersion: Int?            // v1 파일엔 없음(nil = 1)
         var ingredients: [Ingredient]
@@ -146,7 +161,7 @@ final class FridgeStore {
         var userRecipes: [Recipe]?         // v2
         var archivedAte: Int?              // v2
         var archivedTossed: Int?           // v2
-        var aiRecipes: [Recipe]? = nil     // v2 — 기본 nil이라 기존 memberwise 호출·레거시 파일 안전
+        var manualToBuy: [ManualBuyItem]? = nil   // v2 — 직접 담은 장보기 항목(옵셔널+기본값)
     }
 
     static var storeURL: URL {
@@ -183,8 +198,8 @@ final class FridgeStore {
     private static let ioQueue = DispatchQueue(label: "com.reffi.app.store-io", qos: .utility)
 
     /// 스냅샷 저장(+기본으로 임박 알림 재스케줄). 인코드는 메인에서 값을 캡처하고 쓰기는 직렬 큐로.
-    /// 재료가 안 바뀌는 변이(단계 체크·쇼핑 skip·커스텀 레시피)는 `reschedulesAlerts: false`로
-    /// 알림 재구성을 건너뛴다 — 판정 제스처·체크 토글의 메인 스레드 비용을 줄인다.
+    /// 재료가 안 바뀌는 변이(작업대 교체·쇼핑 skip·커스텀 레시피)는 `reschedulesAlerts: false`로
+    /// 알림 재구성을 건너뛴다 — 판정 제스처의 메인 스레드 비용을 줄인다.
     /// 메모리 전용 스토어(프리뷰·테스트)는 아무것도 하지 않는다.
     private func persist(reschedulesAlerts: Bool = true) {
         guard persists else { return }
@@ -195,7 +210,7 @@ final class FridgeStore {
                             dismissedToBuy: dismissedToBuy, counterIDs: counterIDs,
                             activeCook: activeCook, userRecipes: userRecipes,
                             archivedAte: archivedAte, archivedTossed: archivedTossed,
-                            aiRecipes: aiRecipes)
+                            manualToBuy: manualToBuy)
         do {
             let data = try JSONEncoder().encode(snap)
             let url = Self.storeURL
@@ -284,6 +299,8 @@ final class FridgeStore {
             // 재입고면 '이번엔 안 사기'를 해제 — matchKey(캐논/이름) 기준으로 비교.
             let key = ingredient.matchKey
             dismissedToBuy = dismissedToBuy.filter { dismissKey($0) != key }
+            // 직접 담아둔 장보기 메모도 함께 내린다 — 어느 입구로 들어왔든 '샀다'는 사실은 같다.
+            manualToBuy.removeAll { $0.matchKey == key }
         }
         if capsCounter { replenishCounter() }   // 스캔 — 상한(6)까지 최임박 우선 등재, 나머지는 냉장고에
         persist()
@@ -351,8 +368,9 @@ final class FridgeStore {
         let counterBefore = counterIDs
         // 진행 중 세션이 있으면 교체 — 이전 예약은 자동 해제되고, undo가 이전 세션을 복원한다.
         let replaced = activeCook
-        activeCook = CookSession(recipeName: result.recipe.displayName, startedAt: Date(),
-                                 count: used.count, steps: result.recipe.displaySteps,
+        activeCook = CookSession(recipeName: result.recipe.displayName, recipeID: result.recipe.id,
+                                 startedAt: Date(),
+                                 count: used.count, minutes: result.recipe.minutes,
                                  usedIDs: used.map(\.id))
         let reserved = reservedIDs
         counterIDs.removeAll { reserved.contains($0) }
@@ -360,16 +378,6 @@ final class FridgeStore {
         beginUndo(.fired(recipe: result.recipe.displayName, count: used.count),
                   logIDs: [], counterSnapshot: counterBefore, previousSession: replaced)
         persist()
-    }
-
-    /// 단계 체크 토글 — 조리 진행 상태도 영속화(중간에 앱을 꺼도 이어서).
-    func toggleCookStep(_ index: Int) {
-        guard var cook = activeCook else { return }
-        var done = Set(cook.completedSteps ?? [])
-        if !done.insert(index).inserted { done.remove(index) }
-        cook.completedSteps = done.sorted()
-        activeCook = cook
-        persist(reschedulesAlerts: false)   // 재료 불변 — 알림 재구성 불필요
     }
 
     /// 요리 완료 — 예약 재료의 소비를 **확정**한다(이력 기록·재고 차감은 여기서).
@@ -573,85 +581,6 @@ final class FridgeStore {
         persist(reschedulesAlerts: false)
     }
 
-    // MARK: - AI 레시피 캐시(증강)
-
-    /// 보유 재료로 AI 레시피를 생성해 캐시에 얹는다. 스토어는 ProfileStore에 결합하지 않고 호출부(UI)가
-    /// `AIRecipePreferences(profile:)`와 로케일("ko"/"en")을 주입한다(`rankedRecipes`와 같은 패턴).
-    ///
-    /// 방어: ① 이미 진행 중이면 스킵(재진입) ② 일일 캡 초과면 엔진 호출 자체 스킵 ③ 직전과 같은
-    /// **시그니처**(재료 집합 + 가용 소스 상태)면 재생성 스킵(불필요 호출) ④ 실패는 조용히(로그만) —
-    /// 시드/커스텀이 폴백. 성공분만 중복 제거 후 prepend(캡 30), 사용량 1회 기록, persist(알림 불변).
-    ///
-    /// `onDeviceAvailable`은 온디바이스 소스의 실사용 가능 여부 — 기본값이 실소스를 조회한다(호출 저렴:
-    /// 시뮬레이터/미지원 기기는 즉시 false, 지원 기기는 캐시된 availability 열거값 읽기). 동의를 켜면
-    /// 같은 냉장고여도 시그니처가 달라져 재시도되고, 재료가 그대로면 다시 스킵된다.
-    func refreshAIRecipes(preferences: AIRecipePreferences, locale: String,
-                          onDeviceAvailable: Bool = OnDeviceModelRecipeSource().isAvailable) async {
-        guard !isRefreshingAI else { return }
-        guard AIConsent.canGenerateToday else { return }
-        let candidates = available
-        guard !candidates.isEmpty else { return }
-        let signature = Self.refreshSignature(ingredients: candidates,
-                                              cloudEnabled: AIConsent.cloudEnabled,
-                                              onDeviceAvailable: onDeviceAvailable)
-        guard signature != lastAIRefreshSignature else { return }
-
-        isRefreshingAI = true
-        defer { isRefreshingAI = false }
-        lastAIRefreshSignature = signature   // 성공/실패 무관 — 같은 시그니처 재호출을 막는다(재료·소스 상태가 바뀌면 재시도)
-
-        let request = RecipeGenerationRequest(ingredients: candidates, preferences: preferences,
-                                              count: 2, locale: locale)
-        let generated = await RecipeEngine.standard.recipes(for: request)
-        guard !generated.isEmpty else {
-            Self.log.info("AI recipe refresh produced nothing (unavailable sources / offline).")
-            return
-        }
-        let merged = Self.mergedAIRecipes(existing: aiRecipes, incoming: generated,
-                                          others: userRecipes + seedRecipes, cap: aiRecipeCap)
-        guard merged != aiRecipes else { return }   // 전부 중복 — 상태·사용량 변화 없음
-        aiRecipes = merged
-        AIConsent.recordUsage()
-        persist(reschedulesAlerts: false)
-    }
-
-    /// AI 캐시 병합 규칙(순수·테스트 가능) — incoming을 정규화 이름 기준 중복 제거(others=시드/커스텀,
-    /// existing=기존 AI와 이름 충돌 폐기) 후 existing 앞에 prepend, cap 초과분은 뒤(오래된 것)에서 제거.
-    static func mergedAIRecipes(existing: [Recipe], incoming: [Recipe],
-                                others: [Recipe], cap: Int) -> [Recipe] {
-        var seen = Set((others + existing).map(normRecipeName))
-        var fresh: [Recipe] = []
-        for recipe in incoming where seen.insert(normRecipeName(recipe)).inserted {
-            fresh.append(recipe)
-        }
-        var merged = fresh + existing
-        if merged.count > cap { merged.removeLast(merged.count - cap) }
-        return merged
-    }
-
-    /// 레시피 이름 정규화 키(중복 판정) — en 이름 소문자 트림.
-    static func normRecipeName(_ recipe: Recipe) -> String {
-        recipe.name.en.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-    }
-
-    /// available 재료 집합의 순서 무관 해시 — matchKey(표기 무관) 기준. 프로세스 내 안정(메모리 가드용).
-    static func ingredientSetHash(_ ingredients: [Ingredient]) -> Int {
-        var hasher = Hasher()
-        for key in ingredients.map(\.matchKey).sorted() { hasher.combine(key) }
-        return hasher.finalize()
-    }
-
-    /// 재생성 스킵 시그니처(순수·테스트 가능) — 재료 집합 해시 + 가용 소스 상태(클라우드 동의·온디바이스
-    /// 지원). 재료가 그대로여도 소스 상태(동의 켜짐 등)가 바뀌면 값이 달라져 재시도를 허용한다.
-    static func refreshSignature(ingredients: [Ingredient], cloudEnabled: Bool,
-                                 onDeviceAvailable: Bool) -> Int {
-        var hasher = Hasher()
-        hasher.combine(ingredientSetHash(ingredients))
-        hasher.combine(cloudEnabled)
-        hasher.combine(onDeviceAvailable)
-        return hasher.finalize()
-    }
-
     // MARK: - 통계 (이력 단일 장부 + 접힌 누계)
 
     /// 누계 — 헤더의 Ate/Tossed 카운트(트림으로 접힌 과거분 포함).
@@ -674,27 +603,139 @@ final class FridgeStore {
 
     // MARK: - 사야 할 식재료(쇼핑 리스트)
 
-    /// 자주 쓰는데(이력에 있는데) 지금 냉장고엔 없는 = 사야 할 식재료. 빈도 많은 순.
+    /// 자주 쓰는데(이력에 있는데) 지금 냉장고엔 없는 = 사야 할 식재료 **제안**. 빈도 많은 순.
     /// 비교는 전부 matchKey(캐논 ID 우선) — 표기(Milk/milk, 양파/onion)가 달라도 한 품목으로 묶인다.
     /// 표시는 최근 로그의 원문.
-    var toBuy: [(name: String, glyph: FoodGlyph)] {
+    private var derivedToBuy: [(name: String, glyph: FoodGlyph, key: String)] {
         let inStock = Set(ingredients.map(\.matchKey))
         let dismissed = Set(dismissedToBuy.map(dismissKey))
         let grouped = Dictionary(grouping: history) { $0.matchKey }
         return grouped
-            .compactMap { key, logs -> (name: String, glyph: FoodGlyph, count: Int)? in
+            .compactMap { key, logs -> (name: String, glyph: FoodGlyph, key: String, count: Int)? in
                 guard let first = logs.first,   // history는 최신이 앞 → 최근 표기
                       !inStock.contains(key),
                       !dismissed.contains(key) else { return nil }
-                return (name: first.name, glyph: first.glyph, count: logs.count)
+                return (name: first.name, glyph: first.glyph, key: key, count: logs.count)
             }
             .sorted { $0.count != $1.count ? $0.count > $1.count : $0.name < $1.name }
-            .map { (name: $0.name, glyph: $0.glyph) }
+            .map { (name: $0.name, glyph: $0.glyph, key: $0.key) }
     }
 
-    /// 이번엔 안 사기 — 쇼핑 리스트에서 제외. 캐논 키(없으면 이름 소문자)로 저장해 표기 무관 비교.
+    /// 화면에 뜨는 장보기 목록 — **직접 담은 항목이 맨 위**(내가 적은 게 먼저 읽혀야 한다), 그 아래 이력 제안.
+    /// 수동 항목은 재고 보유·'이번엔 안 사기' 필터를 **우회한다**: 지금 있어도 더 사려고 손으로 적은 것이라
+    /// 재고 유무로 지울 수 없다(있으면 안 산다는 파생 제안의 전제와 정반대). 같은 품목이 제안으로도 잡히면
+    /// 수동이 흡수해 한 줄로만 뜬다.
+    /// `key`는 두 갈래(수동 `matchKey` / 파생 `derivedToBuy.key`) 모두 이미 정확한 캐논 키를 들고 있어
+    /// 그대로 실어 나른다 — 호출부(Skip 버튼)가 이름을 다시 역조회할 필요 없이 `skipBuy(key:)`로 바로
+    /// 넘길 수 있게 한다(이름 역조회로 인한 오귀속 위험을 원천 차단, `addToBuy`/`skipBuy(key:)`와 같은 규약).
+    var toBuy: [(name: String, glyph: FoodGlyph, manual: Bool, key: String)] {
+        let manualKeys = Set(manualToBuy.map(\.matchKey))
+        return manualToBuy.map { (name: Self.displayName(for: $0), glyph: $0.glyph, manual: true, key: $0.matchKey) }
+            + derivedToBuy.filter { !manualKeys.contains($0.key) }
+                          .map { (name: $0.name, glyph: $0.glyph, manual: false, key: $0.key) }
+    }
+
+    /// 수동 항목 한 줄의 **표시 이름** — "데이터는 캐논으로, 표시만 로컬라이즈"를 이 한 곳에서 지킨다.
+    ///
+    /// 저장된 `name`은 담을 때의 표기 스냅샷이라 로케일이 박제된다: 한국어 기기에서 사전 타일로
+    /// 담은 "양파"는 앱 언어를 영어로 바꿔도 "양파"로 남고, 같은 시트의 타일은 "Onion"으로 떠
+    /// 한 화면 건너 표기가 갈렸다. 캐논이 있으면 지금 로케일의 표제어로 다시 그린다.
+    ///
+    /// 다만 **캐논만 보고 무조건 덮지 않는다** — 저장된 표기가 사전 표제어(en/ko)와 실제로
+    /// 일치할 때만 바꾼다. FREQUENT 칩은 이력 로그의 원문("서울우유1L")을 이름으로 싣고 캐논은
+    /// `milk`라, 무조건 덮으면 사용자가 적은 그 표기를 잃는다(`ManualBuyItem` 주석의 전제).
+    static func displayName(for item: ManualBuyItem) -> String {
+        guard let id = item.canonicalID, let entry = IngredientLexicon.shared.entry(id: id) else {
+            return item.name
+        }
+        let stored = IngredientLexicon.norm(item.name)
+        let lexiconForms = (entry.names.en + entry.names.ko).map(IngredientLexicon.norm)
+        guard lexiconForms.contains(stored) else { return item.name }   // 사용자 표기 — 그대로 둔다
+        return entry.displayName
+    }
+
+    /// 지금 목록에 떠 있는 품목 키 — 검색 시트의 '이미 담김' 표시·중복 추가 방지용(행마다 재계산 방지).
+    var toBuyKeys: Set<String> {
+        Set(manualToBuy.map(\.matchKey)).union(derivedToBuy.map(\.key))
+    }
+
+    /// 첫 사용자 시드 칩 — **재료 지식이 아니라 노출 순서(UX)**라 코드 상수로 둔다.
+    /// 재료 자체의 사실(표기·글리프·기한)은 여전히 `IngredientLexicon`(JSON)에서만 나온다.
+    static let frequentSeedIDs = ["egg", "milk", "onion", "green-onion", "tofu", "garlic",
+                                  "potato", "carrot", "kimchi", "cucumber", "rice", "chicken"]
+
+    /// 자주 쓰는 재료 — 검색 시트의 원탭 칩 소스. 축은 `derivedToBuy`와 같은 **이력 빈도**지만
+    /// **필터가 없다**: 지금 재고에 있어도, '이번엔 안 사기'로 접었어도 뜬다 — 자주 쓰는 건 또 사고,
+    /// 이건 제안 목록이 아니라 '빨리 담기' 단축키이기 때문이다(무엇을 담을지는 사용자가 정한다).
+    /// 이력 상위가 `limit`에 못 미치면 **부족분을 항상** 큐레이션 시드로 채운다(중복 제거) — 이력이
+    /// 3종에서 4종으로 느는 순간 칩이 12개에서 4개로 급감하는 계단식 UX 역행을 막는다. '빈 그리드는
+    /// 고장으로 읽힌다'는 원래 설계 의도가 이력 규모와 무관하게 항상 성립해야 한다.
+    func frequentIngredients(limit: Int = 12) -> [(name: String, glyph: FoodGlyph, key: String)] {
+        let ranked = Dictionary(grouping: history) { $0.matchKey }
+            .compactMap { key, logs -> (name: String, glyph: FoodGlyph, key: String, count: Int)? in
+                guard let first = logs.first else { return nil }   // history는 최신이 앞 → 최근 표기
+                return (name: first.name, glyph: first.glyph, key: key, count: logs.count)
+            }
+            .sorted { $0.count != $1.count ? $0.count > $1.count : $0.name < $1.name }
+            .prefix(limit)
+            .map { (name: $0.name, glyph: $0.glyph, key: $0.key) }
+
+        var out = Array(ranked)
+        guard out.count < limit else { return out }
+        let lex = IngredientLexicon.shared
+        var seen = Set(out.map(\.key))
+        for id in Self.frequentSeedIDs where out.count < limit {
+            guard !seen.contains(id), let e = lex.entry(id: id) else { continue }
+            out.append((name: e.displayName, glyph: FoodGlyph(rawValue: e.glyph) ?? .generic, key: e.id))
+            seen.insert(id)
+        }
+        return out
+    }
+
+    /// 장보기 목록에 직접 담기 — 이력 제안이 닿지 못하는 품목을 사용자가 손으로 얹는다.
+    /// **재고 추가가 아니라 '살 것' 메모**다(§13.5 To buy 예외 — 실제 반입은 여전히 영수증 스캔·재입고).
+    /// 이미 목록에 있으면 아무 것도 하지 않는다(중복 추가 no-op — 시트가 체크 상태로 이미 알린다).
+    /// `canonicalID`·`glyph`는 사전에서 고른 호출부가 그대로 넘긴다(이름 역조회로 다른 항목에 붙는 것 방지).
+    @discardableResult
+    func addToBuy(name: String, canonicalID: String? = nil, glyph: FoodGlyph? = nil) -> Bool {
+        let lex = IngredientLexicon.shared
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return false }
+        let canonical = canonicalID ?? lex.canonicalID(for: trimmed)
+        let key = canonical ?? trimmed.lowercased()
+        // 이미 '수동으로' 담긴 것만 중복으로 막는다 — 파생 제안으로만 잡혀 있는 품목은 여기서
+        // 걸러지면 안 된다(그래야 아래 append가 그 파생 제안을 흡수해 한 줄로 만든다, toBuy 참고).
+        // toBuyKeys(수동∪파생)로 막으면 흡수가 영영 못 일어난다 — skipBuy의 wasManual과 같은 축.
+        guard !manualToBuy.contains(where: { $0.matchKey == key }) else { return false }
+        manualToBuy.append(ManualBuyItem(name: trimmed, canonicalID: canonical,
+                                         glyph: glyph ?? lex.glyph(for: trimmed) ?? FoodGlyph.match(trimmed)))
+        persist(reschedulesAlerts: false)   // 재료 불변
+        return true
+    }
+
+    /// 이번엔 안 사기(레거시) — 이름을 사전으로 **역조회**해 키를 만든다. `addToBuy`는 호출부가 캐논 키를
+    /// 직접 넘기도록 설계됐는데(이름 역조회로 다른 항목에 붙는 것 방지) 이 함수만 반대 방향이라 규약이
+    /// 비대칭이다 — 표기가 갈라지는 이름이 들어오면 잘못된 품목의 키에 붙을 잠재 위험이 있다.
+    /// **Deprecated**: 프로덕션 호출부는 전환 완료됐다 — `toBuy` 튜플이 이제 `key`를 실어 나르므로
+    /// `ShoppingListView`의 Skip 버튼은 `skipBuy(key:)`를 쓴다. 이 오버로드는 `ReffiTests`가 이름 기반
+    /// 크로스 로케일 시나리오(예: 영문 "Onion"으로 스킵해 한글 "양파" 이력과 같은 캐논에 맞는지)를
+    /// 직접 검증하는 데 계속 쓰고 있어 남겨둔다 — 테스트가 이 경로를 그만 쓰게 되면 제거해도 된다.
     func skipBuy(_ name: String) {
-        dismissedToBuy.insert(IngredientLexicon.shared.canonicalID(for: name) ?? name.lowercased())
+        skipBuy(key: IngredientLexicon.shared.canonicalID(for: name) ?? name.lowercased())
+    }
+
+    /// 이번엔 안 사기 — 쇼핑 리스트에서 제외. **저장된 키(캐논 ID 또는 matchKey)를 그대로 받는다** —
+    /// 호출부가 이미 알고 있는 키를 넘기게 해(`addToBuy`와 같은 규약) 이름 역조회로 인한 오귀속을
+    /// 원천적으로 막는다. 직접 담은 항목은 메모 자체를 지운다 — 손으로 얹은 걸 손으로 내리는 것이라,
+    /// 영구 제외 목록까지 오염시킬 이유가 없다. 다만 같은 품목이 이력 제안으로도 잡히는 상태면 그
+    /// 제안까지 함께 접는다(수동이 흡수하던 제안이 되살아나 같은 줄이 그 자리에 남으면 Skip이 안
+    /// 먹은 것처럼 보인다).
+    func skipBuy(key: String) {
+        let wasManual = manualToBuy.contains { $0.matchKey == key }
+        manualToBuy.removeAll { $0.matchKey == key }
+        if !wasManual || derivedToBuy.contains(where: { $0.key == key }) {
+            dismissedToBuy.insert(key)
+        }
         persist(reschedulesAlerts: false)   // 재료 불변
     }
 
@@ -713,11 +754,10 @@ final class FridgeStore {
         archivedAte = 0
         archivedTossed = 0
         dismissedToBuy = []
+        manualToBuy = []
         counterIDs = []
         pendingUndo = nil
         activeCook = nil
-        aiRecipes = []                // 이전 냉장고 기준 생성물 — 샘플로 교체 시 무효
-        lastAIRefreshSignature = nil
         resolveCanonicalIDs()   // 샘플 데이터도 캐논 키 승격(매칭 일관성)
         replenishCounter()
         persist()
@@ -730,12 +770,11 @@ final class FridgeStore {
         archivedAte = 0
         archivedTossed = 0
         dismissedToBuy = []
+        manualToBuy = []
         counterIDs = []
         pendingUndo = nil
         activeCook = nil
         userRecipes = []
-        aiRecipes = []
-        lastAIRefreshSignature = nil
         persist()
     }
 }

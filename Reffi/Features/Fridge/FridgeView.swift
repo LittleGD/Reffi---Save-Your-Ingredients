@@ -26,6 +26,11 @@ struct FridgeView: View {
     @AppStorage("fridge.compact") private var compact = false
     /// 요약 페이저 현재 장(리포트 0 · 장보기 1) — 세션 한정.
     @State private var summaryPage = 0
+    /// 카테고리 필터(nil = 전체) — **영속화하지 않는다**. 정렬은 재방문 비용을 줄이지만 필터는
+    /// "지금 이 순간 좁혀 보기"라, 다음 실행에 살아 있으면 재고가 사라진 것처럼 보인다(세션 한정).
+    @State private var activeCategory: String?
+    /// 직전에 본 전체 재고 id — 이번 변화에서 **새로 나타난** 재료를 가려내는 기준(필터 자동 해제).
+    @State private var knownIDs: Set<Ingredient.ID> = []
 
     private let cardHeight: CGFloat = 170   // 길게 늘려 슬립·틸트로 생기는 측면 빈틈을 덮음
     private let overlap: CGFloat = -60   // advance(=높이+겹침)=110 유지 → 이름 안전 구간 불변
@@ -33,8 +38,9 @@ struct FridgeView: View {
 
     private var sort: FridgeSort { FridgeSort(rawValue: sortRaw) ?? .expiry }
 
-    /// 표시 순서 — 기본은 임박순(§8.1). 동률은 이름순으로 결정적.
-    private var items: [Ingredient] {
+    /// 표시 순서 — 기본은 임박순(§8.1). 동률은 이름순으로 결정적. 필터 이전의 전체 재고다
+    /// (칩 카운트·"in stock" 숫자는 항상 이 목록 기준 — 필터를 켜도 재고 총량은 변하지 않는다).
+    private var sortedItems: [Ingredient] {
         switch sort {
         case .expiry:   store.sorted
         case .freshest: store.sorted.reversed()
@@ -43,6 +49,14 @@ struct FridgeView: View {
                 ? $0.boughtDaysAgo < $1.boughtDaysAgo : $0.daysLeft < $1.daysLeft
         }
         }
+    }
+    /// 실제 표시 목록 — 정렬 후 카테고리 필터 적용. 스택·간편보기·펼침 하단 스택이 모두 이 목록을 쓴다.
+    private var items: [Ingredient] {
+        FridgeCategoryFilter.apply(activeCategory, to: sortedItems)
+    }
+    /// 재고에 존재하는 카테고리 + 개수(캐논 순서) — 칩 행의 유일한 데이터 소스.
+    private var categoryCounts: [FridgeCategoryFilter.Bucket] {
+        FridgeCategoryFilter.buckets(of: sortedItems)
     }
     private var accent: Color { items.first?.freshness.main ?? ReffiColor.fresh }
     private var selected: Ingredient? { items.first { $0.id == selectedID } }
@@ -109,6 +123,28 @@ struct FridgeView: View {
             }
         }
         .sensoryFeedback(.impact(weight: .light), trigger: decisionHaptic)
+        // 필터 안전장치 — 판정은 전부 `FridgeCategoryFilter.resolved`(순수 함수, 유닛 테스트 대상)가 하고
+        // 여기선 상태만 옮긴다. 카테고리가 비었을 때뿐 아니라 **필터 밖 재료가 새로 들어왔을 때**도
+        // 전체로 풀어, 추가한 결과가 화면에서 사라지는 일이 없게 한다.
+        // 감지 키는 id가 아니라 `changeKey`(id + 카테고리)다 — 이름을 고치면 글리프·카테고리가 다시
+        // 파생되는데 id는 그대로라, id만 보면 "필터 켠 카테고리가 비었는데 훅이 안 도는" 갇힘이 생긴다.
+        // `initial: true`로 첫 표시에서 knownIDs를 채운다(그 시점 activeCategory는 nil이라 부작용 없음).
+        .onChange(of: sortedItems.map(FridgeCategoryFilter.changeKey(of:)), initial: true) { _, _ in
+            let current = Set(sortedItems.map(\.id))
+            let added = current.subtracting(knownIDs)
+            knownIDs = current
+            let next = FridgeCategoryFilter.resolved(activeCategory, in: sortedItems, added: added)
+            if next != activeCategory {
+                withAnimation(motion) { activeCategory = next }   // 값이 실제로 바뀔 때만 — 재진입 안전
+            }
+        }
+        // 펼쳐 둔 카드가 표시 목록 밖으로 밀려나면 선택을 접는다(유령 상세 방지).
+        // 위 훅이 필터를 풀면 목록이 넓어지므로, 그 결과까지 반영된 최종 목록을 기준으로 판단한다.
+        .onChange(of: items.map(\.id)) { _, ids in
+            if let id = selectedID, !ids.contains(id) {
+                withAnimation(motion) { selectedID = nil }
+            }
+        }
         // History·To buy도 Start cooking처럼 하단에서 올라와 전체를 덮는 풀스크린 커버.
         .fullScreenCover(isPresented: $showHistory) { HistoryView() }
         .fullScreenCover(isPresented: $showShopping) { ShoppingListView() }
@@ -121,6 +157,9 @@ struct FridgeView: View {
         // 스크린샷·QA용 — `-showHistory` 런치 인자로 History 시트 바로 열기(-previewCarousel 선례).
         .onAppear {
             if ProcessInfo.processInfo.arguments.contains("-showHistory") { showHistory = true }
+            // `-toBuy` To buy 커버 직행. `-toBuy.search`(검색 시트 자동 오픈)는 단독 지정해도 커버가 열린다.
+            if ProcessInfo.processInfo.arguments.contains("-toBuy")
+                || ProcessInfo.processInfo.arguments.contains("-toBuy.search") { showShopping = true }
             // `-fridgeExpand` — 첫 재료를 바로 펼침(Ate/Tossed 버튼 QA용). 샘플 시드가 늦을 수 있어 지연 재시도.
             if ProcessInfo.processInfo.arguments.contains("-fridgeExpand") {
                 selectedID = items.first?.id
@@ -159,6 +198,7 @@ struct FridgeView: View {
                 let _ = dayTick   // 자정 틱 의존 — 날이 바뀌면 이 서브트리를 재계산
                 header
                 summaryRow
+                if categoryCounts.count > 1 { categoryFilterRow }   // 한 종류뿐이면 필터가 무의미 — 행을 아예 뺀다
                 if items.isEmpty {
                     emptyState
                 } else {
@@ -298,7 +338,7 @@ struct FridgeView: View {
             Text("Fridge").reffiType(.display).foregroundStyle(ReffiColor.ink)
             HStack(spacing: ReffiSpace.s2) {
                 // Ate/Tossed 숫자는 리포트와 중복이라 뺐다 — 한 번에 보이는 정보 최소화.
-                Text("\(items.count) in stock")
+                Text("\(sortedItems.count) in stock")
                     .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
                 Spacer(minLength: ReffiSpace.s2)
                 sortMenu
@@ -331,6 +371,71 @@ struct FridgeView: View {
         }
         .buttonStyle(.paperPress)
         .accessibilityLabel("Sort: \(sort.label)")
+    }
+
+    // MARK: 카테고리 필터 칩 행 — 정렬(순서)과 직교하는 "좁혀 보기". 정렬 칩과 같은 종이 문법이되,
+    // 선택 상태는 면 반전(ink 면 + onInk 글자)으로 한눈에 구분한다(드롭다운의 체크 문법은 팝업 전용).
+    private var categoryFilterRow: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: ReffiSpace.s2) {
+                categoryChip(name: String(localized: "All"), count: sortedItems.count,
+                             on: activeCategory == nil, seed: 9) { setCategory(nil) }
+                ForEach(categoryCounts, id: \.category) { bucket in
+                    categoryChip(name: FridgeCategoryFilter.displayName(bucket.category),
+                                 count: bucket.count,
+                                 on: activeCategory == bucket.category,
+                                 seed: FridgeCategoryFilter.chipSeed(bucket.category)) { setCategory(bucket.category) }
+                }
+            }
+            // 스크롤 콘텐츠 자체에 마진을 줘 첫/마지막 칩이 화면 끝에 붙지 않게. 세로 패딩은
+            // 종이 프레스(스케일)·헤어라인이 스크롤 클립에 잘리지 않는 여유.
+            .padding(.horizontal, ReffiGrid.margin)
+            .padding(.vertical, 3)
+        }
+        .scrollClipDisabled()
+        .padding(.horizontal, -ReffiGrid.margin)   // 상위 페이지 마진 상쇄 — 행만 가장자리까지 흐른다
+        .padding(.vertical, -3)
+    }
+
+    /// 필터 칩 한 개 — 라벨 + 개수. 히트 44(§7.3), 선택은 면 반전 + `.isSelected` 트레잇.
+    private func categoryChip(name: String, count: Int, on: Bool, seed: Int,
+                              action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: ReffiSpace.s1) {
+                Text(name)
+                    .font(ReffiTextRole.caption.font)
+                    .tracking(ReffiTextRole.caption.tracking)
+                    .foregroundStyle(on ? ReffiColor.onInk : ReffiColor.ink)
+                Text(count.formatted())
+                    .font(.reffiNum(12, relativeTo: .caption))
+                    .foregroundStyle(on ? ReffiColor.onInk.opacity(0.72) : ReffiColor.ink2)
+            }
+            .lineLimit(1)
+            .padding(.horizontal, ReffiSpace.s3)
+            .padding(.vertical, ReffiSpace.s2)
+            .background {
+                let s = PaperRect(cornerRadius: ReffiRadius.xs, seed: seed)
+                if on {
+                    s.fill(ReffiColor.ink)   // 선택 = 면 반전(윤곽선 칩들 사이에서 유일한 채워진 면)
+                } else {
+                    s.fill(ReffiColor.paper).paperEdge(s)
+                }
+            }
+            .frame(minHeight: 44)   // §7.3 터치 타깃
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.paperPress)
+        .accessibilityLabel(String(localized: "Filter: \(name)"))
+        .accessibilityValue(count.formatted())
+        .accessibilityAddTraits(on ? [.isButton, .isSelected] : .isButton)
+    }
+
+    /// 칩 탭 — 같은 칩 재탭은 해제(= 전체). 목록이 통째로 갈리므로 선택된 상세는 접는다.
+    private func setCategory(_ category: String?) {
+        withAnimation(motion) {
+            activeCategory = (category == activeCategory) ? nil : category
+            selectedID = nil
+        }
     }
 
     /// 보기 전환 — 메뉴에 숨기지 않는 원탭 토글(사진·파일 앱 문법). 아이콘은 "누르면 바뀔 모습".
@@ -459,6 +564,80 @@ struct FridgeView: View {
             selectedID = nil
             if ate { store.eat(ing) } else { store.toss(ing) }
         }
+    }
+}
+
+/// 냉장고 카테고리 필터의 순수 로직 — 뷰 상태 없이 목록만 다룬다(유닛 테스트 가능).
+///
+/// 그룹 키는 저장된 `ingredient.category`가 아니라 **글리프 파생 라벨**(`FoodGlyph.categoryLabel`)이다.
+/// 저장 카테고리는 레거시·스캔 경로에서 "Meat · Beef" 같은 자유 문자열이 섞여 들어와 칩이 파편화되고
+/// 로컬라이즈 키도 없다. 글리프 라벨은 항상 캐논 10종이라 칩 집합이 안정적이고 전부 번역돼 있다
+/// (History 도넛 그룹핑도 같은 키를 쓴다 — 한 화면 두 기준을 만들지 않는다).
+enum FridgeCategoryFilter {
+    /// 칩 고정 순서 — 사용 빈도(신선식품 → 저장식품 → 기타). 재고에 있는 것만 이 순서로 노출된다.
+    /// 정본은 `FoodGlyph.categoryOrder` 하나 — To buy 검색 시트의 픽커 섹션도 같은 상수를 본다.
+    static let order = FoodGlyph.categoryOrder
+
+    /// 칩 한 개분 — 캐논 카테고리 키 + 재고 개수.
+    struct Bucket: Equatable {
+        let category: String
+        let count: Int
+    }
+
+    /// 재료의 필터 키(캐논 영문).
+    static func key(of ingredient: Ingredient) -> String { ingredient.glyph.categoryLabel }
+
+    /// 뷰의 자동 해제 훅이 쓰는 **변화 감지 키** — id만으로는 부족하다. 이름을 고치면
+    /// `FridgeStore.update`가 글리프와 카테고리를 다시 파생시키는데 id는 그대로라, id 배열만 보는
+    /// 훅은 아예 돌지 않는다. 그러면 필터가 방금 비워진 카테고리를 계속 가리켜 재고가 가득한데도
+    /// 빈 상태 화면에 갇힌다(칩 행도 그 카테고리를 잃어 선택 표시가 사라진다). 카테고리를 키에 섞어
+    /// 재료의 **소속이 바뀌는 것도 변화로** 잡는다.
+    static func changeKey(of ingredient: Ingredient) -> String {
+        "\(ingredient.id.uuidString)|\(key(of: ingredient))"
+    }
+
+    /// 재고에 실제로 존재하는 카테고리만, 고정 순서로 + 개수. 목록에 없는 카테고리 칩은 만들지 않는다.
+    static func buckets(of items: [Ingredient]) -> [Bucket] {
+        var counts: [String: Int] = [:]
+        for item in items { counts[key(of: item), default: 0] += 1 }
+        return order.compactMap { c in counts[c].map { Bucket(category: c, count: $0) } }
+    }
+
+    /// 필터 적용 — nil(전체)이면 입력 순서 그대로. 정렬은 호출부에서 이미 끝난 상태를 전제.
+    static func apply(_ category: String?, to items: [Ingredient]) -> [Ingredient] {
+        guard let category else { return items }
+        return items.filter { key(of: $0) == category }
+    }
+
+    /// 재고 변화 후 필터가 어떤 값이어야 하는지 — **뷰의 자동 해제가 그대로 호출하는 유일한 규칙**이다
+    /// (뷰에 같은 판단을 다시 적으면 테스트가 실물과 어긋난다). 전체(nil)로 풀어야 하는 경우 둘:
+    ///   ① 해당 카테고리 재고가 하나도 안 남음 — 마지막 한 개를 먹거나 버렸을 때 빈 화면에 가두지 않는다.
+    ///   ② **새로 들어온 재료가 전부 필터 밖** — 필터를 켠 채 재료를 추가하면 화면에 아무 변화가 없어
+    ///      "추가가 안 됐다"로 읽힌다. 추가 결과는 언제나 눈에 보여야 한다.
+    /// - Parameters:
+    ///   - category: 현재 활성 필터(nil = 전체).
+    ///   - items: 필터 **이전**의 전체 표시 목록.
+    ///   - added: 이번 변화에서 새로 나타난 재료 id. 비어 있으면 ②는 판정하지 않는다.
+    static func resolved(_ category: String?, in items: [Ingredient],
+                         added: Set<Ingredient.ID> = []) -> String? {
+        guard let category, items.contains(where: { key(of: $0) == category }) else { return nil }
+        guard added.isEmpty
+                || items.contains(where: { added.contains($0.id) && key(of: $0) == category })
+        else { return nil }
+        return category
+    }
+
+    /// 칩 종이 셰이프 시드 — **카테고리 키**에서 유도한다(재고 개수가 아니라). 개수를 쓰면 먹거나
+    /// 추가할 때마다 손으로 오린 윤곽이 다시 랜덤해지고(§13.1: 시드가 같으면 항상 같은 모양),
+    /// 개수가 같은 칩끼리는 똑같이 생긴다. 20 오프셋은 같은 화면의 다른 종이 면
+    /// (빈 상태 3 · 정렬 칩 5 · 보기 토글 6 · 요약 카드 7/8 · All 칩 9)과 겹치지 않기 위한 것.
+    static func chipSeed(_ category: String) -> Int {
+        20 + (order.firstIndex(of: category) ?? order.count)
+    }
+
+    /// 표시명 — 저장·비교는 영문 캐논, 표시만 로컬라이즈(카테고리 키는 이미 카탈로그에 등록돼 있다).
+    static func displayName(_ category: String) -> String {
+        String(localized: String.LocalizationValue(category))
     }
 }
 

@@ -25,8 +25,8 @@ enum SampleData {
     static let history: [RemovalLog] = [
         RemovalLog(name: "Eggs",         glyph: .egg,      daysAgo: 1,  wasted: false),
         RemovalLog(name: "Strawberries", glyph: .berry,    daysAgo: 2,  wasted: true),
-        RemovalLog(name: "Yogurt",       glyph: .milk,     daysAgo: 3,  wasted: false),
-        RemovalLog(name: "Banana",       glyph: .apple,    daysAgo: 4,  wasted: false),
+        RemovalLog(name: "Yogurt",       glyph: .yogurt,   daysAgo: 3,  wasted: false),
+        RemovalLog(name: "Banana",       glyph: .banana,   daysAgo: 4,  wasted: false),
         RemovalLog(name: "Cilantro",     glyph: .leaf,     daysAgo: 5,  wasted: true),
         RemovalLog(name: "Cheese",       glyph: .cheese,   daysAgo: 7,  wasted: false),
         RemovalLog(name: "Spinach",      glyph: .leaf,     daysAgo: 9,  wasted: true),

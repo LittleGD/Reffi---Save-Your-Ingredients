@@ -12,18 +12,11 @@ import CryptoKit
 final class AuthStore {
 
     /// 프로젝트 URL·publishable(anon) key — 클라이언트 임베드용 공개 값(RLS로 보호).
-    /// Edge Function 호출부(CloudProxyRecipeSource)도 이 둘을 재사용한다(비밀 중복 금지).
     static let supabaseURL = URL(string: "https://bzzpmaeitfbbunsmjvmd.supabase.co")!
     static let anonKey = "sb_publishable_RolVTNQCWTf9t9XBEcCz1w_HcEeYquc"
 
     /// Supabase 클라이언트 — publishable key는 클라이언트 임베드용 공개 키(RLS로 보호).
     static let client = SupabaseClient(supabaseURL: supabaseURL, supabaseKey: anonKey)
-
-    /// 현재 세션의 액세스 토큰(익명 세션 포함) — Edge Function `Authorization: Bearer`용.
-    /// 세션이 없거나 갱신 실패면 nil(호출부가 클라우드 소스를 스킵).
-    static func currentAccessToken() async -> String? {
-        try? await client.auth.session.accessToken
-    }
 
     /// OAuth 콜백 — Info.plist의 `reffi` URL 스킴과 일치해야 한다.
     static let redirectURL = URL(string: "reffi://auth-callback")!
@@ -151,7 +144,7 @@ final class AuthStore {
     /// 로그아웃 — `scope: .local`로 이 기기 세션만 해지한다(다른 기기 로그아웃 방지).
     /// supabase-swift는 네트워크 POST 이전에 로컬(Keychain) 세션을 먼저 제거하므로 오프라인에서도
     /// 로그아웃이 성립한다 → 서버 요청 실패는 조용히 무시(로컬 세션은 이미 사라졌다).
-    /// 로컬 데이터(냉장고·이력·프로필·AI 동의)는 건드리지 않는다. 소유자 키(`data.ownerUserID`)도
+    /// 로컬 데이터(냉장고·이력·프로필)는 건드리지 않는다. 소유자 키(`data.ownerUserID`)도
     /// 직전 계정 id 그대로 남고, 뒤이어 붙는 익명 게스트 세션은 `accountUserID`가 nil이라
     /// 소유자 대조를 트리거하지 않는다 → 같은 계정으로 다시 로그인하면 와이프 없이 이어진다.
     func signOut() async {

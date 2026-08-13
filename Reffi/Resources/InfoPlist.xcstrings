@@ -17,6 +17,23 @@
           }
         }
       }
+    },
+    "NSMotionUsageDescription": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reffi tilts the ingredients on your counter with your device's motion."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기기 기울임에 따라 재료가 움직이도록 모션 데이터를 사용합니다."
+          }
+        }
+      }
     }
   },
   "version": "1.0"

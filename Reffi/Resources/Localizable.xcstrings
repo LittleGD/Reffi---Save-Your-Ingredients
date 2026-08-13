@@ -235,34 +235,6 @@
         }
       }
     },
-    "+%lld more steps": {
-      "localizations": {
-        "en": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "+1 more step"
-                }
-              },
-              "other": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "+%lld more steps"
-                }
-              }
-            }
-          }
-        },
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "+%lld단계 더"
-          }
-        }
-      }
-    },
     "2 people": {
       "localizations": {
         "ko": {
@@ -309,26 +281,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "오늘·내일 소비기한인 재료를 아침에 알려드려요"
-          }
-        }
-      }
-    },
-    "AI generated recipe": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "AI가 생성한 레시피"
-          }
-        }
-      }
-    },
-    "AI recipes": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "AI 레시피"
           }
         }
       }
@@ -421,6 +373,16 @@
         }
       }
     },
+    "Add item": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "직접 담기"
+          }
+        }
+      }
+    },
     "Add place": {
       "localizations": {
         "ko": {
@@ -437,6 +399,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "레시피 추가"
+          }
+        }
+      }
+    },
+    "Add to list": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "목록에 담기"
           }
         }
       }
@@ -461,12 +433,42 @@
         }
       }
     },
+    "Added %@": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 담김"
+          }
+        }
+      }
+    },
+    "Added by you": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "직접 담은 것"
+          }
+        }
+      }
+    },
     "Alert time": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
             "value": "알림 시각"
+          }
+        }
+      }
+    },
+    "All": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "전체"
           }
         }
       }
@@ -691,12 +693,12 @@
         }
       }
     },
-    "Chop, stir-fry, season…": {
+    "Clear search": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "썰고, 볶고, 간하기…"
+            "value": "검색어 지우기"
           }
         }
       }
@@ -717,16 +719,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "닫기"
-          }
-        }
-      }
-    },
-    "Cloud recipe generation": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "클라우드 레시피 생성"
           }
         }
       }
@@ -791,6 +783,16 @@
         }
       }
     },
+    "Cook it your way. The video has the details.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "자기 방식대로 요리하세요. 자세한 건 영상에 있어요."
+          }
+        }
+      }
+    },
     "Cook this": {
       "localizations": {
         "ko": {
@@ -817,16 +819,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "요리 중"
-          }
-        }
-      }
-    },
-    "Cooking up an AI ticket…": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "AI 티켓을 만드는 중…"
           }
         }
       }
@@ -1031,16 +1023,6 @@
         }
       }
     },
-    "Done": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "완료"
-          }
-        }
-      }
-    },
     "Eat it today, waste nothing": {
       "localizations": {
         "ko": {
@@ -1191,6 +1173,16 @@
         }
       }
     },
+    "FREQUENT": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "자주 쓰는 재료"
+          }
+        }
+      }
+    },
     "FROZEN": {
       "localizations": {
         "ko": {
@@ -1221,6 +1213,16 @@
         }
       }
     },
+    "Filter: %@": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "필터: %@"
+          }
+        }
+      }
+    },
     "Finish cooking": {
       "localizations": {
         "ko": {
@@ -1241,12 +1243,12 @@
         }
       }
     },
-    "Flick a ticket for the next, ranked by what spoils first": {
+    "Flick left to pass, right to cook. Ranked by what spoils first.": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "티켓을 튕기면 다음 주문, 먼저 상할 순서예요"
+            "value": "왼쪽으로 튕기면 넘기고, 오른쪽은 발주예요. 먼저 상할 순서로 정렬했어요."
           }
         }
       }
@@ -1307,16 +1309,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "과일"
-          }
-        }
-      }
-    },
-    "Generating an AI recipe": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "AI 레시피 생성 중"
           }
         }
       }
@@ -1761,22 +1753,22 @@
         }
       }
     },
+    "No match": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "찾는 재료가 없어요"
+          }
+        }
+      }
+    },
     "No recipes match these ingredients yet.\nCheck their names, or add your own recipe in Profile.": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
             "value": "이 재료로 만들 수 있는 레시피가 아직 없어요.\n재료 이름을 확인하거나 프로필에서 나만의 레시피를 추가해 보세요."
-          }
-        }
-      }
-    },
-    "No steps on this ticket. Cook it your way.": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "이 티켓엔 단계 메모가 없어요. 자유롭게 요리하세요."
           }
         }
       }
@@ -1911,16 +1903,6 @@
         }
       }
     },
-    "On-device generation runs only on this device. Nothing leaves your phone.": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "온디바이스 생성은 기기 안에서만 동작해요. 아무것도 밖으로 나가지 않아요."
-          }
-        }
-      }
-    },
     "Once a day, only when something's expiring.": {
       "localizations": {
         "ko": {
@@ -1941,16 +1923,6 @@
         }
       }
     },
-    "One step per line.": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "한 줄에 한 단계씩 적어 주세요."
-          }
-        }
-      }
-    },
     "Onion, Egg, Rice…": {
       "localizations": {
         "ko": {
@@ -1967,6 +1939,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "무낭비 리포트 열기, %lld퍼센트 낭비"
+          }
+        }
+      }
+    },
+    "Open recipe videos": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "레시피 영상 보기"
           }
         }
       }
@@ -2451,6 +2433,16 @@
         }
       }
     },
+    "Search ingredients": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "재료 검색"
+          }
+        }
+      }
+    },
     "Selected": {
       "localizations": {
         "ko": {
@@ -2731,16 +2723,6 @@
         }
       }
     },
-    "This device supports on-device generation. It's tried first, before the cloud.": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "이 기기는 온디바이스 생성을 지원해요. 클라우드보다 먼저 시도돼요."
-          }
-        }
-      }
-    },
     "This email is already registered. Try logging in.": {
       "localizations": {
         "ko": {
@@ -2807,16 +2789,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "오늘"
-          }
-        }
-      }
-    },
-    "Today %lld of %lld generations left": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "오늘 생성 %lld / %lld회 남음"
           }
         }
       }
@@ -2917,6 +2889,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "다시 시도"
+          }
+        }
+      }
+    },
+    "Try again with a clearer photo.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "더 선명한 사진으로 다시 시도해 주세요."
+          }
+        }
+      }
+    },
+    "Try another name.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "다른 이름으로 찾아보세요."
           }
         }
       }
@@ -3081,16 +3073,6 @@
         }
       }
     },
-    "Watch examples on YouTube": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "유튜브에서 예시 영상 보기"
-          }
-        }
-      }
-    },
     "Watch your no-waste streak grow, day by day.": {
       "localizations": {
         "ko": {
@@ -3161,16 +3143,6 @@
         }
       }
     },
-    "When on, your ingredient names and food preferences are sent to Reffi's recipe service to generate ideas. Nothing is stored on the server.": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "켜면 재료 이름과 음식 취향이 레시피 생성을 위해 Reffi 서버로 전송돼요. 서버에 저장되지는 않아요."
-          }
-        }
-      }
-    },
     "Where": {
       "localizations": {
         "ko": {
@@ -3187,16 +3159,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "구매처"
-          }
-        }
-      }
-    },
-    "YouTube": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "YouTube"
           }
         }
       }
@@ -3347,16 +3309,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "장"
-          }
-        }
-      }
-    },
-    "Try again with a clearer photo.": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "더 선명한 사진으로 다시 시도해 주세요."
           }
         }
       }

@@ -51,6 +51,57 @@ struct FridgeStoreTests {
         #expect(snap.schemaVersion == nil)                           // v1 표식
     }
 
+    @Test func decodesSnapshotWithRemovedAIRecipesKey() throws {
+        // AI 생성 기능 제거 전에 저장된 파일 — Snapshot에 더 이상 없는 `aiRecipes` 키가 남아 있다.
+        // 모르는 키는 무시되고 나머지 상태는 온전히 살아야 한다(격리·데이터 소실 금지).
+        let json = """
+        {"schemaVersion":2,"ingredients":[],"history":[],"dismissedToBuy":[],"counterIDs":[],
+        "userRecipes":[],"archivedAte":4,"archivedTossed":2,
+        "aiRecipes":[{"id":"ai-1","name":{"en":"Ghost Dish","ko":null},"minutes":10,
+        "ingredients":[{"ref":null,"en":"x","ko":null}],"steps":{"en":["s"],"ko":null},"origin":"ai"}]}
+        """.replacingOccurrences(of: "\n", with: "")
+        let snap = try #require(FridgeStore.decodeSnapshot(Data(json.utf8)))
+        #expect(snap.archivedAte == 4)
+        #expect(snap.archivedTossed == 2)
+        #expect(snap.userRecipes?.isEmpty == true)
+    }
+
+    @Test func decodesSnapshotWithRemovedCookStepKeys() throws {
+        // 단계 체크리스트 제거 전에 저장된 파일 — CookSession에 더 이상 없는 steps·completedSteps 키가 남아 있다.
+        // 모르는 키는 무시되고 진행 중 세션(이름·개수·예약 재료)은 그대로 살아야 한다.
+        let json = """
+        {"schemaVersion":2,"ingredients":[],"history":[],"dismissedToBuy":[],"counterIDs":[],
+        "activeCook":{"recipeName":"Bibimbap","startedAt":773236800,"count":3,
+        "steps":["chop","stir"],"completedSteps":[0],
+        "usedIDs":["3E29D5C3-99D5-44A5-BB80-1E1B62F0A6DF"]}}
+        """.replacingOccurrences(of: "\n", with: "")
+        let snap = try #require(FridgeStore.decodeSnapshot(Data(json.utf8)))
+        let cook = try #require(snap.activeCook)
+        #expect(cook.recipeName == "Bibimbap")
+        #expect(cook.count == 3)
+        #expect(cook.minutes == nil)              // 없던 필드는 nil — 공유 카드가 시간 줄을 생략한다
+        #expect(cook.usedIDs?.count == 1)         // 예약(되돌릴 수 있는 재료)은 온전히 보존
+    }
+
+    @Test func recipesPoolIsCustomPlusSeed() {
+        let seed = Recipe(id: "seed-1", name: Recipe.LocalizedName(en: "Seed Dish", ko: nil),
+                          cuisine: nil, minutes: 10,
+                          ingredients: [Recipe.Item(ref: nil, en: "x", ko: nil)],
+                          steps: Recipe.LocalizedSteps(en: ["s"], ko: nil), isUser: nil)
+        let store = FridgeStore(ingredients: [], recipes: [seed], history: [])
+        store.addUserRecipe(Recipe.userRecipe(name: "Mine", ingredientNames: ["egg"],
+                                              minutes: 5, steps: ["cook"]))
+        #expect(store.recipes.map(\.name.en) == ["Mine", "Seed Dish"])   // 커스텀 우선 + 시드
+    }
+
+    /// 영속 데이터 호환 — origin 필드는 제거된 AI 기능이 남긴 값을 잃지 않게 모델에 남아 있다.
+    @Test func recipeKeepsOriginFieldForPersistedData() throws {
+        let json = #"{"id":"ai-1","name":{"en":"Legacy"},"minutes":10,"ingredients":[{"en":"x"}],"steps":{"en":["s"]},"origin":"ai"}"#
+        let recipe = try JSONDecoder().decode(Recipe.self, from: Data(json.utf8))
+        #expect(recipe.origin == "ai")
+        #expect(recipe.displayName == "Legacy")
+    }
+
     @Test func unknownStorageFallsBackToFridge() throws {
         let json = """
         {"ingredients":[{"id":"3E29D5C3-99D5-44A5-BB80-1E1B62F0A6DE","name":"X","category":"Veg",
@@ -252,18 +303,16 @@ struct FridgeStoreTests {
 
     @Test func replacingSessionUndoRestoresPreviousSession() {
         let store = makeStore()
-        let a = Recipe.userRecipe(name: "A", ingredientNames: ["Item0"], minutes: 10, steps: ["s1"])
-        let b = Recipe.userRecipe(name: "B", ingredientNames: ["Item1"], minutes: 10, steps: [])
+        let a = Recipe.userRecipe(name: "A", ingredientNames: ["Item0"], minutes: 10)
+        let b = Recipe.userRecipe(name: "B", ingredientNames: ["Item1"], minutes: 20)
         store.cook(RecipeRecommender.result(for: a, ingredients: store.sorted))
-        store.toggleCookStep(0)
         let sessionA = store.activeCook
 
         store.cook(RecipeRecommender.result(for: b, ingredients: store.sorted))   // 교체
         #expect(store.activeCook?.recipeName == "B")
 
-        store.undoPending()   // B 발주 취소 → A 세션(체크 진행 포함) 복원
-        #expect(store.activeCook?.recipeName == "A")
-        #expect(store.activeCook?.completedSteps == sessionA?.completedSteps)
+        store.undoPending()   // B 발주 취소 → A 세션 전체(시작 시각·예약 재료까지) 복원
+        #expect(store.activeCook == sessionA)
     }
 
     @Test func unknownGlyphDecodesToGeneric() throws {
@@ -287,6 +336,230 @@ struct FridgeStoreTests {
         let names = store.toBuy.map(\.name)
         #expect(names.count == 2)
         #expect(names.first == "Milk")   // 빈도 우선(2회), 표기는 최근 로그 원문
+    }
+
+    // MARK: 직접 담은 장보기 항목 (manualToBuy)
+
+    @Test func manualToBuyLeadsTheList() {
+        // 이력 제안이 있어도 직접 담은 항목이 **맨 위**에 온다(내가 적은 게 먼저 읽혀야 한다).
+        let store = FridgeStore(ingredients: [], recipes: [],
+                                history: [RemovalLog(name: "Milk", glyph: .milk, daysAgo: 1, wasted: false)])
+        #expect(store.addToBuy(name: "양파"))
+        let list = store.toBuy
+        // 수동 줄의 표기는 저장 원문이 아니라 **현재 로케일 표제어**다(displayName(for:)) —
+        // 리터럴로 못 박으면 테스트 호스트 언어에 따라 갈린다.
+        let onion = IngredientLexicon.shared.entry(id: "onion")?.displayName ?? "양파"
+        #expect(list.map(\.name) == [onion, "Milk"])
+        #expect(list.map(\.manual) == [true, false])
+    }
+
+    @Test func manualRowRendersTheLexiconDisplayNameForItsCanon() {
+        // 사전 타일로 담은 줄은 담을 때의 로케일에 박제되지 않는다 — 캐논이 있고 저장 표기가
+        // 사전 표제어와 일치하면 표시 시점의 표제어로 다시 푼다(같은 시트의 타일과 표기 일치).
+        let store = FridgeStore(ingredients: [], recipes: [], history: [])
+        #expect(store.addToBuy(name: "양파", canonicalID: "onion", glyph: .onion))
+        let row = store.toBuy.first
+        #expect(row?.key == "onion")
+        #expect(row?.name == IngredientLexicon.shared.entry(id: "onion")?.displayName)
+        #expect(store.manualToBuy.first?.name == "양파")   // 저장값 자체는 담을 때 원문 그대로
+    }
+
+    @Test func manualRowKeepsUserNotationEvenWhenItHasACanon() {
+        // FREQUENT 칩은 이력 원문("서울우유1L")을 이름으로 싣고 캐논은 milk다 — 캐논만 보고
+        // 무조건 덮으면 사용자가 적은 그 표기를 잃는다. 사전 표제어와 다르면 그대로 둔다.
+        let store = FridgeStore(ingredients: [], recipes: [], history: [])
+        #expect(store.addToBuy(name: "서울우유1L"))
+        let row = store.toBuy.first
+        #expect(row?.key == "milk")           // 캐논은 잡혔지만
+        #expect(row?.name == "서울우유1L")     // 표기는 사용자 것 그대로
+    }
+
+    @Test func isPristineCountsManualToBuyAsUserData() {
+        // isPristine이 true면 호출부가 확인 없이 loadSampleData()(복구 불가)를 실행한다 —
+        // 냉장고·이력이 비어도 손으로 적은 장보기 메모가 있으면 '데이터 전무'가 아니다.
+        let store = FridgeStore(ingredients: [], recipes: [], history: [])
+        #expect(store.isPristine)
+        #expect(store.addToBuy(name: "양파"))
+        #expect(!store.isPristine, "메모만 있는 사용자에게 샘플 CTA가 그대로 뜬다 — 탭하면 메모가 지워진다")
+        store.skipBuy(key: "onion")
+        #expect(store.isPristine)   // 메모를 내리면 다시 첫 실행 상태
+    }
+
+    @Test func manualToBuyAbsorbsDuplicateSuggestion() {
+        // 같은 품목이 이력 제안으로도 잡히면 수동이 흡수 — 한 줄로만 뜬다(표기가 달라도 캐논 동일).
+        let store = FridgeStore(ingredients: [], recipes: [],
+                                history: [RemovalLog(name: "양파", glyph: .onion, daysAgo: 2, wasted: false)])
+        #expect(store.addToBuy(name: "onion"))
+        let onions = store.toBuy.filter { $0.glyph == .onion }
+        #expect(onions.count == 1)
+        #expect(onions.first?.manual == true)
+        #expect(!store.addToBuy(name: "양파"))   // 이미 담김 — 중복 추가 no-op
+    }
+
+    @Test func manualToBuyBypassesInStockFilter() {
+        // 지금 있어도 더 사려고 손으로 적은 것 — 재고 유무로 지우지 않는다(파생 제안과 정반대 전제).
+        let store = FridgeStore(ingredients: [ingredient("onion", glyph: .onion)], recipes: [], history: [])
+        #expect(store.addToBuy(name: "onion"))
+        #expect(store.toBuy.contains { $0.glyph == .onion && $0.manual })
+    }
+
+    @Test func addingStockClearsManualToBuy() {
+        // Add 알약(재입고) = 샀다 — 어느 입구로 들어와도 담아둔 메모는 내려간다.
+        let store = FridgeStore(ingredients: [], recipes: [], history: [])
+        store.addToBuy(name: "양파")
+        store.add(ingredient("onion", glyph: .onion))
+        #expect(store.manualToBuy.isEmpty)
+        #expect(store.toBuy.isEmpty)
+    }
+
+    @Test func skipRemovesManualItemWithoutDismissing() {
+        // 수동 항목의 Skip은 메모만 지운다 — 영구 제외 목록(dismissedToBuy)까지 오염시키지 않는다.
+        let store = FridgeStore(ingredients: [], recipes: [], history: [])
+        store.addToBuy(name: "양파")
+        store.skipBuy("양파")
+        #expect(store.manualToBuy.isEmpty)
+        #expect(store.dismissedToBuy.isEmpty)
+        #expect(store.toBuy.isEmpty)
+    }
+
+    @Test func skipRemovesManualItemThatAbsorbedSuggestion() {
+        // 수동이 흡수하던 제안이 되살아나 같은 줄이 남으면 Skip이 안 먹은 것처럼 보인다 — 함께 접는다.
+        let store = FridgeStore(ingredients: [], recipes: [],
+                                history: [RemovalLog(name: "양파", glyph: .onion, daysAgo: 2, wasted: false)])
+        store.addToBuy(name: "onion")
+        store.skipBuy("onion")
+        #expect(store.manualToBuy.isEmpty)
+        #expect(store.toBuy.isEmpty)
+    }
+
+    // MARK: skipBuy(key:) — addToBuy와 대칭인 캐논 키 직접 전달 오버로드(이름 역조회 없음)
+
+    @Test func skipBuyKeyOverloadMatchesNameOverloadBehavior() {
+        // skipBuy(key:)는 이름을 역조회하지 않고 호출부가 넘긴 키를 그대로 쓴다 — 레거시
+        // skipBuy(_:)(이름 역조회)와 최종 상태는 동일해야 한다(수동 흡수 + 제안 동반 접힘).
+        let store = FridgeStore(ingredients: [], recipes: [],
+                                history: [RemovalLog(name: "양파", glyph: .onion, daysAgo: 2, wasted: false)])
+        #expect(store.addToBuy(name: "onion", canonicalID: "onion", glyph: .onion))
+        store.skipBuy(key: "onion")
+        #expect(store.manualToBuy.isEmpty)
+        #expect(store.toBuy.isEmpty)
+        #expect(store.dismissedToBuy.contains("onion"))   // 수동이 흡수하던 제안까지 함께 접힘
+    }
+
+    @Test func skipBuyKeyOverloadRemovesManualItemWithoutDismissing() {
+        // key 버전도 순수 수동 항목(이력 제안과 안 겹침)은 영구 제외 목록을 오염시키지 않는다
+        // (skipRemovesManualItemWithoutDismissing의 key 버전 — 회귀 방지).
+        let store = FridgeStore(ingredients: [], recipes: [], history: [])
+        #expect(store.addToBuy(name: "양파", canonicalID: "onion", glyph: .onion))
+        store.skipBuy(key: "onion")
+        #expect(store.manualToBuy.isEmpty)
+        #expect(store.dismissedToBuy.isEmpty)
+        #expect(store.toBuy.isEmpty)
+    }
+
+    @Test func toBuyRowKeyDrivesSkipBuyKeyForDerivedSuggestion() throws {
+        // ShoppingListView의 Skip 버튼은 이제 이름을 넘기지 않고 store.toBuy가 실어 나른 `key`로
+        // skipBuy(key:)를 호출한다 — 그 축이 실제로 맞물리는지 스토어 레벨에서 검증
+        // (뷰 유닛 테스트가 없는 영역이라 이 계약이 유일한 회귀 방지선이다).
+        let store = FridgeStore(ingredients: [], recipes: [],
+                                history: [RemovalLog(name: "양파", glyph: .onion, daysAgo: 2, wasted: false)])
+        let row = try #require(store.toBuy.first)
+        #expect(row.key == "onion")
+        #expect(!row.manual)
+        store.skipBuy(key: row.key)
+        #expect(store.toBuy.isEmpty)
+    }
+
+    @Test func toBuyRowKeyDrivesSkipBuyKeyForManualItem() throws {
+        // 같은 계약을 수동 항목 경로에서도 확인 — key는 matchKey 그대로다.
+        let store = FridgeStore(ingredients: [], recipes: [], history: [])
+        #expect(store.addToBuy(name: "onion", canonicalID: "onion", glyph: .onion))
+        let row = try #require(store.toBuy.first)
+        #expect(row.key == "onion")
+        #expect(row.manual)
+        store.skipBuy(key: row.key)
+        #expect(store.manualToBuy.isEmpty)
+        #expect(store.toBuy.isEmpty)
+    }
+
+    // MARK: 자주 쓰는 재료 칩 (검색 시트 빈 쿼리 상태)
+
+    @Test func frequentIngredientsRankByHistoryCount() {
+        // 빈도 내림차순, 동률이면 이름순. 표기는 최근 로그 원문. 이력 상위(4종)가 limit(12)에 못 미치면
+        // 시드가 부족분을 항상 채운다 — 이 4종은 전부 시드 풀에도 있는 재료라 정확히 12개까지 채워진다
+        // (이전 계단식 회귀: 이력이 3종에서 4종이 되는 순간 칩이 12개→4개로 급감하던 버그의 회귀 테스트).
+        let history = [
+            RemovalLog(name: "Milk", glyph: .milk, daysAgo: 1, wasted: false),
+            RemovalLog(name: "milk", glyph: .milk, daysAgo: 3, wasted: false),
+            RemovalLog(name: "Egg", glyph: .egg, daysAgo: 2, wasted: false),
+            RemovalLog(name: "Tofu", glyph: .tofu, daysAgo: 4, wasted: false),
+            RemovalLog(name: "Onion", glyph: .onion, daysAgo: 5, wasted: false),
+        ]
+        let store = FridgeStore(ingredients: [], recipes: [], history: history)
+        let chips = store.frequentIngredients()
+        #expect(chips.map(\.name).first == "Milk")   // 2회로 최다
+        #expect(Set(chips.prefix(4).map(\.key)) == ["milk", "egg", "tofu", "onion"])   // 이력 상위 4종
+        #expect(chips.count == 12)                    // 계단식 급감 없이 limit까지 채운다
+        #expect(Set(chips.map(\.key)).count == chips.count)   // 시드 보충에도 중복 없음
+    }
+
+    @Test func frequentIngredientsIgnoreStockAndSkip() {
+        // 제안(derivedToBuy)과 달리 재고 보유·'이번엔 안 사기'로 지우지 않는다 — 자주 쓰는 건 또 산다.
+        let history = (0..<5).map { _ in RemovalLog(name: "양파", glyph: .onion, daysAgo: 2, wasted: false) }
+        let store = FridgeStore(ingredients: [ingredient("onion", glyph: .onion)],
+                                recipes: [], history: history)
+        store.skipBuy("onion")
+        #expect(store.toBuy.isEmpty)             // 제안 목록에선 빠졌지만
+        #expect(store.frequentIngredients().contains { $0.key == "onion" })   // 칩에는 남는다
+    }
+
+    @Test func frequentIngredientsFallBackToSeedAndCap() {
+        // 이력이 부족한 초기 사용자 — 이력 종수와 무관하게 큐레이션 시드로 부족분을 항상 채우되
+        // 상한(limit)은 넘지 않는다.
+        let store = FridgeStore(ingredients: [], recipes: [], history: [])
+        let seeded = store.frequentIngredients()
+        #expect(seeded.count == 12)
+        #expect(seeded.map(\.key) == Array(FridgeStore.frequentSeedIDs.prefix(12)))
+        #expect(store.frequentIngredients(limit: 5).count == 5)   // 상한 준수
+        // 이력 1종만 있어도 시드가 뒤를 채우고, 중복은 생기지 않는다.
+        let one = FridgeStore(ingredients: [], recipes: [],
+                              history: [RemovalLog(name: "양파", glyph: .onion, daysAgo: 1, wasted: false)])
+        let mixed = one.frequentIngredients()
+        #expect(mixed.first?.key == "onion")
+        #expect(mixed.count == 12)
+        #expect(Set(mixed.map(\.key)).count == mixed.count)
+    }
+
+    @Test func tappingSuggestedItemAbsorbsItIntoManual() {
+        // 시트 탭의 실제 경로(뷰가 게이팅하지 않는다) — 파생 제안만 떠 있던 품목을 담으면 흡수된다.
+        let store = FridgeStore(ingredients: [], recipes: [],
+                                history: [RemovalLog(name: "양파", glyph: .onion, daysAgo: 2, wasted: false)])
+        #expect(store.toBuy.map(\.manual) == [false])          // 지금은 제안 한 줄
+        #expect(store.addToBuy(name: "onion", canonicalID: "onion", glyph: .onion))
+        let list = store.toBuy
+        #expect(list.count == 1)                                // 두 줄로 갈라지지 않고
+        #expect(list.first?.manual == true)                     // 수동이 흡수
+        #expect(!store.addToBuy(name: "onion", canonicalID: "onion", glyph: .onion))   // 재탭은 no-op
+    }
+
+    @Test func manualToBuySurvivesSnapshotRoundTrip() throws {
+        let item = FridgeStore.ManualBuyItem(name: "양파", canonicalID: "onion", glyph: .onion)
+        let snap = FridgeStore.Snapshot(
+            schemaVersion: FridgeStore.currentSchemaVersion,
+            ingredients: [], history: [], dismissedToBuy: [], counterIDs: [], activeCook: nil,
+            userRecipes: nil, archivedAte: nil, archivedTossed: nil, manualToBuy: [item])
+        let decoded = try #require(FridgeStore.decodeSnapshot(try JSONEncoder().encode(snap)))
+        #expect(decoded.manualToBuy == [item])
+        #expect(decoded.manualToBuy?.first?.matchKey == "onion")
+    }
+
+    @Test func legacySnapshotHasNoManualToBuy() throws {
+        // 구버전 파일엔 필드 자체가 없다 — 옵셔널+기본 nil 규약(디코드 실패로 통째 격리되면 안 된다).
+        let legacy = """
+        {"ingredients":[],"history":[],"dismissedToBuy":[],"counterIDs":[]}
+        """
+        let snap = try #require(FridgeStore.decodeSnapshot(Data(legacy.utf8)))
+        #expect(snap.manualToBuy == nil)
     }
 
     // MARK: canonicalID 정규화 매칭 (교차 표기 — 양파↔onion)
@@ -368,6 +641,104 @@ struct FridgeStoreTests {
         #expect(store.counterIngredients.count <= 6)                    // 상한 준수
         // 최임박 6개(day 1..6)만 작업대에 — counterIngredients는 임박순.
         #expect(store.counterIngredients.map(\.effectiveDaysLeft) == [1, 2, 3, 4, 5, 6])
+    }
+
+    // MARK: 카테고리 필터 (냉장고 칩 행 — 순수 로직)
+
+    /// 카테고리별 재료 — 글리프가 필터 키를 정한다(저장 category 문자열이 아니라).
+    private func categorized(_ glyph: FoodGlyph, _ name: String, category: String = "Other") -> Ingredient {
+        Ingredient(name: name, category: category, daysLeft: 3,
+                   quantity: Quantity(value: 1, unit: .piece), glyph: glyph)
+    }
+
+    private var mixedItems: [Ingredient] {
+        [categorized(.leaf, "Lettuce"), categorized(.onion, "Onion"), categorized(.tomato, "Tomato"),
+         categorized(.meat, "Beef", category: "Meat · Beef"),   // 레거시 자유 문자열 — 글리프로 흡수
+         categorized(.milk, "Milk"), categorized(.apple, "Apple")]
+    }
+
+    @Test func filterReturnsOnlyMatchingCategory() {
+        let items = mixedItems
+        let veg = FridgeCategoryFilter.apply("Veg", to: items)
+        #expect(veg.map(\.name) == ["Lettuce", "Onion", "Tomato"])   // 입력 정렬 순서 보존
+        #expect(FridgeCategoryFilter.apply(nil, to: items).count == items.count)
+        #expect(FridgeCategoryFilter.apply("Seafood", to: items).isEmpty)
+    }
+
+    @Test func bucketsCountPresentCategoriesInCanonicalOrder() {
+        let buckets = FridgeCategoryFilter.buckets(of: mixedItems)
+        // 재고에 있는 것만, 캐논 순서(Veg → Fruit → Dairy → Meat)로.
+        #expect(buckets.map(\.category) == ["Veg", "Fruit", "Dairy", "Meat"])
+        #expect(buckets.map(\.count) == [3, 1, 1, 1])
+        #expect(buckets.map(\.count).reduce(0, +) == mixedItems.count)   // 합 = 전체(누락 카테고리 없음)
+        #expect(FridgeCategoryFilter.buckets(of: []).isEmpty)
+    }
+
+    @Test func legacyCategoryStringFoldsIntoGlyphCategory() {
+        // "Meat · Beef"로 저장된 레거시 재료도 Meat 칩 하나로 묶인다(칩 파편화 방지).
+        let beef = categorized(.meat, "Beef", category: "Meat · Beef")
+        #expect(FridgeCategoryFilter.key(of: beef) == "Meat")
+        #expect(FridgeCategoryFilter.apply("Meat", to: [beef]).count == 1)
+    }
+
+    /// `FridgeView`의 필터 자동 해제는 이 함수만 호출한다 — 뷰에 같은 판단이 중복되지 않으므로
+    /// 여기서 검증하는 규칙이 곧 화면 동작이다.
+    @Test func resolvedClearsFilterWhenCategoryEmpties() {
+        let items = mixedItems
+        #expect(FridgeCategoryFilter.resolved("Dairy", in: items) == "Dairy")
+        // 마지막 유제품이 사라지면 전체로 되돌아간다(빈 화면에 가두지 않는다).
+        let withoutDairy = items.filter { FridgeCategoryFilter.key(of: $0) != "Dairy" }
+        #expect(FridgeCategoryFilter.resolved("Dairy", in: withoutDairy) == nil)
+        #expect(FridgeCategoryFilter.resolved("Veg", in: []) == nil)
+        #expect(FridgeCategoryFilter.resolved(nil, in: items) == nil)
+    }
+
+    @Test func resolvedClearsFilterWhenNewItemLandsOutsideIt() {
+        // Dairy 필터를 켠 채 고기를 추가 — 화면이 그대로면 "추가가 안 됐다"로 읽힌다.
+        let fish = categorized(.fish, "Salmon")
+        let after = mixedItems + [fish]
+        #expect(FridgeCategoryFilter.resolved("Dairy", in: after, added: [fish.id]) == nil)
+
+        // 필터 안쪽에 추가되면 유지 — 굳이 넓힐 이유가 없다(추가분이 이미 보인다).
+        let yogurt = categorized(.yogurt, "Yogurt")
+        #expect(FridgeCategoryFilter.resolved("Dairy", in: mixedItems + [yogurt],
+                                              added: [yogurt.id]) == "Dairy")
+        // 여러 개를 한꺼번에(영수증 스캔) 추가해 하나라도 필터 안이면 유지.
+        #expect(FridgeCategoryFilter.resolved("Dairy", in: mixedItems + [yogurt, fish],
+                                              added: [yogurt.id, fish.id]) == "Dairy")
+        // 추가가 없는 변화(먹음·버림)는 ②를 판정하지 않는다 — 재고만 남아 있으면 필터 유지.
+        #expect(FridgeCategoryFilter.resolved("Dairy", in: mixedItems, added: []) == "Dairy")
+    }
+
+    /// 이름 수정으로 카테고리만 바뀌는 경우 — id가 그대로라 뷰의 감지 키가 id였을 땐 훅이 아예 돌지
+    /// 않아 필터가 빈 카테고리를 계속 가리켰다(재고가 가득한데 빈 상태 화면). 감지 키에 카테고리를
+    /// 섞어 변화로 잡히는지, 그리고 그때 `resolved`가 전체로 풀어 주는지 함께 고정한다.
+    @Test func renameThatChangesCategoryIsDetectedAndClearsFilter() {
+        let milk = categorized(.milk, "Milk")
+        var renamed = milk
+        renamed.name = "Beef"
+        renamed.glyph = .meat            // FridgeStore.update가 이름 변경 때 다시 파생시키는 값
+        renamed.category = renamed.glyph.categoryLabel
+
+        #expect(renamed.id == milk.id)   // 전제 — id는 그대로다
+        #expect(FridgeCategoryFilter.changeKey(of: renamed) != FridgeCategoryFilter.changeKey(of: milk))
+
+        let before = [milk, categorized(.leaf, "Lettuce")]
+        let after = [renamed, categorized(.leaf, "Lettuce")]
+        #expect(FridgeCategoryFilter.resolved("Dairy", in: before) == "Dairy")
+        #expect(FridgeCategoryFilter.resolved("Dairy", in: after) == nil)
+        // 같은 재료가 그대로면 키도 그대로 — 불필요한 재판정을 만들지 않는다.
+        #expect(FridgeCategoryFilter.changeKey(of: milk) == FridgeCategoryFilter.changeKey(of: milk))
+    }
+
+    @Test func chipSeedIsStablePerCategoryNotPerCount() {
+        // 시드는 카테고리 키에서만 나온다 — 재고가 늘고 줄어도 칩 윤곽이 다시 랜덤해지지 않는다.
+        #expect(FridgeCategoryFilter.chipSeed("Veg") == FridgeCategoryFilter.chipSeed("Veg"))
+        // 카테고리가 다르면 시드도 다르다(개수가 같아도 똑같이 생기지 않는다).
+        let seeds = FridgeCategoryFilter.order.map(FridgeCategoryFilter.chipSeed)
+        #expect(Set(seeds).count == FridgeCategoryFilter.order.count)
+        // 같은 화면의 다른 종이 면 시드(빈 상태 3 · 정렬 칩 5 · 보기 토글 6 · 요약 7/8 · All 9)와 겹치지 않는다.
+        #expect(seeds.allSatisfy { $0 > 9 })
     }
 
     @Test func promoteUrgentSwapsInMoreUrgentWhenCounterFull() {

@@ -2,15 +2,15 @@ import Testing
 import Foundation
 @testable import Reffi
 
-/// FoodGlyph — 52종 확장(각진 컷페이퍼) 후 카테고리 라벨 파생·케이스 목록·톨러런트 디코드 가드.
+/// FoodGlyph — 53종 확장(각진 컷페이퍼) 후 카테고리 라벨 파생·케이스 목록·톨러런트 디코드 가드.
 /// 재료명→글리프 라우팅(`match`)은 1순위 정본 사전이 결정하므로, 사전 글리프 값 재배정
 /// 이후에 그쪽에서 검증한다(이 스위트는 enum 자체의 결정론적 계약만 지킨다).
 struct GlyphTests {
 
-    @Test func caseCountIs52() {
+    @Test func caseCountIs53() {
         // 35종 + v2 신규 17종(eggplant·sweetPotato·ginger·seaweed·grape·watermelon·pineapple·mango·
-        // sausage·bacon·crab·squid·clam·yogurt·butter·honey·dumpling).
-        #expect(FoodGlyph.allCases.count == 52)
+        // sausage·bacon·crab·squid·clam·yogurt·butter·honey·dumpling) + v3 요리형 1종(gimbap).
+        #expect(FoodGlyph.allCases.count == 53)
     }
 
     @Test func everyGlyphHasCategoryLabel() {
@@ -24,6 +24,8 @@ struct GlyphTests {
         #expect(FoodGlyph.rice.categoryLabel == "Grain")
         #expect(FoodGlyph.noodles.categoryLabel == "Grain")
         #expect(FoodGlyph.corn.categoryLabel == "Grain")
+        // 김밥은 요리지만 정체는 밥 — History 도넛에서 Other가 아니라 Grain으로 읽힌다.
+        #expect(FoodGlyph.gimbap.categoryLabel == "Grain")
         #expect(FoodGlyph.sauceBottle.categoryLabel == "Pantry")
         #expect(FoodGlyph.can.categoryLabel == "Pantry")
         // 신규 채소·과일은 기존 라벨로 편입.

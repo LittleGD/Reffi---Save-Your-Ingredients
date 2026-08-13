@@ -9,8 +9,12 @@ struct ShareCardPreviewView: View {
         ScrollView {
             RecipeShareCard(
                 recipeName: recipe?.displayName ?? "Bibimbap",
-                steps: recipe?.displaySteps ?? Self.fallbackSteps,
-                count: recipe?.ingredients.count ?? 12
+                // 시드 재료 표기를 그대로(레시피 콘텐츠는 코드에 리터럴로 두지 않는다 — 시드가 없으면 빈 목록).
+                ingredientNames: recipe?.ingredients.map(\.displayName) ?? [],
+                minutes: recipe?.minutes,
+                count: recipe?.ingredients.count ?? 0,
+                // 시드가 없으면 세션 폴백이 같은 표 키(bibimbap)를 타므로 같은 그림이 나온다.
+                icon: recipe?.heroIcon ?? RecipeHeroIcon.session(name: "Bibimbap", id: "bibimbap")
             )
             // 실제 공유 경로(CookingStepsView.renderShareImage)와 같은 라이트 고정 렌더를 검증용에서도 재현.
             .environment(\.colorScheme, .light)
@@ -19,15 +23,5 @@ struct ShareCardPreviewView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(ReffiColor.canvas)
     }
-
-    /// 시드 로드 실패 시 폴백 — bibimbap 실제 영문 스텝(recipes-seed.json)과 동일 문구.
-    private static let fallbackSteps = [
-        "Blanch the spinach and bean sprouts separately, then season each with salt and a little sesame oil.",
-        "Cut the carrot and zucchini into thin strips and stir-fry each with a pinch of salt.",
-        "Cook the ground beef with garlic and a splash of soy-style seasoning until browned.",
-        "Fry the egg sunny-side up so the yolk stays soft.",
-        "Arrange the vegetables and beef over a bowl of warm rice and top with the egg.",
-        "Add gochujang and sesame oil, then mix everything together just before eating.",
-    ]
 }
 #endif

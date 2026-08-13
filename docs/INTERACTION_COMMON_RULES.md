@@ -9,6 +9,7 @@
 ## 0. 배경과 감사 시점 주의
 
 - **2026-08-01 갱신**: 추가 플로우가 영수증 스캔 단일 경로로 단순화되며 `IngredientPickerSheet`(픽커·검색·FREQUENT)·`CustomItemSheet`·스캔 카드가 삭제됐다. 아래 룰에서 이 심볼들을 가리키는 `file:line`과 액션 아이템은 **해소(대상 소멸)로 처리**한다 — 감사 이력 보존을 위해 본문은 남긴다.
+- **2026-08-05 갱신**: 그 단일 경로에 **To buy 화면 한정 예외**가 생겼다 — 목록 하단 "Add item"이 여는 재료 검색 바텀시트(`ToBuySearchSheet`, `ShoppingListView.swift`)는 재고 추가가 아니라 **장보기 메모**라서다(근거·범위는 `design_system.md` §13.5). 아래 시트 룰(②③④·§14.5 detent)을 그대로 따르는 선택 시트이며, 탭마다 확정되므로 미저장 보호(룰⑨)는 해당 없다.
 - **감사 대상**: HEAD 커밋(`1cfa1de`) 스냅샷의 `Reffi/` 소스 55개.
 - **주의**: 저장소가 OneDrive 클라우드 폴더에 있어, 감사 도중 working tree가 HEAD보다 앞서 있었다. HEAD 기준으로 참이던 발견 일부(특히 `IngredientEditView`의 시스템 Form)는 이미 종이 문법으로 리팩터링되어 있었다. 아래 룰의 `file:line`은 **정의 시점(2026-07-21) working tree 기준으로 재검증한 값**이다. 구현 착수 시 실제 파일 상태를 다시 확인한다.
 - **근본 원인**: 편차 대부분의 뿌리는 하나 — "닫기 헤더"와 "편집 시트 셸"이 컴포넌트로 추출되지 않아, 매 화면이 종이 X·타이틀·detent·커밋 버튼을 손으로 다시 조립했다. `PaperButton`·`PaperIconButton`처럼 추출된 곳은 편차가 0이다. 문서 규칙이 틀린 게 아니라, **규칙을 강제하는 컴포넌트가 없어** 드리프트가 생겼다.
@@ -85,7 +86,7 @@
 - **확정 룰**: 판정 축은 "undo 버튼이 있느냐"가 아니라 **확정 후 데이터를 되돌릴 수 있느냐**다.
   - **복구 불가능**(계정삭제·전체초기화·**샘플로드**) = `.alert` (중앙 고정, 실수 방지).
   - **국소·되돌리기 가능**(재료삭제·조리취소) = `.confirmationDialog` (트리거 근처). `FridgeStore.pendingUndo` 기반 undo 토스트가 떠서 dialog로 충분.
-  - **데이터를 지우지 않는 상태 전환**(**로그아웃**) = `.confirmationDialog`. 세션만 해지하고 냉장고·이력·프로필·AI 동의는 이 기기에 남는다. 소유자 키(`data.ownerUserID`)가 직전 계정 id로 유지되고 뒤이어 붙는 익명 게스트 세션은 소유자 대조 대상이 아니라(`AuthStore.accountUserID`가 nil), 콜드 런치를 거쳐 같은 계정으로 재로그인해도 와이프가 없다(`ReffiApp.reconcileDataOwner` 보장 ①). 룰 ⑦ 파괴 햅틱도 해당 없음.
+  - **데이터를 지우지 않는 상태 전환**(**로그아웃**) = `.confirmationDialog`. 세션만 해지하고 냉장고·이력·프로필은 이 기기에 남는다. 소유자 키(`data.ownerUserID`)가 직전 계정 id로 유지되고 뒤이어 붙는 익명 게스트 세션은 소유자 대조 대상이 아니라(`AuthStore.accountUserID`가 nil), 콜드 런치를 거쳐 같은 계정으로 재로그인해도 와이프가 없다(`ReffiApp.reconcileDataOwner` 보장 ①). 룰 ⑦ 파괴 햅틱도 해당 없음.
   - 순수 알림성(알림 꺼짐 안내)은 `.alert` 유지.
 - **샘플로드 정정(2026-07-26)**: 최초 초안은 샘플로드를 "되돌리기 가능(undo 토스트 있음)"으로 분류했으나 사실이 아니다. `FridgeStore.loadSampleData()`는 `ingredients`·`history`를 샘플로 통째 대체하기 전에 `pendingUndo = nil`로 **undo를 먼저 지운다**(`FridgeStore.swift:717`) → 확정 후 복구 불가. 따라서 `.alert`로 분류를 옮긴다.
 - **적용**: 위 기준으로 각 호출부 재분류.

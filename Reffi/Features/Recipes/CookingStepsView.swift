@@ -2,9 +2,13 @@ import SwiftUI
 import PhosphorSwift
 import UIKit
 
-/// 단계별 레시피(§13.6) — 발주 직후, 그리고 메인의 Cooking now 카드에서 열리는 조리 화면.
-/// 발주된 티켓 한 장이 그대로 조리 체크리스트가 된다: 단계를 탭해 체크, 완료로 세션을 닫는다.
-/// 진행 상태(체크·시작 시각)는 store에 영속화되어 앱을 껐다 켜도 이어진다.
+/// 조리 세션 티켓(§13.6) — 발주 직후, 그리고 메인의 Cooking now 카드에서 열리는 조리 화면.
+/// 발주된 티켓 한 장이 그대로 조리 중 상태판이 된다: 무엇을 몇 개로 굽고 있는지, 언제 시작했는지,
+/// 그리고 **어떻게 만드는지는 영상**이 맡는다(앱은 단서까지, 디테일은 유튜브).
+/// 세션(시작 시각·예약 재료)은 store에 영속화되어 앱을 껐다 켜도 이어진다.
+///
+/// 단계 체크리스트는 없앴다 — 텍스트 단계를 따라가는 건 실제 조리 중에 아무도 하지 않고,
+/// 영상 한 번이 단계 열 줄보다 정확하다. 파일명은 진입점 참조가 흩어져 있어 그대로 둔다.
 struct CookingStepsView: View {
     @Environment(FridgeStore.self) private var store
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -16,13 +20,48 @@ struct CookingStepsView: View {
     @State private var showFinishSheet = false
     @State private var showCancelConfirm = false
     @State private var leftovers: Set<UUID> = []   // '조금 남았어요'로 표시한 재료
-    @State private var shareImage: Image?   // 공유 카드 오프스크린 렌더 결과 — 세션당 1회(체크 상태와 무관)
+    @State private var shareImage: Image?   // 공유 카드 오프스크린 렌더 결과 — 아래 ShareCardKey가 바뀔 때만 갱신
 
     /// 예약된 재료(아직 냉장고에 있는 것) — 완료 확인 시트의 목록.
     private var reservedIngredients: [Ingredient] {
         guard let ids = store.activeCook?.usedIDs else { return [] }
         let byID = Dictionary(store.ingredients.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
         return ids.compactMap { byID[$0] }
+    }
+
+    /// 공유 카드 재렌더 키 — **카드에 인쇄되는 값 전부**를 담는다. 재료 이름은 세션 스냅샷이 아니라
+    /// 라이브 재고에서 파생되므로(`reservedIngredients`), 조리 중에 예약 재료를 버리거나 지우면
+    /// 화면은 갱신되는데 이미지만 옛 이름을 그대로 들고 있게 된다. 키를 이름 목록까지 넓혀 막는다.
+    /// `icon`도 같은 이유다 — 조리 중 원본 레시피가 삭제되면 화면 아이콘은 세션 폴백으로 갈아타는데
+    /// 이미지가 옛 그림을 들고 있으면 화면과 공유 이미지가 다른 요리를 보인다.
+    /// 항목을 늘릴 땐 `RecipeShareCard`의 입력과 1:1을 유지할 것.
+    /// `.task(id:)`는 Equatable만 요구한다 — `RecipeHeroIcon`에 Hashable을 더할 필요가 없다.
+    /// 테스트가 키 조합을 직접 잠그므로 internal(`DishGlyphTests.CookingShareCardKeyTests`).
+    struct ShareCardKey: Equatable {
+        var recipeName: String
+        var ingredientNames: [String]
+        var minutes: Int?
+        var count: Int
+        var icon: RecipeHeroIcon
+    }
+
+    private func shareCardKey(for cook: FridgeStore.CookSession) -> ShareCardKey {
+        ShareCardKey(recipeName: cook.recipeName,
+                     ingredientNames: reservedIngredients.map(\.name),
+                     minutes: cook.minutes,
+                     count: cook.count,
+                     icon: heroIcon(for: cook))
+    }
+
+    /// 세션의 히어로 아이콘 — 발주 때 남긴 레시피 id로 **원본 레시피를 되찾아** 오더 티켓과 같은
+    /// `heroIcon` 체인을 탄다. 카탈로그를 직접 부르면 커스텀 "김밥"이 티켓에선 손으로 그린 김밥,
+    /// 여기선 아무 색 롤로 갈린다.
+    /// 레시피가 지워졌거나 id가 없는 구버전 세션이면 이름만으로 폴백한다(빈 아이콘은 나오지 않는다).
+    private func heroIcon(for cook: FridgeStore.CookSession) -> RecipeHeroIcon {
+        if let id = cook.recipeID, let recipe = store.recipes.first(where: { $0.id == id }) {
+            return recipe.heroIcon
+        }
+        return .session(name: cook.recipeName, id: cook.recipeID)
     }
 
     var body: some View {
@@ -35,9 +74,10 @@ struct CookingStepsView: View {
                         .padding(.top, 104)
                         .padding(.bottom, ReffiSpace.s6)
                 }
-                // 공유 카드는 레시피+스텝 스냅샷이라 체크 상태와 무관 — recipeName이 바뀔 때(새 세션)만 다시 렌더.
-                .task(id: cook.recipeName) {
-                    shareImage = renderShareImage(for: cook)
+                // 공유 카드에 인쇄되는 값(메뉴명·예약 재료 이름·시간·개수)이 바뀔 때만 다시 렌더한다.
+                // 새 세션은 물론, 조리 중 예약 재료가 사라지는 경우까지 이 키가 덮는다.
+                .task(id: shareCardKey(for: cook)) {
+                    shareImage = renderShareImage(for: cook, icon: heroIcon(for: cook))
                 }
             }
             topBar
@@ -145,69 +185,62 @@ struct CookingStepsView: View {
     // MARK: - 조리 티켓
 
     private func ticket(_ cook: FridgeStore.CookSession) -> some View {
-        let steps = cook.steps ?? []
-        let done = Set(cook.completedSteps ?? [])
-        return VStack(alignment: .leading, spacing: ReffiSpace.s3) {
-            // 헤더 — 오더 티켓과 같은 모노 크롬.
+        VStack(alignment: .leading, spacing: ReffiSpace.s3) {
+            // 헤더 — 오더 티켓과 같은 모노 크롬. 공유 카드(RecipeShareCard)와 같은 규칙으로
+            // 셀 게 없으면(count 0) 수치를 아예 빼, 두 종이가 서로 다른 말을 하지 않게 한다.
             HStack(alignment: .firstTextBaseline) {
                 Text(verbatim: "ORDER · FIRED")
                     .reffiType(.monoTicketLabel).foregroundStyle(ReffiColor.urgentDark)
                 Spacer()
-                Text("\(cook.count) used")
-                    .reffiType(.metaText)
-                    .foregroundStyle(ReffiColor.ink2)
-            }
-
-            Text(verbatim: cook.recipeName)
-                .reffiType(.menuName).foregroundStyle(ReffiColor.ink)
-                .fixedSize(horizontal: false, vertical: true)
-
-            DashedRule()
-
-            Text(verbatim: "STEPS")
-                .reffiType(.sectionLabel).foregroundStyle(ReffiColor.ink2)
-
-            if steps.isEmpty {
-                Text("No steps on this ticket. Cook it your way.")
-                    .reffiType(.body).foregroundStyle(ReffiColor.ink2)
-                    .padding(.vertical, ReffiSpace.s3)
-            } else {
-                VStack(alignment: .leading, spacing: ReffiSpace.s1) {
-                    ForEach(Array(steps.enumerated()), id: \.offset) { i, step in
-                        stepRow(index: i, text: step, done: done.contains(i))
-                    }
+                if cook.count > 0 {
+                    Text("\(cook.count) used")
+                        .reffiType(.metaText)
+                        .foregroundStyle(ReffiColor.ink2)
                 }
             }
 
+            // 메뉴명 + 요리 아이콘 — 오더 티켓(`OrderMemoCard`)과 **같은 자리·같은 크기**로 둔다.
+            // 발주 전후로 아이콘이 움직이면 같은 티켓이 조리 티켓이 됐다는 연결이 끊긴다.
+            HStack(alignment: .top, spacing: ReffiSpace.s3) {
+                Text(verbatim: cook.recipeName)
+                    .reffiType(.menuName).foregroundStyle(ReffiColor.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: ReffiSpace.s2)
+                RecipeHeroIconView(icon: heroIcon(for: cook))
+                    .frame(width: ReffiDishIcon.ticket, height: ReffiDishIcon.ticket)
+            }
+
             DashedRule()
-                .padding(.top, ReffiSpace.s2)
 
-            // 요리 예시 참고 — 레시피명으로 유튜브 검색을 열거나 레시피를 영수증 카드 이미지로 공유한다. 종이컷 아이콘 버튼 쌍(§13.5).
-            HStack(spacing: ReffiSpace.s5) {
-                PaperIconButton(icon: ReffiIcon.youtube, label: "YouTube", intent: .soft, size: 64, seed: 3) {
-                    openURL(youtubeSearchURL(for: cook.recipeName))
-                }
-                .accessibilityLabel(Text("Watch examples on YouTube"))
-                .accessibilityHint(Text("Opens YouTube in your browser"))
-
+            // 조리법의 1차 경로 — 레시피명으로 유튜브 검색을 연다. 아이콘+라벨 와이드 CTA(아이콘 단독 아님).
+            // 공유는 그 옆의 보조 행동이라 조용한 종이컷 아이콘(§13.5)으로 남긴다.
+            HStack(spacing: ReffiSpace.s4) {
+                videoButton(for: cook.recipeName)
                 if let shareImage {
                     ShareLink(
                         item: shareImage,
                         preview: SharePreview(Text(verbatim: cook.recipeName), image: shareImage)
                     ) {
-                        PaperIconLabel(icon: ReffiIcon.share, label: "Share", intent: .neutral, size: 64, seed: 4)
+                        PaperIconLabel(icon: ReffiIcon.share, label: "Share", intent: .neutral, size: 52, seed: 4)
                     }
                     .buttonStyle(.paperPress)
                     .accessibilityLabel(Text("Share"))
                     .accessibilityHint(Text("Opens the share sheet"))
                 } else {
                     // 렌더 완료 전 짧은 순간의 비활성 플레이스홀더(크래시·빈 공유 방지) — 렌더는 즉시 끝나 실사용엔 티 안 남.
-                    PaperIconLabel(icon: ReffiIcon.share, label: "Share", intent: .neutral, size: 64, seed: 4)
-                        .opacity(0.4)
+                    PaperIconLabel(icon: ReffiIcon.share, label: "Share", intent: .neutral, size: 52, seed: 4)
+                        .opacity(ReffiOpacity.disabled)
                         .accessibilityHidden(true)
                 }
             }
-            .frame(maxWidth: .infinity)
+
+            // 기대치 정렬 — 앱은 단서까지, 디테일은 영상. 단계가 사라진 자리를 설명하는 한 줄.
+            Text("Cook it your way. The video has the details.")
+                .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
+                .fixedSize(horizontal: false, vertical: true)
+
+            DashedRule()
+                .padding(.top, ReffiSpace.s2)
 
             PaperButton(title: "Finish cooking") {
                 // 예약 재료가 있으면 확인 시트에서 확정(남은 재료 원탭), 없으면(구버전 세션) 바로 종료.
@@ -240,43 +273,32 @@ struct CookingStepsView: View {
         .reffiShadow1()
     }
 
-    /// 단계 한 줄 — 탭 = 체크 토글(진행 저장). 체크되면 줄이 그어진다.
-    private func stepRow(index: Int, text: String, done: Bool) -> some View {
-        Button {
-            withAnimation(ReffiMotion.gated(ReffiMotion.pop, reduce: reduceMotion)) {
-                store.toggleCookStep(index)
+    /// 조리법 1차 CTA — 레시피명으로 유튜브 검색을 연다. `PaperButton`은 텍스트 전용이라
+    /// 같은 종이컷 표면(§13.5)에 아이콘+라벨을 직접 얹는다. 면은 blush 틴트(urgentLight) —
+    /// 하단 파랑 Finish CTA와 색으로 역할이 갈리고, 예전 YouTube 아이콘 버튼(intent .soft)의 결을 잇는다.
+    private func videoButton(for recipeName: String) -> some View {
+        Button { openURL(youtubeSearchURL(for: recipeName)) } label: {
+            HStack(spacing: ReffiSpace.s2) {
+                ReffiIcon.youtube.reffi(20, .fill).foregroundStyle(ReffiColor.urgentDark)
+                Text("Open recipe videos")
+                    .font(ReffiTextRole.subhead.font)
+                    .tracking(ReffiTextRole.subhead.tracking)
+                    .foregroundStyle(ReffiColor.urgentDark)
             }
-        } label: {
-            HStack(alignment: .firstTextBaseline, spacing: ReffiSpace.s3) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 4, style: .continuous)
-                        .stroke(done ? ReffiColor.freshDark : ReffiColor.muted, lineWidth: 1.5)
-                        .frame(width: 20, height: 20)
-                    if done {
-                        RoundedRectangle(cornerRadius: 4, style: .continuous)
-                            .fill(ReffiColor.freshDark).frame(width: 20, height: 20)
-                        // 다크에서 freshDark 도트가 밝아지므로 체크는 onInk(어두운 콘텐츠)여야 산다.
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 11, weight: .heavy)).foregroundStyle(ReffiColor.onInk)
-                    }
-                }
-                Text(verbatim: "\(index + 1).")
-                    .font(.reffiNum(14, relativeTo: .body)).foregroundStyle(ReffiColor.ink2)
-                Text(verbatim: text)
-                    .reffiType(.checklistItem)
-                    .foregroundStyle(done ? ReffiColor.muted : ReffiColor.ink)
-                    .strikethrough(done, color: ReffiColor.muted)
-                    .multilineTextAlignment(.leading)
-                    .fixedSize(horizontal: false, vertical: true)
-                Spacer(minLength: 0)
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, ReffiSpace.s5)
+            .padding(.vertical, ReffiSpace.s4)
+            .background {
+                let shape = PaperCutRect(seed: 3)
+                shape.fill(ReffiColor.urgentLight)
+                    .overlay(PaperGrain(seed: 14).clipShape(shape))
+                    .paperEdge(shape, tint: ReffiColor.urgentDark.opacity(0.18))
+                    .compositingGroup()
+                    .reffiShadow1()
             }
-            .padding(.vertical, ReffiSpace.s2)
-            .frame(minHeight: 44)
-            .contentShape(Rectangle())
         }
-        .buttonStyle(.reffiPress)
-        .accessibilityLabel(Text(verbatim: text))
-        .accessibilityValue(done ? Text("Done") : Text(verbatim: ""))
+        .buttonStyle(.paperPress)
+        .accessibilityHint(Text("Opens YouTube in your browser"))
     }
 
     /// 유튜브 검색 URL — 레시피명 + "recipe"를 퍼센트 인코딩. 인코딩·URL 생성 실패 시 유튜브 홈으로 폴백.
@@ -288,11 +310,16 @@ struct CookingStepsView: View {
     }
 
     /// 공유 카드 이미지 렌더 — `RecipeShareCard`를 레티나 스케일로 오프스크린 래스터라이즈한다. 실패하면 nil.
+    /// 재료 이름은 예약 재료(=지금 냉장고에 있는 그 재료)에서 읽는다 — 세션 스냅샷에 이름을 또 박지 않는다.
     @MainActor
-    private func renderShareImage(for cook: FridgeStore.CookSession) -> Image? {
+    private func renderShareImage(for cook: FridgeStore.CookSession, icon: RecipeHeroIcon) -> Image? {
         // 공유 이미지는 물리 산출물(인쇄된 영수증)이라 기기 다크모드와 무관하게 항상 라이트 종이로 렌더한다.
         // ImageRenderer는 환경을 명시하지 않으면 항상 라이트로 해석하지만, 명시적으로 고정해 의도를 문서화한다.
-        let card = RecipeShareCard(recipeName: cook.recipeName, steps: cook.steps ?? [], count: cook.count)
+        let card = RecipeShareCard(recipeName: cook.recipeName,
+                                   ingredientNames: reservedIngredients.map(\.name),
+                                   minutes: cook.minutes,
+                                   count: cook.count,
+                                   icon: icon)
             .environment(\.colorScheme, .light)
         let renderer = ImageRenderer(content: card)
         renderer.scale = 3   // 레티나

@@ -1,7 +1,7 @@
 import Foundation
 
-/// 레시피 — 번들 시드(recipes-seed.json)·사용자 커스텀·(향후) AI 생성이 모두 이 한 모델로 흐른다.
-/// **코드에 레시피를 하드코딩하지 않는다**(프로젝트 규칙) — 데이터는 항상 번들/영속화/생성 소스에서 온다.
+/// 레시피 — 번들 시드(recipes-seed.json)와 사용자 커스텀이 모두 이 한 모델로 흐른다.
+/// **코드에 레시피를 하드코딩하지 않는다**(프로젝트 규칙) — 데이터는 항상 번들/영속화 소스에서 온다.
 /// 이름·단계는 영-한 이중언어(en 필수, ko 선택) — 표시 시점에 로케일로 고른다.
 struct Recipe: Identifiable, Codable, Equatable {
 
@@ -16,16 +16,19 @@ struct Recipe: Identifiable, Codable, Equatable {
         var displayName: String { Recipe.isKorean ? (ko ?? en) : en }
     }
 
-    var id: String                 // 시드는 슬러그("beef-bulgogi"), 커스텀·AI는 UUID 문자열
+    var id: String                 // 시드는 슬러그("beef-bulgogi"), 커스텀은 UUID 문자열
     var name: LocalizedName
     var cuisine: String?
     var minutes: Int
     var ingredients: [Item]
+    /// 조리 단계 — 화면에 그리는 경로는 없다(티켓은 단서까지, 조리법은 영상). 시드 JSON과 이미 저장된
+    /// 커스텀 레시피가 이 키를 갖고 있어 **디코드 호환**을 위해 유지한다. 지우면 기존 데이터가 깨진다.
     var steps: LocalizedSteps
     /// 사용자 커스텀 여부 — 커스텀만 편집·삭제 가능(시드 생략 시 nil = false).
     var isUser: Bool?
-    /// 공급 출처 — AI 생성이면 "ai". 시드/레거시/커스텀은 nil(Codable-안전: 키 없으면 nil).
-    /// 기본값 nil이라 기존 memberwise 호출·시드 로더·userRecipe 팩토리는 불변으로 컴파일된다.
+    /// 공급 출처. AI 생성 기능이 제거되기 전에 저장한 기기에는 origin "ai"가 박힌 사용자 레시피가
+    /// 아직 남아 있다 — 그 레코드가 디코드·재인코드를 왕복해도 값이 사라지지 않도록 필드만 유지한다.
+    /// 새로 이 값을 채우는 경로도, 이 값을 읽는 로직도 없다(표시·분기 어디에도 쓰이지 않는다).
     var origin: String? = nil
 
     struct LocalizedName: Codable, Equatable {
@@ -45,16 +48,14 @@ struct Recipe: Identifiable, Codable, Equatable {
     // MARK: - 표시 접근자
 
     var displayName: String { Self.isKorean ? (name.ko ?? name.en) : name.en }
-    var displaySteps: [String] {
-        if Self.isKorean, let ko = steps.ko, !ko.isEmpty { return ko }
-        return steps.en
-    }
     var isUserRecipe: Bool { isUser ?? false }
-    /// AI 생성 레시피 여부 — 배지·필터 배선용(후속 UI 에이전트).
-    var isAI: Bool { origin == "ai" }
 
-    /// 히어로 대표 모티프 — 첫 번째 비상비 재료의 글리프에서 파생.
+    /// 히어로 대표 모티프 — ① 요리 이름 큐레이션 표, ② 첫 번째 비상비 재료의 글리프.
+    /// **메뉴 정체성 > 재료 구성**이라 이름이 재료보다 앞선다: "김밥"의 정체는 김도 밥도 계란도 아니라
+    /// 김밥 그 자체인데, 재료에서 파생하면 첫 재료(김·계란)가 대표로 올라와 티켓 메뉴명 옆
+    /// 아이콘(`ReffiDishIcon.ticket`)에서 메뉴를 못 읽는다.
     var glyph: FoodGlyph {
+        if let dish = Self.dishGlyph(for: name) { return dish }
         for item in ingredients {
             let key = item.ref ?? item.en
             if IngredientLexicon.shared.isStaple(key) { continue }
@@ -64,9 +65,22 @@ struct Recipe: Identifiable, Codable, Equatable {
         return .generic
     }
 
+    /// 요리 이름 → 전용 글리프. 없으면 nil(재료 폴백으로 넘어간다).
+    /// 표는 `FoodGlyph.dishKeywords` **한 곳**에만 둔다 — 진입점이 갈리면 "김밥"이 어디서 들어오느냐에
+    /// 따라 그림이 달라진다.
+    /// en·ko를 모두 보는 건 글리프가 **시각 정체성**이라 로케일에 따라 그림이 바뀌면 안 되기 때문
+    /// (시드는 en이 서술형 "Gimbap (Seaweed Rice Rolls)", 커스텀은 현재 로케일 표기가 en 슬롯).
+    static func dishGlyph(for name: LocalizedName) -> FoodGlyph? {
+        for slot in [name.en, name.ko].compactMap({ $0 }) {
+            if let g = FoodGlyph.dishGlyph(for: slot) { return g }
+        }
+        return nil
+    }
+
     /// 커스텀 레시피 생성 편의 — 현재 로케일 표기를 en 슬롯에 담는다(en은 필수 캐논).
+    /// `steps`는 편집기가 더 이상 입력받지 않아 기본 빈 배열이다(모델 필드는 디코드 호환으로 남아 있다).
     static func userRecipe(name: String, ingredientNames: [String], minutes: Int,
-                           steps: [String]) -> Recipe {
+                           steps: [String] = []) -> Recipe {
         Recipe(id: UUID().uuidString,
                name: LocalizedName(en: name, ko: nil),
                cuisine: nil,
