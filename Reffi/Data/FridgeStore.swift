@@ -47,9 +47,10 @@ final class FridgeStore {
     }
 
     /// 장보기 목록에 손으로 얹은 한 줄. 키가 아니라 **항목**으로 저장한다 — 정규화 키만 남기면
-    /// 사용자가 담은 그 표기(로케일 표기·사전 표제어)로 다시 그려줄 수 없다.
+    /// 사용자가 적은 표기(이력 원문 "서울우유1L")로 다시 그려줄 수 없다. 반대로 사전 표제어를
+    /// 그대로 담은 줄은 **표시할 때** 현재 로케일 표제어로 다시 푼다(`FridgeStore.displayName(for:)`).
     struct ManualBuyItem: Codable, Equatable, Identifiable {
-        var name: String            // 담을 때의 표시 원문
+        var name: String            // 담을 때의 표기 원문(화면 표기는 displayName(for:)이 정한다)
         var canonicalID: String?    // 정본 사전 캐논 ID — 사전 밖 이름이면 nil
         var glyph: FoodGlyph
 
@@ -62,7 +63,11 @@ final class FridgeStore {
     var reservedIDs: Set<UUID> { Set(activeCook?.usedIDs ?? []) }
 
     /// 첫 실행(데이터 전무) 여부 — 온보딩 빈 상태에서 샘플 CTA를 보여줄지.
-    var isPristine: Bool { ingredients.isEmpty && history.isEmpty }
+    /// **직접 담은 장보기 메모도 사용자 데이터다**: 이 값이 true면 호출부가 확인 없이
+    /// `loadSampleData()`(복구 불가 — pendingUndo까지 지운다)를 실행하므로, 냉장고·이력이 비어도
+    /// 손으로 적은 To buy 메모가 있으면 '데이터 전무'가 아니다(빈 냉장고 + 메모만 있는 상태는
+    /// 이력 없이도 만들어진다 — 파생 제안이 원천적으로 못 뜨는 그 자리를 메모가 채운다).
+    var isPristine: Bool { ingredients.isEmpty && history.isEmpty && manualToBuy.isEmpty }
 
     private let persists: Bool
     private let counterCapacity = 6
@@ -625,9 +630,28 @@ final class FridgeStore {
     /// 넘길 수 있게 한다(이름 역조회로 인한 오귀속 위험을 원천 차단, `addToBuy`/`skipBuy(key:)`와 같은 규약).
     var toBuy: [(name: String, glyph: FoodGlyph, manual: Bool, key: String)] {
         let manualKeys = Set(manualToBuy.map(\.matchKey))
-        return manualToBuy.map { (name: $0.name, glyph: $0.glyph, manual: true, key: $0.matchKey) }
+        return manualToBuy.map { (name: Self.displayName(for: $0), glyph: $0.glyph, manual: true, key: $0.matchKey) }
             + derivedToBuy.filter { !manualKeys.contains($0.key) }
                           .map { (name: $0.name, glyph: $0.glyph, manual: false, key: $0.key) }
+    }
+
+    /// 수동 항목 한 줄의 **표시 이름** — "데이터는 캐논으로, 표시만 로컬라이즈"를 이 한 곳에서 지킨다.
+    ///
+    /// 저장된 `name`은 담을 때의 표기 스냅샷이라 로케일이 박제된다: 한국어 기기에서 사전 타일로
+    /// 담은 "양파"는 앱 언어를 영어로 바꿔도 "양파"로 남고, 같은 시트의 타일은 "Onion"으로 떠
+    /// 한 화면 건너 표기가 갈렸다. 캐논이 있으면 지금 로케일의 표제어로 다시 그린다.
+    ///
+    /// 다만 **캐논만 보고 무조건 덮지 않는다** — 저장된 표기가 사전 표제어(en/ko)와 실제로
+    /// 일치할 때만 바꾼다. FREQUENT 칩은 이력 로그의 원문("서울우유1L")을 이름으로 싣고 캐논은
+    /// `milk`라, 무조건 덮으면 사용자가 적은 그 표기를 잃는다(`ManualBuyItem` 주석의 전제).
+    static func displayName(for item: ManualBuyItem) -> String {
+        guard let id = item.canonicalID, let entry = IngredientLexicon.shared.entry(id: id) else {
+            return item.name
+        }
+        let stored = IngredientLexicon.norm(item.name)
+        let lexiconForms = (entry.names.en + entry.names.ko).map(IngredientLexicon.norm)
+        guard lexiconForms.contains(stored) else { return item.name }   // 사용자 표기 — 그대로 둔다
+        return entry.displayName
     }
 
     /// 지금 목록에 떠 있는 품목 키 — 검색 시트의 '이미 담김' 표시·중복 추가 방지용(행마다 재계산 방지).

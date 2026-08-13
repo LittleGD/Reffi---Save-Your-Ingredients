@@ -346,8 +346,43 @@ struct FridgeStoreTests {
                                 history: [RemovalLog(name: "Milk", glyph: .milk, daysAgo: 1, wasted: false)])
         #expect(store.addToBuy(name: "양파"))
         let list = store.toBuy
-        #expect(list.map(\.name) == ["양파", "Milk"])
+        // 수동 줄의 표기는 저장 원문이 아니라 **현재 로케일 표제어**다(displayName(for:)) —
+        // 리터럴로 못 박으면 테스트 호스트 언어에 따라 갈린다.
+        let onion = IngredientLexicon.shared.entry(id: "onion")?.displayName ?? "양파"
+        #expect(list.map(\.name) == [onion, "Milk"])
         #expect(list.map(\.manual) == [true, false])
+    }
+
+    @Test func manualRowRendersTheLexiconDisplayNameForItsCanon() {
+        // 사전 타일로 담은 줄은 담을 때의 로케일에 박제되지 않는다 — 캐논이 있고 저장 표기가
+        // 사전 표제어와 일치하면 표시 시점의 표제어로 다시 푼다(같은 시트의 타일과 표기 일치).
+        let store = FridgeStore(ingredients: [], recipes: [], history: [])
+        #expect(store.addToBuy(name: "양파", canonicalID: "onion", glyph: .onion))
+        let row = store.toBuy.first
+        #expect(row?.key == "onion")
+        #expect(row?.name == IngredientLexicon.shared.entry(id: "onion")?.displayName)
+        #expect(store.manualToBuy.first?.name == "양파")   // 저장값 자체는 담을 때 원문 그대로
+    }
+
+    @Test func manualRowKeepsUserNotationEvenWhenItHasACanon() {
+        // FREQUENT 칩은 이력 원문("서울우유1L")을 이름으로 싣고 캐논은 milk다 — 캐논만 보고
+        // 무조건 덮으면 사용자가 적은 그 표기를 잃는다. 사전 표제어와 다르면 그대로 둔다.
+        let store = FridgeStore(ingredients: [], recipes: [], history: [])
+        #expect(store.addToBuy(name: "서울우유1L"))
+        let row = store.toBuy.first
+        #expect(row?.key == "milk")           // 캐논은 잡혔지만
+        #expect(row?.name == "서울우유1L")     // 표기는 사용자 것 그대로
+    }
+
+    @Test func isPristineCountsManualToBuyAsUserData() {
+        // isPristine이 true면 호출부가 확인 없이 loadSampleData()(복구 불가)를 실행한다 —
+        // 냉장고·이력이 비어도 손으로 적은 장보기 메모가 있으면 '데이터 전무'가 아니다.
+        let store = FridgeStore(ingredients: [], recipes: [], history: [])
+        #expect(store.isPristine)
+        #expect(store.addToBuy(name: "양파"))
+        #expect(!store.isPristine, "메모만 있는 사용자에게 샘플 CTA가 그대로 뜬다 — 탭하면 메모가 지워진다")
+        store.skipBuy(key: "onion")
+        #expect(store.isPristine)   // 메모를 내리면 다시 첫 실행 상태
     }
 
     @Test func manualToBuyAbsorbsDuplicateSuggestion() {

@@ -144,4 +144,28 @@ struct ProfileStoreNicknameSeedingTests {
         #expect(store.nickname == "Chef Kevin")
         UserDefaults(suiteName: name)?.removePersistentDomain(forName: name)
     }
+
+    /// 회원 탈퇴·계정 전환 와이프 경로 — `resetAll()`이 옛 기본값 "Reffi"를 남기면 안 된다.
+    /// 그 값은 `isUnsetNickname`이 **미설정으로 판정하는 값**이라, 남겨두면 탈퇴 직후 세션 내내
+    /// 프로필이 "Reffi"(아바타 "R")로 보인다(익명 게스트 구간엔 재배정 훅이 안 돈다).
+    @Test func resetAllRegeneratesNicknameInsteadOfLeavingTheDefault() {
+        let name = "test.nickname.resetAll"
+        let suite = freshSuite(name)
+        suite.set("Chef Kevin", forKey: "profile.nickname")
+        let store = ProfileStore(defaults: suite)
+        #expect(store.nickname == "Chef Kevin")
+
+        store.resetAll()
+        #expect(store.nickname != "Reffi", "탈퇴 직후 옛 기본값이 그대로 남았다")
+        #expect(!store.nickname.trimmingCharacters(in: .whitespaces).isEmpty)
+        #expect(!ProfileStore.isUnsetNickname(store.nickname))   // 미설정 상태로 나가지 않는다
+        #expect(store.nickname != "Chef Kevin")                  // 초기화 자체는 됐다
+        #expect(suite.string(forKey: "profile.nickname") == store.nickname)   // 영속화까지
+
+        // 재배정 훅(reconcileDataOwner)이 뒤이어 돌아도 이름이 두 번 바뀌지 않는다(가드 멱등).
+        let assigned = store.nickname
+        store.assignGeneratedNicknameIfUnset()
+        #expect(store.nickname == assigned)
+        UserDefaults(suiteName: name)?.removePersistentDomain(forName: name)
+    }
 }

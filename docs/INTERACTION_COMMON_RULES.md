@@ -86,7 +86,7 @@
 - **확정 룰**: 판정 축은 "undo 버튼이 있느냐"가 아니라 **확정 후 데이터를 되돌릴 수 있느냐**다.
   - **복구 불가능**(계정삭제·전체초기화·**샘플로드**) = `.alert` (중앙 고정, 실수 방지).
   - **국소·되돌리기 가능**(재료삭제·조리취소) = `.confirmationDialog` (트리거 근처). `FridgeStore.pendingUndo` 기반 undo 토스트가 떠서 dialog로 충분.
-  - **데이터를 지우지 않는 상태 전환**(**로그아웃**) = `.confirmationDialog`. 세션만 해지하고 냉장고·이력·프로필·AI 동의는 이 기기에 남는다. 소유자 키(`data.ownerUserID`)가 직전 계정 id로 유지되고 뒤이어 붙는 익명 게스트 세션은 소유자 대조 대상이 아니라(`AuthStore.accountUserID`가 nil), 콜드 런치를 거쳐 같은 계정으로 재로그인해도 와이프가 없다(`ReffiApp.reconcileDataOwner` 보장 ①). 룰 ⑦ 파괴 햅틱도 해당 없음.
+  - **데이터를 지우지 않는 상태 전환**(**로그아웃**) = `.confirmationDialog`. 세션만 해지하고 냉장고·이력·프로필은 이 기기에 남는다. 소유자 키(`data.ownerUserID`)가 직전 계정 id로 유지되고 뒤이어 붙는 익명 게스트 세션은 소유자 대조 대상이 아니라(`AuthStore.accountUserID`가 nil), 콜드 런치를 거쳐 같은 계정으로 재로그인해도 와이프가 없다(`ReffiApp.reconcileDataOwner` 보장 ①). 룰 ⑦ 파괴 햅틱도 해당 없음.
   - 순수 알림성(알림 꺼짐 안내)은 `.alert` 유지.
 - **샘플로드 정정(2026-07-26)**: 최초 초안은 샘플로드를 "되돌리기 가능(undo 토스트 있음)"으로 분류했으나 사실이 아니다. `FridgeStore.loadSampleData()`는 `ingredients`·`history`를 샘플로 통째 대체하기 전에 `pendingUndo = nil`로 **undo를 먼저 지운다**(`FridgeStore.swift:717`) → 확정 후 복구 불가. 따라서 `.alert`로 분류를 옮긴다.
 - **적용**: 위 기준으로 각 호출부 재분류.

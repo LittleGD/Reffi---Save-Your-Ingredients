@@ -47,9 +47,11 @@ final class ProfileStore {
     }
 
     /// 미설정 닉네임에 위트 있는 자동 생성 이름(`NicknameGenerator`)을 배정한다.
-    /// 호출부 둘: ① 이 클래스의 `init`(신규 프로필 최초 시드) ② `ReffiApp.reconcileDataOwner`
-    /// (가입 완료·다른 계정 전환 재기록 직후) — 두 지점 모두 "이 로컬 프로필의 닉네임이 방금
-    /// 미설정 상태로 (재)확정됐을 수 있다"는 공통점이 있어 같은 가드를 공유한다.
+    /// 호출부 셋: ① 이 클래스의 `init`(신규 프로필 최초 시드) ② 이 클래스의 `resetAll`(파괴적
+    /// 초기화 직후) ③ `ReffiApp.reconcileDataOwner`(가입 완료·다른 계정 전환 재기록 직후) —
+    /// 세 지점 모두 "이 로컬 프로필의 닉네임이 방금 미설정 상태로 (재)확정됐을 수 있다"는
+    /// 공통점이 있어 같은 가드를 공유한다. 가드가 멱등이라 ②·③이 잇달아 도는 경로
+    /// (계정 전환 와이프)에서도 두 번 생성되지 않는다 — ② 뒤엔 이미 미설정이 아니다.
     /// **이미 사용자가 지은 닉네임은 절대 건드리지 않는다** — `isUnsetNickname`이 아니면 즉시 반환.
     func assignGeneratedNicknameIfUnset(locale: Locale = .current) {
         guard Self.isUnsetNickname(nickname) else { return }
@@ -65,6 +67,10 @@ final class ProfileStore {
     }
 
     /// 회원 탈퇴(§6.5) — 로컬 프로필 데이터 초기화(백엔드 없으므로 기본값 복구).
+    /// 마지막 줄이 자동 닉네임을 다시 배정한다: `nickname = "Reffi"`는 `isUnsetNickname`이
+    /// **미설정으로 판정하는 값**이라, 그대로 두면 탈퇴 직후 세션 내내 프로필이 옛 기본값
+    /// "Reffi"(아바타 이니셜 "R")로 보인다 — 그 자리는 로그아웃 뒤 익명 게스트라
+    /// `reconcileDataOwner`의 재배정 훅이 닿지 않고, 다음 콜드 런치의 `init`에서야 고쳐졌다.
     func resetAll() {
         nickname = "Reffi"
         cuisines = [.korean]
@@ -72,6 +78,7 @@ final class ProfileStore {
         disliked = []
         allergies = []
         household = .one
+        assignGeneratedNicknameIfUnset()   // 어느 파괴적 경로로 들어와도 새 이름을 받고 나간다
     }
 
     private func save() {
