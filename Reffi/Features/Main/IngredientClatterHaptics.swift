@@ -77,11 +77,19 @@ final class IngredientClatterHaptics {
             e.playsHapticsOnly = true
             e.isAutoShutdownEnabled = true          // 유휴 시 시스템이 알아서 내린다
             // 인터럽션(전화·시스템) 후 자동 복구 — 없으면 한 번 끊기고 영영 무음이 된다.
+            // 두 핸들러는 **CoreHaptics 내부 큐**에서 불린다. `running`·엔진 수명주기는 그 밖에서
+            // 전부 메인 스레드(start/stop/play)가 만지므로, 여기서 바로 건드리면 동기화 없는
+            // 교차 스레드 변이가 된다(백그라운드 진입 = stoppedHandler와 stop()이 정면 충돌).
+            // 메인 큐로 넘겨 모든 상태 전이가 한 스레드에서 직렬화되게 한다.
             e.resetHandler = { [weak self] in
-                guard let self, self.running else { return }
-                try? self.engine?.start()
+                DispatchQueue.main.async {
+                    guard let self, self.running else { return }
+                    try? self.engine?.start()
+                }
             }
-            e.stoppedHandler = { [weak self] _ in self?.running = false }
+            e.stoppedHandler = { [weak self] _ in
+                DispatchQueue.main.async { self?.running = false }
+            }
             try e.start()
             engine = e
             running = true

@@ -408,8 +408,12 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     /// 스킴 전환 반영 — 적응형 색을 쓰는 표면만 다시 렌더한다.
     /// 실루엣 칩은 스킴 불변(캐시 유지)이라 폴백 틴트 사각형만 재해석하면 된다.
     private func retintForCurrentStyle() {
+        // 폴백 칩(텍스처 실패) 판별은 **텍스처 유무**로 한다. `colorBlendFactor`로 가르던 옛 조건은
+        // 늘 거짓이었다 — `SKSpriteNode(color:size:)`는 blend factor를 기본값 0으로 두고, 이 코드
+        // 어디에도 1을 넣는 곳이 없어 재틴트가 한 번도 돌지 않았다(텍스처 없는 스프라이트는 blend
+        // factor와 무관하게 `color`를 그대로 칠하므로 대입은 그대로 픽셀에 도달한다).
         for ing in pending {
-            guard let node = chips[ing.id], node.colorBlendFactor == 1 else { continue }
+            guard let node = chips[ing.id], node.texture == nil else { continue }
             node.color = resolvedUIColor(ing.freshness.main)   // 폴백 칩(텍스처 실패)만 적응형
         }
         // 존은 렌더된 텍스처라 다시 만들어야 팔레트가 갱신된다(드래그 중이면 보이는 상태 유지).
@@ -438,6 +442,12 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     /// 거리 비례 목표 속도 + 가속 제한 → 약간의 딜레이·관성(실감, §13.4). 동적 바디라 이웃을
     /// 부드럽게 밀 뿐 튕겨내지 않는다. 속도 상한으로 과격한 밀침을 막는다.
     override func update(_ currentTime: TimeInterval) {
+        // 일시정지 공백은 개봉 시간으로 세지 않는다. `currentTime`은 시스템 시계라 씬이 멈춘
+        // 동안에도 계속 흐르는데 `unsealedSince`를 되돌리는 경로가 없어, 탭 전환·백그라운드에서
+        // 6초 넘게 머물다 돌아오면 재개 첫 프레임이 곧장 sealTimeout 강제 회수를 돌렸다
+        // (낙하 중이던 칩이 천장 밑 한 줄로 순간이동한 뒤 다시 떨어진다). 프레임 간격이
+        // 비정상적으로 벌어졌으면 타이머만 접는다 — 회수 자체는 다음 프레임부터 정상적으로 잰다.
+        if lastUpdateTime > 0, currentTime - lastUpdateTime > 1.0 { unsealedSince = nil }
         lastUpdateTime = currentTime   // didBegin엔 시간 인자가 없어 여기서 받아 둔다(햅틱 스로틀용)
         maintainCeiling(currentTime)   // 낙하 끝나면 밀폐, 위쪽에 갇힌 칩은 회수(§13.4 컨테인먼트)
         if let node = dragged, let body = node.physicsBody {
@@ -575,10 +585,14 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     private func wake() {
         calmFrames = 0
         calmSnapshot.removeAll()
-        clatterThrottle.reset()   // 묵은 쌍 쿨다운을 버린다 — lastUpdateTime은 휴면을 건너뛰며 튄다
         dampSuppression = dampSuppressionFrames   // 기울임 반응 창 — idle 여부와 무관하게 갱신
         guard idle else { return }
         idle = false
+        // 스로틀 리셋은 **실제 휴면→기상 전이에서만**. wake()는 셰이크 킥(0.09초마다)·터치·sync가
+        // 깨어 있는 상태에서도 부르는데, 위에 두면 그때마다 쌍 쿨다운(0.14초)이 지워져 같은 두 칩이
+        // 초당 11번까지 다시 울린다 — 셰이크 중, 즉 접촉이 가장 많은 구간에서 게이트가 무력해진다.
+        // 리셋의 근거(lastUpdateTime은 휴면을 건너뛰며 튄다)도 이 전이에서만 성립한다.
+        clatterThrottle.reset()
         for node in chips.values { node.physicsBody?.usesPreciseCollisionDetection = true }
         refreshPaused()
     }
@@ -690,8 +704,11 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     /// "화면 밖으로 나가서 안 돌아옴"을 구조적으로 불가능하게 만든다.
     private func maintainCeiling(_ now: TimeInterval) {
         guard size.width > 1, size.height > 1 else { return }
-        let strays = chips.values.filter { $0.position.y > sealedCeiling }
-        guard !strays.isEmpty else {
+        // 매 프레임 도는 자리다 — 불리언 하나 얻자고 배열을 만들지 않고, 계산 프로퍼티 체인
+        // (`sealedCeiling` → `wallInset` → `chipSideFor`)도 칩마다 다시 타지 않게 한 번만 편다
+        // (`tuckStraysUnderCeiling`이 이미 쓰는 방식).
+        let ceiling = sealedCeiling
+        guard chips.values.contains(where: { $0.position.y > ceiling }) else {
             unsealedSince = nil
             if !ceilingSealed { ceilingSealed = true; buildWalls() }
             return
@@ -870,7 +887,7 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     private func rewilt(_ node: SKSpriteNode, _ ing: Ingredient) {
         if let t = texture(for: ing, side: node.size.width, shadowed: true) {
             node.texture = t
-            node.colorBlendFactor = 0    // 폴백 단색이었다면 텍스처가 틴트에 먹히지 않게 해제
+            node.colorBlendFactor = 0    // 방어적 리셋(폴백 단색 칩도 기본 0) — 텍스처가 틴트에 안 먹히게
         } else {
             node.color = resolvedUIColor(ing.freshness.main)   // 렌더 실패 시 폴백 틴트만 갱신
         }
@@ -1132,7 +1149,13 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     }
 
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
-        guard let t = dragTouch, touches.contains(t) else { return }
+        // 드래그 상태가 **밖에서 지워진** 경우에도 존은 내린다. `popOut`은 sync 도중 잡고 있던 칩이
+        // 사라지면 `dragTouch`를 nil로 만드는데, 그 뒤 손을 떼면 옛 가드가 먼저 return하고
+        // 아래 `defer`는 설치조차 되지 않아(Swift defer는 실행이 그 줄에 닿아야 등록된다) 판정
+        // 블롭이 alpha 0.96으로 화면에 남았다 — 다음 드래그가 정상 종료될 때까지 지워지지 않는다.
+        // 반대로 "다른 손가락이 떨어진 경우"는 그대로 무시한다(진행 중인 드래그의 예고를 지우면 안 된다).
+        guard let t = dragTouch else { setZones(visible: false); return }
+        guard touches.contains(t) else { return }
         defer { dragTouch = nil; dragged = nil; setZones(visible: false) }
         guard let node = dragged, let body = node.physicsBody else { return }
         body.affectedByGravity = true   // 놓으면 중력 복귀 — 현재 속도 그대로 자연스럽게 던져짐
@@ -1159,7 +1182,8 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     }
 
     override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
-        guard let t = dragTouch, touches.contains(t) else { return }
+        guard let t = dragTouch else { setZones(visible: false); return }   // touchesEnded와 같은 이유
+        guard touches.contains(t) else { return }
         dragged?.physicsBody?.affectedByGravity = true
         dragTouch = nil
         dragged = nil

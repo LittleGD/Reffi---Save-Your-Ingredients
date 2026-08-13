@@ -246,9 +246,15 @@ struct PaperSilhouette: View {
     /// 꼭짓점당 물러나는 거리는 짧은 인접 변의 42%로 한 번 더 조인다 — 이웃한 라운딩끼리 한 변에서
     /// 소비하는 길이의 합이 최대 84%라 서로 겹치지 않는다.
     private func roundedPoly(_ pts: [CGPoint], _ frac: CGFloat) -> Path {
-        let xs = pts.map(\.x), ys = pts.map(\.y)
-        let box = min((xs.max() ?? 0) - (xs.min() ?? 0), (ys.max() ?? 0) - (ys.min() ?? 0))
-        let radius = box * frac
+        // 바운딩 박스는 한 번만 훑는다 — 시든 글리프의 **모든 면**이 여기를 지나므로(위 `poly` 주석)
+        // 면마다 임시 배열 둘을 힙에 만들면 한 번의 Canvas 재드로우가 수백 개를 태운다.
+        guard let f = pts.first else { return Path() }   // 호출부(`poly`)가 3점 이상을 보장하지만 방어
+        var minX = f.x, maxX = f.x, minY = f.y, maxY = f.y
+        for p in pts.dropFirst() {
+            minX = min(minX, p.x); maxX = max(maxX, p.x)
+            minY = min(minY, p.y); maxY = max(maxY, p.y)
+        }
+        let radius = min(maxX - minX, maxY - minY) * frac
         let n = pts.count
         var p = Path()
         var started = false
@@ -312,10 +318,6 @@ struct PaperSilhouette: View {
                           CGPoint(x: b.minX - 2, y: b.minY + b.height * 0.64)])
             c.fill(l, with: .color(light))
         }
-    }
-
-    private func roundRect(_ rect: CGRect, _ rad: CGFloat) -> Path {
-        Path(roundedRect: rect, cornerRadius: rad, style: .continuous)
     }
 
     // MARK: Dispatch
