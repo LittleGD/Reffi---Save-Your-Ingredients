@@ -46,6 +46,10 @@ targets:
       properties:
         CFBundleDisplayName: Reffi
         CFBundleName: Reffi
+        # 버전 정본은 아래 settings의 MARKETING_VERSION/CURRENT_PROJECT_VERSION —
+        # 여기 명시하지 않으면 xcodegen generate가 기본값(1.0/1)으로 plist를 되돌린다.
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         UILaunchScreen:
           UIColorName: LaunchBackground
         UISupportedInterfaceOrientations:
@@ -70,7 +74,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.reffi.app
         # Sign in with Apple — 시뮬레이터(서명 없음)에선 무시되고, 실기기/배포 서명 시 임베드된다.
         CODE_SIGN_ENTITLEMENTS: Reffi/Reffi.entitlements
-        MARKETING_VERSION: "0.1.0"
+        MARKETING_VERSION: "1.0"
         CURRENT_PROJECT_VERSION: "2"
         SWIFT_VERSION: "5.0"
         TARGETED_DEVICE_FAMILY: "1"
