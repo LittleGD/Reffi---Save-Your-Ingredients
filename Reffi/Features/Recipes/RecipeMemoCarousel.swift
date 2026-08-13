@@ -208,8 +208,16 @@ struct RecipeMemoCarousel: View {
         }
         let mag = max(1, hypot(p.width, p.height))
         let target = CGSize(width: p.width / mag * 640, height: p.height / mag * 640)
+        // 날려보낸 **그 티켓**을 기억해 두고, 0.18초 뒤에도 여전히 맨 앞일 때만 덱을 돌린다.
+        // 그 사이에 다른 경로(접근성 "Next ticket" 액션, 날아가는 카드 위에서 시작된 새 플릭)가
+        // 이미 덱을 돌렸으면 여기서 한 번 더 돌게 되고, 사용자가 보지도 못한 티켓이 조용히 넘어간다
+        // (그 카드가 제스처를 쥔 채 뒤로 밀리면 onEnded가 오지 않아 축 잠금까지 남는다).
+        let flicked = deck.first
         withAnimation(.easeOut(duration: 0.2)) { dragOffset = target }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) { advance() }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
+            guard deck.first == flicked else { return }
+            advance()
+        }
     }
 
     /// 맨 앞 티켓을 덱 뒤로 — 다음 티켓이 스프링으로 올라온다.
@@ -230,9 +238,11 @@ struct RecipeMemoCarousel: View {
     // MARK: - 상단 바
 
     /// 커버 헤더 — 단일 공급원 `CoverHeader`(§14.2: 풀스크린 커버 = 중앙 타이틀 + 종이 X).
+    /// 부제는 **두 방향을 모두** 가르쳐야 한다: 오른쪽 플릭은 넘김이 아니라 발주라,
+    /// "튕기면 다음 티켓"만 말하면 오른손잡이가 안내를 따라 하다가 발주를 걸게 된다.
     private var topBar: some View {
         CoverHeader(title: "Today's tickets",
-                    subtitle: "Flick a ticket for the next, ranked by what spoils first",
+                    subtitle: "Flick left to pass, right to cook. Ranked by what spoils first.",
                     onClose: onClose)
     }
 

@@ -88,6 +88,32 @@ struct DishGlyphCatalogTests {
         }
     }
 
+    @Test func shortKoreanNeedlesDoNotHijackLongerWords() {
+        // 한 음절 needle("달"·"전")은 관계없는 단어 안쪽에 걸리고, 규칙 순서상 위에 있어
+        // 정작 맞는 규칙(롤·나물·구이)이 도달조차 못 했다 — 그 회귀를 잠근다.
+        let cases: [(String, DishArchetype)] = [
+            ("달걀말이", .rollSlices),        // "달" → 커리로 새던 케이스(말이 규칙에 닿아야 한다)
+            ("달걀 샌드위치", .sandwichStack),
+            ("달래무침", .sideBowl),
+            ("전복 버터구이", .grillPlate),    // "전" → 부침개 더미로 새던 케이스
+            ("전어구이", .grillPlate),
+        ]
+        for (name, expected) in cases {
+            let look = DishGlyphCatalog.look(id: "custom-\(name)", name: name, cuisine: nil)
+            #expect(look.archetype == expected, "\(name) → \(look.archetype.rawValue)(기대 \(expected.rawValue))")
+        }
+        // 원래 잡아야 할 요리는 그대로 잡는다(needle을 지우기만 하고 끝내지 않았다는 확인).
+        for name in ["파전", "김치전", "해물파전", "부침개", "빈대떡"] {
+            #expect(DishGlyphCatalog.look(id: "custom-\(name)", name: name, cuisine: nil).archetype == .discStack,
+                    "\(name)이 부침 계열로 안 잡힌다")
+        }
+        #expect(DishGlyphCatalog.look(id: "c1", name: "병아리콩 카레", cuisine: nil).archetype == .curryPlate)
+        #expect(DishGlyphCatalog.look(id: "c2", name: "Chicken Dal", cuisine: nil).archetype == .curryPlate)
+        // 기존 가드도 유지 — 합성어가 위 규칙에 먼저 선점된다.
+        #expect(DishGlyphCatalog.look(id: "c3", name: "갈비전골", cuisine: nil).archetype == .stewPot)
+        #expect(DishGlyphCatalog.look(id: "c4", name: "전복죽", cuisine: nil).archetype == .soupBowl)
+    }
+
     @Test func countryNamesDoNotHijackTheArchetype() {
         // "중국"의 `국`이 수프 규칙에, "태국"의 `국`이 같은 규칙에 걸리면 요리가 통째로 엉뚱해진다.
         #expect(DishGlyphCatalog.look(id: "x1", name: "중국식 가지볶음", cuisine: "chinese").archetype == .skillet)
@@ -245,16 +271,20 @@ struct RecipeHeroIconTests {
         }
     }
 
-    /// ①/② 역전 계약 — `gimbap`은 시드 매핑 표(①)에도 있고 요리형 글리프 큐레이션(②)에도 걸리는
-    /// 유일한 케이스다. `RecipeHeroIcon.session`은 ②를 맨 앞에 두므로(`RecipeHeroIcon.swift` 머리
-    /// 주석) 이 겹침에서 ②가 이겨야 한다 — 레시피가 삭제된 뒤에도 손으로 그린 김밥이 카탈로그의
-    /// 이름 추론(아무 색 롤)으로 덮이면 안 된다. 위 테스트는 ②에 안 걸리는 이름만 보므로 이 역전
-    /// 구간은 여기서 별도로 잠근다.
-    @Test func sessionFallbackPrefersCurationEvenWhenIdIsASeedTableKey() {
+    /// ①/② 겹침 계약 — `gimbap`은 시드 매핑 표(①)에도 있고 요리형 글리프 큐레이션(②)에도 걸리는
+    /// 유일한 케이스다. **세션 폴백도 `Recipe.heroIcon`과 같은 순서(①→②)를 쓴다**: 시드 id가
+    /// 실려 온 세션(발주 당시 실제 시드 레시피)은 티켓이 그린 그 정본 그림을 그대로 이어야 하고,
+    /// 표면마다 순서가 갈리면 같은 김밥이 티켓에선 손그림 롤 단면, 조리 화면에선 재료 글리프로
+    /// 뜬다 — 이 체인이 막으려는 바로 그 분기다. (② 우선은 표에 **없는** 커스텀 "김밥"을 위한
+    /// 것이고, 그건 위 `sessionFallbackKeepsTheCuratedDishGlyph`가 잠근다.)
+    @Test func sessionWithSeedTableIDMatchesTheTicketsCuratedDish() {
         let fallback = RecipeHeroIcon.session(name: "김밥", id: "gimbap")
-        #expect(fallback == .food(.gimbap), "시드 표 키와 겹쳐도 ②(요리형 글리프)가 이겨야 한다")
-        #expect(fallback != .dish(DishGlyphCatalog.look(id: "gimbap", name: "김밥", cuisine: nil)),
-                "①(시드 표 카탈로그 호출)로 덮이면 손그림 김밥이 사라진다")
+        #expect(fallback == .dish(DishGlyphCatalog.look(id: "gimbap", name: "김밥", cuisine: nil)),
+                "시드 id를 든 세션이 티켓과 다른 그림을 냈다")
+        // 그리고 그 그림은 실제 시드 레시피의 히어로와 같아야 한다(티켓 ↔ 조리 화면 일치).
+        if let seed = seedRecipesForTests().first(where: { $0.id == "gimbap" }) {
+            #expect(fallback == seed.heroIcon, "같은 김밥이 표면마다 다른 그림이다")
+        }
     }
 }
 

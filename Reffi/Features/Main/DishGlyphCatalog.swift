@@ -443,11 +443,19 @@ enum DishGlyphCatalog {
         (["볶음면", "라면", "면", "국수", "noodle", "ramen", "pho", "udon", "soba", "chow mein", "yakisoba", "pad thai"], .noodleBowl),
         (["찌개", "전골", "탕", "조림", "찜", "stew", "jjigae", "braised", "hot pot", "simmered"], .stewPot),
         (["수프", "스프", "국", "죽", "soup", "porridge", "chowder", "bisque", "broth", "congee"], .soupBowl),
-        (["커리", "카레", "curry", "masala", "달", "dal"], .curryPlate),
+        // 한 음절 "달"은 뺐다 — 달걀말이·달래무침·달콤치킨을 통째로 커리로 만들고, 아래의 롤·
+        // 샌드위치·나물 규칙보다 위라 그 규칙들이 아예 도달하지 못했다. 한글 달(dal) 요리는
+        // 대개 "커리/카레" 표기를 함께 쓰므로 이 규칙이 그대로 잡고, 영문 "dal"은 남겨 둔다.
+        (["커리", "카레", "curry", "masala", "dal", "달마카니"], .curryPlate),
         (["샌드위치", "토스트", "sandwich", "toast", "버거", "burger", "sub", "반미", "banh mi", "베이글", "bagel"], .sandwichStack),
         (["타코", "부리토", "랩", "또띠아", "taco", "burrito", "wrap", "quesadilla", "fajita", "tortilla"], .foldedWrap),
         (["김밥", "말이", "롤", "gimbap", "kimbap", "roll", "sushi", "초밥"], .rollSlices),
-        (["팬케이크", "크레페", "전", "부침", "pancake", "crepe", "jeon", "frittata", "omelette", "omelet", "waffle", "와플"], .discStack),
+        // 한 음절 "전"도 뺐다 — 전복 버터구이·전어구이가 이 규칙에 먼저 걸려 구이(grillPlate)에
+        // 닿지 못했다("전골"은 위 찌개 규칙이, "전복죽"은 죽 규칙이 이미 선점하지만 나머지는 무방비).
+        // 대신 실제로 부치는 요리 이름을 나열한다 — "부침"이 부침개·부침 계열을 통째로 받는다.
+        (["팬케이크", "크레페", "부침", "빈대떡", "파전", "김치전", "감자전", "호박전", "부추전",
+          "해물전", "동태전", "육전", "지짐",
+          "pancake", "crepe", "jeon", "frittata", "omelette", "omelet", "waffle", "와플"], .discStack),
         (["샐러드", "무침", "나물", "salad", "hummus", "dip", "salsa", "슬로", "slaw", "pickle", "겉절이"], .sideBowl),
         (["구이", "스테이크", "커틀릿", "돈까스", "grill", "steak", "cutlet", "schnitzel", "seared", "roast", "bbq", "탄두리", "tandoori"], .grillPlate),
         (["볶음", "불고기", "bulgogi", "제육", "stir-fry", "stir fry", "stir-fried", "stir fried", "saute", "sauté", "skillet", "pan-fried", "scrambled", "shakshuka"], .skillet),

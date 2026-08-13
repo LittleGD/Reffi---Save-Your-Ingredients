@@ -9,14 +9,22 @@ import UIKit
 /// (`WiltRenderTests`의 오프스크린 래스터 선례).
 ///
 /// 검증이 아니라 **산출물 생성**이 목적이라, 실패시키는 대신 저장 경로를 출력한다.
+/// 그래서 렌더·파일 쓰기는 **기본으로 건너뛴다**: 전체 테스트를 돌릴 때마다 80장짜리 시트를
+/// 메인 액터에서 래스터해 PNG로 쓸 이유가 없다(`DISH_SHEET_DIR`가 쓰기 불가면 throw로 스위트가
+/// 빨개지기까지 한다). 굽고 싶을 때만 `REFFI_CONTACT_SHEET=1`을 준다.
 /// 실행:
 /// ```sh
-/// xcodebuild test -project Reffi.xcodeproj -scheme Reffi \
+/// REFFI_CONTACT_SHEET=1 xcodebuild test -project Reffi.xcodeproj -scheme Reffi \
 ///   -destination 'platform=iOS Simulator,name=iPhone 17' \
 ///   -only-testing:ReffiTests/DishContactSheetTests
 /// ```
 @MainActor
 struct DishContactSheetTests {
+
+    /// 산출 스위치 — 없으면 두 @Test는 순수 단언만 하고 조용히 끝난다(도구지 검증이 아니다).
+    private static var artifactsEnabled: Bool {
+        ProcessInfo.processInfo.environment["REFFI_CONTACT_SHEET"] == "1"
+    }
 
     /// 시트를 쓸 디렉터리 — 환경변수 `DISH_SHEET_DIR`이 있으면 그쪽, 없으면 시뮬레이터 tmp.
     /// 어느 쪽이든 최종 경로를 출력하므로 호스트에서 그대로 복사할 수 있다.
@@ -48,6 +56,7 @@ struct DishContactSheetTests {
         // 개수는 하한만 본다 — `DishGlyphCatalogTests.everySeedRecipeIsExplicitlyMapped`와 같은 이유로,
         // 정확한 수를 단언하면 시드에 레시피를 한 줄 더하는 것만으로 CI가 빨개진다(변경 억제 장치).
         #expect(!recipes.isEmpty, "시드가 로드되지 않았다 — 콘택트 시트를 그릴 수 없다")
+        guard Self.artifactsEnabled else { return }   // 산출 도구라 기본 스킵(REFFI_CONTACT_SHEET=1)
         let sheet = DishContactSheet(recipes: recipes)
         try write(sheet, size: DishContactSheet.size(for: recipes.count), to: "dish-contact-sheet.png")
     }
@@ -62,6 +71,7 @@ struct DishContactSheetTests {
             }
         }
         #expect(reps.count == DishArchetype.allCases.count, "대표를 못 찾은 원형이 있다")
+        guard Self.artifactsEnabled else { return }   // 산출 도구라 기본 스킵(REFFI_CONTACT_SHEET=1)
         let sheet = DishArchetypeSheet(reps: reps)
         try write(sheet, size: DishArchetypeSheet.size(for: reps.count), to: "dish-archetypes.png")
     }

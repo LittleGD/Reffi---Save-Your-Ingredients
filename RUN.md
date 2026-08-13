@@ -46,9 +46,9 @@ xcrun simctl io booted screenshot reffi-home.png
 새 인자를 추가하면 이 목록도 같이 갱신한다.
 
 **전용 루트 화면**(`ReffiApp.rootContent` — 아래 인자 하나만 주면 앱 대신 그 화면이 뜬다. 위에서부터 우선)
-- `-glyphGallery` 전 글리프 그리드 · `-titleClipLab` StoryScript 줄 끝 글리프 클리핑 실험실(폰트 advance 패치 회귀 검증)
+- `-glyphGallery` 전 글리프 그리드. `-glyphGallery.wilted YES`면 모든 타일을 `.urgent`로 고정해 시듦 A/B 콘택트 시트를 찍는다 · `-titleClipLab` StoryScript 줄 끝 글리프 클리핑 실험실(폰트 advance 패치 회귀 검증)
 - `-dishGallery` 시드 레시피 전체를 요리 아이콘 그리드로(§13.7 히어로 체인 검증). `-dishGallery.archetype YES`면 라벨이 요리명 대신 **원형 이름**(클러스터 분포 확인용). 스크롤 화면이라 스크린샷은 첫 판만 담는다 — 80개 전수 대조는 오프스크린 콘택트 시트(`ReffiTests/DishContactSheetTests`)가 맡는다
-- `-shareCardPreview` 공유용 레시피 영수증 카드(`RecipeShareCard`) 미리보기 · `-myRecipesPreview` 커스텀 레시피 목록/편집 — 목록이 비어 있으면 시드 앞 5개를 커스텀으로 복제해 채운다(새 UUID라 요리 아이콘이 **폴백 경로**를 탄다 = 실제 커스텀 레시피와 같은 조건)
+- `-shareCardPreview` 공유용 레시피 영수증 카드(`RecipeShareCard`) 미리보기 · `-myRecipesPreview` 커스텀 레시피 목록/편집 — 목록이 비어 있으면 시드 앞 5개를 커스텀으로 복제해 채운다(새 UUID라 요리 아이콘이 **폴백 경로**를 탄다 = 실제 커스텀 레시피와 같은 조건). ⚠️ 복제본은 **실제 스토어에 영속 저장**된다 — 이 인자를 준 설치는 이후 정상 런치에서도 그 5개를 커스텀 레시피로 계속 들고 있고, 되돌리려면 MyPage에서 하나씩 지우거나 샘플을 다시 불러와야 한다
 - `-glyphMetrics` 글리프 알파 bbox 실측(물리 바디 파라미터 재계측) · `-buttonGallery` 버튼 갤러리 · `-authView` 로그인 화면
 
 **게이트 · 인증**
@@ -65,7 +65,7 @@ xcrun simctl io booted screenshot reffi-home.png
 
 **메인 (물리 씬 · 티켓)**
 - `-previewCarousel` 추천 캐러셀 바로 열기 · `-previewAdd` 재료 추가 시트 바로 열기
-- `-cookCarousel` 티켓 덱 자동 오픈(시드가 없으면 샘플을 스스로 채운다 — 플릭 방향 의미론 UI 테스트가 쓴다)
+- `-cookCarousel` 티켓 덱 자동 오픈(플릭 방향 의미론 UI 테스트가 쓴다). ⚠️ `store.available`(예약 제외 재고)이 비어 있으면 `loadSampleData()`를 부른다 — **추가가 아니라 전체 대체**다: 조리 세션이 모든 재료를 예약 중이거나 냉장고만 비고 이력·장보기 메모가 남은 상태에서 단독으로 주면 그 데이터가 되돌릴 수 없이 지워진다. UI 테스트는 `-uiTestSampleFridge`와 같이 주므로 그 경로에선 무동작
 - `-cookTicket` 샘플로 강제 발주 후 조리 티켓(`CookingStepsView`) 바로 열기
 - `-tiltLab` 기울기 실험실 하단 오버레이 — X/Y 슬라이더로 씬 중력을 직접 주입한다. 시뮬레이터엔 자이로가 없어 굴러가는 모양·컨테인먼트 QA는 사실상 이 경로로만 가능하다. SHAKE 버튼 + `HAPTIC n/s` 카운터(햅틱 하드웨어가 없으니 발화 수가 유일한 관측 수단 — 정지한 더미에서 0으로 떨어지는지도 여기서 본다)
 - `-tiltLab.x <-1…1>` `-tiltLab.y <-1…1>` 중력 방향 주입(실험실도 함께 켜짐). 값 파싱은 `ProcessInfo.arguments` 직접 순회 — UserDefaults 인자로 두면 `-tiltLab.x -0.9`의 음수를 다음 키로 오인해 바인딩을 통째로 잃는다
@@ -77,6 +77,10 @@ xcrun simctl io booted screenshot reffi-home.png
 - `-fridgeEdit` 첫 재료 편집 시트(+`-loadSample`) · `-fridge.sortOpen` 정렬 드롭다운(`PaperDropdown`) 자동 오픈
 - `-fridge.compact YES` 간편보기 · `-fridge.sort recent|freshest|expiry` 정렬 (둘 다 `@AppStorage` 키를 덮는 UserDefaults 인자)
 - `-toBuy` To buy 커버 직행(`-fridgeTab`·`-loadSample`과 함께) · `-toBuy.search` 재료 검색 바텀시트까지 자동 오픈(단독 지정해도 커버가 열린다 — 커버 전환과 같은 프레임에 시트를 올리면 씹혀서 전환 뒤로 미룬다)
+
+**테스트 환경변수**(런치 인자가 아니라 `xcodebuild test`에 주는 값)
+- `REFFI_CONTACT_SHEET=1` 요리 아이콘 콘택트 시트 산출 — 없으면 해당 두 @Test는 단언만 하고 렌더·파일 쓰기를 건너뛴다(아래 "검증 상태")
+- `DISH_SHEET_DIR` 시트 저장 디렉터리(없으면 시뮬레이터 tmp)
 
 ## 기술 스택
 - **SwiftUI / Swift 6.3** · 배포 타깃 **iOS 18+** · 데이터는 `@Observable` + 샘플(SwiftData는 다음 단계)
@@ -102,10 +106,18 @@ Reffi/
 
 ## 검증 상태
 - **빌드 통과**(iPhone 17 / iOS 26.5 시뮬레이터) — 위 `xcodebuild build` 명령 그대로.
-- **유닛 186 / UI 10 전부 통과**:
+- **유닛 192 / UI 10 전부 통과**:
   ```sh
   xcodebuild -project Reffi.xcodeproj -scheme Reffi \
     -destination 'platform=iOS Simulator,name=iPhone 17' test -only-testing:ReffiTests
   xcodebuild -project Reffi.xcodeproj -scheme Reffi \
     -destination 'platform=iOS Simulator,name=iPhone 17' test -only-testing:ReffiUITests
+  ```
+- **요리 아이콘 콘택트 시트**(검증이 아니라 산출 도구라 기본 스킵) — `REFFI_CONTACT_SHEET=1`을
+  줄 때만 PNG를 굽는다. 저장 위치는 `DISH_SHEET_DIR`(없으면 시뮬레이터 tmp), 경로는 콘솔에 찍힌다:
+  ```sh
+  REFFI_CONTACT_SHEET=1 DISH_SHEET_DIR=/tmp/reffi-sheets \
+  xcodebuild -project Reffi.xcodeproj -scheme Reffi \
+    -destination 'platform=iOS Simulator,name=iPhone 17' \
+    test -only-testing:ReffiTests/DishContactSheetTests
   ```

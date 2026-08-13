@@ -1243,12 +1243,12 @@
         }
       }
     },
-    "Flick a ticket for the next, ranked by what spoils first": {
+    "Flick left to pass, right to cook. Ranked by what spoils first.": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "티켓을 튕기면 다음 주문, 먼저 상할 순서예요"
+            "value": "왼쪽으로 튕기면 넘기고, 오른쪽은 발주예요. 먼저 상할 순서로 정렬했어요."
           }
         }
       }

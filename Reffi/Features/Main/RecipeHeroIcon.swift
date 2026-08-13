@@ -11,16 +11,17 @@ enum RecipeHeroIcon: Equatable {
     case food(FoodGlyph)
 
     /// 이름만 남은 조리 세션의 히어로 — 발주한 레시피가 지워졌거나 id가 없는 구버전 세션이라
-    /// `Recipe` 객체를 되찾지 못할 때의 폴백. ②를 맨 앞에 둔다 — `heroIcon`(①→②)과 달리 여기선
-    /// ②가 시드 표보다 먼저라, 표 등재와 ② 적중이 겹치는 이름(현재 시드 `gimbap` 하나)은 요리형
-    /// 글리프가 이긴다: 손으로 그린 김밥이 있는데 카탈로그의 이름 추론이 아무 색 롤로 덮으면
-    /// 조리 화면·공유 카드만 티켓과 다른 그림이 된다.
+    /// `Recipe` 객체를 되찾지 못할 때의 폴백. 순서는 `Recipe.heroIcon`과 **같다**(①→②→③→폴백):
+    /// 표면마다 순서가 다르면 같은 요리가 티켓과 조리 화면에서 다른 그림으로 뜬다 — 정확히 이
+    /// 체인이 막으려는 것이다. 시드 id를 든 구버전 세션(예: `gimbap`)이 그 겹침 지점이었다.
     ///
-    /// 두 번째 줄은 조리 화면이 쓰던 카탈로그 호출과 **문자 그대로 같다** — ②에 안 걸리는 이름의
-    /// 기존 아이콘이 그대로 보존된다. ①(시드 매핑 표)은 그 줄의 `look(id:)`가 표를 먼저 보므로 ② 뒤에서 포함된다.
-    /// ④(재료 글리프)는 원천 불가 — 세션은 재료를 들고 있지 않다. 대신 `look`이 nil을 내지 않아
-    /// 빈 아이콘도 나오지 않는다.
+    /// ① 시드 매핑 표 적중 — 손으로 배정한 정본 그림. ② 요리형 글리프 큐레이션(김밥 등) —
+    /// 표에 없는 커스텀 "김밥"이 ③의 이름 추론(아무 색 롤)으로 덮이지 않게 앞에 둔다.
+    /// 마지막 줄은 조리 화면이 쓰던 카탈로그 호출과 **문자 그대로 같아** ③(이름 추론)과 cuisine
+    /// 폴백을 그대로 잇는다. ④(재료 글리프)는 원천 불가 — 세션은 재료를 들고 있지 않다.
+    /// 대신 `look`이 nil을 내지 않아 빈 아이콘도 나오지 않는다.
     static func session(name: String, id: String?) -> RecipeHeroIcon {
+        if let id, let curated = DishGlyphCatalog.curatedLook(id: id) { return .dish(curated) }
         if let dish = Recipe.dishGlyph(for: Recipe.LocalizedName(en: name, ko: nil)) { return .food(dish) }
         return .dish(DishGlyphCatalog.look(id: id ?? name, name: name, cuisine: nil))
     }
@@ -59,8 +60,11 @@ struct RecipeHeroIconView: View {
         case .dish(let look):
             DishSilhouette(look: look)
         case .food(let glyph):
-            // `fresh:`는 색에 쓰이지 않는 시그니처 유지용 인자다 — 색은 신선도 코딩과 분리(§13.3)라
-            // 티켓 글리프는 재료의 남은 기한과 무관하게 항상 같은 톤으로 그려야 한다.
+            // `fresh:`는 **실제로 픽셀을 바꾸는 인자다**(`WiltStyle` — 채도·명도 + 처짐·꼭짓점 라운딩).
+            // 그래서 여기선 `.fresh`로 **고정**한다: 티켓·조리·공유 카드의 히어로는 레시피의 얼굴이지
+            // 재고 한 칸의 상태 표시가 아니라, 남은 기한에 따라 시들거나 기울면 안 된다.
+            // 살아 있는 `ing.freshness`를 넘기고 싶어지면 그건 §13.3(색은 신선도 코딩과 분리)의
+            // 위반이다 — 시듦은 냉장고 카드·물리 칩의 축이다.
             PaperSilhouette(glyph: glyph, fresh: .fresh)
         }
     }
