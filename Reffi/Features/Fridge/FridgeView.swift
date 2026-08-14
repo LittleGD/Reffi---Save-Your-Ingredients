@@ -196,9 +196,18 @@ struct FridgeView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: ReffiSpace.s5) {
                 let _ = dayTick   // 자정 틱 의존 — 날이 바뀌면 이 서브트리를 재계산
-                header
-                summaryRow
-                if categoryCounts.count > 1 { categoryFilterRow }   // 한 종류뿐이면 필터가 무의미 — 행을 아예 뺀다
+                // 타이틀 + 요약 페이저를 한 블록으로 묶는다 — 화면을 열자마자 "살 것"이 먼저 읽혀야 하고,
+                // 페이저가 타이틀의 첫 콘텐츠로 붙어야 큰 제목이 홀로 떠 보이지 않는다(s3 = 제목-본문 간격).
+                VStack(alignment: .leading, spacing: ReffiSpace.s3) {
+                    titleRow
+                    summaryRow
+                }
+                // 재고 카운트 + 정렬·보기 + 카테고리 칩 — 전부 **아래 목록을 조작하는** 컨트롤이라
+                // 목록 쪽에 붙여 한 블록으로 읽히게 한다(요약 페이저와는 s5로 갈린다).
+                VStack(alignment: .leading, spacing: ReffiSpace.s3) {
+                    stockRow
+                    if categoryCounts.count > 1 { categoryFilterRow }   // 한 종류뿐이면 필터가 무의미 — 행을 아예 뺀다
+                }
                 if items.isEmpty {
                     emptyState
                 } else {
@@ -332,19 +341,23 @@ struct FridgeView: View {
         )
     }
 
-    // MARK: 헤더 — 서브라인 오른쪽 끝에 정렬·보기 통합 메뉴(별도 행 제거, 수직 적층 최소화)
-    private var header: some View {
-        VStack(alignment: .leading, spacing: ReffiSpace.s1) {
-            Text("Fridge").reffiType(.display).foregroundStyle(ReffiColor.ink)
-            HStack(spacing: ReffiSpace.s2) {
-                // Ate/Tossed 숫자는 리포트와 중복이라 뺐다 — 한 번에 보이는 정보 최소화.
-                Text("\(sortedItems.count) in stock")
-                    .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
-                Spacer(minLength: ReffiSpace.s2)
-                reportButton
-                sortMenu
-                viewToggle
-            }
+    // MARK: 헤더 — 타이틀과 재고/정렬 행은 **떨어져 산다**. 사이에 요약 행이 들어와,
+    // 화면 상단이 "여기가 어디인가(Fridge) → 지금 할 일(살 것) → 목록 조작"의 순서로 읽힌다.
+    private var titleRow: some View {
+        Text("Fridge").reffiType(.display).foregroundStyle(ReffiColor.ink)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// 재고 수 + 리포트·정렬·보기 — 서브라인 오른쪽 끝에 통합(별도 행 제거, 수직 적층 최소화).
+    private var stockRow: some View {
+        HStack(spacing: ReffiSpace.s2) {
+            // Ate/Tossed 숫자는 리포트와 중복이라 뺐다 — 한 번에 보이는 정보 최소화.
+            Text("\(sortedItems.count) in stock")
+                .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
+            Spacer(minLength: ReffiSpace.s2)
+            reportButton
+            sortMenu
+            viewToggle
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
