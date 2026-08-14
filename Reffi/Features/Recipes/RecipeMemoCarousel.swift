@@ -69,6 +69,9 @@ struct RecipeMemoCarousel: View {
         OrderMemoCard(result: results[idx],
                       number: idx + 1,
                       headerOnly: depth >= 2,
+                      // 앞 티켓 톱니 사이로 뒤 카드 ORDER 행이 반쪽 글리프로 새던 결함 —
+                      // 노출 띠(14pt)는 글자 없는 종이로 고정한다.
+                      peek: depth >= 1,
                       onFire: { fire(results[idx]) },
                       // 플릭 발주는 **앞 티켓만** — 뒤 티켓엔 0을 고정해 트리거가 전파되지 않게 한다.
                       fireTrigger: isFront ? fireTrigger : 0)
