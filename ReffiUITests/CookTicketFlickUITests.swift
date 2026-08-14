@@ -360,6 +360,15 @@ final class CookTicketFlickUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Cook it your way. The video has the details."].exists,
                       "단계가 사라진 자리를 설명하는 기대치 한 줄이 있어야 한다")
 
+        // 히어로 아래 요리 소개 한 줄 — 시드 레시피에는 반드시 있다(§13.6 4-1).
+        // 문구는 시드에서 오므로 테스트에 박지 않고 식별자로 집는다(`ticket.menuName` 선례).
+        let intro = app.staticTexts["cook.intro"]
+        XCTAssertTrue(intro.waitForExistence(timeout: 10),
+                      "조리 티켓 히어로 아래에 요리 소개가 있어야 한다")
+        XCTAssertFalse(intro.label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                       "요리 소개가 빈 문자열이면 캡션이 여백만 벌린다")
+        attachScreenshot(app, named: "cook-ticket-hero-and-intro")   // 시각 표면이라 눈으로 볼 근거를 남긴다
+
         // 단계 섹션·체크리스트는 완전히 제거됐다(위약 UI 금지).
         XCTAssertFalse(app.staticTexts["STEPS"].exists, "조리 화면에 단계 섹션이 남아 있으면 안 된다")
         XCTAssertFalse(app.staticTexts["PREP"].exists, "조리 화면에 PREP 섹션이 남아 있으면 안 된다")

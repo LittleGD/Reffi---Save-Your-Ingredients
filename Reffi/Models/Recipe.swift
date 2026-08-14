@@ -18,6 +18,12 @@ struct Recipe: Identifiable, Codable, Equatable {
 
     var id: String                 // 시드는 슬러그("beef-bulgogi"), 커스텀은 UUID 문자열
     var name: LocalizedName
+    /// 요리 한 줄 소개 — 무엇이고 어느 나라 음식인가(조리 티켓 히어로 아래 캡션).
+    /// 이름과 **같은 이중언어 구조**를 쓴다: 소개문은 레시피 데이터의 일부라 번역도 시드 JSON이
+    /// 들고 있어야 한다(`Localizable.xcstrings`는 UI 문자열용이고, 레시피 80종을 키로 등록하지 않는다).
+    /// 옵셔널 + 기본값 nil — 시드에만 있고 **사용자 커스텀 레시피엔 없다**. 구버전 저장 데이터도
+    /// 이 키 없이 그대로 디코드된다(필드 추가는 반드시 옵셔널+기본값, `origin`과 같은 규칙).
+    var intro: LocalizedName? = nil
     var cuisine: String?
     var minutes: Int
     var ingredients: [Item]
@@ -48,6 +54,14 @@ struct Recipe: Identifiable, Codable, Equatable {
     // MARK: - 표시 접근자
 
     var displayName: String { Self.isKorean ? (name.ko ?? name.en) : name.en }
+    /// 로케일 표시 소개 — **없으면 nil**이고 호출부는 그 자리에 아무것도 그리지 않는다(자리표시 금지).
+    /// 공백만 남은 값도 nil로 접는다 — 빈 캡션이 여백만 벌리는 것을 막는다.
+    var displayIntro: String? {
+        guard let intro else { return nil }
+        let text = Self.isKorean ? (intro.ko ?? intro.en) : intro.en
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
     var isUserRecipe: Bool { isUser ?? false }
 
     /// 히어로 대표 모티프 — ① 요리 이름 큐레이션 표, ② 첫 번째 비상비 재료의 글리프.

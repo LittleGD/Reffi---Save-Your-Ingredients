@@ -64,6 +64,15 @@ struct CookingStepsView: View {
         return .session(name: cook.recipeName, id: cook.recipeID)
     }
 
+    /// 세션의 요리 소개 — 히어로 아이콘과 **같은 체인**으로 원본 레시피를 되찾아 한 줄을 읽는다.
+    /// 아이콘과 달리 폴백이 없다: 조리 중 레시피가 지워졌거나(id 유실) 소개가 없는 커스텀 레시피면
+    /// nil이고, 그 자리엔 아무것도 그리지 않는다. 세션 스냅샷에 소개문을 또 박지 않는 이유도 같다 —
+    /// 원본이 사라진 뒤에도 옛 문장을 들고 있으면 화면이 없는 레시피를 설명하게 된다.
+    private func intro(for cook: FridgeStore.CookSession) -> String? {
+        guard let id = cook.recipeID else { return nil }
+        return store.recipes.first(where: { $0.id == id })?.displayIntro
+    }
+
     /// 티켓 좌우 인셋 — 영수증 종이의 폭을 정하는 유일한 값(히어로 아이콘 크기가 여기서 파생된다).
     ///
     /// 아래 `ticketWidth`는 `geo.size.width`에서 이 인셋만 빼고 **좌우 safe area는 빼지 않는다**.
@@ -266,10 +275,28 @@ struct CookingStepsView: View {
             // 크기는 영수증 폭의 절반 — 고정 pt를 박으면 기기·글자 크기에 따라 여백 비율이 갈린다.
             // 두 실루엣 모두 Canvas라 어느 크기에서도 같은 그림이고, 장식이라 VoiceOver엔 뜨지 않는다
             // (읽히는 정보는 위 메뉴명이 맡는다 — 옛 자리에서 그대로 이어지는 규칙).
-            RecipeHeroIconView(icon: heroIcon(for: cook))
-                .frame(width: ticketWidth * 0.5, height: ticketWidth * 0.5)
-                .frame(maxWidth: .infinity)   // leading VStack 안에서 가운데로
-                .padding(.vertical, ReffiSpace.s2)
+            // 그림과 그 한 줄 설명은 **한 덩어리**다 — 사이를 s2로 좁혀 붙이고, 바깥 s2로 위아래를
+            // 띄운다(캡션과 영상 CTA 사이는 s2+VStack s3 = 20이라 CTA에 붙어 보이지 않는다).
+            VStack(spacing: ReffiSpace.s2) {
+                RecipeHeroIconView(icon: heroIcon(for: cook))
+                    .frame(width: ticketWidth * 0.5, height: ticketWidth * 0.5)
+
+                // 요리 소개 — 무엇이고 어느 나라 음식인가. 시드 레시피에만 있고, 없으면
+                // **아무것도 그리지 않는다**(빈 자리표시는 티켓을 늘리기만 한다).
+                if let intro = intro(for: cook) {
+                    Text(verbatim: intro)
+                        .reffiType(.caption)
+                        .foregroundStyle(ReffiColor.ink2)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                        // UI 테스트 훅 — 소개 문구를 테스트에 하드코딩하지 않고 집는다
+                        // (`ticket.menuName` 선례). 라벨은 그대로라 VoiceOver는 문장을 읽는다.
+                        .accessibilityIdentifier("cook.intro")
+                }
+            }
+            .frame(maxWidth: .infinity)   // leading VStack 안에서 가운데로
+            .padding(.vertical, ReffiSpace.s2)
 
             // 조리법의 1차 경로 — 레시피명으로 유튜브 검색을 연다. 아이콘+라벨 와이드 CTA(아이콘 단독 아님).
             // 공유는 그 옆의 보조 행동이라 조용한 종이컷 아이콘(§13.5)으로 남긴다.
