@@ -64,23 +64,37 @@ struct CookingStepsView: View {
         return .session(name: cook.recipeName, id: cook.recipeID)
     }
 
+    /// 티켓 좌우 인셋 — 영수증 종이의 폭을 정하는 유일한 값(히어로 아이콘 크기가 여기서 파생된다).
+    ///
+    /// 아래 `ticketWidth`는 `geo.size.width`에서 이 인셋만 빼고 **좌우 safe area는 빼지 않는다**.
+    /// `GeometryReader.size`는 safe area를 제외해 주지 않기 때문에(형제 `RecipeMemoCarousel`이
+    /// 세로 계산에서 `geo.safeAreaInsets`를 직접 빼는 이유가 그것이다) 원칙적으로는 빼야 맞지만,
+    /// 앱이 `Info.plist`에서 **세로 고정**이라 세로 아이폰의 좌우 인셋은 항상 0이다 — 지금은 같은 값이다.
+    /// 가로 모드나 iPad를 지원하게 되면 여기도 `geo.safeAreaInsets.leading/.trailing`을 빼야 한다.
+    private let ticketInset = ReffiGrid.margin + 8
+
     var body: some View {
-        ZStack(alignment: .top) {
-            ReffiColor.paperPass.ignoresSafeArea()
-            if let cook = store.activeCook {
-                ScrollView {
-                    ticket(cook)
-                        .padding(.horizontal, ReffiGrid.margin + 8)
-                        .padding(.top, 104)
-                        .padding(.bottom, ReffiSpace.s6)
+        // 히어로 아이콘 크기가 **영수증 폭에 비례**하므로 컨테이너 폭을 실측해야 한다.
+        // GeometryReader는 ScrollView **바깥**에 둔다 — 안에 두면 스크롤 콘텐츠 높이가 무너진다.
+        // 폭은 평범한 인자로 아래로 흘린다(`RecipeMemoCarousel`이 cardHeight를 넘기는 선례).
+        GeometryReader { geo in
+            ZStack(alignment: .top) {
+                ReffiColor.paperPass.ignoresSafeArea()
+                if let cook = store.activeCook {
+                    ScrollView {
+                        ticket(cook, ticketWidth: max(0, geo.size.width - ticketInset * 2))
+                            .padding(.horizontal, ticketInset)
+                            .padding(.top, 104)
+                            .padding(.bottom, ReffiSpace.s6)
+                    }
+                    // 공유 카드에 인쇄되는 값(메뉴명·예약 재료 이름·시간·개수)이 바뀔 때만 다시 렌더한다.
+                    // 새 세션은 물론, 조리 중 예약 재료가 사라지는 경우까지 이 키가 덮는다.
+                    .task(id: shareCardKey(for: cook)) {
+                        shareImage = renderShareImage(for: cook, icon: heroIcon(for: cook))
+                    }
                 }
-                // 공유 카드에 인쇄되는 값(메뉴명·예약 재료 이름·시간·개수)이 바뀔 때만 다시 렌더한다.
-                // 새 세션은 물론, 조리 중 예약 재료가 사라지는 경우까지 이 키가 덮는다.
-                .task(id: shareCardKey(for: cook)) {
-                    shareImage = renderShareImage(for: cook, icon: heroIcon(for: cook))
-                }
+                topBar
             }
-            topBar
         }
         // 확정 액션은 티켓 안이 아니라 화면 하단에 도킹한다(§13.6) — 티켓이 짧아도 CTA가 화면 중턱에
         // 뜨지 않고, 메인·시트의 하단 CTA 관례와 같은 자리에서 엄지로 닿는다. 본문(티켓)만 스크롤한다.
@@ -223,7 +237,8 @@ struct CookingStepsView: View {
 
     // MARK: - 조리 티켓
 
-    private func ticket(_ cook: FridgeStore.CookSession) -> some View {
+    /// - Parameter ticketWidth: 영수증 종이의 실측 폭 — 히어로 아이콘이 그 절반으로 선다.
+    private func ticket(_ cook: FridgeStore.CookSession, ticketWidth: CGFloat) -> some View {
         VStack(alignment: .leading, spacing: ReffiSpace.s3) {
             // 헤더 — 오더 티켓과 같은 모노 크롬. 공유 카드(RecipeShareCard)와 같은 규칙으로
             // 셀 게 없으면(count 0) 수치를 아예 빼, 두 종이가 서로 다른 말을 하지 않게 한다.
@@ -238,18 +253,23 @@ struct CookingStepsView: View {
                 }
             }
 
-            // 메뉴명 + 요리 아이콘 — 오더 티켓(`OrderMemoCard`)과 **같은 자리·같은 크기**로 둔다.
-            // 발주 전후로 아이콘이 움직이면 같은 티켓이 조리 티켓이 됐다는 연결이 끊긴다.
-            HStack(alignment: .top, spacing: ReffiSpace.s3) {
-                Text(verbatim: cook.recipeName)
-                    .reffiType(.menuName).foregroundStyle(ReffiColor.ink)
-                    .fixedSize(horizontal: false, vertical: true)
-                Spacer(minLength: ReffiSpace.s2)
-                RecipeHeroIconView(icon: heroIcon(for: cook))
-                    .frame(width: ReffiDishIcon.ticket, height: ReffiDishIcon.ticket)
-            }
+            // 메뉴명 — 조리 티켓에선 이름만 한 줄로 둔다. 아이콘은 아래 히어로 블록이 맡는다.
+            Text(verbatim: cook.recipeName)
+                .reffiType(.menuName).foregroundStyle(ReffiColor.ink)
+                .fixedSize(horizontal: false, vertical: true)
 
             ReffiRule(.ticket)
+
+            // 요리 아이콘 — **조리 티켓의 중심**이다. 오더 티켓은 여러 장을 훑어 고르는 단서 카드라
+            // 그림이 오른쪽 여백에 얹힌 68pt 식별자지만(§13.5), 여기는 이미 고른 한 요리를 붙들고
+            // 서 있는 화면이라 "지금 무엇을 만들고 있나"에 종이 한복판을 내준다.
+            // 크기는 영수증 폭의 절반 — 고정 pt를 박으면 기기·글자 크기에 따라 여백 비율이 갈린다.
+            // 두 실루엣 모두 Canvas라 어느 크기에서도 같은 그림이고, 장식이라 VoiceOver엔 뜨지 않는다
+            // (읽히는 정보는 위 메뉴명이 맡는다 — 옛 자리에서 그대로 이어지는 규칙).
+            RecipeHeroIconView(icon: heroIcon(for: cook))
+                .frame(width: ticketWidth * 0.5, height: ticketWidth * 0.5)
+                .frame(maxWidth: .infinity)   // leading VStack 안에서 가운데로
+                .padding(.vertical, ReffiSpace.s2)
 
             // 조리법의 1차 경로 — 레시피명으로 유튜브 검색을 연다. 아이콘+라벨 와이드 CTA(아이콘 단독 아님).
             // 공유는 그 옆의 보조 행동이라 조용한 종이컷 아이콘(§13.5)으로 남긴다.
