@@ -151,7 +151,7 @@ struct IngredientEditView: View {
                 TextField("1", value: $draft.quantity.value, format: .number)
                     .keyboardType(.decimalPad)
                     .multilineTextAlignment(.trailing)
-                    .font(.reffiNum(16, relativeTo: .body))
+                    .font(.reffiNum(.body))
                     .foregroundStyle(ReffiColor.ink)
                     .frame(width: 64)
                 // 스톡 `.pickerStyle(.menu)`(흰 시스템 팝업) 대신 앱 커스텀 종이 드롭다운 —

@@ -427,7 +427,7 @@ struct ReceiptCard<Content: View>: View {
                 Spacer()
                 if let trailing {
                     Text(trailing)
-                        .font(.reffiNum(11, relativeTo: .caption2)).foregroundStyle(ReffiColor.muted)
+                        .font(.reffiNum(.meta)).foregroundStyle(ReffiColor.muted)
                 }
             }
             .padding(.horizontal, ReffiSpace.s5)
@@ -469,7 +469,7 @@ struct SettingsRow: View {
                 Spacer(minLength: ReffiSpace.s4)
                 if let value {
                     Text(value)
-                        .font(numeric ? .reffiNum(14, relativeTo: .caption) : ReffiTextRole.caption.font)
+                        .font(numeric ? .reffiNum(.body) : ReffiTextRole.caption.font)
                         .tracking(numeric ? 0 : ReffiTextRole.caption.tracking)
                         .foregroundStyle(valueColor)
                         .lineLimit(1)

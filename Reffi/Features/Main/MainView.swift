@@ -318,7 +318,7 @@ struct MainView: View {
                 // 날짜는 분 단위 타임라인으로 갱신 — 자정이 지나도 어제 날짜가 남지 않는다.
                 TimelineView(.everyMinute) { ctx in
                     Text(ctx.date.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))
-                        .font(.reffiNum(13, relativeTo: .caption)).foregroundStyle(ReffiColor.ink2)
+                        .font(.reffiNum(.meta)).foregroundStyle(ReffiColor.ink2)
                 }
             }
             // 미션 헤더(D) — 오늘의 상태를 한 문장으로. 누계(Ate/Tossed)는 MyPage가 맡는다.

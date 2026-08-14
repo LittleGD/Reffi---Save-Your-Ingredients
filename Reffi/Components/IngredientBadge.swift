@@ -19,7 +19,7 @@ struct IngredientBadge: View {
                         .fill(f.dark)
                         .frame(width: 4, height: 14)
                     Text(verbatim: ingredient.dDayText)
-                        .font(.reffiNum(12, relativeTo: .caption2))
+                        .font(.reffiNum(.meta))
                         .foregroundStyle(f.dark)
                 }
                 Text(verbatim: ingredient.displayName)

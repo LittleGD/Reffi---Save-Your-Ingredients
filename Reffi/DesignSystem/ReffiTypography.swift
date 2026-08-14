@@ -65,10 +65,35 @@ extension View {
     }
 }
 
+/// 데이터성 숫자 3단 스케일(§3.4). 사이즈를 자유 파라미터로 두었더니 호출부가 옆 텍스트에 맞춰
+/// 매번 즉흥 결정해 11·12·13·14·15·16·17·32 여덟 종이 유통됐다 — 숫자 계열에 위계가 없던 이유다.
+/// 세 단만 남긴다: 화면당 하나뿐인 주지표 / 본문과 나란한 값 / 칩·푸터의 보조 수치.
+enum ReffiNumScale {
+    case hero   // 32 — 리포트 주지표처럼 화면당 하나
+    case body   // 15 — 본문·리스트 행과 나란히 서는 값
+    case meta   // 12 — 칩·푸터·카운트 등 보조 수치
+
+    var size: CGFloat {
+        switch self {
+        case .hero: return 32
+        case .body: return 15
+        case .meta: return 12
+        }
+    }
+
+    var textStyle: Font.TextStyle {
+        switch self {
+        case .hero: return .largeTitle
+        case .body: return .subheadline
+        case .meta: return .caption2
+        }
+    }
+}
+
 extension Font {
     /// 데이터성 숫자 — Google Sans Flex + tabular·lining(§3.4). D-N·수량·날짜에 의무.
-    static func reffiNum(_ size: CGFloat, relativeTo style: Font.TextStyle = .body) -> Font {
-        .custom("GoogleSansFlex-Regular", size: size, relativeTo: style).monospacedDigit()
+    static func reffiNum(_ scale: ReffiNumScale) -> Font {
+        .custom("GoogleSansFlex-Regular", size: scale.size, relativeTo: scale.textStyle).monospacedDigit()
     }
 
     /// 도장(Stamp) 계열 — Pretendard Bold, 크기 파라미터화(`reffiNum`과 동일 패턴). `DDayStamp`(§13.5)처럼

@@ -309,7 +309,7 @@ struct OnboardingView: View {
                 .minimumScaleFactor(0.75)
             Spacer(minLength: ReffiSpace.s2)
             Text(verbatim: dDay)
-                .font(.reffiNum(12, relativeTo: .caption))
+                .font(.reffiNum(.meta))
                 .foregroundStyle(color)
         }
     }
@@ -397,7 +397,7 @@ struct OnboardingView: View {
                 .minimumScaleFactor(0.8)
             Spacer(minLength: 0)
             Text(dDay)
-                .font(.reffiNum(14, relativeTo: .subheadline))
+                .font(.reffiNum(.body))
                 .foregroundStyle(color)
         }
     }

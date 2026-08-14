@@ -81,7 +81,7 @@ struct HistoryView: View {
                     ZStack {
                         donut.frame(width: 180, height: 180)
                         VStack(spacing: 0) {
-                            Text(verbatim: rate.formatted(.percent)).font(.reffiNum(32, relativeTo: .largeTitle)).foregroundStyle(rateColor)
+                            Text(verbatim: rate.formatted(.percent)).font(.reffiNum(.hero)).foregroundStyle(rateColor)
                             Text("Wasted").reffiType(.caption).foregroundStyle(ReffiColor.ink2)
                         }
                     }
@@ -97,7 +97,7 @@ struct HistoryView: View {
                         .foregroundStyle(ReffiColor.muted)
                     Spacer()
                     Text(receiptNo)
-                        .font(.reffiNum(11, relativeTo: .caption2)).foregroundStyle(ReffiColor.muted)
+                        .font(.reffiNum(.meta)).foregroundStyle(ReffiColor.muted)
                 }
             }
         }
@@ -155,7 +155,7 @@ struct HistoryView: View {
                     Text(LocalizedStringKey(seg.name)).reffiType(.body).foregroundStyle(ReffiColor.ink)
                     Spacer()
                     Text(verbatim: Int((Double(seg.count) / Double(total) * 100).rounded()).formatted(.percent))
-                        .font(.reffiNum(13, relativeTo: .caption)).foregroundStyle(ReffiColor.ink2)
+                        .font(.reffiNum(.meta)).foregroundStyle(ReffiColor.ink2)
                 }
             }
         }
@@ -186,7 +186,7 @@ struct HistoryView: View {
                         Text(verbatim: row.name).reffiType(.body).foregroundStyle(ReffiColor.ink)
                         Spacer()
                         (row.count > 1 ? Text(verbatim: "×\(row.count)") : Text("once"))
-                            .font(.reffiNum(13, relativeTo: .caption)).foregroundStyle(ReffiColor.ink2)
+                            .font(.reffiNum(.meta)).foregroundStyle(ReffiColor.ink2)
                     }
                 }
             }
@@ -214,7 +214,7 @@ struct HistoryView: View {
                             .reffiType(.caption)
                             .foregroundStyle(log.wasted ? ReffiColor.urgentDark : ReffiColor.freshDark)
                         Text(verbatim: log.dateText)
-                            .font(.reffiNum(12, relativeTo: .caption2)).foregroundStyle(ReffiColor.muted)
+                            .font(.reffiNum(.meta)).foregroundStyle(ReffiColor.muted)
                     }
                 }
             }

@@ -256,7 +256,7 @@ struct RecipeEditorView: View {
                 Text("Time").reffiType(.body).foregroundStyle(ReffiColor.ink)
                 Spacer()
                 Text("\(minutes) min")
-                    .font(.reffiNum(16, relativeTo: .body))
+                    .font(.reffiNum(.body))
                     .foregroundStyle(ReffiColor.ink)
                 Stepper(value: $minutes, in: 5...240, step: 5) { Text("Time") }
                     .labelsHidden()

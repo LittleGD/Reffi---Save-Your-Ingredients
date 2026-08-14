@@ -434,7 +434,7 @@ private struct CandidateEditSheet: View {
                     .keyboardType(.decimalPad)
                     .multilineTextAlignment(.trailing)
                     // §3.4 숫자는 tabular·lining — 같은 역할의 `IngredientEditView` 수량 필드와 같은 롤.
-                    .font(.reffiNum(16, relativeTo: .body))
+                    .font(.reffiNum(.body))
                     .foregroundStyle(ReffiColor.ink)
                     .frame(width: 64)
                 // 스톡 시스템 팝업 대신 앱 커스텀 종이 드롭다운(커먼 룰 H) — IngredientEditView와 같은 문법.

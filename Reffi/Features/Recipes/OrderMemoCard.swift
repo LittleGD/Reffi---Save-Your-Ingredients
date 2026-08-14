@@ -11,7 +11,7 @@ import PhosphorSwift
 struct OrderMemoCard: View {
     let result: RecipeRecommender.Result
     let number: Int
-    /// 덱 가장 깊은 티켓 경량화 — true면 머리(ORDER/#·TABLE 줄)까지만 그리고 본문·CTA를 생략한다.
+    /// 덱 가장 깊은 티켓 경량화 — true면 머리(크롬 크라운 줄)까지만 그리고 본문·CTA를 생략한다.
     /// 가장 깊은 티켓은 어차피 상단 슬리버만 보이므로 전환 프레임드롭을 줄이려 본문 렌더를 건너뛴다(§13.6).
     /// 주의: 컨테이너(VStack·배경·compositingGroup·그림자)는 headerOnly와 무관하게 **단일 뷰 정체성**을
     /// 유지하고 내부 콘텐츠만 분기한다 — body 수준 if/else(ConditionalContent)면 덱 회전 시
@@ -123,9 +123,9 @@ struct OrderMemoCard: View {
 
                 ReffiRule(.ticket)
 
-                // 모노 올캡 티켓 크롬은 형제 라벨(ORDER · FIRED · TABLE · REFFI KITCHEN)과 같이 verbatim —
-                // 주방 티켓의 인쇄 문자열이라 번역하지 않는다.
                 // 티켓 위 인쇄 크롬은 크라운 행과 **같은 모노 role**이다 — 색(ink vs ink2)으로만 갈린다.
+                // 형제 라벨(ORDER · REFFI KITCHEN · ORDER · FIRED)과 같이 verbatim: 주방 티켓의
+                // 인쇄 문자열이라 번역하지 않는다.
                 Text(verbatim: "ON THE TICKET")
                     .reffiType(.monoTicketLabel).foregroundStyle(ReffiColor.ink2)   // §2.6 — 소형 텍스트는 불투명 토큰으로
 
@@ -252,7 +252,7 @@ struct OrderMemoCard: View {
             Spacer(minLength: ReffiSpace.s2)
             if ing.freshness != .fresh {
                 Text(verbatim: ing.dDayText)
-                    .font(.reffiNum(12, relativeTo: .caption))
+                    .font(.reffiNum(.meta))
                     .foregroundStyle(ing.freshness.dark)
                     .padding(.horizontal, ReffiSpace.s2)
                     .padding(.vertical, 1)

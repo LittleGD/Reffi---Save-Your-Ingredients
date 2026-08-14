@@ -407,7 +407,7 @@ struct FridgeView: View {
                     .tracking(ReffiTextRole.caption.tracking)
                     .foregroundStyle(on ? ReffiColor.onInk : ReffiColor.ink)
                 Text(count.formatted())
-                    .font(.reffiNum(12, relativeTo: .caption))
+                    .font(.reffiNum(.meta))
                     .foregroundStyle(on ? ReffiColor.onInk.opacity(0.72) : ReffiColor.ink2)
             }
             .lineLimit(1)
@@ -506,7 +506,7 @@ struct FridgeView: View {
                 .lineLimit(1).fixedSize()   // 제목은 절대 말줄임하지 않는다
             Spacer(minLength: ReffiSpace.s1)
             Text(value)
-                .font(.reffiNum(17, relativeTo: .body)).foregroundStyle(tint)
+                .font(.reffiNum(.body)).foregroundStyle(tint)
                 .lineLimit(1)
             ReffiIcon.chevron.reffi(11, .bold).foregroundStyle(ReffiColor.ink2)
         }
@@ -679,7 +679,7 @@ struct FridgeCompactRow: View {
                 DDayStamp(text: String(localized: "FROZEN"), color: ReffiColor.blueDark, size: 10)
             }
             Text(ingredient.dDayText)
-                .font(.reffiNum(15, relativeTo: .subheadline))
+                .font(.reffiNum(.body))
                 .foregroundStyle(f.dark)   // §2.6 캔버스/종이 위 색-텍스트는 dark
         }
         .padding(.horizontal, ReffiSpace.s4)
@@ -807,7 +807,7 @@ struct ExpandedFridgeCard: View {
                     .foregroundStyle(ReffiColor.muted)
                 Spacer()
                 Text(receiptNo)
-                    .font(.reffiNum(11, relativeTo: .caption2)).foregroundStyle(ReffiColor.muted)
+                    .font(.reffiNum(.meta)).foregroundStyle(ReffiColor.muted)
             }
             .padding(.horizontal, ReffiSpace.s5)
             .padding(.top, ReffiSpace.s3)
@@ -826,7 +826,7 @@ struct ExpandedFridgeCard: View {
                 Text(label).reffiType(.caption).foregroundStyle(ReffiColor.ink2)
                 Spacer(minLength: ReffiSpace.s4)
                 Text(value)
-                    .font(.reffiNum(15, relativeTo: .subheadline))
+                    .font(.reffiNum(.body))
                     .foregroundStyle(valueColor)
                     .multilineTextAlignment(.trailing)
             }

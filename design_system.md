@@ -267,6 +267,7 @@
 ```css
 .num { font-variant-numeric: tabular-nums lining-nums; font-feature-settings: "tnum" 1, "lnum" 1; }
 ```
+- **숫자 스케일은 3단뿐이다**(`ReffiNumScale`) — `hero` 32(화면당 하나뿐인 주지표) · `body` 15(본문·리스트 행과 나란한 값) · `meta` 12(칩·푸터·카운트 등 보조 수치). 사이즈를 자유 파라미터로 두었더니 호출부가 옆 텍스트에 맞춰 매번 즉흥 결정해 11·12·13·14·15·16·17·32 여덟 종이 유통됐고, 숫자 계열에만 위계가 없었다. 예외는 **컴포넌트가 크기를 파라미터로 받는 경우**뿐이고(`DDayStamp` → `Font.reffiStamp(size:)`), 그 탈출구는 도장 계열 하나로 한정한다.
 - 의무: D-day 라벨, 수량·날짜, 카운트다운, 표/대시보드 수치. 문장 속 숫자는 비례숫자(기본). D-day 도장(`DDayStamp`)은 Pretendard Bold 계열이라 `tnum`이 없어 `.monospacedDigit()`을 붙인다 — 자릿수가 바뀔 때 도장 폭이 흔들리지 않게.
 - **D-day 표기는 앱 전역 한 포맷터에서만 나온다** — `Ingredient.dDayText`(`Overdue` / `Today` / `Nd`). 온보딩 데모·장식 티켓도 예외 없이 이 포맷터를 타고, 색도 같은 `Freshness(daysLeft:)`에서 파생시킨다. 화면마다 표기를 손으로 적으면 온보딩이 가르친 표기("D-2")를 본 앱이 한 번도 쓰지 않는 일이 실제로 생긴다.
 - **수치는 로케일 포맷터(`FormatStyle`)로 만든다** — `String(format:)`·문자열 접합은 로케일을 타지 않아 소수 구분자를 항상 마침표로 찍고 그룹 구분자를 빼먹는다. 수량은 `value.formatted(.number.precision(.fractionLength(0...1)))`(`Quantity.text`), 비율은 `.formatted(.percent)`(퍼센트 기호 위치·간격도 로케일이 정한다), 날짜는 `.formatted(date:time:)`. **숫자와 단위 사이는 줄바꿈 없는 공백**(`\u{00A0}`)으로 묶어 행 끝에서 "300"과 "g"가 갈라지지 않게 한다.
