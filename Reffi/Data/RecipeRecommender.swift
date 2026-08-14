@@ -98,6 +98,26 @@ enum RecipeRecommender {
             }
     }
 
+    // MARK: - 커버리지 점검(덱이 임박 재료를 실제로 다루는가)
+
+    /// 덱이 **다루지 못한 오늘 만료(urgent) 재료** — 어떤 티켓의 `used`에도 들어가지 않은 것.
+    ///
+    /// 랭킹은 "가장 임박한 걸 가장 많이 쓰는" 레시피를 위로 올릴 뿐, 특정 재료를 쓰는 레시피가
+    /// 하나도 없으면 그 재료는 조용히 빠진다 — 메인 배너는 "N at risk today"라고 압박하는데
+    /// 티켓 어디에도 그 재료가 없는 상태다. 그 어긋남을 화면이 말할 수 있게, 판별을 **순수 함수**로
+    /// 분리해 둔다(뷰 밖에서 검증 가능 — 커버 상태는 재료 정체성 `id`로만 본다).
+    ///
+    /// - Parameters:
+    ///   - ingredients: 후보 재고(보통 `FridgeStore.available` — 이미 마감 임박순).
+    ///   - results: 지금 덱에 올라간 티켓들(상위 3장 스냅샷).
+    /// - Returns: 입력 순서를 유지한 미커버 urgent 재료. `.soon`·`.fresh`는 포함하지 않는다 —
+    ///   오늘이 아닌 재료까지 호명하면 브리지 행이 상시 표시돼 경고가 아니라 배경이 된다.
+    static func uncoveredUrgent(ingredients: [Ingredient], results: [Result]) -> [Ingredient] {
+        guard ingredients.contains(where: { $0.freshness == .urgent }) else { return [] }
+        let covered = Set(results.flatMap { $0.used.map(\.id) })
+        return ingredients.filter { $0.freshness == .urgent && !covered.contains($0.id) }
+    }
+
     // MARK: - 취향 반영(§5.2 프로필 선호 → 랭킹 실배선)
 
     // 튜닝 상수(§근거) — freshness 합(urgent3/soon2/fresh1)이 1차 기준이고, 아래 보정은 그 합에
