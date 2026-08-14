@@ -82,6 +82,55 @@ xcrun simctl io booted screenshot reffi-home.png
 - `REFFI_CONTACT_SHEET=1` 요리 아이콘 콘택트 시트 산출 — 없으면 해당 두 @Test는 단언만 하고 렌더·파일 쓰기를 건너뛴다(아래 "검증 상태")
 - `DISH_SHEET_DIR` 시트 저장 디렉터리(없으면 시뮬레이터 tmp)
 
+## 릴리스(TestFlight)
+
+시뮬레이터 편의를 위해 `project.yml`이 앱 타깃에 `CODE_SIGNING_ALLOWED=NO`를 박아 두므로,
+**아카이브는 그 설정을 CLI에서 덮어야** 한다. 아래가 실제로 통과한 레시피다(v1.0 (2) 업로드 기준).
+
+### 1) 버전 정본은 `project.yml`
+`MARKETING_VERSION`(표시 버전) · `CURRENT_PROJECT_VERSION`(빌드 번호) 두 값이 정본이고,
+`Info.plist`는 XcodeGen 생성물이라 직접 고치면 다음 `xcodegen generate`에 덮인다.
+빌드 번호 bump는 세 걸음이다.
+```sh
+# project.yml › targets.Reffi.settings.base
+#   MARKETING_VERSION: "1.0"          # 표시 버전 — 스토어에 보이는 값
+#   CURRENT_PROJECT_VERSION: "2"      # 빌드 번호 — 업로드마다 반드시 +1(같은 번호 재업로드는 거부된다)
+xcodegen generate                     # 생성물(.xcodeproj·Info.plist)에 반영
+git commit -am 'chore(release): TestFlight 빌드 번호 N'
+```
+
+### 2) 아카이브 (서명 오버라이드)
+```sh
+export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+xcodebuild -project Reffi.xcodeproj -scheme Reffi \
+  -configuration Release -destination 'generic/platform=iOS' \
+  -archivePath /tmp/reffi.xcarchive archive \
+  -allowProvisioningUpdates \
+  CODE_SIGNING_ALLOWED=YES CODE_SIGNING_REQUIRED=YES \
+  CODE_SIGN_STYLE=Automatic DEVELOPMENT_TEAM=L3RY7X2WBC
+```
+- `CODE_SIGNING_ALLOWED/REQUIRED=YES` — project.yml의 시뮬레이터용 비활성을 덮는다(안 덮으면 서명 없는 아카이브가 나오고 업로드가 깨진다).
+- `DEVELOPMENT_TEAM=L3RY7X2WBC` — project.yml엔 팀이 없다(팀 ID의 다른 사본은 `exportOptions.plist`).
+- `-allowProvisioningUpdates` — 프로비저닝 프로파일을 Xcode가 자동 발급/갱신하게 한다.
+
+### 3) 업로드
+```sh
+xcodebuild -exportArchive -archivePath /tmp/reffi.xcarchive \
+  -exportOptionsPlist exportOptions.plist \
+  -exportPath /tmp/reffi-tf -allowProvisioningUpdates
+```
+`exportOptions.plist`(리포 루트, 커밋됨)가 업로드 방식을 정한다 — `method=app-store-connect`,
+`destination=upload`(IPA를 남기지 않고 곧장 App Store Connect로), `signingStyle=automatic`,
+`teamID=L3RY7X2WBC`, `manageAppVersionAndBuildNumber=false`(버전 정본은 위 project.yml이므로
+Xcode가 번호를 임의로 올리지 못하게 잠근다). 업로드는 Xcode 로그인 세션을 쓴다.
+
+### 4) 올리기 전 점검
+```sh
+xcodebuild -project Reffi.xcodeproj -scheme Reffi \
+  -destination 'platform=iOS Simulator,name=iPhone 17' test -only-testing:ReffiTests
+python3 scripts/check-strings.py     # 코드 리터럴 ⊆ Localizable.xcstrings 키
+```
+
 ## 기술 스택
 - **SwiftUI / Swift 6.3** · 배포 타깃 **iOS 18+** · 데이터는 `@Observable` + 샘플(SwiftData는 다음 단계)
 - **폰트**(전부 SIL OFL, 번들): Pretendard(한글·본문) / Google Sans Flex(데이터 숫자) / Story Script(워드마크)
