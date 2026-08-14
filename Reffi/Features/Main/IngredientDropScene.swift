@@ -62,6 +62,15 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     // 촉감은 운동량 전달의 문제(소고기가 잎사귀보다 묵직하게 느껴져야 한다)라 축이 다르다.
     private let squashImpact: CGFloat = 30       // 이 이상이면 눈에 보이는 착지 — 스쿼시
     private let squashImpactMax: CGFloat = 260   // 이 이상은 최대 눌림(자유낙하·던지기)
+    /// 착지 법선 정렬 하한 — |dot(접촉 법선, 중력 단위벡터)|이 이 이상이어야 '착지'로 본다.
+    /// v1.0 (3) 실기기 피드백 "크기가 커졌다 작아지는 움찔거림이 심함"의 원인 게이트다:
+    /// 기울여 굴릴 때 더미의 **옆접촉**(법선 ⟂ 중력)도 Δv 30을 쉽게 넘겨, 굴리는 내내
+    /// 더미 전체가 숨쉬듯 눌렸다 폈다 했다. 실제 착지(바닥·더미 위)는 **어떤 중력 방향에서도**
+    /// 법선이 중력축과 나란하므로(기울인 상태 포함) 그대로 통과한다.
+    private let squashNormalAlign: CGFloat = 0.55
+    /// 칩당 스쿼시 쿨다운(초). `action(forKey:)` 재진입 가드는 애니메이션 길이(~180ms)만 덮어,
+    /// 끝나자마자 다음 접촉이 또 눌러 떨림이 이어졌다. 250ms로 한 칩의 눌림 빈도를 묶는다.
+    private let squashCooldown: TimeInterval = 0.25
 
     // 달그락 햅틱(§13.4) — CoreHaptics 직접 구동. 세기·날카로움 두 축이 있어야 재료별 촉감이
     // 생기고, SwiftUI `.sensoryFeedback`은 파라미터가 없어 쓸 수 없다(§7.6 의미별 매핑은 그대로).
@@ -328,14 +337,21 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
 
     // MARK: - 흔들기 에너지 주입
 
-    /// 이 G 미만은 손떨림·걷기 — 무시한다.
-    private let shakeThreshold: CGFloat = 0.35
+    /// 이 G 미만은 손떨림·걷기 — 무시한다. v1.0 (3) 실기기 피드백("흔들어도 아무 반응 없음")에
+    /// 따라 0.35 → 0.25. z축 감지가 들어온 뒤에도 임계가 높아 평범한 손목 흔들기가 자주 미달했다.
+    private let shakeThreshold: CGFloat = 0.25
     /// 킥 사이 최소 간격(초) — 매 프레임 밀면 흔들기가 아니라 연속 가속이 된다.
     private let shakeInterval: TimeInterval = 0.09
     /// 킥 하나가 줄 수 있는 최대 속도 변화(pt/s). **벽 터널링 방지 상한** — 60fps에서 프레임당
     /// 3.5pt라 두께 0인 edge loop도 못 뚫는다(게다가 wake로 CCD가 켜진 상태다).
     private let shakeMaxDeltaV: CGFloat = 210
-    private let shakeGain: CGFloat = 150
+    /// 초과분(G) → 속도 변화(pt/s) 환산 이득. **150 → 480**(v1.0 (3) 실기기 피드백).
+    /// 옛 값 산식: 0.5G 흔들기 → (0.5 − 0.35) × 150 = **22pt/s**. 칩 한 변의 1/3이 1초에 걸쳐
+    /// 움직이는 정도라 사실상 보이지 않았고, 그래서 "흔들어도 반응이 없다"로 읽혔다.
+    /// 새 값 산식: 0.5G → (0.5 − 0.25) × 480 = **120pt/s**(확실히 보인다), 0.7G → 216 →
+    /// 상한 210으로 포화(강한 달그락). 상한은 그대로 210 — 터널링 방지선이라 올리지 않는다.
+    /// 원 튜닝(150)은 중력 28·종단속도 62~140의 수중 씬 값이었다. 우리 중력은 42다.
+    private let shakeGain: CGFloat = 480
     private var lastShakeTime: TimeInterval = 0
 
     /// `userAcceleration`(중력 제외 고역) → 칩들에 임펄스 킥. 이게 있어야 "흔들면 달그락"이 성립한다.
@@ -752,11 +768,19 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     /// 감쇠(`jitterDamp`)에 얼어붙고, 그러면 씬이 안착으로 판정해 잠들어(`forceSettle`) `maintainCeiling`의
     /// 타임아웃이 **영영 돌지 않는다**(재료가 화면 밖에서 사라진 것처럼 보였다).
     /// 그래서 `maintainCeiling`의 지연 회수와 별개로, 천장이 내려오는 순간에도 즉시 회수한다.
+    /// 회수된 칩은 **떨어뜨린다** — 속도를 0으로 두면 천장 아래에 얼어붙은 채 나타나,
+    /// 실기기 피드백 "아이템이 갑자기 순간이동"처럼 읽혔다. 그 시점 중력 방향으로 220pt/s를
+    /// 실어 주면 눈이 '순간이동'이 아니라 '떨어져 더미로 돌아가는 중'으로 해석한다.
     private func tuckStraysUnderCeiling() {
         let ceiling = sealedCeiling
+        let g = physicsWorld.gravity
+        let len = (g.dx * g.dx + g.dy * g.dy).squareRoot()
+        let drop: CGVector = len > 0
+            ? CGVector(dx: g.dx / len * 220, dy: g.dy / len * 220)
+            : CGVector(dx: 0, dy: -220)
         for node in chips.values where node.position.y > ceiling {
             node.position.y = ceiling - chipSide * 0.5
-            node.physicsBody?.velocity = .zero
+            node.physicsBody?.velocity = drop
             node.physicsBody?.angularVelocity = 0
         }
     }
@@ -1072,10 +1096,14 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         guard !idle, !externallyPaused else { return }
         let impulse = contact.collisionImpulse
         guard impulse > 0 else { return }
-        for body in [contact.bodyA, contact.bodyB] where body.categoryBitMask & Category.chip != 0 {
-            let dv = impulse / max(0.2, body.mass)
-            guard dv >= squashImpact, let node = body.node as? SKSpriteNode else { continue }
-            squash(node, strength: min(1, (dv - squashImpact) / (squashImpactMax - squashImpact)))
+        // 착지 게이트 — 접촉 법선이 현재 중력과 나란한 접촉만 스쿼시한다(굴림 옆접촉 제외).
+        // 중력이 0인 극단에선 방향이 정의되지 않으니 게이트를 열어 둔다.
+        if isLandingContact(contact) {
+            for body in [contact.bodyA, contact.bodyB] where body.categoryBitMask & Category.chip != 0 {
+                let dv = impulse / max(0.2, body.mass)
+                guard dv >= squashImpact, let node = body.node as? SKSpriteNode else { continue }
+                squash(node, strength: min(1, (dv - squashImpact) / (squashImpactMax - squashImpact)))
+            }
         }
         // 햅틱은 Reduce Motion과 무관하게 살아 있다 — 시각 배려지 촉각 배려가 아니다(§7.4).
         let pair = ClatterPair(ObjectIdentifier(contact.bodyA).hashValue,
@@ -1084,6 +1112,18 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         let mat = clatterMaterial(contact.bodyA, contact.bodyB)
         clatter.play(intensity: clatterIntensity(impulse) * mat.hapticScale, sharpness: mat.sharpness)
         onClatter?()
+    }
+
+    /// 이 접촉이 '착지'인가 — 접촉 법선이 **그 시점 중력**과 얼마나 나란한지로 판정한다.
+    /// 굴림·더미 옆비빔은 법선이 중력에 수직(dot≈0)이라 걸러지고, 바닥·더미 위 착지는
+    /// 기울인 중력에서도 법선이 중력축과 나란해(|dot|≈1) 통과한다. 햅틱 축은 건드리지 않는다 —
+    /// 굴러 부딪히는 달그락은 **들려야** 맞고, 다만 눌려 보이면 안 될 뿐이다.
+    private func isLandingContact(_ contact: SKPhysicsContact) -> Bool {
+        let g = physicsWorld.gravity
+        let len = (g.dx * g.dx + g.dy * g.dy).squareRoot()
+        guard len > 0 else { return true }
+        let n = contact.contactNormal   // SpriteKit이 단위벡터로 준다
+        return abs((n.dx * g.dx + n.dy * g.dy) / len) > squashNormalAlign
     }
 
     /// 두 바디 중 촉감을 대표할 물성 — 칩-벽이면 그 칩, 칩-칩이면 **무거운 쪽**이 소리를 주도한다.
@@ -1109,6 +1149,12 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     private func squash(_ node: SKSpriteNode, strength: CGFloat) {
         guard !reduceMotion, !idle, node !== dragged else { return }
         guard node.action(forKey: "squash") == nil else { return }   // 연쇄 접촉으로 겹쳐 실행 금지
+        // 칩당 쿨다운 — 위 재진입 가드는 애니메이션이 도는 동안(~180ms)만 유효해서, 끝나는 즉시
+        // 다음 접촉이 또 눌렀다. 실기기 "움찔거림" 피드백의 나머지 절반이 이 연타였다.
+        let now = CACurrentMediaTime()
+        if let last = node.userData?["squashAt"] as? TimeInterval, now - last < squashCooldown { return }
+        if node.userData == nil { node.userData = [:] }
+        node.userData?["squashAt"] = now
         let amt = 0.03 + 0.03 * min(1, max(0, strength))
         let d = ReffiMotion.dur2
         let press = SKAction.scaleX(to: 1 + amt, y: 1 - amt, duration: d * 0.35)
