@@ -222,7 +222,7 @@ struct FridgeView: View {
             }
             .padding(.horizontal, ReffiGrid.margin)
             .padding(.top, ReffiSpace.s5)
-            .padding(.bottom, 120)   // 끝까지 스크롤해도 마지막 카드가 네비 위로 올라오게
+            .padding(.bottom, ReffiChrome.navClearance)   // 끝까지 스크롤해도 마지막 카드가 네비 위로 올라오게
         }
     }
 
@@ -246,7 +246,7 @@ struct FridgeView: View {
             doneBar
             // 영수증만 스크롤하고 판정 버튼(Ate/Tossed)은 스크롤 **밖**에 둔다 — 이 화면의 유일한 1차 액션이라
             // 어떤 글자 크기·재고 수에서도 잘리면 안 된다(§7.3). 버튼을 스크롤 콘텐츠 안에 넣으면 하단 스택(≤132)과
-            // 네비 클리어런스(96)가 먹은 만큼 뷰포트가 좁아져 기본 글자 크기에서도 라벨이 잘렸다.
+            // 네비 자리 예약(`ReffiChrome.navReserve`)이 먹은 만큼 뷰포트가 좁아져 기본 글자 크기에서도 라벨이 잘렸다.
             //
             // "영수증 끝에서 20 아래 부착"이라는 의도는 그대로 유지한다:
             //   ① 스크롤 밖 하단 s3(12) + ② 버튼 상단 s2(8) = 20 — 간격을 스크롤 밖에 둬서
@@ -272,9 +272,9 @@ struct FridgeView: View {
             if !others.isEmpty {
                 bottomStack(others)
             } else {
-                // 마지막 재료 — 하단 스택이 없으면 그 몫의 네비 클리어런스(96)도 사라져
+                // 마지막 재료 — 하단 스택이 없으면 그 몫의 네비 자리 예약도 사라져
                 // Ate/Tossed 버튼이 떠 있는 네비 밑에 깔린다. 스택 자리만큼 바닥을 비워둔다.
-                Color.clear.frame(height: 96)
+                Color.clear.frame(height: ReffiChrome.navReserve)
             }
         }
     }
@@ -324,7 +324,7 @@ struct FridgeView: View {
         .clipShape(Rectangle())
         .contentShape(Rectangle())
         .padding(.horizontal, ReffiGrid.margin + cardInset)
-        .padding(.bottom, 96)
+        .padding(.bottom, ReffiChrome.navReserve)
         // 위로 스와이프(또는 탭) → 냉장고 스택으로 촤라락 복귀.
         .gesture(
             DragGesture(minimumDistance: 16)

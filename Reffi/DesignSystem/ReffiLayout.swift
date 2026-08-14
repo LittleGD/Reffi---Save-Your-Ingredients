@@ -67,6 +67,25 @@ enum ReffiTooth {
     static let ticket: CGFloat = 9
 }
 
+/// 떠 있는 캡슐 네비의 실치수와 그 파생 여백(§9.3). 네비는 콘텐츠 위에 떠 있으므로 화면들이
+/// "그만큼 비워 두는" 값을 각자 적어 왔고, 같은 목적의 여백이 이미 120과 96으로 갈렸다(한 파일 안에서
+/// 주석은 96을 정본처럼 적는데 다른 줄은 120이었다). 진짜 위험은 값 불일치보다 **네비 높이를 바꾸면
+/// 다섯 곳이 조용히 어긋난다**는 것이라, 전부 실치수에서 파생시킨다.
+enum ReffiChrome {
+    /// 캡슐 네비 실측 높이(`RootTabView`).
+    static let navHeight: CGFloat = 58
+    /// 홈 인디케이터 쪽으로 더 내린 오프셋.
+    static let navBottom: CGFloat = 2
+
+    /// **자리 예약** — 레이아웃이 네비 몫으로 비워 두는 높이(네비 발자국 + 숨 쉴 틈).
+    /// 스크롤이 아니라 정적 배치에서 쓴다(하단 스택이 없을 때의 빈 자리 등).
+    static let navReserve: CGFloat = navHeight + navBottom + ReffiSpace.s6 + ReffiSpace.s2
+
+    /// **스크롤 꼬리 여백** — 끝까지 스크롤했을 때 마지막 카드가 네비 위로 올라오게.
+    /// 자리 예약보다 카드 한 단(`s5`) 더 준다: 정지 배치와 달리 손가락이 마지막 카드를 만져야 한다.
+    static let navClearance: CGFloat = navReserve + ReffiSpace.s5
+}
+
 /// 판정 존 규격(§13.4) — 홈의 판정 바스켓(SpriteKit)과 캐러셀의 플릭 예고 블롭(SwiftUI)은
 /// DS가 "같은 문법"이라고 못 박은 한 쌍이다. 그런데 두 파일이 각자 `private let`으로 같은 숫자를
 /// 들고 있었고, 결속은 "홈 존과 같은 값"이라는 주석뿐이었다 — 주석은 다음 튜닝을 막지 못한다.

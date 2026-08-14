@@ -1588,6 +1588,8 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
         <table class="tbl">
           <thead><tr><th>토큰</th><th>값</th><th>용도</th></tr></thead>
           <tbody>
+            <tr><td><code class="inline">ReffiChrome.navReserve</code></td><td>96pt (= navHeight 58 + navBottom 2 + s6 + s2)</td><td>레이아웃이 떠 있는 캡슐 네비 몫으로 비워 두는 <strong>정적 자리</strong></td></tr>
+            <tr><td><code class="inline">ReffiChrome.navClearance</code></td><td>120pt (= navReserve + s5)</td><td><strong>스크롤 꼬리 여백</strong> — 끝까지 스크롤해도 마지막 카드가 네비 위로 올라오게. 정지 배치와 달리 손가락이 마지막 카드를 만져야 해 한 단 더 준다</td></tr>
             <tr><td><code class="inline">ReffiJudgeZone</code></td><td>side 86 · alpha 0.96 · hotScale 1.14 · fade 0.15s · hotDuration 0.1s</td><td>홈 판정 바스켓(SpriteKit)과 캐러셀 플릭 예고 블롭(SwiftUI)이 같은 규격을 읽는 단일 자리 — 결속을 주석이 아니라 심볼로 만든다</td></tr>
             <tr><td><code class="inline">ReffiRule(.receipt)</code></td><td>ink 16% · dash 3/3</td><td>영수증 카드의 기본 절취선(헤더 아래·구역 마감)</td></tr>
             <tr><td><code class="inline">ReffiRule(.ticket)</code></td><td>ink 22% · dash 4/4</td><td>오더 티켓 계열의 굵은 절취선(티켓 본문 섹션·편집 시트 필드·드롭다운 행)</td></tr>

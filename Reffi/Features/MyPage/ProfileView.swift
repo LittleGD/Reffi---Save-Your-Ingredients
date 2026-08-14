@@ -56,7 +56,7 @@ struct ProfileView: View {
             }
             .padding(.horizontal, ReffiGrid.margin + receiptInset)
             .padding(.top, ReffiSpace.s5)
-            .padding(.bottom, 120)   // 떠 있는 캡슐 네비 위로 스크롤 여유
+            .padding(.bottom, ReffiChrome.navClearance)   // 떠 있는 캡슐 네비 위로 스크롤 여유
         }
         #if DEBUG
         // 스크린샷·QA용 — 하단 섹션(Data·Account)까지 스크롤(-fridgeTab 선례).
