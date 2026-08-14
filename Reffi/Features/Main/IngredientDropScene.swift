@@ -26,9 +26,12 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     }
     /// 모든 칩이 정착하면 씬을 스스로 재운다 — 유휴 프레임에서 물리·렌더 비용 0.
     private var idle = false
-    // 강제 안착(force-settle) — 알파 텍스처의 오목 충돌체는 접촉 해소 지터(v 4~30pt/s)가 영원히
-    // 안 죽어 '완전 정지' 판정이 성립하지 않는다. 조용함(calm) 대역 + 변위 검증으로 판정하고
-    // 통과하면 속도를 0으로 굳혀 재운다.
+    // 강제 안착(force-settle) — 알파 텍스처의 오목 충돌체는 접촉 해소 지터(관측 대역 v 4~30pt/s)가
+    // 영원히 안 죽어 '완전 정지' 판정이 성립하지 않는다. 조용함(calm) 대역 + 변위 검증으로 판정하고
+    // 통과하면 속도를 0으로 굳혀 재운다. 세 상수의 역할이 다르므로 값도 다르다:
+    //   calmSpeed 40  — 판정 대역. 지터 상단(30)을 넉넉히 덮는다(여기 걸린다고 감쇠하진 않는다).
+    //   jitterFloor 14 — **감쇠** 하한. 지터 대역의 아래 절반만 깎는다(아래 주석 참조).
+    //   settleDrift 4  — 순변위 문턱. 진동성 지터(제자리 요동)와 느린 미끄러짐을 여기서 가른다.
     private var calmFrames = 0                       // calm 연속 프레임(임계 도달 시 변위 검증)
     private let calmThreshold = 30                   // ≈0.5s(60fps)
     private let calmSpeed: CGFloat = 40              // 이 미만이면 '조용' — 지터 대역을 포함
@@ -38,9 +41,13 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     /// 실기기 검증(v1.0 (2))의 교훈: 이전 설계(settleBand 80 미만 전부 감쇠 + 중력 변화 시 90프레임
     /// 유예)는 손떨림이 2° 데드밴드를 계속 넘겨 유예 창을 무한 리필했고, 감쇠가 영구 정지돼
     /// 더미가 쉼 없이 움찔거렸다. 유예가 끝나는 순간엔 느린 굴림(<80)이 프레임당 20%씩 깎여
-    /// 얼었다 홱 움직이는 인위적 움직임이 됐다. 플로어를 지터 대역(≈수 pt/s)의 바로 위로 내리고
-    /// **항상 켜 두면** 두 문제가 같이 사라진다 — 진짜 움직임(기울임 굴림·킥·낙하)은 이 대역보다
-    /// 훨씬 빨라 감쇠를 전혀 받지 않고, 지터는 자세와 무관하게 몇 프레임 안에 죽는다.
+    /// 얼었다 홱 움직이는 인위적 움직임이 됐다. 플로어를 낮게 내리고 **항상 켜 두면** 두 문제가
+    /// 같이 사라진다 — 진짜 움직임은 이 대역보다 빨라 감쇠를 전혀 받지 않고, 지터는 자세와
+    /// 무관하게 몇 프레임 안에 죽는다.
+    /// **왜 지터 상단(30)이 아니라 14인가**: 14~40pt/s는 기울임 굴림이 실제로 사는 대역이다
+    /// (기울기가 얕으면 칩이 이 속도로 천천히 구른다). 플로어를 30으로 올리면 그 굴림이
+    /// 프레임당 20%씩 깎여 다시 '얼었다 홱' 감각으로 돌아간다 — 지터 상단 절반을 감쇠 대상에서
+    /// 빼는 것은 의도된 선택이고, 그 대역은 감쇠가 아니라 calm 창 + 변위 검증이 책임진다.
     private let jitterFloor: CGFloat = 14
     private let jitterDamp: CGFloat = 0.8            // 플로어 미만의 프레임당 곱셈 감쇠
     private var foregroundObserver: NSObjectProtocol?      // 블록 옵저버라 명시 해제 필요
@@ -339,19 +346,23 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
 
     /// 이 G 미만은 손떨림·걷기 — 무시한다. v1.0 (3) 실기기 피드백("흔들어도 아무 반응 없음")에
     /// 따라 0.35 → 0.25. z축 감지가 들어온 뒤에도 임계가 높아 평범한 손목 흔들기가 자주 미달했다.
-    private let shakeThreshold: CGFloat = 0.25
+    /// 셰이크 3종 상수는 `static let` — 테스트가 리터럴을 다시 적지 않고 **이 심볼을 읽어야**
+    /// 값을 되돌렸을 때 빨간불이 든다(ShakeKickTests). 씬 상태와 무관한 순수 튜닝값이라 안전하다.
+    static let shakeThreshold: CGFloat = 0.25
     /// 킥 사이 최소 간격(초) — 매 프레임 밀면 흔들기가 아니라 연속 가속이 된다.
     private let shakeInterval: TimeInterval = 0.09
-    /// 킥 하나가 줄 수 있는 최대 속도 변화(pt/s). **벽 터널링 방지 상한** — 60fps에서 프레임당
-    /// 3.5pt라 두께 0인 edge loop도 못 뚫는다(게다가 wake로 CCD가 켜진 상태다).
-    private let shakeMaxDeltaV: CGFloat = 210
+    /// **칩 하나가 킥 한 번에 받는 최대 속도 변화(pt/s)** — 벽 터널링 방지 상한. 60fps에서
+    /// 프레임당 3.5pt라 두께 0인 edge loop도 못 뚫는다(게다가 wake로 CCD가 켜진 상태다).
+    /// 흩뿌림 배율(최대 1.35배)을 곱한 **뒤**에 적용해야 이 불변식이 실제로 참이 된다 —
+    /// 곱하기 전에만 걸었던 v1.0 (4)에서는 실최대가 283.5pt/s(프레임당 4.7pt)로 새어 나갔다.
+    static let shakeMaxDeltaV: CGFloat = 210
     /// 초과분(G) → 속도 변화(pt/s) 환산 이득. **150 → 480**(v1.0 (3) 실기기 피드백).
     /// 옛 값 산식: 0.5G 흔들기 → (0.5 − 0.35) × 150 = **22pt/s**. 칩 한 변의 1/3이 1초에 걸쳐
     /// 움직이는 정도라 사실상 보이지 않았고, 그래서 "흔들어도 반응이 없다"로 읽혔다.
-    /// 새 값 산식: 0.5G → (0.5 − 0.25) × 480 = **120pt/s**(확실히 보인다), 0.7G → 216 →
-    /// 상한 210으로 포화(강한 달그락). 상한은 그대로 210 — 터널링 방지선이라 올리지 않는다.
+    /// 새 값 산식: 0.5G → (0.5 − 0.25) × 480 = **120pt/s**(확실히 보인다). 이 값은 흩뿌림 전의
+    /// **공칭 Δv**이고, 칩마다 0.65~1.35배로 흩은 뒤 상한 210에서 잘린다.
     /// 원 튜닝(150)은 중력 28·종단속도 62~140의 수중 씬 값이었다. 우리 중력은 42다.
-    private let shakeGain: CGFloat = 480
+    static let shakeGain: CGFloat = 480
     private var lastShakeTime: TimeInterval = 0
 
     /// `userAcceleration`(중력 제외 고역) → 칩들에 임펄스 킥. 이게 있어야 "흔들면 달그락"이 성립한다.
@@ -364,13 +375,15 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         guard !reduceMotion else { return }
         guard let kick = Self.shakeKick(x: sample.shakeX, y: sample.shakeY, z: sample.shakeZ,
                                         gravity: physicsWorld.gravity,
-                                        threshold: shakeThreshold) else { return }
+                                        threshold: Self.shakeThreshold) else { return }
         // 휴면 중엔 update 시계(lastUpdateTime)가 멈춰 있어 실제 단조 시계로 잰다 —
         // 잠든 씬을 흔들어 깨우는 첫 킥이 얼어붙은 시계에 막히면 안 된다.
         let now = CACurrentMediaTime()
         guard now - lastShakeTime >= shakeInterval else { return }
         lastShakeTime = now
-        kickChips(angle: kick.angle, deltaV: min(kick.excess * shakeGain, shakeMaxDeltaV))
+        // 여기선 클램프하지 않는다 — 상한은 흩뿌림을 곱한 **칩별 최종값**에 걸어야 터널링
+        // 불변식이 참이 된다(kickChips → scatteredDeltaV). 넘기는 값은 공칭 Δv다.
+        kickChips(angle: kick.angle, deltaV: kick.excess * Self.shakeGain)
     }
 
     /// 흔들기 판정의 순수 계산부 — 씬 없이 테스트하기 위해 분리(GravityMapper와 같은 규율).
@@ -394,20 +407,28 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         return (angle, mag - threshold)
     }
 
+    /// 공칭 Δv에 칩별 흩뿌림(0.65~1.35배)을 곱하고 **터널링 상한에서 자른다**.
+    /// 순서가 핵심이다 — 클램프를 곱하기 앞에 두면 상한이 1.35배 새어 나간다(v1.0 (4) 결함).
+    /// 씬 없이 테스트하기 위해 순수 함수로 분리(shakeKick과 같은 규율).
+    static func scatteredDeltaV(_ deltaV: CGFloat, jitter j: CGFloat) -> CGFloat {
+        min(deltaV * (0.65 + 0.7 * j), shakeMaxDeltaV)
+    }
+
     /// 칩들을 한 방향으로 밀되 **칩마다 각도·세기를 흩는다** — 똑같이 밀면 나란히 움직여서
-    /// 서로 부딪히지 않고, 부딪히지 않으면 달그락도 없다.
+    /// 서로 부딪히지 않고, 부딪히지 않으면 달그락도 없다. 세기는 상한에서 잘리지만 각도는
+    /// 안 잘리므로, 포화 구간(0.7G 이상)에서도 칩들이 서로 다른 방향으로 흩어져 부딪힌다.
     private func kickChips(angle: CGFloat, deltaV: CGFloat) {
         guard !chips.isEmpty else { return }
         for (id, node) in chips {
             guard let body = node.physicsBody else { continue }
             let j = Self.stableJitter(id)                 // 0..1 결정적
             let a = angle + (j - 0.5) * 1.3               // ±0.65rad 흩뿌림
-            let dv = deltaV * (0.65 + 0.7 * j)
+            let dv = Self.scatteredDeltaV(deltaV, jitter: j)
             body.applyImpulse(CGVector(dx: cos(a) * dv * body.mass,
                                        dy: sin(a) * dv * body.mass))
             body.applyAngularImpulse((j - 0.5) * 0.02 * body.mass)
         }
-        wake()   // CCD 복구 + 감쇠 유예 — 킥이 감쇠에 바로 먹히지 않게
+        wake()   // 휴면이었으면 기상 + CCD 복구 — 킥은 빠른 이동이라 정밀 충돌이 필요하다
     }
 
     #if DEBUG
@@ -416,14 +437,14 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     /// 실제 흔들기는 **왕복 운동**이라 한 번 미는 것으론 재현이 안 된다 — 방향을 바꿔 3연타를 넣는다.
     func shakeBurst() {
         wake()   // 휴면 중이면 먼저 깨운다(멈춘 씬은 SKAction도 안 돈다)
-        kickChips(angle: .pi * 0.5, deltaV: shakeMaxDeltaV * 0.9)
+        kickChips(angle: .pi * 0.5, deltaV: Self.shakeMaxDeltaV * 0.9)
         let followUps: [CGFloat] = [-.pi * 0.35, .pi * 0.8]
         for (i, angle) in followUps.enumerated() {
             run(.sequence([
                 .wait(forDuration: 0.13 * Double(i + 1)),
                 .run { [weak self] in
                     guard let self else { return }
-                    self.kickChips(angle: angle, deltaV: self.shakeMaxDeltaV * 0.75)
+                    self.kickChips(angle: angle, deltaV: Self.shakeMaxDeltaV * 0.75)
                 },
             ]))
         }
@@ -534,8 +555,20 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
             if calmFrames >= calmThreshold {
                 if chipsHeldStill() {
                     forceSettle()
+                    #if DEBUG
+                    driftRetries = 0
+                    #endif
                 } else {
                     calmFrames = 0   // 아직 흐르는 중 — 창 재시작(스냅샷은 0→1 전이에서 갱신)
+                    #if DEBUG
+                    // 진단 — calm은 통과하는데 변위 검증만 계속 떨어지는 상태(느린 미끄러짐).
+                    // 이 실패 모드는 allChipsCalm()이 true라 logRestlessChipsIfNeeded가 안 돈다.
+                    driftRetries += 1
+                    if driftRetries % 4 == 0 {
+                        Logger(subsystem: "com.reffi.app", category: "scene")
+                            .debug("settle retry \(self.driftRetries): calm window passed but chips drifted > \(self.settleDrift, format: .fixed(precision: 0))pt")
+                    }
+                    #endif
                 }
             }
         } else {
@@ -548,6 +581,8 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
 
     #if DEBUG
     private var lastRestlessLog: TimeInterval = 0
+    /// calm 창은 통과했는데 변위 검증에서 되돌아온 횟수 — 안착이 반복 실패하는 상태의 관측구.
+    private var driftRetries = 0
     /// 진단 — calm 진입을 막는 칩의 속도/각속도를 1초에 한 번만 로그(콘솔 폭주 방지).
     private func logRestlessChipsIfNeeded(_ now: TimeInterval) {
         guard now - lastRestlessLog > 1 else { return }
@@ -571,7 +606,8 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         }
     }
 
-    /// 모든 칩이 조용한가 — 지터(v 4~30)를 포함하는 넉넉한 대역. 진짜 안착은 변위 검증이 가른다.
+    /// 모든 칩이 조용한가 — 관측 지터 대역(v 4~30)을 통째로 덮는 넉넉한 문턱(40).
+    /// 감쇠 플로어(14)와 값이 다른 것은 의도다(jitterFloor 주석). 진짜 안착은 변위 검증이 가른다.
     private func allChipsCalm() -> Bool {
         for node in chips.values {
             guard let b = node.physicsBody else { continue }
@@ -765,19 +801,17 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     /// 천장 **위**에 남은 칩을 상자 안으로 끌어들인다.
     ///
     /// 밀폐된 상자 바깥(위)에 놓인 칩은 스스로 못 들어온다 — 위로 기울인 상태면 그대로 떠올라
-    /// 감쇠(`jitterDamp`)에 얼어붙고, 그러면 씬이 안착으로 판정해 잠들어(`forceSettle`) `maintainCeiling`의
+    /// 화면 밖에 머물고, 그러면 씬이 안착으로 판정해 잠들어(`forceSettle`) `maintainCeiling`의
     /// 타임아웃이 **영영 돌지 않는다**(재료가 화면 밖에서 사라진 것처럼 보였다).
     /// 그래서 `maintainCeiling`의 지연 회수와 별개로, 천장이 내려오는 순간에도 즉시 회수한다.
-    /// 회수된 칩은 **떨어뜨린다** — 속도를 0으로 두면 천장 아래에 얼어붙은 채 나타나,
-    /// 실기기 피드백 "아이템이 갑자기 순간이동"처럼 읽혔다. 그 시점 중력 방향으로 220pt/s를
-    /// 실어 주면 눈이 '순간이동'이 아니라 '떨어져 더미로 돌아가는 중'으로 해석한다.
+    /// 회수된 칩은 **상자 안쪽으로 밀어 넣는다** — 속도를 0으로 두면 천장 아래에 얼어붙은 채
+    /// 나타나 실기기 피드백 "아이템이 갑자기 순간이동"처럼 읽혔다. 방향은 **항상 (0, −220)**,
+    /// 즉 천장에서 바닥을 향하는 고정 벡터다. 그 시점 중력 방향을 쓰면(v1.0 (4)) 기기를 뒤집어
+    /// 중력이 위를 향할 때 회수한 칩을 방금 빠져나온 천장으로 되쏘아, 법선이 중력과 나란한
+    /// 착지 접촉이 되어 회수분 전체가 동시에 스쿼시 + 달그락을 냈다.
     private func tuckStraysUnderCeiling() {
         let ceiling = sealedCeiling
-        let g = physicsWorld.gravity
-        let len = (g.dx * g.dx + g.dy * g.dy).squareRoot()
-        let drop: CGVector = len > 0
-            ? CGVector(dx: g.dx / len * 220, dy: g.dy / len * 220)
-            : CGVector(dx: 0, dy: -220)
+        let drop = CGVector(dx: 0, dy: -220)   // 상자 안쪽 고정 — 중력 방향과 무관
         for node in chips.values where node.position.y > ceiling {
             node.position.y = ceiling - chipSide * 0.5
             node.physicsBody?.velocity = drop
