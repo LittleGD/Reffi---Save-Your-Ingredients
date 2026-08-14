@@ -207,7 +207,7 @@ private struct ToBuySearchSheet: View {
         }
         .background(ReffiColor.canvas)
         // 검색 필드 + 목록/그리드 = 중간 목록·폼 버킷(§14.5): .medium은 진입 높이일 뿐이고, 카테고리
-        // 섹션까지 쌓이는 재료 배열은 스크롤·.large 승격을 전제한다(FREQUENT가 늘 첫 화면에 온다).
+        // 섹션까지 쌓이는 재료 배열은 스크롤·.large 승격을 전제한다(Frequent가 늘 첫 화면에 온다).
         .presentationDetents([.medium, .large], selection: $detent)
         .presentationDragIndicator(.visible)
         .presentationBackground(ReffiColor.canvas)
@@ -292,7 +292,7 @@ private struct ToBuySearchSheet: View {
     /// 삭제된 재료 픽커 시트의 **재료 배열 UI**를 그대로 되살린 자리 — 검색어가 비어 있는 동안 이
     /// 그리드가 시트를 채운다. 치수·구조는 원본 그대로다: 적응형 74~96pt 열 + 56pt 실루엣 타일,
     /// 섹션 간 s5 / 타일 간 s2, 모노 올캡 섹션 헤더. 순서도 원본과 같다 —
-    /// FREQUENT(빨리 담기 단축키) → 사전 전체를 카테고리로 묶은 섹션(`FoodGlyph.categoryOrder` — 냉장고 필터 칩과 같은 순서 상수).
+    /// Frequent(빨리 담기 단축키) → 사전 전체를 카테고리로 묶은 섹션(`FoodGlyph.categoryOrder` — 냉장고 필터 칩과 같은 순서 상수).
     /// **의미만 To buy 문맥이다**: 탭은 냉장고 반입이 아니라 `addToBuy`(장보기 메모)고, 시트는 닫히지
     /// 않으며, 이미 담긴 타일에는 결과 행과 같은 체크가 남는다.
     private var pickerGrid: some View {
@@ -301,7 +301,7 @@ private struct ToBuySearchSheet: View {
             GridTile(id: "freq-\($0.key)", name: $0.name, glyph: $0.glyph, key: $0.key)
         }
         return LazyVStack(alignment: .leading, spacing: ReffiSpace.s5) {
-            if !frequent.isEmpty { gridSection("FREQUENT", tiles: frequent, listed: listed) }
+            if !frequent.isEmpty { gridSection("Frequent", tiles: frequent, listed: listed) }
             ForEach(IngredientLexicon.shared.categorySections, id: \.category) { section in
                 gridSection(LocalizedStringKey(section.category),
                             tiles: section.entries.map {
@@ -317,12 +317,11 @@ private struct ToBuySearchSheet: View {
     private func gridSection(_ label: LocalizedStringKey, tiles: [GridTile],
                              listed: Set<String>) -> some View {
         VStack(alignment: .leading, spacing: ReffiSpace.s2) {
+            // 카테고리·Frequent는 **번역되는** 라벨이라 올캡 모노 role을 쓰지 않는다(§3.5) —
+            // 한국어에선 `.textCase(.uppercase)`가 무동작이라 올캡이라는 시각 문법이 사라지고
+            // 11pt에 자간 1.4만 남는다. 번역되는 섹션 라벨은 caption으로 내린다.
             Text(label)
-                .reffiType(.sectionLabel)
-                // 카테고리 헤더는 §13.5 패스 라벨 언어의 **예외로 로컬라이즈한다**(FREQUENT도 같은 규칙).
-                // `.textCase(.uppercase)`가 한국어에서 무동작인 것이지 라벨이 영문으로 남는 게 아니다 —
-                // 이 시점의 라벨은 이미 번역된 한국어다(ko: 채소/과일/…). 서체·색만 패스 라벨을 따른다.
-                .textCase(.uppercase)
+                .reffiType(.caption)
                 .foregroundStyle(ReffiColor.ink2)
             LazyVGrid(columns: Self.gridColumns, spacing: ReffiSpace.s2) {
                 ForEach(tiles) { tile($0, listed: listed.contains($0.key)) }

@@ -402,7 +402,8 @@ struct ProfileView: View {
 // MARK: - 재사용 컴포넌트
 
 /// 흰 영수증 카드 — Fridge 영수증(FridgeCard·ExpandedFridgeCard)과 같은 문법.
-/// 톱니(절취) 엣지 + 대문자 트래킹 헤더 + 점선 룰, 면은 그레인 없는 깨끗한 흰 종이.
+/// 톱니(절취) 엣지 + 헤더 + 점선 룰, 면은 그레인 없는 깨끗한 흰 종이.
+/// 헤더 라벨은 번역되는 문자열이라 올캡 모노 크롬이 아니라 `caption`을 쓴다(§3.5).
 struct ReceiptCard<Content: View>: View {
     let title: String
     var stamp: String? = nil        // 제목 옆 고무 도장(DDayStamp) — 스트릭 등
@@ -417,8 +418,11 @@ struct ReceiptCard<Content: View>: View {
 
         return VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .center) {
-                Text(title.uppercased())
-                    .reffiType(.monoEyebrow)
+                // 섹션 제목은 **번역되는** 문자열(취향·가구 인원·알림·내 레시피)이라 올캡 모노 크롬을
+                // 쓰지 않는다(§3.5) — 한글엔 대문자가 없어 `.uppercased()`가 no-op이 되고 10pt에
+                // 자간 1.6만 남는다. 문장형 라벨은 caption.
+                Text(title)
+                    .reffiType(.caption)
                     .foregroundStyle(ReffiColor.ink2)
                 if let stamp {
                     DDayStamp(text: stamp, color: ReffiColor.freshDark, size: 10)

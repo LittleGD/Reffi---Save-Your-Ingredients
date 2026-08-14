@@ -197,8 +197,9 @@ struct AuthView: View {
     private var dashRule: some View {
         HStack(spacing: ReffiSpace.s3) {
             line
+            // 번역되는 라벨(ko "또는")이라 올캡 모노 크롬이 아니라 caption(§3.5).
             Text("OR")
-                .reffiType(.monoEyebrow)
+                .reffiType(.caption)
                 .foregroundStyle(ReffiColor.muted)
             line
         }

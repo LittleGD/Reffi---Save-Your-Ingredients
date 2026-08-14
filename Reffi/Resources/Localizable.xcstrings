@@ -1103,16 +1103,6 @@
         }
       }
     },
-    "FREQUENT": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "자주 쓰는 재료"
-          }
-        }
-      }
-    },
     "FROZEN": {
       "localizations": {
         "ko": {
@@ -1209,6 +1199,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "냉동 유예 만료"
+          }
+        }
+      }
+    },
+    "Frequent": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "자주 쓰는 재료"
           }
         }
       }
