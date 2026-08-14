@@ -1219,7 +1219,17 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
           </div>
         </div>
 
-        <p class="subhead text">레이어링 (z-index 스케일)</p>
+        <p class="subhead text">카드 엘리베이션 — 오린 영수증 한 장 <span class="t-caption" style="color:var(--color-muted)">— MD §6.4</span></p>
+        <p class="t-caption text" style="color:var(--color-ink-2);margin-bottom:var(--space-4)">영수증 카드는 떠 있는 요소도 스택도 아니라 <strong>크림 캔버스에서 종이가 살짝 들린 만큼</strong>의 단일 그림자를 쓴다. 이 단은 오래도록 토큰 없이 카드마다 손으로 적혔고, 그 결과 같은 종이가 blur 5·4·3으로 갈렸다. 두 자리만 둔다. 떠 있는 네비는 이 축이 아니라 위 "떠 있는 요소"라 별개 값을 유지한다.</p>
+        <table class="tbl">
+          <thead><tr><th>토큰</th><th>값</th><th>용도</th></tr></thead>
+          <tbody>
+            <tr><td><code class="inline">reffiShadowCard()</code></td><td>ink 6% · blur 5 · y2</td><td>독립 영수증 카드(장보기·이력·편집 시트·스캔·펼친 상세)</td></tr>
+            <tr><td><code class="inline">reffiShadowCardCompact()</code></td><td>ink 6% · blur 4 · y2</td><td>겹쳐 쌓이거나 한 화면에 여러 장 반복되는 면(냉장고 카드 스택·간편보기 행·프로필 섹션 카드)</td></tr>
+          </tbody>
+        </table>
+
+        <p class="subhead text" style="margin-top:var(--space-6)">레이어링 (z-index 스케일)</p>
         <div class="z-stack">
           <div class="z-row"><span class="z-row__token">--z-sticky</span><span class="z-row__use">스티키 헤더·하단 액션바·스캐너</span><span class="z-row__z num">100</span></div>
           <div class="z-row"><span class="z-row__token">--z-dropdown</span><span class="z-row__use">드롭다운·팝오버</span><span class="z-row__z num">1000</span></div>
@@ -1421,6 +1431,7 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">판정·확정은 <code class="inline">.impact</code>(판정 light · 발주 medium 두 강도뿐), 성공 완료는 <code class="inline">.success</code>, 파괴 확인은 <code class="inline">.warning</code>인가 · 매핑 밖 강도를 새로 만들지 않았는가 · 정보성 전환에 햅틱을 넣지 않았는가 (§7.6)</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">레시피 대표 아이콘을 그리는 새 표면이 뷰에서 <code class="inline">DishGlyphCatalog</code>를 직접 부르지 않고 <code class="inline">Recipe.heroIcon</code>/<code class="inline">RecipeHeroIcon.session</code>만 쓰는가 (§13.7)</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">영수증 종이를 새로 그릴 때 톱니를 <code class="inline">ReffiTooth</code>로 지정했는가 — 숫자 리터럴 금지 (§13.8)</span></li>
+          <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">카드 그림자를 인라인 <code class="inline">.shadow(...)</code>가 아니라 <code class="inline">reffiShadowCard()</code>/<code class="inline">reffiShadowCardCompact()</code>로 얹었는가 (§6.4)</span></li>
         </ul>
       </section>
 

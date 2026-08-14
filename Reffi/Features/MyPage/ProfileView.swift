@@ -441,7 +441,7 @@ struct ReceiptCard<Content: View>: View {
         .padding(.bottom, ReffiSpace.s2 + toothH)
         .background(paper, in: shape)
         .paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
-        .shadow(color: ReffiColor.shadowTint.opacity(0.06), radius: 4, x: 0, y: 2)   // 약한 드롭섀도(Fridge와 동일)
+        .reffiShadowCardCompact()   // 스택 카드와 같은 얕은 단(Fridge와 동일)
     }
 }
 

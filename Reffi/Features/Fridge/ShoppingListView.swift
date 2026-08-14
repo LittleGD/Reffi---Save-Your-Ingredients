@@ -106,7 +106,7 @@ struct ShoppingListView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(ReffiColor.receipt, in: shape)
         .paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
-        .shadow(color: ReffiColor.shadowTint.opacity(0.06), radius: 5, x: 0, y: 2)
+        .reffiShadowCard()
     }
 
     /// 목록 한 줄 — 두 구역이 같은 문법을 쓴다(직접 담은 것도 제안과 똑같이 Add/Skip으로 처리한다).

@@ -236,6 +236,6 @@ struct HistoryView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(ReffiColor.receipt, in: shape)
             .paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
-            .shadow(color: ReffiColor.shadowTint.opacity(0.06), radius: 5, x: 0, y: 2)
+            .reffiShadowCard()
     }
 }

@@ -277,7 +277,7 @@ struct IngredientEditView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(ReffiColor.receipt, in: shape)
             .paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
-            .shadow(color: ReffiColor.shadowTint.opacity(0.06), radius: 5, x: 0, y: 2)
+            .reffiShadowCard()
     }
 
     /// 모노 올캡 섹션 라벨 — 오더 티켓 언어(§13.5). `ReceiptScanView` 쪽 카드와 동일 문법.
