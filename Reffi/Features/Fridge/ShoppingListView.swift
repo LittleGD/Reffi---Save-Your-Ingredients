@@ -83,7 +83,6 @@ struct ShoppingListView: View {
     /// 직접 담은 구역(맨 위) / 이력 제안 구역 — 두 구역은 캡션이 다르다(제안 캡션이 수동 항목까지
     /// 설명하면 거짓말이 된다). 목록은 한 번만 읽어 나눈다(파생 계산이 이력 전체를 훑는다).
     private var listCard: some View {
-        let shape = ReceiptShape(tooth: ReffiTooth.card)
         let rows = items
         let manual = rows.filter(\.manual)
         let suggested = rows.filter { !$0.manual }
@@ -101,12 +100,7 @@ struct ShoppingListView: View {
                 ForEach(suggested, id: \.key) { row($0) }
             }
         }
-        .padding(.horizontal, ReffiSpace.s5)
-        .padding(.vertical, ReffiSpace.s5 + 7)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(ReffiColor.receipt, in: shape)
-        .paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
-        .reffiShadowCard()
+        .receiptSurface()
     }
 
     /// 목록 한 줄 — 두 구역이 같은 문법을 쓴다(직접 담은 것도 제안과 똑같이 Add/Skip으로 처리한다).
@@ -164,17 +158,12 @@ struct ShoppingListView: View {
     }
 
     private var emptyCard: some View {
-        let shape = ReceiptShape(tooth: ReffiTooth.card)
-        return VStack(alignment: .leading, spacing: ReffiSpace.s2) {
+        VStack(alignment: .leading, spacing: ReffiSpace.s2) {
             Text("All stocked up").reffiType(.subhead).foregroundStyle(ReffiColor.ink)
             Text("Nothing you regularly use has run out.")
                 .reffiType(.body).foregroundStyle(ReffiColor.ink2)
         }
-        .padding(.horizontal, ReffiSpace.s5)
-        .padding(.vertical, ReffiSpace.s5 + 7)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(ReffiColor.receipt, in: shape)
-        .paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
+        .receiptSurface(elevated: .flat)
     }
 }
 
@@ -416,15 +405,10 @@ private struct ToBuySearchSheet: View {
     }
 
     private var noMatchCard: some View {
-        let shape = ReceiptShape(tooth: ReffiTooth.card)
-        return VStack(alignment: .leading, spacing: ReffiSpace.s2) {
+        VStack(alignment: .leading, spacing: ReffiSpace.s2) {
             Text("No match").reffiType(.subhead).foregroundStyle(ReffiColor.ink)
             Text("Try another name.").reffiType(.body).foregroundStyle(ReffiColor.ink2)
         }
-        .padding(.horizontal, ReffiSpace.s5)
-        .padding(.vertical, ReffiSpace.s5)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(ReffiColor.receipt, in: shape)
-        .paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
+        .receiptSurface(elevated: .flat)
     }
 }

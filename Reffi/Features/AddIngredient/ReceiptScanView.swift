@@ -419,8 +419,7 @@ private struct CandidateEditSheet: View {
     }
 
     private var fieldsCard: some View {
-        let shape = ReceiptShape(tooth: ReffiTooth.card)
-        return VStack(alignment: .leading, spacing: ReffiSpace.s3) {
+        VStack(alignment: .leading, spacing: ReffiSpace.s3) {
             TextField("Name", text: $candidate.name,
                       prompt: Text("Name").foregroundStyle(ReffiColor.ink2))
                 .reffiType(.body).foregroundStyle(ReffiColor.ink)
@@ -480,12 +479,7 @@ private struct CandidateEditSheet: View {
                 .reffiType(.body).foregroundStyle(ReffiColor.ink)
                 .frame(minHeight: 44)
         }
-        .padding(.horizontal, ReffiSpace.s5)
-        .padding(.vertical, ReffiSpace.s5 + 3)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(ReffiColor.receipt, in: shape)
-        .paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
-        .reffiShadowCard()
+        .receiptSurface()
     }
 
     private var actionBar: some View {

@@ -74,8 +74,7 @@ struct AuthView: View {
     // MARK: 영수증 카드 — 폼 + 소셜
 
     private var receiptCard: some View {
-        let shape = ReceiptShape(tooth: ReffiTooth.card)
-        return VStack(alignment: .leading, spacing: ReffiSpace.s4) {
+        VStack(alignment: .leading, spacing: ReffiSpace.s4) {
             HStack(alignment: .firstTextBaseline) {
                 Text(isSignIn ? "Log in" : "Sign up")
                     .reffiType(.heading).foregroundStyle(ReffiColor.ink)
@@ -117,12 +116,7 @@ struct AuthView: View {
 
             footer
         }
-        .padding(.horizontal, ReffiSpace.s5)
-        .padding(.vertical, ReffiSpace.s5 + 7)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(ReffiColor.receipt, in: shape)
-        .paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
-        .reffiShadow1()
+        .receiptSurface(elevated: .floating)
     }
 
     private var primaryTitle: String {

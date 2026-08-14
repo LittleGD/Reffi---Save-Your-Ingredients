@@ -354,11 +354,15 @@ struct OnboardingView: View {
     }
 
     /// 미니 영수증 셸 — Fridge 카드와 같은 흰 영수증(톱니), 살짝 틸트로 종이 무드.
+    ///
+    /// `receiptSurface`를 타지 않는 유일한 영수증 면이다 — 272pt 고정폭 소품이라 세로 여백 기준이
+    /// 카드(s5)가 아니라 한 단 아래(s4)이고, 폭도 컨테이너를 채우지 않는다. 다만 **톱니 보정은 같은
+    /// 공식**(base + tooth)을 쓴다 — 톱니를 바꿨을 때 이 소품만 어긋나지 않게.
     private func miniReceipt<C: View>(seed: Int, @ViewBuilder _ content: () -> C) -> some View {
         let shape = ReceiptShape(tooth: ReffiTooth.chip)
         return content()
             .padding(.horizontal, ReffiSpace.s5)
-            .padding(.vertical, ReffiSpace.s4 + 6)
+            .padding(.vertical, ReffiSpace.s4 + ReffiTooth.chip)
             .frame(width: 272)
             .background(ReffiColor.receipt, in: shape)
             .paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
@@ -464,8 +468,7 @@ struct OnboardingView: View {
     /// 질문 페이지 공통 — 흰 영수증 카드에 질문 + 컨트롤. 셋업 3장은 전부 중앙정렬(§UX).
     private func questionPage<C: View>(title: LocalizedStringKey, body copy: LocalizedStringKey,
                                        @ViewBuilder control: () -> C) -> some View {
-        let shape = ReceiptShape(tooth: ReffiTooth.card)
-        return VStack(spacing: 0) {
+        VStack(spacing: 0) {
             Spacer(minLength: 0)
             VStack(alignment: .center, spacing: ReffiSpace.s4) {
                 Text(title)
@@ -477,12 +480,7 @@ struct OnboardingView: View {
                 control()
                     .padding(.top, ReffiSpace.s2)
             }
-            .padding(.horizontal, ReffiSpace.s5)
-            .padding(.vertical, ReffiSpace.s5 + 7)
-            .frame(maxWidth: .infinity, alignment: .center)
-            .background(ReffiColor.receipt, in: shape)
-            .paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
-            .reffiShadow1()
+            .receiptSurface(alignment: .center, elevated: .floating)
             .padding(.horizontal, ReffiGrid.margin)
             Spacer(minLength: 0)
         }

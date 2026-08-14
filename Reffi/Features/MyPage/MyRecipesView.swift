@@ -356,14 +356,8 @@ struct RecipeEditorView: View {
 
     /// 흰 영수증 카드 — `IngredientEditView`·`CandidateEditSheet`와 같은 면(오린 톱니 + 헤어라인 + 옅은 그림자).
     private func receiptCard<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
-        let shape = ReceiptShape(tooth: ReffiTooth.card)
-        return VStack(alignment: .leading, spacing: ReffiSpace.s3) { content() }
-            .padding(.horizontal, ReffiSpace.s5)
-            .padding(.vertical, ReffiSpace.s5 + 3)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(ReffiColor.receipt, in: shape)
-            .paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
-            .reffiShadowCard()
+        VStack(alignment: .leading, spacing: ReffiSpace.s3) { content() }
+            .receiptSurface()
     }
 
     /// 모노 올캡 섹션 라벨 — 오더 티켓 언어(§13.5). `IngredientEditView`의 헬퍼와 동일 문법.
