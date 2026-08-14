@@ -114,6 +114,7 @@
   - **시트 진입** = 조용한 `chevron` 행.
   - `chevron` 자체는 양쪽에 허용하되, 위계 차이로 무게를 구분.
 - **적용**: 커버를 여는 진입점은 CTA 스타일로, 시트를 여는 진입점은 chevron 행으로 정렬. (감사 대상: `FridgeView` 요약카드, `MainView` cookingNow, `ProfileView` SettingsRow, `AddIngredientSheet` scanCard.)
+  - 반영 완료(2026-08-13): `MainView` **Cooking now**가 마지막 편차였다 — 풀스크린 조리 커버를 열면서 조용한 톱니 영수증 행이라, 진행 중 세션 복귀가 과소 표현됐다(감사 R3-3). `FridgeView` 요약카드와 같은 **CTA 셰입**(`PaperCutRect` + `PaperGrain` + `shadow-1`, minHeight 56)으로 올렸다. **색은 종이 면 그대로** — 셰입만 CTA급이고 blue 솔리드 면은 `Start cooking` 하나다(§2.4). 같은 슬롯의 **알림 배너는 커버를 열지 않으므로 영수증 스트립을 유지**해, 한 자리에 번갈아 뜨는 두 카드가 셰입만으로 전환 결과를 예고한다.
 
 ### 룰 ⑪ — 시트 높이(detent) = 콘텐츠 양별 3단
 - **현행 편차**: `.medium` / 고정높이(`.height(260/300)`) / 미설정(풀높이)이 기준 없이 혼재. `AuthView`·`RecipeEditor` 등은 detent 없이 무조건 풀높이. — **해소(2026-08-13)**: `RecipeEditorView`는 `.medium/.large`로, `AuthView`는 `.large` 단일 단으로 이관해 미설정 시트가 0이 됐다(선언 위치는 "시트 설정은 시트 안에서" 관례대로 각 뷰 내부).

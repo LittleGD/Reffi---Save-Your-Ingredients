@@ -407,7 +407,10 @@ struct MainView: View {
 
     // MARK: - Cooking now (발주 진행 카드)
 
-    /// 발주 후 "지금 요리 중" — 미니 영수증 스트립. 탭하면 단계별 레시피로 복귀(완료는 그 화면에서).
+    /// 발주 후 "지금 요리 중" — 탭하면 단계별 레시피로 복귀(완료는 그 화면에서).
+    /// 셰입은 CTA급(§13.5 `PaperCutRect` + 그레인 + `shadow-1`)이다 — 룰 ⑩이 규정한
+    /// "몰입 커버 진입 = 눈에 띄는 CTA"에 맞춘다(감사 R3-3). 색은 종이 면을 유지해
+    /// 바로 아래 Start cooking(blue 솔리드)과 경쟁하지 않는다.
     private func cookingNowCard(_ cook: FridgeStore.CookSession) -> some View {
         Button { showSteps = true } label: {
             HStack(spacing: ReffiSpace.s3) {
@@ -426,14 +429,17 @@ struct MainView: View {
                 Spacer(minLength: ReffiSpace.s2)
                 ReffiIcon.chevron.reffi(15, .bold).foregroundStyle(ReffiColor.blueDark)
             }
-            .padding(.horizontal, ReffiSpace.s4)
-            .padding(.vertical, ReffiSpace.s2 + 2)
-            .frame(minHeight: 44)
+            .padding(.horizontal, ReffiSpace.s5)
+            .padding(.vertical, ReffiSpace.s3)
+            .frame(minHeight: 56)
             .background {
-                let shape = ReceiptShape(tooth: ReffiTooth.chip)
-                shape.fill(ReffiColor.paper).paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
+                let s = PaperCutRect(seed: 5)                      // 메인 CTA(PaperButton)와 같은 8각형
+                s.fill(ReffiColor.paper)
+                    .overlay(PaperGrain(seed: 27, strength: 0.7).clipShape(s))   // 옅은 질감
+                    .paperEdge(s, tint: ReffiColor.ink.opacity(0.06), width: 1)
+                    .compositingGroup()
+                    .reffiShadow1()
             }
-            .reffiShadow1()
             .contentShape(Rectangle())
         }
         .buttonStyle(.paperPress)
