@@ -251,7 +251,8 @@
 
 ### 3.3 운용 규칙
 - **화면당 위계 ≤ 3.** 예: Heading + Body + Caption. Display는 표지/온보딩/빈 상태에서 단독 주인공으로.
-- **화면당 텍스트 계층 상한: 정보 표면 4 · 행동 표면 7.** 정보 표면은 §3.2의 5단계 중 최대 4종(위 규칙과 동일 취지), 행동 표면(§3.5)은 §3.2 잔존 1~2종 + §3.5 9종 중 화면에 실제 쓰인 조합을 합쳐 최대 7종 — 한 화면에 인접한 텍스트가 서로 구분 안 될 만큼 촘촘한 계단을 쌓지 않는다.
+- **화면당 텍스트 계층 상한: 7종.** 표면 종류와 무관한 **단일 상한**이다 — §3.2 5단계와 §3.5 보조 스케일 중 한 화면에 실제 렌더되는 서로 다른 처리를 모두 합쳐 7종을 넘기지 않는다. 한 화면에 인접한 텍스트가 서로 구분 안 될 만큼 촘촘한 계단을 쌓지 않는다.
+  옛 규칙은 "정보 표면 4 · 행동 표면 7" 이원 상한이었지만, 표면 구분의 전제(§3.5는 행동 표면에만 쓴다)가 출하 코드에서 이미 무너져 있었고(냉장고 리스트·설정·전역 탭바가 모두 보조 role을 쓴다) 위반이 예외가 아니라 기본값이면 상한 자체가 강제력을 잃는다. 코드를 정본으로 인정하고 상한을 하나로 합쳤다.
 - **줄바꿈은 어절 경계에서만, 고아 단어 금지.**
   ```css
   word-break: keep-all;     /* 한글: 어절(공백) 경계에서만 줄바꿈 */
@@ -270,9 +271,20 @@
 - **D-day 표기는 앱 전역 한 포맷터에서만 나온다** — `Ingredient.dDayText`(`Overdue` / `Today` / `Nd`). 온보딩 데모·장식 티켓도 예외 없이 이 포맷터를 타고, 색도 같은 `Freshness(daysLeft:)`에서 파생시킨다. 화면마다 표기를 손으로 적으면 온보딩이 가르친 표기("D-2")를 본 앱이 한 번도 쓰지 않는 일이 실제로 생긴다.
 - **수치는 로케일 포맷터(`FormatStyle`)로 만든다** — `String(format:)`·문자열 접합은 로케일을 타지 않아 소수 구분자를 항상 마침표로 찍고 그룹 구분자를 빼먹는다. 수량은 `value.formatted(.number.precision(.fractionLength(0...1)))`(`Quantity.text`), 비율은 `.formatted(.percent)`(퍼센트 기호 위치·간격도 로케일이 정한다), 날짜는 `.formatted(date:time:)`. **숫자와 단위 사이는 줄바꿈 없는 공백**(`\u{00A0}`)으로 묶어 행 끝에서 "300"과 "g"가 갈라지지 않게 한다.
 
-### 3.5 보조 스케일 (행동 표면) — §3.2 5단계 밖, 9종
+### 3.5 보조 스케일 — §3.2 5단계 밖, 9종
 
-§3.2의 5단계는 **정보 표면**(카드 스택·리스트·설정 등 "읽는" 화면) 전용이다. **행동 표면**(재료·버튼·티켓 등 "지금 행동"하는 §13 표면)은 별도 보조 스케일 9종만 쓴다 — 정보 표면에는 쓰지 않는다(§3.3). iOS 구현은 `ReffiActionRole`(`ReffiTypography.swift`) — `ReffiTextRole`과 동일 패턴(`reffiType(_:)` 오버로드)으로 폰트·자간을 role에 내장한다.
+§3.2의 5단계(Display~Caption)가 문서 위계라면, 여기 9종은 **컴포넌트 위계**다 — 라벨·크롬·칩·리스트 항목처럼 문장이 아니라 부품에 붙는 글자를 다룬다. **표면을 가리지 않는 공통 스케일**이고, 화면당 총량은 §3.3의 단일 상한(≤7)이 잡는다. iOS 구현은 `ReffiActionRole`(`ReffiTypography.swift`) — `ReffiTextRole`과 동일 패턴(`reffiType(_:)` 오버로드)으로 폰트·자간을 role에 내장한다.
+
+> 옛 문구는 "행동 표면 전용 · 정보 표면에는 쓰지 않는다"였다. 그러나 `sectionLabel`·`monoEyebrow`·`metaText`·`checklistItem` 네 종은 냉장고 리스트·프로필 설정·전역 탭바에서 **이미 기본값**으로 쓰이고 있었고(코드 정본 원칙), 지킬 수 없는 경계는 상한 규칙까지 무력화한다. 이 네 종을 공통 보조 스케일로 승격하고 표면 구분 문구를 삭제했다.
+
+**용도가 겹치는 두 쌍은 아래 기준으로 가른다.**
+
+| 갈림길 | 쓰는 쪽 | 기준 |
+|---|---|---|
+| `caption`(14) vs `metaText`(13) | `caption` | **문장형 메타** — 부제·설명·안내처럼 읽는 문장(§3.2 위계의 막내) |
+| | `metaText` | **데이터형 메타** — "35 min · 4 to use", 라벨=값, 타임스탬프처럼 훑는 값 |
+| `monoTicketLabel`/`monoEyebrow`/`sectionLabel` | 셋 다 | **번역하지 않는 라틴 크롬 전용**(verbatim). 올캡·광자간이 시각 문법인데 한글엔 대문자가 없어, 번역되는 라벨에 쓰면 `.uppercased()`가 no-op이 되고 10~11pt에 자간만 남는다 |
+| | 대신 `caption` | 번역되는 섹션 라벨(취향·가구 인원·알림·자주 쓰는 재료 등)은 `caption`으로 내린다 |
 
 | role | 스펙 (family·size·tracking·relativeTo) | 용도 |
 |---|---|---|
@@ -280,8 +292,8 @@
 | `monoEyebrow` | Pretendard Bold 10 / 자간 1.6 / `.caption2` | 초소형 올캡 라벨 — "MORNING ALERTS"·"COOKING NOW"·"REFFI · KEEP IT FRESH"(영수증 푸터) |
 | `sectionLabel` | Pretendard SemiBold 11 / 자간 1.4 / `.caption2` | 섹션 라벨 — "RECIPE"·"INGREDIENTS"·"ITEM"·"DETAILS"(폼·영수증 명세) |
 | `menuName` | Pretendard Bold 26 / 자간 −0.3 / `.title2` | 티켓·레시피 메뉴명 |
-| `metaText` | Pretendard Medium 13 / `.caption` | 보조 메타 — 시간·개수·설명·힌트 |
-| `pillLabel` | Pretendard SemiBold 13 / `.caption` | 필/버튼 라벨 — Undo·Add·Skip·Turn on·Later·판정 키커 |
+| `metaText` | Pretendard Medium 13 / `.caption` | **데이터형 메타** — 시간·개수·타임스탬프·판정 키커. 문장형 메타는 `caption`(14) |
+| `pillLabel` | Pretendard SemiBold 13 / `.caption` | 필/버튼 라벨 — Undo·Add·Skip·Turn on·Later |
 | `badgeLabel` | Pretendard SemiBold 15 / 자간 −0.15 / `.subheadline` | 뱃지·아이콘버튼·칩 라벨(`PaperIconButton`·`IngredientBadge`·`AddBadge`) |
 | `checklistItem` | Pretendard SemiBold 16 / `.body` | 체크리스트·재료 리스트 항목명 |
 | `stampLabel` | Pretendard Bold 34 / 자간 3 / `.largeTitle` | START 등 도장 텍스트(고정 34pt) |

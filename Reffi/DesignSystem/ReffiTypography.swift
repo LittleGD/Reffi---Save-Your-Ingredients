@@ -8,7 +8,7 @@ enum ReffiTextRole {
     case heading   // 제목
     case subhead   // 소제목 · 카드 이름
     case body      // 본문
-    case caption   // 캡션 · 라벨
+    case caption   // 캡션 · 라벨 — 문장형 메타(부제·설명·안내). 데이터형 메타는 §3.5 metaText
 }
 
 extension ReffiTextRole {
@@ -79,16 +79,23 @@ extension Font {
     }
 }
 
-/// 보조 스케일(행동 표면, §3.3 밖 · §13.5) — §3의 5단계 정보 위계에는 쓰지 않는다.
-/// 액션/뱃지·티켓·픽커 등 "지금 행동" 표면(재료·버튼·티켓)에만 쓰는 9종. `ReffiTextRole`과 동일 패턴
-/// (font/tracking + `reffiType` 오버로드)으로 raw `.custom("Pretendard-*")` 산발 지정을 대체한다.
+/// 보조 스케일(§3.5) — §3.2의 5단계가 **문서 위계**라면 이 9종은 **컴포넌트 위계**다:
+/// 라벨·크롬·칩·리스트 항목처럼 문장이 아니라 부품에 붙는 글자. **표면을 가리지 않는 공통 스케일**이고,
+/// 화면당 총량은 §3.3의 단일 상한(계층 ≤ 7종)이 잡는다.
+/// `ReffiTextRole`과 동일 패턴(font/tracking + `reffiType` 오버로드)으로 raw `.custom("Pretendard-*")`
+/// 산발 지정을 대체한다.
+///
+/// 갈림길 둘:
+/// - `caption`(14) = **문장형** 메타(부제·설명·안내) / `metaText`(13) = **데이터형** 메타(시간·개수·타임스탬프).
+/// - `monoTicketLabel`·`monoEyebrow`·`sectionLabel` = **번역하지 않는 라틴 크롬 전용**(verbatim).
+///   올캡·광자간이 시각 문법인데 한글엔 대문자가 없어, 번역되는 라벨엔 쓰지 않는다 — 그건 `caption`.
 enum ReffiActionRole {
-    case monoTicketLabel   // 오더 티켓 모노 헤더 — "ORDER"·"ORDER · FIRED"
-    case monoEyebrow       // 초소형 올캡 라벨 — 서브헤더·배지 타이틀·구분선 문구
-    case sectionLabel      // 섹션 라벨 — "ON THE TICKET"·"PREP"·"ITEM" 등 모노 올캡
+    case monoTicketLabel   // 티켓 인쇄 크롬 전부 — 크라운("ORDER · REFFI KITCHEN"·"ORDER · FIRED")·"#NN"·"ON THE TICKET"
+    case monoEyebrow       // 초소형 올캡 라벨(비번역 라틴) — "MORNING ALERTS"·"REFFI · KEEP IT FRESH"
+    case sectionLabel      // 섹션 라벨(비번역 라틴) — "RECIPE"·"INGREDIENTS"·"ITEM"·"DETAILS"
     case menuName          // 티켓/레시피 메뉴명
-    case metaText          // 보조 메타 — 시간·개수·설명·힌트
-    case pillLabel         // 필/버튼 라벨 — Undo·Add·Skip·Turn on·Later 등
+    case metaText          // 데이터형 메타 — 시간·개수·타임스탬프·판정 키커(문장형은 caption)
+    case pillLabel         // 필/버튼 라벨 — Undo·Add·Skip·Turn on·Later
     case badgeLabel        // 뱃지·아이콘버튼·칩 라벨
     case checklistItem     // 체크리스트·재료 리스트 항목명
     case stampLabel        // START 등 도장 텍스트(고정 34) — 가변 크기는 `Font.reffiStamp` 참고
@@ -126,7 +133,7 @@ extension ReffiActionRole {
 }
 
 extension View {
-    /// 보조 스케일(행동 표면) 적용(폰트+자간) — §13.5. 정보 표면에는 쓰지 않는다(§3.3, 화면당 상한 별도).
+    /// 보조 스케일 적용(폰트+자간) — §3.5. 표면 구분 없이 쓰고, 화면당 계층 상한(≤7)은 §3.3이 잡는다.
     func reffiType(_ role: ReffiActionRole) -> some View {
         self.font(role.font).tracking(role.tracking)
     }
