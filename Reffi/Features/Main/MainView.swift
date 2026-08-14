@@ -41,6 +41,10 @@ struct MainView: View {
     @State private var uncoveredSnapshot: [String] = []
     @State private var firedTicket = false         // 커버당 발주 1회 — 슬램 창의 더블 파이어 방지
     @State private var coverGeneration = 0         // 지연 닫기 타이머가 새로 연 커버를 닫지 못하게
+    /// 덱 위에 To buy 커버가 떠 있는가 — 발주 지연 닫기가 **부모를 닫으며 이 자식까지 걷어가는 것**을 막는다.
+    @State private var toBuyOverDeck = false
+    /// 그 이유로 미뤄 둔 덱 닫기의 커버 세대(nil = 미뤄 둔 것 없음). To buy가 닫히면 이어서 닫는다.
+    @State private var pendingDeckDismiss: Int?
     @State private var fireHaptic = 0
     @State private var decisionHaptic = 0
 
@@ -134,7 +138,7 @@ struct MainView: View {
                                uncoveredNames: uncoveredSnapshot,
                                onClose: { showCarousel = false },
                                onFire: fire,
-                               onAddMissing: { store.addMissingToBuy($0) })
+                               onToBuyPresentationChange: toBuyCoverDidChange)
         }
         .fullScreenCover(isPresented: $showSteps) {
             CookingStepsView(onClose: { showSteps = false })
@@ -621,10 +625,28 @@ struct MainView: View {
         snapshotCarousel()   // 발주로 store가 바뀌어도 커버 입력은 고정(재랭크 방지)
         firedTicket = false
         coverGeneration += 1                 // 이전 발주의 지연 닫기 타이머 무효화
+        pendingDeckDismiss = nil             // 이전 사이클이 미뤄 둔 닫기도 함께 무효(세대 검사와 이중 안전)
         // 커버 표시를 한 틱 지연 — 80레시피 스코어링(carouselResults)과 커버 첫 프레임이
         // 같은 틱에 겹쳐 프레임드롭 나지 않게 랭킹 계산 틱과 표시 틱을 분리한다.
         DispatchQueue.main.async { showCarousel = true }
     }
+
+    /// 발주 슬램을 보여주는 시간 — 이 뒤에 덱 커버가 스스로 닫히고 조리 화면으로 넘어간다.
+    /// **프로덕션 값은 1.25초 고정이다.** DEBUG에서만 `-fireDismissDelay <초>`로 늘릴 수 있는데,
+    /// 이 창 안에서 중첩 커버(To buy)를 여는 경쟁 상태는 XCUITest가 탭마다 app-idle을 기다리는 탓에
+    /// (실측: 엘리먼트 탭 1.25초 · 좌표 탭 1.40초 — 창을 재는 그 전환이 곧 대기 대상이다)
+    /// 기본값으로는 **자동화가 창 안에 들어갈 수 없어** 회귀 테스트를 못 만든다. 창만 넓히고
+    /// 닫기 로직은 그대로 태워, 테스트가 실제 코드 경로를 검증하게 한다(`-tiltLab.x` 선례와 같은 결).
+    static let fireDismissDelay: TimeInterval = {
+        #if DEBUG
+        let args = ProcessInfo.processInfo.arguments
+        if let i = args.firstIndex(of: "-fireDismissDelay"), i + 1 < args.count,
+           let seconds = Double(args[i + 1]), seconds > 0 {
+            return seconds
+        }
+        #endif
+        return 1.25
+    }()
 
     /// 티켓 발주(Fire the Ticket) — used 재료를 이 레시피로 전량 소비 처리 → 슬램 본 뒤 커버 닫기.
     /// 되돌리기 토스트는 store의 통합 undo가 띄운다. 커버당 1회만(더블 파이어 방지).
@@ -636,9 +658,27 @@ struct MainView: View {
         // 메인 뱃지·씬 변화는 커버 뒤라 애니메이션이 필요 없다(전환 프레임드롭 방지).
         store.cook(result)
         let gen = coverGeneration
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.25) {
-            if coverGeneration == gen { showCarousel = false }   // 새로 연 커버는 닫지 않는다
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.fireDismissDelay) {
+            guard coverGeneration == gen else { return }   // 새로 연 커버는 닫지 않는다
+            // 덱 위에 To buy가 떠 있으면 지금 닫지 않는다 — 부모 커버를 닫으면 그 위의 자식까지
+            // 함께 걷혀(실측 확인), 사용자가 방금 연 장보기 목록이 손에서 사라지고 조리 화면에 떨어진다.
+            // "Add to To buy" 칩은 발주 후에도 살아 있는 게 설계 의도라(§13.5 ⑩) 이 창은 실제로 열린다.
+            // 전환을 취소하는 게 아니라 **미룬다** — To buy를 닫는 순간 이어서 조리 화면으로 간다.
+            if toBuyOverDeck {
+                pendingDeckDismiss = gen
+            } else {
+                showCarousel = false
+            }
         }
+    }
+
+    /// 덱이 자기 위에 띄운 To buy 커버의 표시 상태 변화 — 미뤄 둔 발주 전환을 여기서 이어 붙인다.
+    /// 세대(`coverGeneration`)를 함께 확인해, 미루는 사이에 새 발주 사이클이 시작됐으면 조용히 버린다.
+    private func toBuyCoverDidChange(_ presented: Bool) {
+        toBuyOverDeck = presented
+        guard !presented, let gen = pendingDeckDismiss else { return }
+        pendingDeckDismiss = nil
+        if coverGeneration == gen { showCarousel = false }
     }
 }
 

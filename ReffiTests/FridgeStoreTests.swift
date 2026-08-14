@@ -547,6 +547,34 @@ struct FridgeStoreTests {
         #expect(store.toBuy.isEmpty)
     }
 
+    // MARK: 티켓의 부족 재료 → 살 것 (OrderMemoCard "Add to To buy")
+
+    @Test func missingTicketItemsLandInToBuyWithCanonicalKeys() throws {
+        // 카드가 하는 일을 그대로 태운다: result.missing → toBuyEntry → addToBuy.
+        // 표시명("gim (seaweed sheets)"·"water (or anchovy stock)")을 store에 그대로 넘기면
+        // 이름 역조회(포함 매칭)가 괄호 **안** 단어에 붙어 엉뚱한 품목 키가 박힌다
+        // (실측: 앞은 우연히 맞고, 뒤는 anchovy로 간다). 뷰 유닛 테스트가 없는 영역이라 여기가 방지선.
+        let recipe = Recipe(id: "gimbap-test",
+                            name: Recipe.LocalizedName(en: "Gimbap", ko: nil),
+                            cuisine: nil, minutes: 30,
+                            ingredients: [Recipe.Item(ref: "seaweed", en: "gim (seaweed sheets)", ko: "김밥용 김"),
+                                          Recipe.Item(ref: nil, en: "water (or anchovy stock)", ko: nil)],
+                            steps: Recipe.LocalizedSteps(en: [], ko: nil), isUser: nil)
+        let store = FridgeStore(ingredients: [], recipes: [recipe], history: [])
+        let result = RecipeRecommender.result(for: recipe, ingredients: [])
+        #expect(result.missing.count == 2)   // 둘 다 비-상비 미보유
+
+        for item in result.missing {
+            let entry = RecipeRecommender.toBuyEntry(for: item)
+            store.addToBuy(name: entry.name, canonicalID: entry.canonicalID, glyph: entry.glyph)
+        }
+        #expect(Set(store.manualToBuy.map(\.matchKey)) == ["seaweed", "water"])
+
+        let gim = try #require(store.manualToBuy.first { $0.matchKey == "seaweed" })
+        #expect(gim.glyph == .seaweed)      // 사전 글리프 — 이름 추측이 아니다
+        #expect(!gim.name.contains("("))    // 목록에 조리 지시가 아니라 재료명이 남는다
+    }
+
     // MARK: 자주 쓰는 재료 칩 (검색 시트 빈 쿼리 상태)
 
     @Test func frequentIngredientsRankByHistoryCount() {

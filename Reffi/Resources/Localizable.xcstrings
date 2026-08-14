@@ -403,6 +403,16 @@
         }
       }
     },
+    "Add to To buy": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "살 것에 담기"
+          }
+        }
+      }
+    },
     "Add to list": {
       "localizations": {
         "ko": {
@@ -459,6 +469,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "직접 담은 것"
+          }
+        }
+      }
+    },
+    "Adds the missing ingredients and opens your To buy list": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "부족한 재료를 담고 살 것 목록을 엽니다"
           }
         }
       }

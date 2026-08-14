@@ -258,6 +258,46 @@ struct RecommenderTests {
         #expect(RecipeRecommender.matches(ing("닭고기"), chicken))
     }
 
+    // MARK: - 부족 재료 → 장보기 메모 매핑 (표시명 역조회 금지)
+
+    @Test func toBuyEntryTrustsRefOverParentheticalText() {
+        // 시드 표기는 괄호 주석을 달고 다닌다("pork (or beef)") — 이름 역조회는 포함 매칭이라
+        // 괄호 **안** 단어에 먼저 걸린다. ref가 있으면 그게 정본이고, 표기도 사전 표제어로 정리된다.
+        let pork = Recipe.Item(ref: "pork", en: "pork (or beef)", ko: nil)
+        #expect(IngredientLexicon.shared.canonicalID(for: pork.en) == "beef")   // 역조회의 함정(회귀 고정)
+        let entry = RecipeRecommender.toBuyEntry(for: pork)
+        #expect(entry.canonicalID == "pork")
+        #expect(entry.glyph == .meat)
+        #expect(!entry.name.contains("("))   // 장보기 목록은 조리 지시가 아니라 살 것을 적는 자리
+
+        // 괄호가 다른 재료를 통째로 품는 경우("gim (seaweed sheets)")도 ref가 이긴다.
+        let gim = RecipeRecommender.toBuyEntry(for: Recipe.Item(ref: "seaweed",
+                                                                en: "gim (seaweed sheets)", ko: "김밥용 김"))
+        #expect(gim.canonicalID == "seaweed")
+        #expect(gim.glyph == .seaweed)
+    }
+
+    @Test func toBuyEntryStripsParentheticalsFromUnresolvedLines() {
+        // ref도 없고 정확 일치도 없는 서술형 라인 — 괄호를 떼야 재료명이 남는다.
+        // 원문 그대로 store에 넘기면 이름 역조회가 멸치(anchovy)에 붙는다.
+        let water = Recipe.Item(ref: nil, en: "water (or anchovy stock)", ko: nil)
+        #expect(RecipeRecommender.canonicalID(of: water) == nil)
+        #expect(IngredientLexicon.shared.canonicalID(for: water.en) == "anchovy")   // 함정 고정
+        let entry = RecipeRecommender.toBuyEntry(for: water)
+        #expect(entry.name == "water")
+        #expect(entry.canonicalID == nil)   // 해석은 store가 정리된 이름으로 다시 한다
+    }
+
+    @Test func toBuyEntryKeepsTextWhenParenthesesAreUnbalanced() {
+        // 커스텀 레시피의 오타로 괄호가 안 닫히면, 뒤를 통째로 잘라 이름을 조용히 줄이는 것보다
+        // 사용자가 적은 표기를 그대로 두는 편이 안전하다("Sauce (soy" → "Sauce"가 되면 안 된다).
+        let typo = Recipe.Item(ref: nil, en: "Sauce (soy", ko: nil)
+        #expect(RecipeRecommender.toBuyEntry(for: typo).name == "Sauce (soy")
+        // 짝이 맞는 경우는 종전대로 괄호를 떼고 정리한다(회귀 대비 대조군).
+        let balanced = Recipe.Item(ref: nil, en: "Sauce (soy sauce)", ko: nil)
+        #expect(RecipeRecommender.toBuyEntry(for: balanced).name == "Sauce")
+    }
+
     // MARK: - 프로필 취향 반영(§5.2 선호 → 랭킹 실배선)
 
     /// 스토어 로드처럼 canonicalID를 해석해 둔 재료(matchKey가 캐논 키가 되게).

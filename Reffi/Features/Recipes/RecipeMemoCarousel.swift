@@ -18,8 +18,9 @@ struct RecipeMemoCarousel: View {
     var uncoveredNames: [String] = []
     var onClose: () -> Void
     var onFire: (RecipeRecommender.Result) -> Void = { _ in }
-    /// Short 행의 To buy 원탭 — 부족 재료 이름들을 받아 **새로 담긴 수**를 돌려준다(스토어 배선).
-    var onAddMissing: (([String]) -> Int)?
+    /// 덱이 자기 위에 띄운 To buy 커버의 표시 상태를 부모에게 알린다 — 부모(`MainView`)의 발주 지연
+    /// 닫기가 **이 자식이 떠 있는 동안에는 부모를 닫지 않도록**. 커버 계층을 아는 건 덱뿐이라 덱이 말한다.
+    var onToBuyPresentationChange: (Bool) -> Void = { _ in }
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.openURL) private var openURL
@@ -39,6 +40,9 @@ struct RecipeMemoCarousel: View {
     /// `CoverHeader`는 s4(16) + 44 + s3(12) = 72이라 초기값도 72지만, 큰 글씨에서 타이틀·부제가
     /// 2줄로 접히면 그만큼 자란다 — 고정 72로 두면 헤더가 브리지 행을 통째로 덮는다.
     @State private var headerHeight: CGFloat = 72
+    /// 부족 재료를 담은 뒤 여는 To buy 커버. **덱 위에** 띄운다 — 덱 자체가 이미 풀스크린 커버라
+    /// 메인(`MainView`)에서 열면 커버 2장을 동시에 요구하게 되고, 닫았을 때 티켓으로 못 돌아온다.
+    @State private var showToBuy = false
 
     /// 수평 플릭 커밋 임계(예측 변위 width) — 넘기면 부호가 곧 의미다(+ Cook / − Pass).
     private let flickCommit: CGFloat = 160
@@ -70,6 +74,10 @@ struct RecipeMemoCarousel: View {
             }
         }
         .onAppear { order = Array(results.indices) }
+        // History·To buy는 앱 전역에서 하단에서 올라오는 풀스크린 커버다(`FridgeView`와 같은 진입).
+        .fullScreenCover(isPresented: $showToBuy) { ShoppingListView() }
+        // 열림·닫힘 **양쪽** 모두 부모에게 알린다 — 닫힘 통지가 미뤄 둔 발주 전환을 재개시킨다.
+        .onChange(of: showToBuy) { _, presented in onToBuyPresentationChange(presented) }
     }
 
     // MARK: - 티켓 덱 (뒤 종이 = 실제 다음 티켓)
@@ -97,11 +105,9 @@ struct RecipeMemoCarousel: View {
                       // 노출 띠(14pt)는 글자 없는 종이로 고정한다.
                       peek: depth >= 1,
                       onFire: { fire(results[idx]) },
+                      onOpenToBuy: { showToBuy = true },
                       // 플릭 발주는 **앞 티켓만** — 뒤 티켓엔 0을 고정해 트리거가 전파되지 않게 한다.
-                      fireTrigger: isFront ? fireTrigger : 0,
-                      // 담을 이름은 **그 카드의** 부족 재료다 — 카드는 result를 다시 들고 오지 않고
-                      // '몇 개 새로 담겼나'만 돌려받는다(햅틱 판단은 카드가 한다).
-                      onAddMissing: onAddMissing.map { add in { add(results[idx].missing) } })
+                      fireTrigger: isFront ? fireTrigger : 0)
             .frame(height: cardHeight)   // 카드가 컨테이너를 넘지 못하게 캡(headerOnly도 동일 캡)
             .padding(.horizontal, ReffiGrid.margin + 8)
             .padding(.top, topInset)

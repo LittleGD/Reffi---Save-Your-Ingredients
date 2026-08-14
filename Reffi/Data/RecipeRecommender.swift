@@ -13,7 +13,10 @@ enum RecipeRecommender {
         var recipe: Recipe
         var used: [Ingredient]       // 보유 재료 중 이 레시피가 쓰는 것(임박 순)
         var total: Int               // 비-상비 재료 수(매치 분모)
-        var missing: [String]        // 비-상비 중 미보유(표시명)
+        /// 비-상비 중 미보유 — **표시명이 아니라 레시피 항목 그대로** 들고 있는다.
+        /// "Short:" 한 줄은 `displayName`만 있으면 되지만, 그 재료를 장보기 메모로 옮기려면
+        /// `ref`(캐논 ID)가 필요하다. 표시명만 남기면 되돌릴 방법이 없다(`toBuyEntry(for:)` 참고).
+        var missing: [Recipe.Item]
         var urgentUsedCount: Int     // 그중 오늘(urgent) 소진되는 수
     }
 
@@ -29,6 +32,54 @@ enum RecipeRecommender {
         if let ref = item.ref { return ref }
         let lex = IngredientLexicon.shared
         return lex.exactCanonicalID(for: item.en) ?? item.ko.flatMap { lex.exactCanonicalID(for: $0) }
+    }
+
+    /// 부족 재료 한 줄 → 장보기 메모(`FridgeStore.addToBuy`) 페이로드. **표시명을 그대로 넘기면 안 된다** —
+    /// 레시피 표기는 "pork (or beef)"·"gim (seaweed sheets)"처럼 괄호 주석을 달고 다니는데,
+    /// store의 이름 역조회(`IngredientLexicon.canonicalID(for:)`)는 포함 매칭이라 괄호 **안** 단어에
+    /// 먼저 걸린다(시드 실측: pork→beef, honey→corn-syrup, "water (or anchovy stock)"→anchovy).
+    /// 그러면 장보기 메모가 엉뚱한 품목 키를 달고, 그 재료를 재입고할 때 이 줄이 안 지워진다.
+    ///
+    /// 그래서 해석을 **여기서 끝내** store에 넘긴다:
+    /// ① `canonicalID(of:)`(ref 우선, no-ref는 정확 일치만 — 이 파일의 매칭 규약 그대로)로 잡히면
+    ///    사전 표제어 표기·글리프까지 확정한다. 장보기 목록은 "소고기 (얇게 썬 것)"이 아니라 "소고기"를 원한다.
+    /// ② 못 잡는 서술형 라인은 **괄호 주석만 떼고** 표기 그대로 담는다 — 괄호는 조리 지시("얇게 썬 것")나
+    ///    대체재("또는 멸치 육수")지 재료명이 아니라, 떼는 편이 목록에서도 역조회에서도 더 정확하다.
+    ///
+    /// **경계(알고 남기는 것).** ②가 돌려주는 `canonicalID`는 nil이고, `FridgeStore.addToBuy`는 nil을
+    /// 받으면 그 이름으로 **자기 역조회를 한 번 더 한다**(포함 매칭 — 이 함수가 피하려던 그 기전이다).
+    /// 지금 데이터에선 안전하다: 시드의 함정은 전부 괄호 안에 있고 위에서 제거된다. 다만 커스텀
+    /// 레시피처럼 **괄호 없이** 다른 재료명을 품은 자유 표기("bean paste for soup" 등)는 여전히
+    /// store 쪽 포함 매칭에 걸릴 수 있다 — 이 함수는 위험을 **좁히지 완전히 닫지는 않는다**.
+    /// 완전히 닫으려면 `addToBuy`에 "해석 완료" 신호를 넣어야 하는데, 그건 To buy 검색 시트까지
+    /// 함께 쓰는 공유 API의 계약 변경이라 이 변경 범위 밖으로 둔다(호출부 두 곳의 규약이 갈리는 쪽이
+    /// 더 큰 비용이다). 커스텀 레시피에서 오귀속이 실제로 관측되면 그때 신호를 추가한다.
+    static func toBuyEntry(for item: Recipe.Item) -> (name: String, canonicalID: String?, glyph: FoodGlyph) {
+        let lex = IngredientLexicon.shared
+        if let id = canonicalID(of: item), let entry = lex.entry(id: id) {
+            return (entry.displayName, id, FoodGlyph(rawValue: entry.glyph) ?? .generic)
+        }
+        let plain = withoutParentheticals(item.displayName)
+        let name = plain.isEmpty ? item.displayName : plain
+        return (name, nil, FoodGlyph.match(name))
+    }
+
+    /// 괄호 주석 제거 + 공백 정리. 여는 괄호를 만나면 닫힐 때까지 버린다(중첩 없음 전제 — 시드 표기 실측).
+    ///
+    /// **괄호가 안 닫히면 원문을 그대로 돌려준다.** 시드는 짝이 맞지만(453/453) 이 함수는 사용자가 쓴
+    /// 커스텀 레시피도 지나가는데, 오타로 `"Sauce (soy"`처럼 열기만 하면 뒤가 통째로 잘려
+    /// `"Sauce"`가 된다 — 사용자가 적은 이름이 조용히 짧아지는 건 오히려 나쁜 실패다.
+    /// 짝이 안 맞으면 "괄호 주석이 아니다"로 보고 손대지 않는 편이 안전하다.
+    private static func withoutParentheticals(_ s: String) -> String {
+        var out = ""
+        var depth = 0
+        for ch in s {
+            if ch == "(" { depth += 1 }
+            else if ch == ")" { depth = max(0, depth - 1) }
+            else if depth == 0 { out.append(ch) }
+        }
+        guard depth == 0 else { return s }   // 안 닫힌 괄호 — 자르지 않고 원문 유지
+        return out.split(separator: " ", omittingEmptySubsequences: true).joined(separator: " ")
     }
 
     /// 상비재 판별 — 사전의 staple 플래그가 정본.
@@ -70,7 +121,6 @@ enum RecipeRecommender {
         let stock = inventory ?? ingredients
         let missing = nonStaple
             .filter { item in !stock.contains { matches($0, item) } }
-            .map(\.displayName)
         let urgent = used.filter { $0.freshness == .urgent }.count
         return Result(id: recipe.id, recipe: recipe, used: used,
                       total: nonStaple.count, missing: missing, urgentUsedCount: urgent)
