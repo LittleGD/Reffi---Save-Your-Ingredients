@@ -379,7 +379,7 @@ struct MainView: View {
         .padding(.vertical, ReffiSpace.s1)
         .frame(minHeight: 44)
         .background {
-            let shape = ReceiptShape(tooth: 6)
+            let shape = ReceiptShape(tooth: ReffiTooth.chip)
             shape.fill(ReffiColor.paper).paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
         }
         .reffiShadow1()
@@ -424,7 +424,7 @@ struct MainView: View {
             .padding(.vertical, ReffiSpace.s2 + 2)
             .frame(minHeight: 44)
             .background {
-                let shape = ReceiptShape(tooth: 6)
+                let shape = ReceiptShape(tooth: ReffiTooth.chip)
                 shape.fill(ReffiColor.paper).paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
             }
             .reffiShadow1()

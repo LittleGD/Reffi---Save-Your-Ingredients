@@ -57,8 +57,8 @@ struct OrderMemoCard: View {
         .padding(.top, ReffiSpace.s5 + 2)
         .padding(.bottom, ReffiSpace.s5)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(ReceiptShape(tooth: 9).fill(ReffiColor.paper))
-        .overlay { if !headerOnly { ReceiptShape(tooth: 9).stroke(ReffiColor.ink.opacity(0.07), lineWidth: 1) } }
+        .background(ReceiptShape(tooth: ReffiTooth.ticket).fill(ReffiColor.paper))
+        .overlay { if !headerOnly { ReceiptShape(tooth: ReffiTooth.ticket).stroke(ReffiColor.ink.opacity(0.07), lineWidth: 1) } }
         .overlay { if fired { slamStamp } }
         .compositingGroup()   // 그림자 재합성을 1패스로 — PaperGrain(.overlay)도 이 경계에 갇힌다.
         // 그림자는 값만 분기, 체인(2패스)은 고정 — 뷰 정체성 유지.

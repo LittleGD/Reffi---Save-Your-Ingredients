@@ -3,8 +3,9 @@ import SwiftUI
 /// 영수증/티켓 셰이프 — 상·하 톱니(절취) 엣지. 좌우는 곧다.
 ///
 /// 앱의 시그니처 종이 어휘라 피처가 아니라 디자인 시스템에 산다(`PaperShape` 옆).
+/// 톱니 크기는 눈대중 리터럴 대신 `ReffiTooth`(chip/card/ticket)를 경유한다.
 struct ReceiptShape: Shape {
-    var tooth: CGFloat = 9
+    var tooth: CGFloat = ReffiTooth.ticket
 
     func path(in rect: CGRect) -> Path {
         var p = Path()

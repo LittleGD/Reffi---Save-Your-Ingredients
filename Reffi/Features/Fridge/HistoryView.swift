@@ -229,7 +229,7 @@ struct HistoryView: View {
 
     // MARK: 영수증 카드 래퍼 — Fridge 스택과 같은 흰 영수증(톱니)
     private func card<Content: View>(seed: Int, @ViewBuilder _ content: () -> Content) -> some View {
-        let shape = ReceiptShape(tooth: 7)
+        let shape = ReceiptShape(tooth: ReffiTooth.card)
         return content()
             .padding(.horizontal, ReffiSpace.s5)
             .padding(.vertical, ReffiSpace.s5 + 7)   // 톱니 인셋

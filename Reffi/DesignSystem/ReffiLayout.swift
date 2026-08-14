@@ -39,6 +39,18 @@ enum ReffiDishIcon {
     static let ticket: CGFloat = 68
 }
 
+/// 영수증 톱니(§13.5 `ReceiptShape`) — 앱의 시그니처 절취 엣지. 표면마다 숫자를 손으로 적으면
+/// 같은 성격의 종이가 6·7·8·9로 갈린다(온보딩 한 파일에서만 세 값이 공존했다).
+/// 세 자리만 두고 `ReceiptShape(tooth:)` 호출부는 전부 여기를 경유한다.
+enum ReffiTooth {
+    /// 미니 조각 — 홈 스트립·온보딩 소품처럼 폭이 좁아 톱니가 커지면 종이가 잘게 보이는 면.
+    static let chip: CGFloat = 6
+    /// 영수증 카드 — 목록·시트·이력의 기본 카드 면.
+    static let card: CGFloat = 7
+    /// 오더·조리·공유 티켓 — 가장 큰 종이라 절취 리듬도 가장 굵다.
+    static let ticket: CGFloat = 9
+}
+
 /// 상태 투명도(§7.2) — 디밍은 반드시 이 토큰으로. 리터럴을 호출부에 흩뿌리면
 /// 컴포넌트 디밍과 곱해져(예: 0.45 × 0.5 = 0.225) CTA가 소실된다.
 enum ReffiOpacity {

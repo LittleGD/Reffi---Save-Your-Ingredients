@@ -701,7 +701,7 @@ struct FridgeCard: View {
     var seed: Int = 0
     var height: CGFloat = 128
 
-    private let toothH: CGFloat = 7
+    private let toothH: CGFloat = ReffiTooth.card
 
     var body: some View {
         let f = ingredient.freshness
@@ -743,7 +743,7 @@ struct FridgeCard: View {
 struct ExpandedFridgeCard: View {
     let ingredient: Ingredient
     var onEdit: () -> Void = {}
-    private let toothH: CGFloat = 7
+    private let toothH: CGFloat = ReffiTooth.card
 
     /// 영수증 번호 — 이름에서 유도(장식, 안정적).
     private var receiptNo: String {

@@ -409,7 +409,7 @@ struct ReceiptCard<Content: View>: View {
     var trailing: String? = nil     // 헤더 우측 보조(날짜 등)
     @ViewBuilder var content: Content
 
-    private let toothH: CGFloat = 7
+    private let toothH: CGFloat = ReffiTooth.card
 
     var body: some View {
         let shape = ReceiptShape(tooth: toothH)

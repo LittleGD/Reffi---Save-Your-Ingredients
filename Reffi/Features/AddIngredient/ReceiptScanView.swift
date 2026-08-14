@@ -419,7 +419,7 @@ private struct CandidateEditSheet: View {
     }
 
     private var fieldsCard: some View {
-        let shape = ReceiptShape(tooth: 7)
+        let shape = ReceiptShape(tooth: ReffiTooth.card)
         return VStack(alignment: .leading, spacing: ReffiSpace.s3) {
             TextField("Name", text: $candidate.name,
                       prompt: Text("Name").foregroundStyle(ReffiColor.ink2))

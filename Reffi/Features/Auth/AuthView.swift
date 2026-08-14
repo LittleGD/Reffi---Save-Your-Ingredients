@@ -74,7 +74,7 @@ struct AuthView: View {
     // MARK: 영수증 카드 — 폼 + 소셜
 
     private var receiptCard: some View {
-        let shape = ReceiptShape(tooth: 7)
+        let shape = ReceiptShape(tooth: ReffiTooth.card)
         return VStack(alignment: .leading, spacing: ReffiSpace.s4) {
             HStack(alignment: .firstTextBaseline) {
                 Text(isSignIn ? "Log in" : "Sign up")

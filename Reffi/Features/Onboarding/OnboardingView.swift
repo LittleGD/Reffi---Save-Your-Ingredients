@@ -181,7 +181,7 @@ struct OnboardingView: View {
         .padding(.horizontal, ReffiSpace.s4)
         .padding(.vertical, ReffiSpace.s3 + 2)
         .frame(width: 170)
-        .background(ReffiColor.paper, in: ReceiptShape(tooth: 6))
+        .background(ReffiColor.paper, in: ReceiptShape(tooth: ReffiTooth.chip))
         .reffiShadow1()
         // 카메라 뷰파인더 — 종이 바깥으로 코너 브래킷.
         .overlay(ViewfinderBrackets()
@@ -230,7 +230,7 @@ struct OnboardingView: View {
     /// 실제 카드는 풀스크린 덱·발주 부작용이 있어 그대로 못 넣으므로, 폰트·색·종이 문법만 재사용해 재연.
     /// 레시피명·재료명·조리 시간은 heroTicket()(RecipeCatalog 시드 우선, 폴백은 사전)에서 온다 — 리터럴 금지.
     private var orderTicketMini: some View {
-        let shape = ReceiptShape(tooth: 8)
+        let shape = ReceiptShape(tooth: ReffiTooth.card)
         let ticket = Self.heroTicket()
         return VStack(alignment: .leading, spacing: ReffiSpace.s2) {
             // 헤더 — 주방 오더 티켓
@@ -355,7 +355,7 @@ struct OnboardingView: View {
 
     /// 미니 영수증 셸 — Fridge 카드와 같은 흰 영수증(톱니), 살짝 틸트로 종이 무드.
     private func miniReceipt<C: View>(seed: Int, @ViewBuilder _ content: () -> C) -> some View {
-        let shape = ReceiptShape(tooth: 6)
+        let shape = ReceiptShape(tooth: ReffiTooth.chip)
         return content()
             .padding(.horizontal, ReffiSpace.s5)
             .padding(.vertical, ReffiSpace.s4 + 6)
@@ -464,7 +464,7 @@ struct OnboardingView: View {
     /// 질문 페이지 공통 — 흰 영수증 카드에 질문 + 컨트롤. 셋업 3장은 전부 중앙정렬(§UX).
     private func questionPage<C: View>(title: LocalizedStringKey, body copy: LocalizedStringKey,
                                        @ViewBuilder control: () -> C) -> some View {
-        let shape = ReceiptShape(tooth: 7)
+        let shape = ReceiptShape(tooth: ReffiTooth.card)
         return VStack(spacing: 0) {
             Spacer(minLength: 0)
             VStack(alignment: .center, spacing: ReffiSpace.s4) {
