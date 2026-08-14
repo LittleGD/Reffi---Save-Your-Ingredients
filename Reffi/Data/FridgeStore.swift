@@ -698,6 +698,16 @@ final class FridgeStore {
     /// `canonicalID`·`glyph`는 사전에서 고른 호출부가 그대로 넘긴다(이름 역조회로 다른 항목에 붙는 것 방지).
     @discardableResult
     func addToBuy(name: String, canonicalID: String? = nil, glyph: FoodGlyph? = nil) -> Bool {
+        guard appendToBuy(name: name, canonicalID: canonicalID, glyph: glyph) else { return false }
+        persist(reschedulesAlerts: false)   // 재료 불변
+        return true
+    }
+
+    /// `addToBuy`의 **저장 없는** 내부 경로 — 판정·흡수 의미론은 전부 여기 있고 `persist`만 호출부가 쥔다.
+    /// 루프로 담는 `addMissingToBuy`가 항목마다 전량 스냅샷을 인코딩(메인 스레드)하지 않게 하려는 분리다.
+    /// 단건 호출부는 `addToBuy`를 그대로 쓰므로 동작이 바뀌지 않는다.
+    /// - Returns: 실제로 목록에 새 줄이 생겼으면 true(= 저장할 변화가 있다).
+    private func appendToBuy(name: String, canonicalID: String?, glyph: FoodGlyph?) -> Bool {
         let lex = IngredientLexicon.shared
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return false }
@@ -709,7 +719,6 @@ final class FridgeStore {
         guard !manualToBuy.contains(where: { $0.matchKey == key }) else { return false }
         manualToBuy.append(ManualBuyItem(name: trimmed, canonicalID: canonical,
                                          glyph: glyph ?? lex.glyph(for: trimmed) ?? FoodGlyph.match(trimmed)))
-        persist(reschedulesAlerts: false)   // 재료 불변
         return true
     }
 
@@ -724,6 +733,10 @@ final class FridgeStore {
     ///
     /// 흡수 의미론은 `addToBuy` 그대로다 — 이미 수동으로 담긴 품목은 세지 않고, 파생 제안으로만
     /// 있던 품목은 수동이 흡수해 한 줄이 된다.
+    ///
+    /// 저장은 **루프가 끝난 뒤 한 번**이다(`appendToBuy` + 끝에 `persist`) — 항목마다 `addToBuy`를
+    /// 부르면 부족 재료 5종짜리 티켓의 원탭 한 번에 전량 스냅샷 인코딩 + 히스토리 트림이 5회 돌아
+    /// 알약의 `pop` 첫 프레임과 겹친다. 새로 담긴 게 0이면 저장 자체를 건너뛴다(변화가 없다).
     /// - Returns: **새로 담긴** 개수. 호출부는 0이면 햅틱을 울리지 않는다(아무 일도 안 일어났으므로).
     @discardableResult
     func addMissingToBuy(_ names: [String]) -> Int {
@@ -733,10 +746,11 @@ final class FridgeStore {
             let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !trimmed.isEmpty else { continue }
             let canonical = lex.exactCanonicalID(for: trimmed) ?? lex.canonicalID(for: trimmed)
-            if addToBuy(name: trimmed, canonicalID: canonical, glyph: FoodGlyph.match(trimmed)) {
+            if appendToBuy(name: trimmed, canonicalID: canonical, glyph: FoodGlyph.match(trimmed)) {
                 added += 1
             }
         }
+        if added > 0 { persist(reschedulesAlerts: false) }   // 재료 불변
         return added
     }
 
