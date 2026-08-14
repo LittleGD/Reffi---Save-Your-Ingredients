@@ -86,7 +86,8 @@ struct MainView: View {
             }
 
             physicsField
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .frame(maxWidth: .infinity, maxHeight: fieldRestHeight)
+                .frame(maxHeight: .infinity)   // 남는 공백을 위아래로 갈라 더미가 광학 중앙에 앉는다
 
             if !counter.isEmpty {
                 badgeScroll
@@ -447,6 +448,16 @@ struct MainView: View {
     }
 
     // MARK: - Physics field (real engine, persistent pile)
+
+    /// 정지 상태 필드 높이의 상한 — "쉬고 있는 더미"에 필요한 만큼만 자리를 잡는다.
+    /// 필드가 화면 끝까지 늘어나면 중력에 눕는 더미는 바닥에 붙고 위쪽 여유가 통째로
+    /// 빈 띠로 남아, 배너와 더미 사이가 뷰포트의 4분의 1이 됐다(감사 R3-4).
+    /// 낙하 스폰은 씬 바깥 절대 좌표(`size.height + 700`)라 드라마는 이 캡과 무관하다.
+    /// 칩은 화면 폭에서 3열로 눕으므로 행 수 = ⌈n/3⌉, 행 피치·바닥 여유는 실측값이다.
+    private var fieldRestHeight: CGFloat {
+        guard !counter.isEmpty else { return .infinity }   // 빈 작업대(카피·CTA)는 캡 대상이 아니다
+        return 96 * ceil(CGFloat(counter.count) / 3) + 28
+    }
 
     private var physicsField: some View {
         GeometryReader { geo in
