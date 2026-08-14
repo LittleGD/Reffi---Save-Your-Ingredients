@@ -63,3 +63,32 @@ struct PaperButton: View {
         .opacity(isEnabled ? 1 : ReffiOpacity.disabled)
     }
 }
+
+extension View {
+    /// **풀스크린 커버의 하단 도킹 CTA**(§13.6) — 확정 액션을 safe-area 하단에 붙이고 본문만 스크롤시킨다.
+    /// 메인(`Start cooking`)·시트(`Add N items`)가 이미 쓰던 "하단에 CTA가 고정된다"는 관례를 커버까지
+    /// 넓히는 한 곳이다 — 커버마다 손으로 조립하면 페이드 높이·여백이 화면별로 갈린다.
+    ///
+    /// `surface`는 그 화면의 바탕색이다(커버는 저마다 다르다 — 조리 = `paperPass`, To buy = 글래스 위 `canvas`).
+    /// 바 위쪽 `s6` 띠는 그 색으로의 페이드고 그 아래는 불투명 면이라, 콘텐츠가 짧아 스크롤이 없을 때도
+    /// CTA가 허공에 뜨지 않고 바닥에 붙은 종이로 읽힌다(냉장고 하단 마스크와 같은 어휘, `FridgeView`).
+    /// 홈 인디케이터까지 면이 이어지도록 배경만 safe area를 무시한다 — 버튼 자체는 safe area 안에 남는다.
+    func dockedCTA<Bar: View>(over surface: Color, @ViewBuilder bar: () -> Bar) -> some View {
+        safeAreaInset(edge: .bottom, spacing: 0) {
+            bar()
+                .padding(.horizontal, ReffiGrid.margin)
+                .padding(.top, ReffiSpace.s6)     // 페이드 띠 높이와 같다 — 버튼은 불투명 면 위에서 시작한다
+                .padding(.bottom, ReffiSpace.s3)
+                .background {
+                    VStack(spacing: 0) {
+                        LinearGradient(colors: [surface.opacity(0), surface],
+                                       startPoint: .top, endPoint: .bottom)
+                            .frame(height: ReffiSpace.s6)
+                        surface
+                    }
+                    .ignoresSafeArea(edges: .bottom)
+                    .allowsHitTesting(false)
+                }
+        }
+    }
+}

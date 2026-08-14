@@ -32,13 +32,15 @@ struct ShoppingListView: View {
                         } else {
                             listCard
                         }
-                        addItemButton
                     }
                     .padding(.horizontal, ReffiGrid.margin)
                     .padding(.bottom, ReffiSpace.s6)
                 }
             }
         }
+        // 직접 담기 진입은 목록 꼬리가 아니라 화면 하단에 도킹한다(§13.5) — 목록이 짧든 길든 같은
+        // 자리에 있고, 커버·시트·메인이 공유하는 하단 CTA 관례와 어긋나지 않는다.
+        .dockedCTA(over: ReffiColor.canvas) { addItemButton }
         .sensoryFeedback(.success, trigger: restockHaptic)
         .sensoryFeedback(.impact(weight: .light), trigger: skipHaptic)
         .sheet(isPresented: $showSearch) { ToBuySearchSheet() }
@@ -152,7 +154,7 @@ struct ShoppingListView: View {
         }
     }
 
-    /// 목록 아래 직접 담기 진입 — 하단 CTA 관례대로 `PaperButton`을 쓰되 `secondary`다: 이 화면의 1차
+    /// 직접 담기 진입 — 하단 도킹 CTA(`dockedCTA`)로 `PaperButton`을 쓰되 `secondary`다: 이 화면의 1차
     /// 행동은 행마다의 파란 Add(재입고)라, 파란 와이드 버튼이 그 위계를 뒤집으면 안 된다.
     private var addItemButton: some View {
         PaperButton(title: "Add item", kind: .secondary, seed: 3) { showSearch = true }

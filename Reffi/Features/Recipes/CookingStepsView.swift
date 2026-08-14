@@ -82,6 +82,9 @@ struct CookingStepsView: View {
             }
             topBar
         }
+        // 확정 액션은 티켓 안이 아니라 화면 하단에 도킹한다(§13.6) — 티켓이 짧아도 CTA가 화면 중턱에
+        // 뜨지 않고, 메인·시트의 하단 CTA 관례와 같은 자리에서 엄지로 닿는다. 본문(티켓)만 스크롤한다.
+        .dockedCTA(over: ReffiColor.paperPass) { bottomBar }
         .sensoryFeedback(.success, trigger: finishHaptic)
         // 완료·취소(또는 발주 undo)로 세션이 사라지면 자동으로 닫힌다.
         .onChange(of: store.activeCook == nil) { _, gone in
@@ -103,6 +106,40 @@ struct CookingStepsView: View {
             Button("Keep cooking", role: .cancel) {}
         } message: {
             Text("Nothing is logged. Reserved ingredients return to the fridge.")
+        }
+    }
+
+    // MARK: - 하단 도킹 CTA
+
+    /// 확정 액션 한 쌍 — 파랑 "Finish cooking"(완료) + 조용한 "조리 취소" 텍스트 버튼.
+    /// 티켓에서 떼어 왔지만 **순서·문법은 그대로**다: 확정이 위, 되돌리는 길이 아래.
+    /// 세션이 없으면(닫히는 프레임) 아무것도 그리지 않아 빈 바가 남지 않는다.
+    @ViewBuilder private var bottomBar: some View {
+        if store.activeCook != nil {
+            VStack(spacing: 0) {
+                PaperButton(title: "Finish cooking") {
+                    // 예약 재료가 있으면 확인 시트에서 확정(남은 재료 원탭), 없으면(구버전 세션) 바로 종료.
+                    if reservedIngredients.isEmpty {
+                        finishHaptic += 1
+                        withAnimation(ReffiMotion.gated(ReffiMotion.pop, reduce: reduceMotion)) {
+                            store.finishCooking()
+                        }
+                    } else {
+                        leftovers = []
+                        showFinishSheet = true
+                    }
+                }
+
+                // 조리 포기 — 예약을 해제하고 재료를 되돌린다(기록 없음). fire의 안전한 반대 방향.
+                Button { showCancelConfirm = true } label: {
+                    Text("Cancel cooking, put ingredients back")
+                        .reffiType(.caption)
+                        .foregroundStyle(ReffiColor.ink2)
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.reffiPress)
+            }
         }
     }
 
@@ -241,32 +278,6 @@ struct CookingStepsView: View {
                 .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
                 .fixedSize(horizontal: false, vertical: true)
 
-            ReffiRule(.ticket)
-                .padding(.top, ReffiSpace.s2)
-
-            PaperButton(title: "Finish cooking") {
-                // 예약 재료가 있으면 확인 시트에서 확정(남은 재료 원탭), 없으면(구버전 세션) 바로 종료.
-                if reservedIngredients.isEmpty {
-                    finishHaptic += 1
-                    withAnimation(ReffiMotion.gated(ReffiMotion.pop, reduce: reduceMotion)) {
-                        store.finishCooking()
-                    }
-                } else {
-                    leftovers = []
-                    showFinishSheet = true
-                }
-            }
-            .padding(.top, ReffiSpace.s2)
-
-            // 조리 포기 — 예약을 해제하고 재료를 되돌린다(기록 없음). fire의 안전한 반대 방향.
-            Button { showCancelConfirm = true } label: {
-                Text("Cancel cooking, put ingredients back")
-                    .reffiType(.caption)
-                    .foregroundStyle(ReffiColor.ink2)
-                    .frame(maxWidth: .infinity, minHeight: 44)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.reffiPress)
         }
         .padding(.horizontal, ReffiSpace.s5)
         .padding(.vertical, ReffiSpace.s5 + 2)
