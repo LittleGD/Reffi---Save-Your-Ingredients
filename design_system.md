@@ -268,6 +268,7 @@
 ```
 - 의무: D-day 라벨, 수량·날짜, 카운트다운, 표/대시보드 수치. 문장 속 숫자는 비례숫자(기본). D-day 도장(`DDayStamp`)은 Pretendard Bold 계열이라 `tnum`이 없어 `.monospacedDigit()`을 붙인다 — 자릿수가 바뀔 때 도장 폭이 흔들리지 않게.
 - **D-day 표기는 앱 전역 한 포맷터에서만 나온다** — `Ingredient.dDayText`(`Overdue` / `Today` / `Nd`). 온보딩 데모·장식 티켓도 예외 없이 이 포맷터를 타고, 색도 같은 `Freshness(daysLeft:)`에서 파생시킨다. 화면마다 표기를 손으로 적으면 온보딩이 가르친 표기("D-2")를 본 앱이 한 번도 쓰지 않는 일이 실제로 생긴다.
+- **수치는 로케일 포맷터(`FormatStyle`)로 만든다** — `String(format:)`·문자열 접합은 로케일을 타지 않아 소수 구분자를 항상 마침표로 찍고 그룹 구분자를 빼먹는다. 수량은 `value.formatted(.number.precision(.fractionLength(0...1)))`(`Quantity.text`), 비율은 `.formatted(.percent)`(퍼센트 기호 위치·간격도 로케일이 정한다), 날짜는 `.formatted(date:time:)`. **숫자와 단위 사이는 줄바꿈 없는 공백**(`\u{00A0}`)으로 묶어 행 끝에서 "300"과 "g"가 갈라지지 않게 한다.
 
 ### 3.5 보조 스케일 (행동 표면) — §3.2 5단계 밖, 9종
 
@@ -528,7 +529,7 @@
 - [ ] 화면당 텍스트 계층이 상한(정보 표면 4·행동 표면 7, §3.3)을 넘지 않는가
 - [ ] 행동 표면 텍스트가 §3.2 5단계가 아니라 §3.5 보조 스케일 9종(`ReffiActionRole`)에서만 왔는가
 - [ ] Display=Story Script(영문)/Pretendard(한글), 그 외 GSF(영문)/Pretendard(한글)인가
-- [ ] 데이터성 숫자에 `.num`(tabular)을 적용했는가 · D-day 표기가 `Ingredient.dDayText` 한 포맷터에서 나왔는가(§3.4)
+- [ ] 데이터성 숫자에 `.num`(tabular)을 적용했는가 · D-day 표기가 `Ingredient.dDayText` 한 포맷터에서 나왔는가 · 수치를 로케일 포맷터(`FormatStyle`)로 만들었는가(§3.4)
 - [ ] 텍스트가 `word-break:keep-all` + orphan 방지를 따르는가
 - [ ] 아이콘이 SVG이고 **색 채운 아이콘 박스가 없는가**
 - [ ] 인터랙티브 요소가 hover·active·focus·disabled를 모두 갖고 hover에 포인터 가드가 있는가
