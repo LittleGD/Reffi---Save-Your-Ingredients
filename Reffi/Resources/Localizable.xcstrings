@@ -71,16 +71,6 @@
         }
       }
     },
-    "%lld ate · %lld tossed": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "먹음 %1$lld · 버림 %2$lld"
-          }
-        }
-      }
-    },
     "%lld in stock": {
       "localizations": {
         "ko": {
@@ -163,6 +153,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "레시피 %lld개"
+          }
+        }
+      }
+    },
+    "%lld times": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld회"
+          }
+        },
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld time"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld times"
+                }
+              }
+            }
           }
         }
       }
@@ -1753,6 +1771,16 @@
         }
       }
     },
+    "Nothing tallied yet. What you eat and toss lands here.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "아직 정산할 기록이 없어요. 먹거나 버린 재료가 여기에 쌓여요."
+          }
+        }
+      }
+    },
     "Nothing to use yet": {
       "localizations": {
         "ko": {
@@ -2612,6 +2640,16 @@
         }
       }
     },
+    "Tally · past 30 days": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "정산 · 최근 30일"
+          }
+        }
+      }
+    },
     "Tap one. Did you eat it, or toss it?": {
       "localizations": {
         "ko": {
@@ -2952,22 +2990,12 @@
         }
       }
     },
-    "Wasted": {
+    "Waste rate": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "버림"
-          }
-        }
-      }
-    },
-    "Wasted · 30d": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "버림 · 30일"
+            "value": "낭비율"
           }
         }
       }
@@ -3178,16 +3206,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "개"
-          }
-        }
-      }
-    },
-    "once": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "1회"
           }
         }
       }

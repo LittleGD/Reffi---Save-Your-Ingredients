@@ -605,7 +605,7 @@ final class FridgeStore {
     var ateCount: Int { archivedAte + history.lazy.filter { !$0.wasted }.count }
     var tossedCount: Int { archivedTossed + history.lazy.filter(\.wasted).count }
 
-    /// 최근 30일 이력 — "Past 30 days"/"Wasted · 30d" 라벨과 계산을 일치시킨다.
+    /// 최근 30일 이력 — 정산서 헤더("Tally · past 30 days") 라벨과 계산을 일치시킨다.
     var recentHistory: [RemovalLog] {
         let cutoff = Ingredient.day(offset: -30)
         return history.filter { $0.removedAt >= cutoff }

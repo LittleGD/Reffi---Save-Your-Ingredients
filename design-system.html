@@ -730,6 +730,30 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
   color: var(--color-blue); font-weight: 700; letter-spacing: 2px; font-size: 14px;
   padding: 3px 10px; border: 2px solid oklch(51.4% 0.134 249.8 / 0.55); border-radius: 8px; opacity: .9; }
 
+/* 영수증 정산서(§13.9) — 리포트는 차트가 아니라 영수증. 톱니 절취 면 + 절취선 구역 + 도장 하나 */
+.tally-demo { max-width: 360px; }
+.tally { position: relative; background: var(--receipt); color: var(--color-ink);
+  padding: 20px 24px; box-shadow: var(--shadow-1); }
+.tally::before, .tally::after { content: ""; position: absolute; left: 0; right: 0; height: 7px;
+  background:
+    linear-gradient(-45deg, var(--receipt) 50%, transparent 50%) 0 0/11px 11px repeat-x,
+    linear-gradient( 45deg, var(--receipt) 50%, transparent 50%) 0 0/11px 11px repeat-x; }
+.tally::before { top: -7px; transform: scaleY(-1); }
+.tally::after  { bottom: -7px; }
+.tally__row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2);
+  min-height: 30px; }
+.tally__item { display: flex; align-items: center; gap: var(--space-3); }
+.tally__item .silo { width: 30px; height: 30px; }
+/* 도장 = D-day 도장과 같은 문법(각도 튼 종이 도장). 잉크만 축의 의미색으로 바꾼다 */
+.tally__stamp { display: inline-block; transform: rotate(-7deg); font-weight: 700; letter-spacing: 0.06em;
+  padding: 3px 10px; border-radius: 7px; }
+.tally__stamp.is-fresh { color: var(--color-fresh-dark); box-shadow: inset 0 0 0 1.6px var(--color-fresh-dark);
+  font-size: 10px; }
+.tally__stamp.is-soon  { color: var(--color-soon-dark);  box-shadow: inset 0 0 0 1.8px var(--color-soon-dark);
+  font-size: 15px; }
+.tally__mono { font-family: var(--font); font-weight: 700; font-size: 10px; letter-spacing: 0.16em;
+  color: var(--color-muted); }
+
 /* ===== §13.5 PaperDropdown · §14 모달 · 시트 · 닫기 (showcase) ===== */
 /* 종이 면 공통 — PaperRect 면 + paperEdge 단면 헤어라인(분리 보더 아님, §13.1) + 옅은 그레인 + shadow-1 */
 .paper-face { position: relative; isolation: isolate; background: var(--paper-surface); color: var(--color-ink);
@@ -959,7 +983,7 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
           <div style="flex:5;background:var(--color-blue);color:#fff">5%</div>
           <div style="flex:5;background:var(--color-urgent-dark);color:#fff">5%</div>
         </div>
-        <p class="t-caption text" style="color:var(--color-ink-2);margin-top:var(--space-3)">바탕(뉴트럴) · 주조 = 신선도 파스텔 군(최대 3색, 카드 스택) · 5% Blue(액션·AI) · 5% 단일 강조(가장 급한 것). 신선도 색은 신선도에만 쓴다.</p>
+        <p class="t-caption text" style="color:var(--color-ink-2);margin-top:var(--space-3)">바탕(뉴트럴) · 주조 = 신선도 파스텔 군(최대 3색, 카드 스택) · 5% Blue(액션·AI) · 5% 단일 강조(가장 급한 것). 신선도 색은 신선도에만 쓴다. <strong>예외는 "정렬된 재사용" 하나</strong> — 성과 축이 신선도 축과 같은 방향으로 정렬될 때만(값이 나쁠수록 급해진다) 신선도 잉크를 재사용한다: 정산서의 낭비율 도장(≤10% fresh-dark · ≤30% soon-dark · 그 외 urgent-dark, §11 영수증 정산서)과 이력의 먹음/버림 판정 라벨이 전부다. 순서가 없는 축(카테고리·식품군·태그)에는 절대 쓰지 않는다 — 옛 History 도넛이 Veg→fresh·Dairy→soon·Fruit→urgent로 이 선을 넘어, 앱 전체에서 학습한 3색이 그 화면에서만 식품군을 뜻했다.</p>
 
         <p class="subhead text">카운트다운 → 색 매핑</p>
         <div class="fresh-list">
@@ -1433,6 +1457,7 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">영수증 종이를 새로 그릴 때 톱니를 <code class="inline">ReffiTooth</code>로 지정하고 면은 <code class="inline">receiptSurface(...)</code>로 얹었는가 — 숫자 리터럴·손조립 금지 (§13.8)</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">재료 실루엣·요리 아이콘 크기를 <code class="inline">ReffiFoodIcon</code>/<code class="inline">ReffiDishIcon</code>으로 지정했는가 — 표면마다 숫자를 흩뿌리지 않는가 (§13.3/§13.7)</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">점선 구분을 손으로 그리지 않고 <code class="inline">ReffiRule(.receipt|.ticket)</code>을 썼는가 (§13.8)</span></li>
+          <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">성과 지표를 차트가 아니라 영수증 정산서로 세웠는가 — 한 축(건수)·도장 하나·모수 일치, 순서 없는 축에 신선도 색 재사용 금지 (§13.9/§2.4)</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">카드 그림자를 인라인 <code class="inline">.shadow(...)</code>가 아니라 <code class="inline">reffiShadowCard()</code>/<code class="inline">reffiShadowCardCompact()</code>로 얹었는가 (§6.4)</span></li>
         </ul>
       </section>
@@ -1598,6 +1623,28 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
             <tr><td><code class="inline">ReffiTooth.ticket</code></td><td>9pt</td><td>오더·조리·공유 티켓(<code class="inline">ReceiptShape</code> 기본값). <code class="inline">seed</code>는 톱니 <strong>위상</strong> 변주 — 같은 시드는 항상 같은 그림이고 <code class="inline">seed: 0</code>은 위상 0이다</td></tr>
           </tbody>
         </table>
+
+        <p class="subhead text" style="margin-top:var(--space-6)">영수증 정산서 <span class="t-caption" style="color:var(--color-muted)">— MD §13.9</span></p>
+        <p class="t-caption text" style="color:var(--color-ink-2);margin-bottom:var(--space-4)">리포트는 <strong>차트가 아니라 영수증</strong>으로 짓는다. 옛 도넛은 링(버린 것의 <strong>카테고리 구성</strong>)과 가운데 숫자(<strong>낭비율</strong>)가 분모가 다른 두 지표라 "초록 58%는 잘한 것"으로 오독됐고, 신선도 3색을 식품군 의미로 재사용해 §02 운용 비율을 어겼다. 정산서는 지표를 <strong>한 축(건수)</strong>으로 세우고 세로로 읽히게 한다 — 면은 <code class="inline">receiptSurface(seed:)</code>, 구역 구분은 전부 <code class="inline">ReffiRule(.receipt)</code>다. 성과는 <strong>도장 하나</strong>가 말한다(<code class="inline">DDayStamp</code> 재사용, 잉크는 낭비율 구간색 — §02의 <strong>정렬된 재사용 예외</strong>). 자주 버린 재료는 최대 3줄, 이력이 모자라면 있는 만큼만, <strong>0이면 구역 자체가 없다</strong>. 기록이 0건이면 두 행·도장 대신 안내 한 줄만 남는다 — <code class="inline">0건 / 0%</code>는 아무 것도 안 한 사람에게 거짓 성과를 준다.</p>
+        <div class="tally-demo">
+          <div class="tally">
+            <div class="tally__row" style="margin-bottom:var(--space-3)">
+              <span class="subhead text">정산 · 최근 30일</span>
+              <span class="tally__stamp is-fresh num">DAY 5</span>
+            </div>
+            <div class="rule-dashed"></div>
+            <div class="tally__row"><span class="text">먹음</span><span class="num" style="font-size:15px">12</span></div>
+            <div class="tally__row"><span class="text">버림</span><span class="num" style="font-size:15px">3</span></div>
+            <div class="rule-dashed"></div>
+            <div class="tally__row"><span class="text">낭비율</span><span class="tally__stamp is-soon num">20%</span></div>
+            <div class="rule-dashed"></div>
+            <p class="t-caption text" style="color:var(--color-ink-2);margin:var(--space-3) 0 var(--space-2)">자주 버림</p>
+            <div class="tally__row"><span class="tally__item"><i class="silo f-fresh"></i><span class="text">대파</span></span><span class="t-caption num" style="color:var(--color-ink-2)">3회</span></div>
+            <div class="tally__row"><span class="tally__item"><i class="silo f-urgent"></i><span class="text">토마토</span></span><span class="t-caption num" style="color:var(--color-ink-2)">2회</span></div>
+            <div class="rule-dashed" style="margin-top:var(--space-3)"></div>
+            <div class="tally__row"><span class="tally__mono">REFFI</span><span class="tally__mono num">No. 0399</span></div>
+          </div>
+        </div>
 
         <div class="note" style="margin-top:var(--space-5)"><strong>경계.</strong> 이 레이어는 메인·캐러셀의 행동 표면에 한정한다. 냉장고 목록·카드 스택(§08)·일반 정보 화면은 §02~§09 규율(파스텔 색-블로킹·보더 금지·평소 그림자 금지)을 그대로 따른다.</div>
       </section>

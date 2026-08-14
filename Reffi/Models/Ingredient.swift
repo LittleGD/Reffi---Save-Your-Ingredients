@@ -298,7 +298,7 @@ extension FoodGlyph {
     static let categoryOrder = ["Veg", "Fruit", "Dairy", "Meat", "Seafood",
                                 "Protein", "Bakery", "Grain", "Pantry", "Other"]
 
-    /// 거친 카테고리 라벨 — 직접 입력의 자동 카테고리, History 도넛 그룹핑 공용.
+    /// 거친 카테고리 라벨 — 직접 입력의 자동 카테고리, 냉장고 필터·검색 픽커 그룹핑 공용.
     var categoryLabel: String {
         switch self {
         case .leaf, .broccoli, .onion, .garlic, .potato, .root, .squash, .mushroom, .pepper, .tomato,
@@ -311,7 +311,7 @@ extension FoodGlyph {
         case .fish, .shrimp, .crab, .squid, .clam: "Seafood"
         case .tofu: "Protein"
         case .bread: "Bakery"
-        // 김밥은 요리지만 정체는 밥 — Other(잡동사니)보다 Grain이 History 도넛에서 읽힌다.
+        // 김밥은 요리지만 정체는 밥 — Other(잡동사니)보다 Grain이 카테고리 축에서 읽힌다.
         case .rice, .noodles, .corn, .gimbap: "Grain"
         case .sauceBottle, .can, .honey: "Pantry"
         case .generic, .dumpling: "Other"

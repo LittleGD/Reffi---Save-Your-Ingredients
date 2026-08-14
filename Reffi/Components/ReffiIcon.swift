@@ -35,7 +35,10 @@ enum ReffiIcon {
     static var sort: Ph { .arrowsDownUp }
     static var compactView: Ph { .rows }
     static var stackView: Ph { .cards }
-    static var report: Ph { .chartDonut }
+    /// 리포트(무낭비 정산) — 냉장고 헤더 진입 버튼·요약 페이저 공용.
+    /// 도넛이 아니라 막대인 이유: 리포트 표면에서 도넛 링을 걷어낸 뒤(§13.9 영수증 정산서)
+    /// 아이콘만 없는 그래픽을 약속하고 있었다. 기호는 화면이 실제로 보여 주는 것과 맞춘다.
+    static var report: Ph { .chartBar }
     static var check: Ph { .check }
 
     // 재료 추가 시트
