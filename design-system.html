@@ -1471,7 +1471,8 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
         <span class="section__num num">11</span>
         <h2 class="text">종이 · 글래스 · 모션 <span class="t-caption" style="color:var(--color-muted)">— MD §13</span></h2>
         <p class="section__lead text">메인 플로우의 <strong>행동 표면</strong>(재료·버튼·티켓)에 입히는 한 겹: 손으로 자른 종이 + 리퀴드글래스 + 일러스트 실루엣 + 통통 튀는 모션. 정보 표면(§02~§09)의 규율은 그대로 둔다.</p>
-        <div class="note"><strong>칩·필도 예외가 아니다 — 소형 면의 정본은 <code class="inline">PaperCutRect</code>다.</strong> <code class="inline">PaperRect</code>는 코너 반지름이 <code class="inline">min(w,h)/2</code>로 클램프돼 pill 반지름을 넘기면 정확한 캡슐로 퇴화하고, 변 휨(≈1pt)도 칩 크기에선 지각되지 않는다. D-day 칩·상태 칩·추정 기한 배지·취향 칩·알림 배너 액션처럼 작고 반복되는 행동 표면 면은 <code class="inline">Capsule()</code>이 아니라 <code class="inline">PaperCutRect(seed:)</code>를 쓴다. 예외는 글래스 캡슐 네비와 잉크 토스트 두 곳뿐 — 둘 다 종이가 아닌 재질이라 이 규칙 밖이다.</div>
+        <div class="note"><strong>칩·필도 예외가 아니다 — 소형 면의 정본은 <code class="inline">PaperCutRect</code>다.</strong> D-day 칩·상태 칩·추정 기한 배지·취향 칩·알림 배너 액션처럼 작고 반복되는 행동 표면 면은 <code class="inline">Capsule()</code>이 아니라 <code class="inline">PaperCutRect(seed:)</code>를 쓴다. 예외는 글래스 캡슐 네비와 잉크 토스트 두 곳뿐 — 둘 다 종이가 아닌 재질이라 이 규칙 밖이다.</div>
+        <div class="note" style="margin-top:var(--space-3)"><strong><code class="inline">PaperRect</code>가 그 규율을 스스로 지킨다(프리미티브 가드).</strong> 호출부 규약만으로는 앱 전역이 새기 때문에 셰이프 자체가 두 가지를 보장한다. ① <strong>pill 스케일 라우팅</strong> — 네 코너가 전부 <code class="inline">min(w,h)/2</code>로 클램프되는 크기(= 캡슐 퇴화)면 <code class="inline">PaperRect</code>가 <code class="inline">PaperCutRect</code>의 8각 패스를 대신 그린다. <code class="inline">ReffiRadius.pill</code>을 넘겨도 완벽한 캡슐이 나오지 않는다. ② <strong>지각되는 변 휨</strong> — 변 휨은 그 변의 직선 구간 길이에 비례하고(가위질이 길수록 선이 더 흔들린다) 편차 1.4~4pt로 클램프된다. 예전 값(하한 1.5를 2차 베지어의 컨트롤 오프셋에 그대로 적용 → 실제 편차 0.5pt)은 44pt 컨트롤에서 3x 렌더로도 보이지 않아, 코드는 종이인데 화면은 스톡 iOS였다.</div>
 
         <div class="paper-demo">
           <div class="demo-pane">
