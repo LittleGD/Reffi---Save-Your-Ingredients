@@ -1741,16 +1741,6 @@
         }
       }
     },
-    "No recipes match these ingredients yet.\nCheck their names, or add your own recipe in Profile.": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "이 재료로 만들 수 있는 레시피가 아직 없어요.\n재료 이름을 확인하거나 프로필에서 나만의 레시피를 추가해 보세요."
-          }
-        }
-      }
-    },
     "No tickets yet": {
       "localizations": {
         "ko": {
@@ -2197,6 +2187,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "레시피 이름"
+          }
+        }
+      }
+    },
+    "Recipes need a few more ingredients than you have.\nRestock, or add your own recipe in Profile.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "지금 있는 재료로는 만들 수 있는 레시피가 없어요.\n장을 보거나 프로필에서 나만의 레시피를 추가해 보세요."
           }
         }
       }

@@ -368,7 +368,10 @@ struct RecipeMemoCarousel: View {
                 }
                 .accessibilityHint(Text("Opens YouTube in your browser"))
             } else if hasIngredients {
-                Text("No recipes match these ingredients yet.\nCheck their names, or add your own recipe in Profile.")
+                // 재고는 있는데 덱이 빈 경우. 예전엔 원인이 '이름이 사전과 안 맞음' 하나였지만,
+                // 부족 재료 3개 이상을 걸러내면서(`maxMissingForRecommendation`) **재료가 모자라서**
+                // 비는 쪽이 더 흔해졌다. 두 원인과 각각의 행동(장보기 / 내 레시피 추가)을 함께 말한다.
+                Text("Recipes need a few more ingredients than you have.\nRestock, or add your own recipe in Profile.")
                     .reffiType(.body).foregroundStyle(ReffiColor.ink2).multilineTextAlignment(.center)
             } else {
                 Text("Keep a few ingredients on, then start cooking.")

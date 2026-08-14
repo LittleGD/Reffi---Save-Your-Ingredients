@@ -258,6 +258,46 @@ struct RecommenderTests {
         #expect(RecipeRecommender.matches(ing("닭고기"), chicken))
     }
 
+    // MARK: - 부족 재료 과다 레시피 제외 (덱은 '지금 비우는 요리'만)
+
+    /// 경계 정확도 — 2개 부족은 남고 **3개부터 탈락**한다. 이 숫자가 흔들리면 덱의 성격이 바뀐다
+    /// (장 봐야 하는 레시피가 오늘 상해가는 재료를 밀어낸다).
+    @Test func rankDropsRecipesMissingThreeOrMore() {
+        // 재고는 소고기 하나. 나머지 재료 수만 늘려 부족 개수를 0/1/2/3으로 만든다.
+        let stock = [resolvedIng("소고기", daysLeft: 0)]
+        let none = recipe(id: "miss0", refs: ["beef"], en: ["beef"])
+        let one = recipe(id: "miss1", refs: ["beef", "carrot"], en: ["beef", "carrot"])
+        let two = recipe(id: "miss2", refs: ["beef", "carrot", "onion"],
+                         en: ["beef", "carrot", "onion"])
+        let three = recipe(id: "miss3", refs: ["beef", "carrot", "onion", "egg"],
+                           en: ["beef", "carrot", "onion", "egg"])
+        let ranked = RecipeRecommender.rank(for: stock, from: [none, one, two, three])
+        let ids = ranked.map(\.id)
+        #expect(ids.contains("miss0"))
+        #expect(ids.contains("miss1"))
+        #expect(ids.contains("miss2"), "부족 2개는 경계 안 — 남아야 한다")
+        #expect(!ids.contains("miss3"), "부족 3개는 경계 밖 — 덱에서 빠져야 한다")
+        // 남은 티켓의 missing 계산 자체는 그대로다(Short 줄·담기 칩이 쓴다).
+        #expect(ranked.first(where: { $0.id == "miss2" })?.missing.count == 2)
+    }
+
+    @Test func rankCanReturnEmptyWhenEverythingNeedsTooMuch() {
+        // 재고가 빈약하면 덱이 통째로 빌 수 있다 — 크래시가 아니라 빈 배열이어야 하고,
+        // 화면은 `RecipeMemoCarousel`의 빈 상태가 받는다.
+        let stock = [resolvedIng("소고기", daysLeft: 0)]
+        let heavy = recipe(id: "heavy", refs: ["beef", "carrot", "onion", "egg"],
+                           en: ["beef", "carrot", "onion", "egg"])
+        #expect(RecipeRecommender.rank(for: stock, from: [heavy]).isEmpty)
+    }
+
+    @Test func missingCountStillComputedForExcludedRecipes() {
+        // 제외는 **덱 구성 단계**에서만 한다 — `result(for:)`는 그대로 전부 계산한다.
+        let stock = [resolvedIng("소고기", daysLeft: 0)]
+        let heavy = recipe(id: "heavy", refs: ["beef", "carrot", "onion", "egg"],
+                           en: ["beef", "carrot", "onion", "egg"])
+        #expect(RecipeRecommender.result(for: heavy, ingredients: stock).missing.count == 3)
+    }
+
     // MARK: - 부족 재료 → 장보기 메모 매핑 (표시명 역조회 금지)
 
     @Test func toBuyEntryTrustsRefOverParentheticalText() {

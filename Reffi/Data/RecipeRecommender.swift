@@ -126,6 +126,12 @@ enum RecipeRecommender {
                       total: nonStaple.count, missing: missing, urgentUsedCount: urgent)
     }
 
+    /// 추천 제외 기준 — 부족 재료가 이 수 **이상**이면 덱에 올리지 않는다(2개는 통과, 3개는 탈락).
+    /// 재료를 셋씩 사와야 하는 티켓은 "지금 냉장고를 비우는 요리"가 아니라 장보기 계획이다 —
+    /// 이 앱의 덱은 **오늘 상해가는 재료를 쓰는 순서**이므로 그런 레시피는 애초에 후보가 아니다.
+    /// 0~2개는 그대로 추천한다: 그 정도는 Short 줄이 알려 주고 "Add to To buy" 칩이 처리한다(§13.5 ⑩).
+    static let maxMissingForRecommendation = 3
+
     /// 점수순 정렬된 추천 덱(보유 재료를 하나라도 쓰는 레시피만).
     /// `preferences`(프로필 취향, §5.2)가 주어지면 알레르기 하드 필터 + 선호/기피/요리스타일 보정을
     /// 적용한다. 기본 `.none`은 순수 freshness 랭킹(기존 호출·테스트 후방호환).
@@ -139,6 +145,9 @@ enum RecipeRecommender {
             }
             .map { result(for: $0, ingredients: ingredients, inventory: inventory) }
             .filter { !$0.used.isEmpty }
+            // 부족 재료가 너무 많은 레시피는 덱에서 뺀다(`maxMissingForRecommendation`).
+            // `result(for:)`의 missing 계산 자체는 건드리지 않는다 — 남는 티켓의 Short 줄이 그 값을 쓴다.
+            .filter { $0.missing.count < maxMissingForRecommendation }
             .sorted { a, b in
                 let sa = score(a, preferences: preferences)
                 let sb = score(b, preferences: preferences)
