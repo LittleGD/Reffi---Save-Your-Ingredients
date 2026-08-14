@@ -47,6 +47,19 @@ struct RecipeIntroTests {
         }
     }
 
+    /// 대시 금지 — **사용자 카피 선호**다(2026-08, "큰 하이픈 빼 주세요").
+    /// em 대시(—)·en 대시(–) 모두 쓰지 않고, 쉼표로 갈아끼우는 대신 문장을 다시 쓴다.
+    /// 단어 안의 보통 하이픈("stir-fried")은 대상이 아니다.
+    @Test func introsAvoidEmAndEnDashes() {
+        for r in seed {
+            guard let intro = r.intro else { continue }
+            for (locale, text) in [("en", intro.en), ("ko", intro.ko ?? "")] {
+                #expect(!text.contains("\u{2014}"), "\(r.id).\(locale): em 대시(—)는 쓰지 않는다 — \(text)")
+                #expect(!text.contains("\u{2013}"), "\(r.id).\(locale): en 대시(–)는 쓰지 않는다 — \(text)")
+            }
+        }
+    }
+
     /// 소개는 **요리를 설명해야** 한다 — 이름만 되풀이하거나 템플릿을 복사한 문장을 막는다.
     /// (전수 검사가 아니라 명백한 퇴행만 잡는 얕은 그물이다: 문장이 전부 같거나, 한 단어짜리거나.)
     @Test func introsAreDistinctAndNotBoilerplate() {

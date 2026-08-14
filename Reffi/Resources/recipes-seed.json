@@ -246,7 +246,7 @@
         "ko": "제육볶음"
       },
       "intro": {
-        "en": "Korean pork stir-fried in gochujang — the standard spicy lunch plate.",
+        "en": "Korean pork stir-fried in gochujang and eaten as a spicy lunch staple.",
         "ko": "돼지고기를 고추장 양념에 볶아 낸 한국의 매운 밥반찬."
       },
       "cuisine": "korean",
@@ -701,7 +701,7 @@
         "ko": "미역국"
       },
       "intro": {
-        "en": "Korean seaweed soup with beef — the bowl served on birthdays.",
+        "en": "Korean seaweed soup simmered with beef and served on birthday mornings.",
         "ko": "미역과 소고기를 넣고 끓인 한국의 생일 아침 국."
       },
       "cuisine": "korean",
@@ -1439,7 +1439,7 @@
         "ko": "김밥"
       },
       "intro": {
-        "en": "Korean seaweed rice rolls — rice and fillings rolled in gim, then sliced.",
+        "en": "Korean rolls of rice and fillings wrapped in gim, then sliced into rounds.",
         "ko": "밥과 속재료를 김에 말아 썰어 낸 한국의 김밥."
       },
       "cuisine": "korean",
@@ -1963,7 +1963,7 @@
         "ko": "카레라이스"
       },
       "intro": {
-        "en": "Japanese curry — mild and thick, ladled over rice.",
+        "en": "Mild, thick Japanese curry ladled over rice.",
         "ko": "감자와 당근을 넣어 걸쭉하게 끓여 밥에 부어 먹는 일본식 카레."
       },
       "cuisine": "japanese",
@@ -2117,7 +2117,7 @@
         "ko": "연어구이 정식"
       },
       "intro": {
-        "en": "Japanese set meal — salted salmon grilled and served with rice.",
+        "en": "Japanese set meal built around salted, grilled salmon with rice.",
         "ko": "소금 간해 구운 연어에 밥을 곁들인 일본의 정식 한 상."
       },
       "cuisine": "japanese",
@@ -2489,7 +2489,7 @@
         "ko": "토마토 계란볶음"
       },
       "intro": {
-        "en": "Chinese home cooking — eggs scrambled into stewed tomato.",
+        "en": "Chinese home cooking that scrambles eggs into stewed tomato.",
         "ko": "토마토와 달걀을 함께 볶아 낸 중국의 대표 가정식."
       },
       "cuisine": "chinese",
@@ -2739,7 +2739,7 @@
         "ko": "그린커리"
       },
       "intro": {
-        "en": "Thai green curry — coconut milk loosened with green chili paste.",
+        "en": "Thai curry built on coconut milk loosened with green chili paste.",
         "ko": "코코넛 밀크에 그린커리 페이스트를 풀어 끓인 태국의 커리."
       },
       "cuisine": "thai",
@@ -2997,7 +2997,7 @@
         "ko": "소고기 쌀국수"
       },
       "intro": {
-        "en": "Vietnamese pho — rice noodles in clear beef broth, finished with herbs.",
+        "en": "Vietnamese rice noodles served in clear beef broth and finished with herbs.",
         "ko": "맑은 소고기 육수에 쌀국수를 말아 낸 베트남의 국수."
       },
       "cuisine": "vietnamese",
@@ -3227,7 +3227,7 @@
         "ko": "알리오 올리오"
       },
       "intro": {
-        "en": "Italian pasta with garlic, olive oil and chili — nothing else.",
+        "en": "Italian pasta dressed with nothing but garlic, olive oil and chili.",
         "ko": "마늘과 올리브유, 고추만으로 낸 이탈리아의 파스타."
       },
       "cuisine": "italian",
@@ -3288,7 +3288,7 @@
         "ko": "마르게리타풍 토스트"
       },
       "intro": {
-        "en": "Italian margherita flavors — tomato, mozzarella, basil — on toast.",
+        "en": "Tomato, mozzarella and basil on toast, in the Italian margherita style.",
         "ko": "토마토와 모차렐라를 얹어 구운 이탈리아 마르게리타풍 토스트."
       },
       "cuisine": "italian",
@@ -3438,7 +3438,7 @@
         "ko": "버섯 리조또"
       },
       "intro": {
-        "en": "Italian risotto — rice stirred slowly with mushrooms until creamy.",
+        "en": "Italian risotto stirred slowly with mushrooms until the rice turns creamy.",
         "ko": "쌀을 육수에 천천히 저어 버섯과 함께 끓인 이탈리아의 리조또."
       },
       "cuisine": "italian",
@@ -3585,7 +3585,7 @@
         "ko": "라자냐풍 베이크"
       },
       "intro": {
-        "en": "Italian-style bake — pasta layered with meat sauce and cheese.",
+        "en": "Pasta layered with meat sauce and cheese, then baked Italian style.",
         "ko": "파스타에 미트소스와 치즈를 켜켜이 올려 구운 이탈리아풍 베이크."
       },
       "cuisine": "italian",
@@ -3683,7 +3683,7 @@
         "ko": "스크램블에그"
       },
       "intro": {
-        "en": "Eggs stirred soft in butter — the American breakfast plate.",
+        "en": "Eggs stirred soft in butter for the standard American breakfast plate.",
         "ko": "달걀을 버터에 부드럽게 저어 익힌 미국식 아침 달걀 요리."
       },
       "cuisine": "american",
@@ -3800,7 +3800,7 @@
         "ko": "팬케이크"
       },
       "intro": {
-        "en": "American pancakes — thick, fluffy, stacked with syrup.",
+        "en": "Thick, fluffy American pancakes served in a stack with syrup.",
         "ko": "반죽을 도톰하게 부쳐 시럽을 곁들이는 미국의 팬케이크."
       },
       "cuisine": "american",
@@ -3873,7 +3873,7 @@
         "ko": "프렌치토스트"
       },
       "intro": {
-        "en": "Bread soaked in egg and milk, then griddled — an American brunch staple.",
+        "en": "Bread soaked in egg and milk, then griddled for an American brunch staple.",
         "ko": "빵을 달걀물에 적셔 노릇하게 구운 미국식 브런치 토스트."
       },
       "cuisine": "american",
@@ -3939,7 +3939,7 @@
         "ko": "그릴드 치즈 샌드위치"
       },
       "intro": {
-        "en": "American grilled cheese — buttered bread, cheese melted between.",
+        "en": "American sandwich of buttered bread griddled until the cheese melts inside.",
         "ko": "버터 바른 빵 사이에 치즈를 녹여 구운 미국의 샌드위치."
       },
       "cuisine": "american",
@@ -4046,7 +4046,7 @@
         "ko": "치킨 샐러드"
       },
       "intro": {
-        "en": "American salad plate — sliced chicken over greens with a light dressing.",
+        "en": "Sliced chicken laid over greens with a light dressing, American style.",
         "ko": "구운 닭가슴살을 채소 위에 올린 미국식 샐러드."
       },
       "cuisine": "american",
@@ -4183,7 +4183,7 @@
         "ko": "수제 버거 패티"
       },
       "intro": {
-        "en": "American burger patty — ground beef bound with egg and seared.",
+        "en": "Ground beef bound with egg and seared into an American burger patty.",
         "ko": "다진 소고기를 반죽해 구워 낸 미국식 수제 버거 패티."
       },
       "cuisine": "american",
@@ -4381,7 +4381,7 @@
         "ko": "소고기 타코"
       },
       "intro": {
-        "en": "Mexican tacos — seasoned beef spooned into small tortillas.",
+        "en": "Mexican tacos built from seasoned beef spooned into small tortillas.",
         "ko": "양념한 소고기를 작은 토르티야에 얹어 먹는 멕시코의 타코."
       },
       "cuisine": "mexican",
@@ -4462,7 +4462,7 @@
         "ko": "부리토볼"
       },
       "intro": {
-        "en": "Mexican-style bowl — burrito fillings served over rice, unwrapped.",
+        "en": "Burrito fillings served over rice instead of wrapped, Mexican style.",
         "ko": "부리토 속재료를 밥 위에 올려 먹는 멕시코풍 볼."
       },
       "cuisine": "mexican",
@@ -4614,7 +4614,7 @@
         "ko": "치킨 파히타"
       },
       "intro": {
-        "en": "Mexican fajitas — chicken and peppers seared hot, wrapped at the table.",
+        "en": "Chicken and peppers seared hot for Mexican fajitas, wrapped at the table.",
         "ko": "닭고기와 파프리카를 구워 토르티야에 싸 먹는 멕시코 요리."
       },
       "cuisine": "mexican",
@@ -4844,7 +4844,7 @@
         "ko": "감자 그라탕"
       },
       "intro": {
-        "en": "French gratin — sliced potatoes baked in cream until browned on top.",
+        "en": "French gratin of sliced potatoes baked in cream until browned on top.",
         "ko": "얇게 썬 감자를 크림에 재워 노릇하게 구운 프랑스의 그라탕."
       },
       "cuisine": "french",
@@ -5046,7 +5046,7 @@
         "ko": "니수아즈풍 샐러드"
       },
       "intro": {
-        "en": "Salad from Nice — tuna, boiled egg and potato over greens.",
+        "en": "Salad from Nice with tuna, boiled egg and potato over greens.",
         "ko": "참치와 달걀, 감자를 채소에 곁들인 프랑스 니스식 샐러드."
       },
       "cuisine": "french",
@@ -5203,7 +5203,7 @@
         "ko": "버터치킨풍 커리"
       },
       "intro": {
-        "en": "North Indian curry — chicken simmered in a buttery tomato sauce.",
+        "en": "North Indian curry that simmers chicken in a buttery tomato sauce.",
         "ko": "닭고기를 버터와 토마토 소스에 끓인 북인도의 커리."
       },
       "cuisine": "indian",
@@ -5519,7 +5519,7 @@
         "ko": "탄두리풍 치킨구이"
       },
       "intro": {
-        "en": "Indian tandoori chicken — yogurt-marinated, roasted until charred.",
+        "en": "Indian tandoori chicken marinated in yogurt and roasted until charred.",
         "ko": "요거트와 향신료에 재운 닭을 붉게 구워 낸 인도의 요리."
       },
       "cuisine": "indian",
