@@ -75,9 +75,22 @@ struct RecipeMemoCarousel: View {
         }
         .onAppear { order = Array(results.indices) }
         // History·To buy는 앱 전역에서 하단에서 올라오는 풀스크린 커버다(`FridgeView`와 같은 진입).
-        .fullScreenCover(isPresented: $showToBuy) { ShoppingListView() }
-        // 열림·닫힘 **양쪽** 모두 부모에게 알린다 — 닫힘 통지가 미뤄 둔 발주 전환을 재개시킨다.
-        .onChange(of: showToBuy) { _, presented in onToBuyPresentationChange(presented) }
+        //
+        // **닫힘은 `onDismiss`로 알린다(`onChange`가 아니라).** `onChange(of: showToBuy)`는 바인딩이
+        // false가 되는 순간 — 즉 해체 **애니메이션이 시작되는** 시점 — 에 울린다. 그때 부모가 곧바로
+        // 자기 커버를 닫으려 하면 전환 두 개가 겹쳐 UIKit이 그 요청을 삼키고, 바인딩(`showCarousel`)은
+        // 이미 false라 다시 울릴 일이 없어 **덱이 영영 닫히지 않는다**(미뤄 둔 조리 화면 전환도 유실).
+        // 실측 근거: 플레이크 실패 런의 UI 트리에 To buy는 사라졌는데 덱("Today's tickets" + 카드들)만
+        // 남아 있었고, 조리 화면은 15초를 폴링해도 오지 않았다.
+        // `onDismiss`는 해체가 **끝난 뒤** 울리므로 그 시점엔 겹칠 전환이 없다.
+        .fullScreenCover(isPresented: $showToBuy,
+                         onDismiss: { onToBuyPresentationChange(false) }) {
+            ShoppingListView()
+        }
+        // 열림만 여기서 — 닫힘은 위 `onDismiss`가 맡는다(이중 통지 금지).
+        .onChange(of: showToBuy) { _, presented in
+            if presented { onToBuyPresentationChange(true) }
+        }
     }
 
     // MARK: - 티켓 덱 (뒤 종이 = 실제 다음 티켓)
