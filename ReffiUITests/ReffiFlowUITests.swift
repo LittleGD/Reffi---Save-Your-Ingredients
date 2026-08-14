@@ -97,7 +97,8 @@ final class ReffiFlowUITests: XCTestCase {
         XCTAssertTrue(toCompact.waitForExistence(timeout: 4), "보기 토글 버튼")
         toCompact.tap()
         let compactRow = app.descendants(matching: .any)
-            .matching(NSPredicate(format: "label CONTAINS %@", "300 g")).firstMatch
+            // 수량은 숫자와 단위를 줄바꿈 없는 공백으로 묶는다(Quantity.text) — 일반 공백으로 찾으면 안 걸린다.
+            .matching(NSPredicate(format: "label CONTAINS %@", "300\u{00A0}g")).firstMatch
         XCTAssertTrue(compactRow.waitForExistence(timeout: 4), "간편보기 행(수량 노출)로 전환")
 
         // 정렬 메뉴(정렬 전용) — 전환이 라벨에 반영
@@ -110,7 +111,7 @@ final class ReffiFlowUITests: XCTestCase {
 
         // 상태 원복(스택 보기·임박한 순) — 테스트가 기기 저장 상태를 오염시키지 않게.
         app.buttons["Switch to stack view"].tap()
-        XCTAssertTrue(app.staticTexts["Meat · Beef"].waitForExistence(timeout: 4), "스택 카드 복귀")
+        XCTAssertTrue(app.staticTexts["Beef"].waitForExistence(timeout: 4), "스택 카드 복귀")
         app.buttons["Sort: Recently added"].tap()
         app.buttons["Expiring first"].tap()
         XCTAssertTrue(app.buttons["Sort: Expiring first"].waitForExistence(timeout: 4), "기본 정렬 복귀")
