@@ -341,11 +341,26 @@ struct FridgeView: View {
                 Text("\(sortedItems.count) in stock")
                     .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
                 Spacer(minLength: ReffiSpace.s2)
+                reportButton
                 sortMenu
                 viewToggle
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// 리포트 진입 — 헤더에 상시 노출하는 종이컷 아이콘 버튼(`PaperIconButton`, §13.5).
+    /// 요약 페이저 2장째(무낭비 리포트)는 **스와이프해야 보이는** 경로라, 이력을 보러 온 사람이
+    /// 첫 화면에서 진입점을 찾지 못했다. 페이저는 그대로 두고(발견은 그쪽이, 재방문은 이쪽이 맡는다)
+    /// 헤더에 항상 같은 자리의 버튼을 둔다. 44pt 블롭이라 §7.3 터치 타깃을 그대로 만족한다.
+    private var reportButton: some View {
+        // 인텐트가 `primary`(Blue)인 이유: 헤더의 다른 두 컨트롤(정렬·보기)은 목록을 다루는 크롬이고
+        // 이건 **다른 화면으로 가는 액션**이다 — §2.4의 5% 액션 색이 정확히 이 구분을 맡는다.
+        // `neutral`(sub 면)은 크림 캔버스와 대비가 1.1:1 수준이라 44pt에서 그레인만 보이는 회색 얼룩이 됐다.
+        PaperIconButton(icon: ReffiIcon.report, intent: .primary, size: 44, seed: 4) {
+            showHistory = true
+        }
+        .accessibilityLabel("No-waste report")
     }
 
     /// 정렬 칩 — 현재 정렬 라벨을 상시 노출하는 종이컷 칩(§13.5). 비주얼은 그대로, 탭하면 스톡 Menu 대신
@@ -572,7 +587,7 @@ struct FridgeView: View {
 /// 그룹 키는 저장된 `ingredient.category`가 아니라 **글리프 파생 라벨**(`FoodGlyph.categoryLabel`)이다.
 /// 저장 카테고리는 레거시·스캔 경로에서 "Meat · Beef" 같은 자유 문자열이 섞여 들어와 칩이 파편화되고
 /// 로컬라이즈 키도 없다. 글리프 라벨은 항상 캐논 10종이라 칩 집합이 안정적이고 전부 번역돼 있다
-/// (History 도넛 그룹핑도 같은 키를 쓴다 — 한 화면 두 기준을 만들지 않는다).
+/// (History 정산서 그룹핑도 같은 키를 쓴다 — 한 화면 두 기준을 만들지 않는다).
 enum FridgeCategoryFilter {
     /// 칩 고정 순서 — 사용 빈도(신선식품 → 저장식품 → 기타). 재고에 있는 것만 이 순서로 노출된다.
     /// 정본은 `FoodGlyph.categoryOrder` 하나 — To buy 검색 시트의 픽커 섹션도 같은 상수를 본다.
@@ -630,7 +645,7 @@ enum FridgeCategoryFilter {
     /// 칩 종이 셰이프 시드 — **카테고리 키**에서 유도한다(재고 개수가 아니라). 개수를 쓰면 먹거나
     /// 추가할 때마다 손으로 오린 윤곽이 다시 랜덤해지고(§13.1: 시드가 같으면 항상 같은 모양),
     /// 개수가 같은 칩끼리는 똑같이 생긴다. 20 오프셋은 같은 화면의 다른 종이 면
-    /// (빈 상태 3 · 정렬 칩 5 · 보기 토글 6 · 요약 카드 7/8 · All 칩 9)과 겹치지 않기 위한 것.
+    /// (빈 상태 3 · 리포트 버튼 4 · 정렬 칩 5 · 보기 토글 6 · 요약 카드 7/8 · All 칩 9)과 겹치지 않기 위한 것.
     static func chipSeed(_ category: String) -> Int {
         20 + (order.firstIndex(of: category) ?? order.count)
     }

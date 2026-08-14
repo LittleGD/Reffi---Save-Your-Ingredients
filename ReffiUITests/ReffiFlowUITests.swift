@@ -90,6 +90,16 @@ final class ReffiFlowUITests: XCTestCase {
         XCTAssertTrue(report.waitForExistence(timeout: 4), "스와이프하면 리포트 카드")
         report.tap()
         XCTAssertTrue(app.staticTexts["History"].waitForExistence(timeout: 4), "리포트 카드 → History 시트")
+        // 정산서 = 도넛이 아니라 영수증(§13.9) — 두 행·낭비율 도장·자주 버린 재료가 한 장에 선다.
+        XCTAssertTrue(app.staticTexts["Tally · past 30 days"].waitForExistence(timeout: 4),
+                      "리포트 첫 카드는 30일 정산서다")
+        app.buttons["Close"].firstMatch.tap()
+
+        // 헤더 리포트 버튼 — 페이저를 스와이프하지 않아도 같은 화면으로 가는 상시 진입점(C8)
+        let headerReport = app.buttons["No-waste report"]
+        XCTAssertTrue(headerReport.waitForExistence(timeout: 4), "냉장고 헤더에 리포트 진입 버튼")
+        headerReport.tap()
+        XCTAssertTrue(app.staticTexts["History"].waitForExistence(timeout: 4), "헤더 버튼 → History 시트")
         app.buttons["Close"].firstMatch.tap()
 
         // 보기 토글(원탭 버튼) — 간편보기 전환(수량 텍스트가 노출되는 행으로 바뀜)
