@@ -357,11 +357,17 @@ struct MainView: View {
             Button { enableAlerts() } label: {
                 Text("Turn on")
                     .reffiType(.pillLabel)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(ReffiColor.blueDark)
                     .padding(.horizontal, ReffiSpace.s3 + 2)
                     .padding(.vertical, ReffiSpace.s1 + 2)
                     // §13.1 종이컷 8각형(캡슐 금지) — 바로 아래 Start cooking(PaperButton)과 같은 재질 언어.
-                    .background(ReffiColor.blue, in: PaperCutRect(seed: 3))
+                    // 다만 면은 채우지 않는다: blue 솔리드 면은 한 화면에 하나(Start cooking)뿐이어야
+                    // 부차 액션이 F패턴 #1을 가져가지 않는다(§2.4 5% 강조 배분, 감사 R3-1).
+                    .background {
+                        let s = PaperCutRect(seed: 3)
+                        s.fill(ReffiColor.sub)
+                            .paperEdge(s, tint: ReffiColor.blueDark.opacity(0.38), width: 1.2)
+                    }
                     .frame(minHeight: 44)
                     .contentShape(Rectangle())
             }

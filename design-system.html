@@ -987,6 +987,7 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
           <div style="flex:5;background:var(--color-urgent-dark);color:#fff">5%</div>
         </div>
         <p class="t-caption text" style="color:var(--color-ink-2);margin-top:var(--space-3)">바탕(뉴트럴) · 주조 = 신선도 파스텔 군(최대 3색, 카드 스택) · 5% Blue(액션·AI) · 5% 단일 강조(가장 급한 것). 신선도 색은 신선도에만 쓴다. <strong>예외는 "정렬된 재사용" 하나</strong> — 성과 축이 신선도 축과 같은 방향으로 정렬될 때만(값이 나쁠수록 급해진다) 신선도 잉크를 재사용한다: 정산서의 낭비율 도장(≤10% fresh-dark · ≤30% soon-dark · 그 외 urgent-dark, §11 영수증 정산서)과 이력의 먹음/버림 판정 라벨이 전부다. 순서가 없는 축(카테고리·식품군·태그)에는 절대 쓰지 않는다 — 옛 History 도넛이 Veg→fresh·Dairy→soon·Fruit→urgent로 이 선을 넘어, 앱 전체에서 학습한 3색이 그 화면에서만 식품군을 뜻했다.</p>
+        <p class="t-caption text" style="color:var(--color-ink-2);margin-top:var(--space-2)"><strong>Blue 솔리드 면은 한 화면에 하나.</strong> 채운 파랑은 그 화면의 1차 행동(메인 <code class="inline">Start cooking</code>) 하나만 가진다. 보조 액션은 셰입(<code class="inline">PaperCutRect</code>)을 그대로 두되 면을 비우고 blue-dark 잉크 + 옅은 아웃라인으로 낮춘다 — 알림 배너의 "Turn on"이 그 사례다(짝인 "Later"는 면 없는 텍스트). 같은 토큰의 채운 면이 둘이면 위쪽이 F패턴 첫 시선을 가져가 5% 배분이 무의미해진다.</p>
 
         <p class="subhead text">카운트다운 → 색 매핑</p>
         <div class="fresh-list">
