@@ -7,7 +7,7 @@ import SwiftUI
 ///
 /// 표면은 §13 행동표면 언어(`CandidateEditSheet`와 같은 문법):
 /// 크림 캔버스(`--color-canvas`) + 흰 영수증 카드(`ReceiptShape`) + 모노 섹션 라벨(`ITEM`·`DETAILS`) +
-/// `DashedRule` + 종이 X 닫기 헤더 + 도킹된 `PaperButton`. 시스템 폼·글래스 툴바를 쓰지 않는다(조용한 종이).
+/// `ReffiRule` + 종이 X 닫기 헤더 + 도킹된 `PaperButton`. 시스템 폼·글래스 툴바를 쓰지 않는다(조용한 종이).
 struct IngredientEditView: View {
     @Environment(FridgeStore.self) private var store
     @Environment(\.dismiss) private var dismiss
@@ -163,7 +163,7 @@ struct IngredientEditView: View {
             }
             .frame(minHeight: 40)
 
-            DashedRule()
+            ReffiRule(.ticket)
 
             HStack {
                 Text("Where").reffiType(.body).foregroundStyle(ReffiColor.ink)
@@ -175,7 +175,7 @@ struct IngredientEditView: View {
             }
             .frame(minHeight: 40)
 
-            DashedRule()
+            ReffiRule(.ticket)
 
             HStack {
                 Text("Storage").reffiType(.body).foregroundStyle(ReffiColor.ink)
@@ -188,7 +188,7 @@ struct IngredientEditView: View {
             }
             .frame(minHeight: 40)
 
-            DashedRule()
+            ReffiRule(.ticket)
 
             HStack {
                 Text("Use by").reffiType(.body).foregroundStyle(ReffiColor.ink)
@@ -202,7 +202,7 @@ struct IngredientEditView: View {
             }
             .frame(minHeight: 40)
 
-            DashedRule()
+            ReffiRule(.ticket)
 
             HStack {
                 Text("Purchased").reffiType(.body).foregroundStyle(ReffiColor.ink)

@@ -94,7 +94,7 @@ struct ShoppingListView: View {
             }
             if !suggested.isEmpty {
                 // 두 구역 구분은 절취선 어휘로(보더 금지 §6).
-                if !manual.isEmpty { DashedRule() }
+                if !manual.isEmpty { ReffiRule(.ticket) }
                 Text("Ran out, based on what you use often")
                     .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
                 ForEach(suggested, id: \.key) { row($0) }

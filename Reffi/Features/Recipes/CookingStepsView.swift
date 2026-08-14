@@ -211,7 +211,7 @@ struct CookingStepsView: View {
                     .frame(width: ReffiDishIcon.ticket, height: ReffiDishIcon.ticket)
             }
 
-            DashedRule()
+            ReffiRule(.ticket)
 
             // 조리법의 1차 경로 — 레시피명으로 유튜브 검색을 연다. 아이콘+라벨 와이드 CTA(아이콘 단독 아님).
             // 공유는 그 옆의 보조 행동이라 조용한 종이컷 아이콘(§13.5)으로 남긴다.
@@ -240,7 +240,7 @@ struct CookingStepsView: View {
                 .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
                 .fixedSize(horizontal: false, vertical: true)
 
-            DashedRule()
+            ReffiRule(.ticket)
                 .padding(.top, ReffiSpace.s2)
 
             PaperButton(title: "Finish cooking") {

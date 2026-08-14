@@ -79,7 +79,7 @@ struct OrderMemoCard: View {
         // 콘텐츠가 프레임보다 작으면 스크롤이 비활성이라 시각 무변화, 극단 Dynamic Type에서만 발동.
         return ScrollView(.vertical, showsIndicators: false) {
             VStack(alignment: .leading, spacing: ReffiSpace.s3) {
-                DashedRule()
+                ReffiRule(.ticket)
 
                 // 판정문 키커 — 이 티켓이 비우는 임박 재료(미션 페이로드).
                 verdictKicker
@@ -113,7 +113,7 @@ struct OrderMemoCard: View {
                         .frame(width: ReffiDishIcon.ticket, height: ReffiDishIcon.ticket)
                 }
 
-                DashedRule()
+                ReffiRule(.ticket)
 
                 // 모노 올캡 티켓 크롬은 형제 라벨(ORDER · FIRED · TABLE · REFFI KITCHEN)과 같이 verbatim —
                 // 주방 티켓의 인쇄 문자열이라 번역하지 않는다.

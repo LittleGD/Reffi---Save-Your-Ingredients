@@ -3,7 +3,7 @@ import SwiftUI
 /// 종이 드롭다운 — 앱 최초 커스텀 드롭다운(§13). 스톡 `Menu`/`Picker` 팝업(흰 시스템 라운드 렉트)을
 /// 대체한다. 팝업 면은 냉장고 카드·영수증 어휘와 같은 종이 문법: `PaperRect` 면 + `paperEdge` 헤어라인 +
 /// 옅은 `PaperGrain` + `--shadow-1`. 행은 라벨(좌) + 선택 행에만 체크 글리프(우, `blue-dark`),
-/// 최소 44pt 히트, `paperPress` 통통 프레스, 행 사이는 `DashedRule`(절취선 어휘, 보더 금지 §6).
+/// 최소 44pt 히트, `paperPress` 통통 프레스, 행 사이는 `ReffiRule(.ticket)`(절취선 어휘, 보더 금지 §6).
 ///
 /// 이 뷰는 **순수 팝업 면**이다 — 트리거 칩 아래 앵커링·바깥 탭 닫기·zIndex(`ReffiZ.dropdown`)·진입/이탈
 /// 애니메이션은 호출부가 `DropdownAnchorKey` + `overlayPreferenceValue`로 붙인다(ScrollView에 클리핑되지
@@ -78,7 +78,7 @@ struct PaperDropdown<Value: Hashable>: View {
                 .accessibilityAddTraits(option == selected ? [.isButton, .isSelected] : .isButton)
 
                 if index < options.count - 1 {
-                    DashedRule().padding(.horizontal, ReffiSpace.s3)   // 절취선 구분(보더 아님)
+                    ReffiRule(.ticket).padding(.horizontal, ReffiSpace.s3)   // 절취선 구분(보더 아님)
                 }
             }
         }

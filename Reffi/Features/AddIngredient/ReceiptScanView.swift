@@ -318,7 +318,7 @@ private struct EditableCandidate: Identifiable {
     }
 }
 
-/// 후보 한 건만 고치는 컴팩트 편집 시트 — 종이 언어 재사용(크림 캔버스 + 흰 영수증 카드 + DashedRule +
+/// 후보 한 건만 고치는 컴팩트 편집 시트 — 종이 언어 재사용(크림 캔버스 + 흰 영수증 카드 + ReffiRule +
 /// 모노 라벨 없이 라벨 좌/컨트롤 우 행). 새 컴포넌트가 아니라 `AddIngredientSheet`와 같은 문법.
 private struct CandidateEditSheet: View {
     /// 이 시트에서 열릴 수 있는 종이 드롭다운 — 한 번에 하나만 연다(`DropdownAnchorKey` 전제).
@@ -425,7 +425,7 @@ private struct CandidateEditSheet: View {
                 .reffiType(.body).foregroundStyle(ReffiColor.ink)
                 .frame(minHeight: 44)
 
-            DashedRule()
+            ReffiRule(.ticket)
 
             HStack {
                 Text("Quantity").reffiType(.body).foregroundStyle(ReffiColor.ink)
@@ -445,7 +445,7 @@ private struct CandidateEditSheet: View {
             }
             .frame(minHeight: 44)
 
-            DashedRule()
+            ReffiRule(.ticket)
 
             HStack {
                 Text("Storage").reffiType(.body).foregroundStyle(ReffiColor.ink)
@@ -458,7 +458,7 @@ private struct CandidateEditSheet: View {
             }
             .frame(minHeight: 44)
 
-            DashedRule()
+            ReffiRule(.ticket)
 
             HStack {
                 Text("Use by").reffiType(.body).foregroundStyle(ReffiColor.ink)
@@ -472,7 +472,7 @@ private struct CandidateEditSheet: View {
             }
             .frame(minHeight: 44)
 
-            DashedRule()
+            ReffiRule(.ticket)
 
             TextField("Where you bought it", text: $candidate.place,
                       prompt: Text("Where you bought it").foregroundStyle(ReffiColor.ink2))

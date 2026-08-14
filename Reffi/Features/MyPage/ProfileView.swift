@@ -445,12 +445,11 @@ struct ReceiptCard<Content: View>: View {
     }
 }
 
-/// 영수증 점선 룰 — Fridge 상세의 dashRule과 동일.
+/// 영수증 카드 헤더 아래 절취선 — Fridge 상세의 dashRule과 같은 `ReffiRule(.receipt)`에 카드 거터만 더한다.
+/// (예전엔 "동일"이라 적어 두고 잉크만 0.14로 갈려 있었다.)
 struct ReceiptRule: View {
     var body: some View {
-        HLine().stroke(ReffiColor.ink.opacity(0.14), style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
-            .frame(height: 1)
-            .padding(.horizontal, ReffiSpace.s5)
+        ReffiRule(.receipt).padding(.horizontal, ReffiSpace.s5)
     }
 }
 

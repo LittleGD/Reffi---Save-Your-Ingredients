@@ -89,8 +89,7 @@ struct HistoryView: View {
                 }
 
                 // 영수증 명세 마감 — 점선 룰 + 기간 라벨 + 번호(장식, 이력에서 유도).
-                HLine().stroke(ReffiColor.ink.opacity(0.16), style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
-                    .frame(height: 1)
+                ReffiRule(.receipt)
                 HStack {
                     Text(verbatim: "REFFI · PAST 30 DAYS")
                         .reffiType(.monoEyebrow)

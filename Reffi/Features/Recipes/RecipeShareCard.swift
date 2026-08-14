@@ -66,7 +66,7 @@ struct RecipeShareCard: View {
             // 재료 블록은 **이름이 있을 때만** 통째로 그린다(라벨·구분선 포함) — 예약 모델 이전 세션엔
             // 예약 재료가 없어, 없으면 빈 "ON THE TICKET" 라벨만 덩그러니 남는다.
             if !ingredientNames.isEmpty {
-                DashedRule()
+                ReffiRule(.ticket)
 
                 // 티켓 크롬은 형제 라벨(ORDER · FIRED)과 같이 verbatim — 인쇄 문자열이라 번역하지 않는다.
                 Text(verbatim: "ON THE TICKET")
@@ -87,7 +87,7 @@ struct RecipeShareCard: View {
                 }
             }
 
-            DashedRule()
+            ReffiRule(.ticket)
                 .padding(.top, ReffiSpace.s2)
 
             Text(verbatim: "REFFI · KEEP IT FRESH")

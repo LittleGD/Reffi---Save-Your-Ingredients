@@ -1431,6 +1431,7 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">판정·확정은 <code class="inline">.impact</code>(판정 light · 발주 medium 두 강도뿐), 성공 완료는 <code class="inline">.success</code>, 파괴 확인은 <code class="inline">.warning</code>인가 · 매핑 밖 강도를 새로 만들지 않았는가 · 정보성 전환에 햅틱을 넣지 않았는가 (§7.6)</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">레시피 대표 아이콘을 그리는 새 표면이 뷰에서 <code class="inline">DishGlyphCatalog</code>를 직접 부르지 않고 <code class="inline">Recipe.heroIcon</code>/<code class="inline">RecipeHeroIcon.session</code>만 쓰는가 (§13.7)</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">영수증 종이를 새로 그릴 때 톱니를 <code class="inline">ReffiTooth</code>로 지정하고 면은 <code class="inline">receiptSurface(...)</code>로 얹었는가 — 숫자 리터럴·손조립 금지 (§13.8)</span></li>
+          <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">점선 구분을 손으로 그리지 않고 <code class="inline">ReffiRule(.receipt|.ticket)</code>을 썼는가 (§13.8)</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">카드 그림자를 인라인 <code class="inline">.shadow(...)</code>가 아니라 <code class="inline">reffiShadowCard()</code>/<code class="inline">reffiShadowCardCompact()</code>로 얹었는가 (§6.4)</span></li>
         </ul>
       </section>
@@ -1586,6 +1587,8 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
         <table class="tbl">
           <thead><tr><th>토큰</th><th>값</th><th>용도</th></tr></thead>
           <tbody>
+            <tr><td><code class="inline">ReffiRule(.receipt)</code></td><td>ink 16% · dash 3/3</td><td>영수증 카드의 기본 절취선(헤더 아래·구역 마감)</td></tr>
+            <tr><td><code class="inline">ReffiRule(.ticket)</code></td><td>ink 22% · dash 4/4</td><td>오더 티켓 계열의 굵은 절취선(티켓 본문 섹션·편집 시트 필드·드롭다운 행)</td></tr>
             <tr><td><code class="inline">ReffiTooth.chip</code></td><td>6pt</td><td>홈 미니 스트립·온보딩 소품처럼 폭이 좁은 조각</td></tr>
             <tr><td><code class="inline">ReffiTooth.card</code></td><td>7pt</td><td>목록·시트·이력의 영수증 카드</td></tr>
             <tr><td><code class="inline">ReffiTooth.ticket</code></td><td>9pt</td><td>오더·조리·공유 티켓(<code class="inline">ReceiptShape</code> 기본값)</td></tr>

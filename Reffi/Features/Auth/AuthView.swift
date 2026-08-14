@@ -203,10 +203,7 @@ struct AuthView: View {
             line
         }
     }
-    private var line: some View {
-        HLine().stroke(ReffiColor.ink.opacity(0.16), style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
-            .frame(height: 1)
-    }
+    private var line: some View { ReffiRule(.receipt) }
 
     // MARK: 소셜 버튼 — PaperCutRect(와이드 CTA 문법) + 로고 글리프
 

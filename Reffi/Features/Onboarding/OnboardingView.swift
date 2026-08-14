@@ -242,7 +242,7 @@ struct OnboardingView: View {
             }
             Text(verbatim: "TABLE · REFFI KITCHEN")
                 .reffiType(.monoEyebrow).foregroundStyle(ReffiColor.ink2)
-            DashedRule()
+            ReffiRule(.ticket)
             // 판정문(임박 소진) + 메뉴 + 시간 — "1"은 아래 D-day 중 "Today" 1건과 짝지어진 장식 표기.
             Text("Saves \(1) expiring today")   // 기존 포맷 키 재사용 — ko 번역이 이미 존재
                 .reffiType(.pillLabel).foregroundStyle(ReffiColor.urgentDark)
@@ -262,7 +262,7 @@ struct OnboardingView: View {
                     }
                 }
             }
-            DashedRule()
+            ReffiRule(.ticket)
             Text(verbatim: "ON THE TICKET")   // 위 "ORDER"와 같은 모노 크롬 규칙
                 .reffiType(.sectionLabel).foregroundStyle(ReffiColor.ink2)
             ForEach(Array(ticket.rows.enumerated()), id: \.offset) { _, row in
@@ -379,10 +379,7 @@ struct OnboardingView: View {
         }
     }
 
-    private var heroDash: some View {
-        HLine().stroke(ReffiColor.ink.opacity(0.16), style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
-            .frame(height: 1)
-    }
+    private var heroDash: some View { ReffiRule(.receipt) }
 
     private func heroRow(_ glyph: FoodGlyph, _ name: String, _ dDay: String, _ color: Color) -> some View {
         HStack(spacing: ReffiSpace.s3) {

@@ -835,9 +835,7 @@ struct ExpandedFridgeCard: View {
     }
 
     private var dashRule: some View {
-        HLine().stroke(ReffiColor.ink.opacity(0.16), style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
-            .frame(height: 1)
-            .padding(.horizontal, ReffiSpace.s5)
+        ReffiRule(.receipt).padding(.horizontal, ReffiSpace.s5)
     }
 }
 

@@ -153,7 +153,7 @@ struct MyRecipesView: View {
 /// 저장 시 그대로 보존한다(편집기가 건드리지 않는 필드를 지우지 않는다).
 ///
 /// 표면은 `IngredientEditView`와 같은 종이 문법(룰 ⑤): 크림 캔버스 + `SheetHeader` + 흰 영수증 카드
-/// (`ReceiptShape`) + 모노 섹션 라벨 + `DashedRule` + 도킹된 `PaperButton`. 시스템 폼·글래스 툴바를 쓰지 않는다.
+/// (`ReceiptShape`) + 모노 섹션 라벨 + `ReffiRule` + 도킹된 `PaperButton`. 시스템 폼·글래스 툴바를 쓰지 않는다.
 /// 저장은 하단 도킹 CTA로 명시적 커밋(룰 ⑥, 생성=Add·편집=Save). 미저장 변경이 있으면 스와이프/닫기에
 /// Discard 확인(룰 ⑨). 삭제는 국소 정정 경로라 편집 시에만 노출하며 `.confirmationDialog`(룰 ⑧)+`.warning` 햅틱(룰 ⑦).
 struct RecipeEditorView: View {
@@ -250,7 +250,7 @@ struct RecipeEditorView: View {
                 .reffiType(.body).foregroundStyle(ReffiColor.ink)
                 .frame(minHeight: 40)
 
-            DashedRule()
+            ReffiRule(.ticket)
 
             HStack {
                 Text("Time").reffiType(.body).foregroundStyle(ReffiColor.ink)
