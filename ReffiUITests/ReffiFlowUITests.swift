@@ -81,13 +81,19 @@ final class ReffiFlowUITests: XCTestCase {
         app.launchArguments = ["-skipAuth", "-onboarding.done", "YES", "-fridgeTab", "-uiTestSampleFridge"]
         app.launch()
 
-        // 페이저 1장 = 장보기(빈도 우선), 2장 = 무낭비 리포트(스와이프로 진입)
+        // 요약 행 = 장보기·무낭비 리포트 **두 버튼이 나란히**(페이저·점 인디케이터 제거).
+        // 스와이프 없이 둘 다 처음부터 보이고 눌린다.
         let toBuy = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Shopping list")).firstMatch
-        XCTAssertTrue(toBuy.waitForExistence(timeout: 8), "장보기 카드가 1장이어야 한다")
-        toBuy.swipeLeft()
+        XCTAssertTrue(toBuy.waitForExistence(timeout: 8), "장보기 버튼이 보여야 한다")
 
         let report = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Open no-waste report")).firstMatch
-        XCTAssertTrue(report.waitForExistence(timeout: 4), "스와이프하면 리포트 카드")
+        XCTAssertTrue(report.waitForExistence(timeout: 4), "리포트 버튼도 스와이프 없이 함께 보여야 한다")
+        XCTAssertTrue(toBuy.isHittable && report.isHittable, "두 버튼 모두 바로 누를 수 있어야 한다")
+        // 시각 표면이라(반쪽 폭에서 제목이 잘리지 않는지) 눈으로 볼 근거를 남긴다.
+        let shot = XCTAttachment(screenshot: app.screenshot())
+        shot.name = "fridge-summary-two-up"
+        shot.lifetime = .keepAlways
+        add(shot)
         report.tap()
         XCTAssertTrue(app.staticTexts["History"].waitForExistence(timeout: 4), "리포트 카드 → History 시트")
         // 정산서 = 도넛이 아니라 영수증(§13.9) — 두 행·낭비율 도장·자주 버린 재료가 한 장에 선다.

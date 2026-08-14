@@ -24,8 +24,6 @@ struct FridgeView: View {
     /// 정렬·보기 선택 — 세션을 넘어 유지(리서치: 정렬 선택은 기억되어야 재방문 비용이 준다).
     @AppStorage("fridge.sort") private var sortRaw: String = FridgeSort.expiry.rawValue
     @AppStorage("fridge.compact") private var compact = false
-    /// 요약 페이저 현재 장(리포트 0 · 장보기 1) — 세션 한정.
-    @State private var summaryPage = 0
     /// 카테고리 필터(nil = 전체) — **영속화하지 않는다**. 정렬은 재방문 비용을 줄이지만 필터는
     /// "지금 이 순간 좁혀 보기"라, 다음 실행에 살아 있으면 재고가 사라진 것처럼 보인다(세션 한정).
     @State private var activeCategory: String?
@@ -488,61 +486,54 @@ struct FridgeView: View {
         .accessibilityLabel(compact ? "Switch to stack view" : "Switch to simple view")
     }
 
-    // MARK: 요약 페이저 — 한 번에 카드 한 장(점진적 공개), 점 인디케이터로 다음 장 예고.
-    // 순서 = 사용 빈도: 장보기(할 일, 수시) 먼저 → 리포트(회고, 가끔)는 도장 강조 + 한 스와이프.
+    // MARK: 요약 행 — 장보기·무낭비 리포트를 **나란히 두 버튼**으로. 페이저(스와이프+점 인디케이터)를
+    // 걷어냈다: 두 장뿐인 걸 한 장씩 감추면 리포트는 스와이프를 아는 사람만 닿고, 그 사실을 알리려고
+    // 둔 점 인디케이터가 화면에서 가장 눈에 거슬리는 요소가 됐다. 둘 다 상시 노출이면 예고할 것도 없다.
     private var summaryRow: some View {
-        VStack(spacing: ReffiSpace.s2) {
-            TabView(selection: $summaryPage) {
-                Button { showShopping = true } label: {
-                    summaryCard(icon: ReffiIcon.receipt, title: "To buy",
-                                value: "\(store.toBuy.count)", tint: ReffiColor.blueDark, seed: 8)
-                }
-                .buttonStyle(.paperPress)
-                .accessibilityLabel("Shopping list, \(store.toBuy.count) items")
-                .padding(.horizontal, cardInset)
-                .tag(0)
-
-                Button { showHistory = true } label: {
-                    summaryCard(icon: ReffiIcon.report, title: "No-waste report",
-                                value: "\(store.wasteRate)%", tint: rateColor, seed: 7)
-                }
-                .buttonStyle(.paperPress)
-                .accessibilityLabel("Open no-waste report, \(store.wasteRate) percent wasted")
-                .padding(.horizontal, cardInset)
-                .tag(1)
+        HStack(spacing: ReffiSpace.s3) {
+            Button { showShopping = true } label: {
+                summaryCard(icon: ReffiIcon.receipt, title: "To buy",
+                            value: "\(store.toBuy.count)", tint: ReffiColor.blueDark, seed: 8)
             }
-            .tabViewStyle(.page(indexDisplayMode: .never))
-            .frame(height: 72)   // 종이컷 버튼 minHeight 56 + 그림자·프레스 여유
+            .buttonStyle(.paperPress)
+            .accessibilityLabel("Shopping list, \(store.toBuy.count) items")
 
-            HStack(spacing: 6) {
-                ForEach(0..<2, id: \.self) { i in
-                    Circle()
-                        .fill(i == summaryPage ? ReffiColor.ink2 : ReffiColor.muted.opacity(0.3))
-                        .frame(width: 7, height: 7)
-                }
+            Button { showHistory = true } label: {
+                summaryCard(icon: ReffiIcon.report, title: "No-waste report",
+                            value: "\(store.wasteRate)%", tint: rateColor, seed: 7)
             }
-            .accessibilityHidden(true)
+            .buttonStyle(.paperPress)
+            .accessibilityLabel("Open no-waste report, \(store.wasteRate) percent wasted")
         }
+        .padding(.horizontal, cardInset)   // 아래 영수증 스택과 같은 폭으로 정렬
     }
 
     /// 요약 카드 = 종이컷 버튼(§13.5) — 메인 CTA(PaperButton)와 같은 8각형 셰입 + 종이 질감 + 그림자.
     /// 색은 크림 위 sub 면 + ink 글자(§2.6), 아이콘·값만 의미색(To buy=blue, 리포트=낭비율색).
+    ///
+    /// **반쪽 폭이라 세로로 쌓는다** — 한 줄에 아이콘·제목·값·셰브론을 다 넣던 전폭 시절 구성은
+    /// "No-waste report" 하나로도 폭이 모자란다. 위 줄에 아이콘과 **값**(이 카드의 payload)을 양 끝으로
+    /// 벌리고 제목을 아래에 깔면, 좁은 폭에서도 숫자가 먼저 읽힌다.
+    /// 셰브론은 뺐다 — §13.5 룰⑩에서 셰브론은 **시트** 진입 기표인데 이 둘은 풀스크린 커버를 열고,
+    /// 나란한 두 종이 버튼 자체가 이미 누를 것으로 읽힌다(좁은 폭에서 글자와 경합할 이유가 없다).
     private func summaryCard(icon: Ph, title: LocalizedStringKey, value: String,
                              tint: Color, seed: Int) -> some View {
-        HStack(spacing: ReffiSpace.s2) {
-            icon.reffi(17, .bold).foregroundStyle(tint)
+        VStack(alignment: .leading, spacing: ReffiSpace.s1) {
+            HStack(spacing: ReffiSpace.s2) {
+                icon.reffi(17, .bold).foregroundStyle(tint)
+                Spacer(minLength: ReffiSpace.s1)
+                Text(value)
+                    .font(.reffiNum(.body)).foregroundStyle(tint)
+                    .lineLimit(1)
+            }
             Text(title)
                 .reffiType(.checklistItem)
                 .foregroundStyle(ReffiColor.ink)
-                .lineLimit(1).fixedSize()   // 제목은 절대 말줄임하지 않는다
-            Spacer(minLength: ReffiSpace.s1)
-            Text(value)
-                .font(.reffiNum(.body)).foregroundStyle(tint)
-                .lineLimit(1)
-            ReffiIcon.chevron.reffi(11, .bold).foregroundStyle(ReffiColor.ink2)
+                .lineLimit(1).minimumScaleFactor(0.85)   // 반쪽 폭이라 말줄임보다 축소를 먼저
         }
-        .padding(.horizontal, ReffiSpace.s5)
-        .frame(maxWidth: .infinity, minHeight: 56)
+        .padding(.horizontal, ReffiSpace.s3 + 2)
+        .padding(.vertical, ReffiSpace.s3)
+        .frame(maxWidth: .infinity, minHeight: 60)   // 둘이 같은 폭·같은 높이로 선다
         .contentShape(Rectangle())
         .background {
             let s = PaperCutRect(seed: seed)                            // 아이콘 버튼(9각)·CTA와 같은 8각형
