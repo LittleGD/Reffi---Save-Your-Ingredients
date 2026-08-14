@@ -11,6 +11,7 @@ struct DDayStamp: View {
     var body: some View {
         Text(text.uppercased())
             .font(.reffiStamp(size))
+            .monospacedDigit()          // §3.4 — 자릿수가 바뀌어도 도장 폭이 흔들리지 않게
             .tracking(size * 0.06)
             .foregroundStyle(color)
             .padding(.horizontal, size * 0.7)

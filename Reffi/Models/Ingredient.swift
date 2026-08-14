@@ -256,11 +256,16 @@ struct Ingredient: Identifiable, Codable, Equatable {
     var canFreeze: Bool { storage != .freezer && frozenAt == nil }
 
     /// 남은 일수 라벨(로컬라이즈). 데이터성 숫자(§3.4).
-    var dDayText: String {
-        switch effectiveDaysLeft {
+    var dDayText: String { Self.dDayText(daysLeft: effectiveDaysLeft) }
+
+    /// 앱 전역의 **유일한** D-day 표기 포맷터(§3.4) — 재고 카드·배지·도장·온보딩 데모가 전부 여기를 탄다.
+    /// 화면마다 다른 표기를 손으로 적으면 온보딩이 가르친 표기를 본 앱이 한 번도 쓰지 않는 일이 생긴다
+    /// (실제로 온보딩만 "D-2"였다).
+    static func dDayText(daysLeft: Int) -> String {
+        switch daysLeft {
         case ..<0: String(localized: "Overdue", comment: "D-day label when past the use-by date")
         case 0:    String(localized: "Today", comment: "D-day label when expiring today")
-        default:   String(localized: "\(effectiveDaysLeft)d", comment: "D-day shorthand, e.g. 3d")
+        default:   String(localized: "\(daysLeft)d", comment: "D-day shorthand, e.g. 3d")
         }
     }
 

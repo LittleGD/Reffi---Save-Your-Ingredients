@@ -163,10 +163,14 @@ struct OnboardingView: View {
             let extra = lex.entries.filter { e in !entries.contains { $0.id == e.id } }
             entries.append(contentsOf: extra.prefix(Self.receiptEntryIDs.count - entries.count))
         }
-        let dDays = ["D-2", "D-1", "D-5"]                                             // 장식 — 재료 순서 기반 고정값
-        let colors = [ReffiColor.soonDark, ReffiColor.soonDark, ReffiColor.freshDark]
-        return zip(entries, zip(dDays, colors)).map { entry, meta in
-            (glyph: FoodGlyph(rawValue: entry.glyph) ?? .generic, name: entry.displayName, dDay: meta.0, color: meta.1)
+        // 남은 일수는 장식(재료 순서 기반 고정값)이지만, **표기와 색은 본 앱과 같은 정본**을 탄다 —
+        // 온보딩이 가르친 표기를 앱이 안 쓰면 첫 화면부터 약속이 어긋난다.
+        let daysLeft = [2, 1, 5]
+        return zip(entries, daysLeft).map { entry, days in
+            (glyph: FoodGlyph(rawValue: entry.glyph) ?? .generic,
+             name: entry.displayName,
+             dDay: Ingredient.dDayText(daysLeft: days),
+             color: Freshness(daysLeft: days).dark)
         }
     }
 

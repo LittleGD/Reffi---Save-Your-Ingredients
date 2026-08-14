@@ -266,7 +266,8 @@
 ```css
 .num { font-variant-numeric: tabular-nums lining-nums; font-feature-settings: "tnum" 1, "lnum" 1; }
 ```
-- 의무: 카드의 "D-2", 수량·날짜, 카운트다운, 표/대시보드 수치. 문장 속 숫자는 비례숫자(기본).
+- 의무: D-day 라벨, 수량·날짜, 카운트다운, 표/대시보드 수치. 문장 속 숫자는 비례숫자(기본). D-day 도장(`DDayStamp`)은 Pretendard Bold 계열이라 `tnum`이 없어 `.monospacedDigit()`을 붙인다 — 자릿수가 바뀔 때 도장 폭이 흔들리지 않게.
+- **D-day 표기는 앱 전역 한 포맷터에서만 나온다** — `Ingredient.dDayText`(`Overdue` / `Today` / `Nd`). 온보딩 데모·장식 티켓도 예외 없이 이 포맷터를 타고, 색도 같은 `Freshness(daysLeft:)`에서 파생시킨다. 화면마다 표기를 손으로 적으면 온보딩이 가르친 표기("D-2")를 본 앱이 한 번도 쓰지 않는 일이 실제로 생긴다.
 
 ### 3.5 보조 스케일 (행동 표면) — §3.2 5단계 밖, 9종
 
@@ -527,7 +528,7 @@
 - [ ] 화면당 텍스트 계층이 상한(정보 표면 4·행동 표면 7, §3.3)을 넘지 않는가
 - [ ] 행동 표면 텍스트가 §3.2 5단계가 아니라 §3.5 보조 스케일 9종(`ReffiActionRole`)에서만 왔는가
 - [ ] Display=Story Script(영문)/Pretendard(한글), 그 외 GSF(영문)/Pretendard(한글)인가
-- [ ] 데이터성 숫자에 `.num`(tabular)을 적용했는가
+- [ ] 데이터성 숫자에 `.num`(tabular)을 적용했는가 · D-day 표기가 `Ingredient.dDayText` 한 포맷터에서 나왔는가(§3.4)
 - [ ] 텍스트가 `word-break:keep-all` + orphan 방지를 따르는가
 - [ ] 아이콘이 SVG이고 **색 채운 아이콘 박스가 없는가**
 - [ ] 인터랙티브 요소가 hover·active·focus·disabled를 모두 갖고 hover에 포인터 가드가 있는가
