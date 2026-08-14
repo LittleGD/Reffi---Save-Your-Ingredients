@@ -81,7 +81,7 @@ struct HistoryView: View {
                     ZStack {
                         donut.frame(width: 180, height: 180)
                         VStack(spacing: 0) {
-                            Text("\(rate)%").font(.reffiNum(32, relativeTo: .largeTitle)).foregroundStyle(rateColor)
+                            Text(verbatim: rate.formatted(.percent)).font(.reffiNum(32, relativeTo: .largeTitle)).foregroundStyle(rateColor)
                             Text("Wasted").reffiType(.caption).foregroundStyle(ReffiColor.ink2)
                         }
                     }
@@ -154,7 +154,7 @@ struct HistoryView: View {
                     Circle().fill(seg.color).frame(width: 9, height: 9)
                     Text(LocalizedStringKey(seg.name)).reffiType(.body).foregroundStyle(ReffiColor.ink)
                     Spacer()
-                    Text("\(Int((Double(seg.count) / Double(total) * 100).rounded()))%")
+                    Text(verbatim: Int((Double(seg.count) / Double(total) * 100).rounded()).formatted(.percent))
                         .font(.reffiNum(13, relativeTo: .caption)).foregroundStyle(ReffiColor.ink2)
                 }
             }
