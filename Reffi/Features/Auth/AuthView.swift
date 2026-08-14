@@ -43,6 +43,10 @@ struct AuthView: View {
         // 프로필에서 시트로 띄운 경우의 닫기 신호(룰④) — 핸들 노출. 루트 게이트로 쓰일 땐
         // 시트가 아니라 이 modifier가 무시되므로 무해하다.
         .presentationDragIndicator(.visible)
+        // 시트 높이도 같은 이유로 여기서 선언한다(룰⑪ / §14.5 "미설정=무조건 풀높이" 금지).
+        // 로그인 화면은 워드마크·소셜 버튼·게스트 진입이 한 화면에 다 서야 해서 `.large` 한 단이다 —
+        // `.medium`을 함께 주면 절반 높이에서 CTA가 잘린다. 호출부(ProfileView)엔 중복 선언하지 않는다.
+        .presentationDetents([.large])
         .onOpenURL { auth.handleOpenURL($0) }
         // 프로필에서 시트로 띄운 경우 — 정식(비익명) 세션이 생기면 자동 닫힘.
         // 게이트(루트)에서는 dismiss가 no-op이라 무해하다.

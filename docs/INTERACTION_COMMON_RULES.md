@@ -111,7 +111,7 @@
 - **적용**: 커버를 여는 진입점은 CTA 스타일로, 시트를 여는 진입점은 chevron 행으로 정렬. (감사 대상: `FridgeView` 요약카드, `MainView` cookingNow, `ProfileView` SettingsRow, `AddIngredientSheet` scanCard.)
 
 ### 룰 ⑪ — 시트 높이(detent) = 콘텐츠 양별 3단
-- **현행 편차**: `.medium` / 고정높이(`.height(260/300)`) / 미설정(풀높이)이 기준 없이 혼재. `AuthView`·`RecipeEditor` 등은 detent 없이 무조건 풀높이.
+- **현행 편차**: `.medium` / 고정높이(`.height(260/300)`) / 미설정(풀높이)이 기준 없이 혼재. `AuthView`·`RecipeEditor` 등은 detent 없이 무조건 풀높이. — **해소(2026-08-13)**: `RecipeEditorView`는 `.medium/.large`로, `AuthView`는 `.large` 단일 단으로 이관해 미설정 시트가 0이 됐다(선언 위치는 "시트 설정은 시트 안에서" 관례대로 각 뷰 내부).
 - **확정 룰**:
   - **짧은 단일 입력**(닉네임·시간) = `.height(...)` 고정.
   - **중간 목록·폼**(추가·편집) = `.medium` 진입, 키보드/긴 내용 시 `.large` 승격.
