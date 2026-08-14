@@ -189,18 +189,39 @@ struct ShakeKickTests {
         #expect(IngredientDropScene.shakeKick(x: 0.1, y: 0.1, z: 0.15, gravity: upright, threshold: 0.35) == nil)
     }
 
-    /// 운영 임계 0.25에서의 초과분 산식 고정 — v1.0 (3) "흔들어도 아무 반응 없음" 회귀 가드.
+    /// 운영 임계에서의 초과분 산식 고정 — v1.0 (3) "흔들어도 아무 반응 없음" 회귀 가드.
+    /// **씬의 상수를 심볼로 읽는다** — 리터럴을 다시 적으면 씬 값을 되돌려도 초록이 뜬다.
     /// 0.5G 흔들기의 초과분은 0.25, 이득 480을 곱하면 120pt/s로 **눈에 보이는** 킥이 된다
-    /// (옛 임계 0.35·이득 150에선 22pt/s라 사실상 정지처럼 보였다). 0.7G는 상한 210에 포화한다.
+    /// (옛 임계 0.35·이득 150에선 22pt/s라 사실상 정지처럼 보였다).
     @Test func excessAtShippingThreshold() {
-        let gain: CGFloat = 480, cap: CGFloat = 210
-        let half = IngredientDropScene.shakeKick(x: 0, y: 0, z: 0.5, gravity: upright, threshold: 0.25)
+        let threshold = IngredientDropScene.shakeThreshold
+        let gain = IngredientDropScene.shakeGain
+        // 상수 자체를 고정 — 이 셋이 흔들리면 아래 산식 기대값의 근거가 사라진다.
+        #expect(threshold == 0.25)
+        #expect(gain == 480)
+        #expect(IngredientDropScene.shakeMaxDeltaV == 210)
+        let half = IngredientDropScene.shakeKick(x: 0, y: 0, z: 0.5, gravity: upright, threshold: threshold)
         #expect(abs((half?.excess ?? 0) - 0.25) < 0.0001)
-        #expect(abs(min((half?.excess ?? 0) * gain, cap) - 120) < 0.0001)
-        let hard = IngredientDropScene.shakeKick(x: 0, y: 0, z: 0.7, gravity: upright, threshold: 0.25)
-        #expect(min((hard?.excess ?? 0) * gain, cap) == cap)
+        #expect(abs((half?.excess ?? 0) * gain - 120) < 0.0001)
         // 손떨림 대역은 새 임계에서도 여전히 막힌다.
-        #expect(IngredientDropScene.shakeKick(x: 0, y: 0, z: 0.2, gravity: upright, threshold: 0.25) == nil)
+        #expect(IngredientDropScene.shakeKick(x: 0, y: 0, z: 0.2, gravity: upright, threshold: threshold) == nil)
+    }
+
+    /// **터널링 상한 불변식** — 칩이 킥 한 번에 받는 Δv는 흩뿌림을 곱한 뒤에도 상한을 못 넘는다.
+    /// v1.0 (4)까지는 클램프가 흩뿌림 **앞**에 있어 실최대가 210 × 1.35 = 283.5pt/s(프레임당 4.7pt)로
+    /// 새어 나갔다 — 문서와 주석이 선언한 불변식이 기본 동작에서 거짓이었다.
+    @Test func scatterNeverExceedsTunnelingCap() {
+        let cap = IngredientDropScene.shakeMaxDeltaV
+        // 이득 포화 구간(0.7G 이상)의 공칭 Δv로 흩뿌림 전 구간을 훑는다.
+        for step in 0...20 {
+            let j = CGFloat(step) / 20
+            #expect(IngredientDropScene.scatteredDeltaV(cap, jitter: j) <= cap)
+            #expect(IngredientDropScene.scatteredDeltaV(cap * 4, jitter: j) <= cap)
+        }
+        // 상한 아래에선 흩뿌림이 그대로 살아 있다(전부 같은 세기면 부딪히지 않아 달그락이 없다).
+        let nominal: CGFloat = 120                                   // 0.5G 흔들기
+        #expect(abs(IngredientDropScene.scatteredDeltaV(nominal, jitter: 0) - 78) < 0.0001)
+        #expect(abs(IngredientDropScene.scatteredDeltaV(nominal, jitter: 1) - 162) < 0.0001)
     }
 
     /// 기울인 채 z-흔들기 — 방향은 그 시점 중력의 반대를 따라간다.

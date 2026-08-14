@@ -61,7 +61,9 @@ struct ClatterThrottleTests {
         #expect(fired == 0)
     }
 
-    /// 격렬한 흔들기 시나리오 — 발화는 되지만 전역 간격 상한(≈22Hz)을 넘지 않는다.
+    /// 격렬한 흔들기 시나리오 — 발화는 되지만 전역 간격 상한을 넘지 않는다.
+    /// (여기서 쓰는 make()의 45ms = ≈22Hz는 **테스트 전용 값**이다. 출하값 90ms = 11Hz는
+    ///  아래 shippingDefaults… 테스트가 따로 고정한다.)
     @Test func shakeIsRateLimited() {
         var t = make()
         var fired = 0
@@ -71,6 +73,25 @@ struct ClatterThrottleTests {
         }
         #expect(fired > 0)
         #expect(fired <= Int(10.0 / 0.045) + 1)      // 10초 / 45ms
+    }
+
+    /// **출하 경로 고정** — 씬은 `ClatterThrottle()` 기본값을 그대로 쓴다(IngredientDropScene).
+    /// 위 테스트들은 전부 make()로 값을 덮어써서, 이게 없으면 출하값(20 / 0.09 / 0.26)을
+    /// 되돌리거나 오타로 바꿔도 전부 초록이었다. 세 관문을 기본값 그대로 한 번씩 통과시킨다.
+    @Test func shippingDefaultsGateAtTwentyAndNinetyMilliseconds() {
+        var t = ClatterThrottle()                    // 덮어쓰기 없음 — 출하값 그대로
+        #expect(t.minImpulse == 20)
+        #expect(t.minInterval == 0.09)
+        #expect(t.pairCooldown == 0.26)
+        // 관문 ① — 임펄스 19는 막히고 20은 통과한다(구르는 중의 잔접촉 vs 또렷한 노크).
+        #expect(t.allow(impulse: 19, pair: ClatterPair(1, 2), now: 0) == false)
+        #expect(t.allow(impulse: 20, pair: ClatterPair(1, 2), now: 0) == true)
+        // 관문 ② — 전역 90ms. 다른 쌍이라도 89ms면 막히고 90ms면 통과한다.
+        #expect(t.allow(impulse: 50, pair: ClatterPair(3, 4), now: 0.089) == false)
+        #expect(t.allow(impulse: 50, pair: ClatterPair(3, 4), now: 0.09) == true)
+        // 관문 ③ — 같은 쌍 260ms. 전역 간격은 넘겼지만 쌍 쿨다운에 걸린다.
+        #expect(t.allow(impulse: 50, pair: ClatterPair(3, 4), now: 0.25) == false)
+        #expect(t.allow(impulse: 50, pair: ClatterPair(3, 4), now: 0.35) == true)
     }
 
     /// reset 후엔 쿨다운이 사라져 곧바로 다시 울릴 수 있다.
