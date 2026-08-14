@@ -262,7 +262,12 @@ private struct ToBuySearchSheet: View {
             // receipt — 원본 픽커 검색 필드의 인라인 값 oklch(0.985, 0.004, 90)이 곧 이 토큰이고,
             // 시트 안의 다른 종이 면(타일·listCard·emptyCard·noMatchCard)도 전부 receipt다.
             // paper(0.99, 0.006, 90)는 다른 토큰이라 여기만 남으면 시트 안 종이결이 갈라진다.
-            s.fill(ReffiColor.receipt).paperEdge(s, tint: ReffiColor.ink.opacity(0.1))
+            // 그레인도 타일과 같은 대역으로 얹는다 — 바로 아래 타일이 전부 종이결을 갖는데 필드만
+            // 매끈하면 같은 시트 안에서 인풋만 다른 재질(플라스틱)로 읽힌다.
+            s.fill(ReffiColor.receipt)
+                .overlay(PaperGrain(seed: 6, strength: 0.5).clipShape(s))
+                .paperEdge(s, tint: ReffiColor.ink.opacity(0.1))
+                .compositingGroup()
         }
     }
 
@@ -357,15 +362,23 @@ private struct ToBuySearchSheet: View {
             .background {
                 // 종이 시드는 `ReffiHash.stable` — `String.hashValue`는 런치마다 시드가 바뀌어 같은 타일이
                 // 매번 다른 종이결로 뜨고 스크린샷 회귀가 불가능해진다(요리 아이콘 색과 같은 유틸을 공유한다).
-                let s = PaperRect(cornerRadius: ReffiRadius.md,
-                                  seed: Int(ReffiHash.stable(item.key) % 4))
+                // 셰입 시드는 `% 4`(PaperRect의 지터 표가 4행)이고 **그레인 시드는 해시 전체**다 —
+                // 셰입이 4종으로 겹쳐도 반점·섬유결이 칸마다 달라 12칸이 서로 다른 종이 조각으로 읽힌다.
+                let h = ReffiHash.stable(item.key)
+                let s = PaperRect(cornerRadius: ReffiRadius.md, seed: Int(h % 4))
                 // 면색은 `receipt` — 원본 타일의 인라인 값 oklch(0.985, 0.004, 90)이 곧 이 토큰이고,
                 // 같은 시트의 noMatchCard도 receipt라 시트 안 흰 종이가 한 토큰으로 통일된다.
-                s.fill(ReffiColor.receipt).paperEdge(s, tint: ReffiColor.ink.opacity(0.06))
+                s.fill(ReffiColor.receipt)
+                    // 반복되는 소형 면이라 옅게(§13.5 — 드롭다운 0.6·냉장고 카드 0.7과 같은 대역).
+                    .overlay(PaperGrain(seed: h, strength: 0.6).clipShape(s))
+                    .paperEdge(s, tint: ReffiColor.ink.opacity(0.06))
+                    .compositingGroup()   // overlay 블렌드 그레인을 타일 경계에 가둔다
             }
             .overlay(alignment: .topTrailing) {
-                ReffiIcon.check.reffi(11, .bold)
-                    .foregroundStyle(ReffiColor.blueDark)
+                // 담김 = **도장 각인**(§13.5). 체크 글리프만 있으면 어느 앱에나 있는 픽커 체크로 읽혀
+                // 이 시트에서 브랜드가 사라진다 — D-day 도장과 같은 문법(기울어진 외곽선 + 잉크)으로
+                // 찍어, 담긴 칸이 "도장 찍힌 종이"가 되게 한다.
+                GlyphStamp(icon: ReffiIcon.check, color: ReffiColor.blueDark, size: 13)
                     .padding(ReffiSpace.s1)
                     .opacity(listed ? 1 : 0)
                     .scaleEffect(listed ? 1 : 0.6)
