@@ -67,6 +67,7 @@
   - **편집·생성 시트**(재료·레시피·커스텀·후보): 하단 도킹 `PaperButton`(Save/Add)으로 **명시적 커밋**. 취소는 스와이프/닫기(룰 ⑨의 미저장 보호 적용).
   - **설정·선택 시트**(취향·알림시간 등 단일 선택): **자동저장** — 선택 즉시 반영, 저장 버튼 없이 닫기만.
 - **적용**: `RecipeEditorView`·`CustomItemSheet`·`CandidateEditSheet`·`IngredientEditView`는 도킹 Save. `CuisinePickerSheet`·`TagEditorSheet`·`NotifyTimeSheet`는 자동저장(현행 유지, 규칙으로 명문화).
+- **`NicknameEditSheet` 분류(2026-08-13)**: 어느 목록에도 이름이 없어 문서상 미분류였다. Save(`PaperButton`)로 명시 커밋하므로 **편집·생성 버킷**이고, 따라서 룰⑨ 미저장 보호가 적용된다(`IngredientEditView.requestClose()` 패턴 이식).
 
 ---
 
@@ -100,6 +101,7 @@
 - **현행 편차**: `interactiveDismissDisabled`가 앱 전체 0건. 편집 시트가 스와이프 실수로 닫히면 입력 유실.
 - **확정 룰**: **편집·생성 시트**에서 미저장 변경이 있을 때만, 스와이프/닫기 시 "변경을 취소할까요?" `confirmationDialog`(Discard Changes 패턴). 변경 없으면 자유 닫힘. 설정·선택 시트(자동저장)는 해당 없음.
 - **적용**: 편집·생성 시트에 `@State private var isDirty` 추적 + `interactiveDismissDisabled(isDirty)` + Discard 다이얼로그.
+  - 반영 완료(2026-08-13): `NicknameEditSheet`가 마지막 누락이었다 — 타이핑 후 스와이프로 닫으면 경고 없이 사라졌다(감사 R4-4). 초안 비교는 **트림 후** 값으로 한다(앞뒤 공백만 다르면 커밋 결과가 같아 dirty가 아니다).
 
 ---
 

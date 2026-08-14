@@ -55,13 +55,23 @@ private struct SheetShell<Content: View>: View {
 }
 
 /// 닉네임 편집(§5.1.1).
+///
+/// **미저장 보호(§14.6 / 룰⑨)** — 명시적 Save를 가진 편집 시트라 §14.4의 "편집·생성 = 도킹 커밋"
+/// 버킷에 속한다. 타이핑한 뒤 스와이프로 닫으면 경고 없이 사라지던 구멍을 `IngredientEditView`의
+/// `requestClose()` 패턴 그대로 막는다(자동저장 버킷인 Cuisines·태그·알림시간 시트는 해당 없음).
 struct NicknameEditSheet: View {
     @Environment(ProfileStore.self) private var profile
     @Environment(\.dismiss) private var dismiss
     @State private var draft: String = ""
+    @State private var showDiscardConfirm = false
+
+    /// 초안이 저장값과 다르면 미저장 변경이다. 앞뒤 공백만 다른 경우는 커밋 결과가 같아 dirty로 보지 않는다.
+    private var isDirty: Bool {
+        draft.trimmingCharacters(in: .whitespacesAndNewlines) != profile.nickname
+    }
 
     var body: some View {
-        SheetShell(title: "Nickname", onClose: { dismiss() }) {
+        SheetShell(title: "Nickname", onClose: { requestClose() }) {
             VStack(alignment: .leading, spacing: ReffiSpace.s4) {
                 TextField("Nickname", text: $draft)
                     .reffiType(.body)
@@ -79,6 +89,18 @@ struct NicknameEditSheet: View {
             }
         }
         .onAppear { draft = profile.nickname }
+        .interactiveDismissDisabled(isDirty)   // 룰⑨ — 변경 있으면 스와이프 실수로 닫히지 않는다
+        .confirmationDialog(Text("Discard changes?"), isPresented: $showDiscardConfirm,
+                            titleVisibility: .visible) {
+            Button("Discard", role: .destructive) { dismiss() }
+        } message: {
+            Text("Your changes won't be saved.")
+        }
+    }
+
+    /// 미저장 변경이 있으면 즉시 닫지 않고 Discard 확인을 띄운다(룰⑨).
+    private func requestClose() {
+        if isDirty { showDiscardConfirm = true } else { dismiss() }
     }
 
     private func commit() {
