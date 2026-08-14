@@ -18,8 +18,17 @@ struct RecipeMemoCarousel: View {
     var uncoveredNames: [String] = []
     var onClose: () -> Void
     var onFire: (RecipeRecommender.Result) -> Void = { _ in }
-    /// 덱이 자기 위에 띄운 To buy 커버의 표시 상태를 부모에게 알린다 — 부모(`MainView`)의 발주 지연
-    /// 닫기가 **이 자식이 떠 있는 동안에는 부모를 닫지 않도록**. 커버 계층을 아는 건 덱뿐이라 덱이 말한다.
+    /// 덱이 자기 위에 띄운 **To buy 흐름 전체**(결과 팝업 → 이동 질문 → To buy 커버)의 표시 상태를
+    /// 부모에게 알린다 — 부모(`MainView`)의 발주 지연 닫기가 **이 흐름이 떠 있는 동안에는 부모를 닫지
+    /// 않도록**. 커버·팝업 계층을 아는 건 덱뿐이라 덱이 말한다.
+    ///
+    /// **팝업까지 신호에 포함하는 이유**: 지연 닫기가 팝업이 떠 있는 사이에 부모를 닫으면 팝업이 부모와
+    /// 함께 걷혀(중첩 커버가 그랬던 것과 같은 캐스케이드) 사용자가 방금 띄운 질문이 손에서 사라지고,
+    /// 나쁘면 팝업 해체 전환과 겹쳐 부모 닫기 요청 자체가 삼켜져 덱이 영영 안 닫힌다(`82cc116` 참고).
+    /// true는 팝업①이 뜰 때 한 번, false는 흐름이 **끝날 때**(이동 취소 / To buy 닫힘) 한 번 —
+    /// 팝업①→②→커버 사이에는 내려가지 않는다. 중간에 false가 새면 그 틈으로 지연 닫기가 빠져나간다.
+    /// false를 **언제** 보내는지도 계약이다: 커버는 `onDismiss`(완료 훅), 팝업은 `endToBuyFlow()`의
+    /// 지연 — 둘 다 "해체가 끝난 뒤"라야 부모의 닫기 요청이 전환에 삼켜지지 않는다.
     var onToBuyPresentationChange: (Bool) -> Void = { _ in }
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -42,7 +51,20 @@ struct RecipeMemoCarousel: View {
     @State private var headerHeight: CGFloat = 72
     /// 부족 재료를 담은 뒤 여는 To buy 커버. **덱 위에** 띄운다 — 덱 자체가 이미 풀스크린 커버라
     /// 메인(`MainView`)에서 열면 커버 2장을 동시에 요구하게 되고, 닫았을 때 티켓으로 못 돌아온다.
+    /// 이제 칩 탭이 곧장 켜지 않는다 — 아래 두 팝업을 거쳐 사용자가 "보기"를 고를 때만 켜진다.
     @State private var showToBuy = false
+    /// 팝업①(알림) — 담기 결과를 알린다. 두 상태를 **분리**해 두는 이유는 순차 표시 때문이다:
+    /// 하나의 상태로 문안만 갈아끼우면 표시 중 내용 교체가 되어 갱신이 씹힌다.
+    @State private var showAddedPrompt = false
+    /// 팝업①의 문안 갈래 — 새로 담긴 게 있었나. 팝업을 켜는 것과 **같은 업데이트**에서 정해지므로
+    /// 표시 시점엔 이미 올바른 값이다.
+    @State private var addedSomething = false
+    /// 팝업②(질문) — 목록으로 갈지 묻는다. 팝업①의 확인 액션에서만 켜진다.
+    ///
+    /// **연달아 띄우는 것 자체는 지연 트릭이 필요 없다** — 다음 프레젠테이션 *요청*은 진행 중인 해체가
+    /// 끝난 뒤 처리되도록 큐에 남기 때문이다(실측: ⑦⑧⑨ 전 실행에서 팝업②가 빠짐없이 떴다).
+    /// 삼켜지는 건 **부모 커버를 닫는 요청** 쪽이다 — 아래 `endToBuyFlow()` 참고.
+    @State private var showOpenToBuyPrompt = false
 
     /// 수평 플릭 커밋 임계(예측 변위 width) — 넘기면 부호가 곧 의미다(+ Cook / − Pass).
     private let flickCommit: CGFloat = 160
@@ -87,10 +109,48 @@ struct RecipeMemoCarousel: View {
                          onDismiss: { onToBuyPresentationChange(false) }) {
             ShoppingListView()
         }
-        // 열림만 여기서 — 닫힘은 위 `onDismiss`가 맡는다(이중 통지 금지).
-        .onChange(of: showToBuy) { _, presented in
-            if presented { onToBuyPresentationChange(true) }
+        // 팝업① 알림 — **사실만** 말한다. 담긴 게 하나도 없었으면 담았다고 하지 않는다.
+        // 룰⑧ 분류: 파괴가 아니라 순수 알림성 → `.alert`(중앙 고정). 버튼은 확인 하나뿐이라
+        // `.cancel` 역할을 준다 — VoiceOver 이스케이프 제스처가 이 버튼으로 매핑돼 닫는 길이 하나로 모인다.
+        .alert(addedSomething ? Text("Added to To buy") : Text("Already on your To buy list"),
+               isPresented: $showAddedPrompt) {
+            Button("OK", role: .cancel) { showOpenToBuyPrompt = true }
         }
+        // 팝업② 질문 — 이동은 **사용자가 고른다**(칩 탭이 곧 화면 이동이던 예전 동작을 대체한다).
+        .alert(Text("View your To buy list?"), isPresented: $showOpenToBuyPrompt) {
+            Button("View") { showToBuy = true }
+            // 취소로 흐름이 끝난다 — 신호를 내려야 부모의 미뤄 둔 발주 전환이 이어진다(취소는 이동만
+            // 안 하는 것이지 발주 취소가 아니다). **다만 이 자리에서 곧바로 내리면 안 된다** — `endToBuyFlow`.
+            Button("Cancel", role: .cancel) { endToBuyFlow() }
+        } message: {
+            // 취소를 안전한 선택으로 만드는 한 줄 — 목록은 냉장고 탭의 To buy 카드로 언제든 다시 열린다.
+            Text("You can open it later from the Fridge tab.")
+        }
+    }
+
+    /// 칩이 담기를 마쳤다 — 결과 팝업을 띄우고, **이 순간부터** 덱 위에 무언가 떠 있다고 부모에게 알린다.
+    /// 신호를 팝업 시작점에 두는 게 핵심이다: 담기 직후~팝업 표시 사이에 지연 닫기가 끼어들면
+    /// 팝업이 부모와 함께 걷힌다. 이후 false는 "취소" 또는 "To buy 커버 닫힘" 한 곳에서만 나간다.
+    private func didAddToBuy(_ addedAny: Bool) {
+        addedSomething = addedAny
+        onToBuyPresentationChange(true)
+        showAddedPrompt = true
+    }
+
+    /// 팝업 해체 애니메이션이 끝날 시간을 **주고 나서** 흐름 종료를 알린다.
+    ///
+    /// **왜 지연이 필요한가(실측)**: 취소 버튼 액션에서 곧바로 알리면 부모(`MainView`)가 같은 틱에
+    /// 덱 커버를 닫는데, 그때 이 팝업의 해체 전환이 아직 진행 중이면 UIKit이 **닫기 요청을 삼킨다**.
+    /// `showCarousel`은 이미 false가 된 뒤라 SwiftUI가 다시 시도할 일이 없어 덱이 그대로 남고,
+    /// 미뤄 둔 조리 화면 전환도 오지 않는다(커밋 `82cc116`이 중첩 커버에서 잡았던 그 메커니즘).
+    /// UITest ⑨에서 3회 중 1회 재현 — "취소했는데 조리 화면으로 안 감"으로 실패했다.
+    ///
+    /// **왜 하필 지연인가**: 커버에는 `onDismiss`라는 완료 훅이 있어 4차에서는 그걸 썼지만
+    /// `.alert`에는 대응 훅이 없다. 그래서 시스템 알림 해체 애니메이션(약 0.25초)에 넉넉한 여유를
+    /// 더한 값을 쓴다. 값이 짧으면 위 결함이 돌아오고, 길면 취소 후 조리 화면 전환이 그만큼 늦어질 뿐이라
+    /// **한쪽으로만 안전한 방향**이다(그래서 여유를 크게 잡았다).
+    private func endToBuyFlow() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { onToBuyPresentationChange(false) }
     }
 
     // MARK: - 티켓 덱 (뒤 종이 = 실제 다음 티켓)
@@ -118,7 +178,7 @@ struct RecipeMemoCarousel: View {
                       // 노출 띠(14pt)는 글자 없는 종이로 고정한다.
                       peek: depth >= 1,
                       onFire: { fire(results[idx]) },
-                      onOpenToBuy: { showToBuy = true },
+                      onAddedToBuy: didAddToBuy,
                       // 플릭 발주는 **앞 티켓만** — 뒤 티켓엔 0을 고정해 트리거가 전파되지 않게 한다.
                       fireTrigger: isFront ? fireTrigger : 0)
             .frame(height: cardHeight)   // 카드가 컨테이너를 넘지 못하게 캡(headerOnly도 동일 캡)

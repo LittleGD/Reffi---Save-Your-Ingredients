@@ -41,9 +41,12 @@ struct MainView: View {
     @State private var uncoveredSnapshot: [String] = []
     @State private var firedTicket = false         // 커버당 발주 1회 — 슬램 창의 더블 파이어 방지
     @State private var coverGeneration = 0         // 지연 닫기 타이머가 새로 연 커버를 닫지 못하게
-    /// 덱 위에 To buy 커버가 떠 있는가 — 발주 지연 닫기가 **부모를 닫으며 이 자식까지 걷어가는 것**을 막는다.
+    /// 덱 위에 **To buy 흐름**(담기 결과 팝업 → 이동 질문 → To buy 커버)이 떠 있는가 —
+    /// 발주 지연 닫기가 **부모를 닫으며 그 위의 것까지 걷어가는 것**을 막는다. 커버뿐 아니라 팝업 구간도
+    /// 포함한다: 칩 탭이 이제 곧장 커버를 열지 않고 먼저 묻기 때문에, 지연 닫기가 도는 시점에 화면에
+    /// 떠 있는 건 커버가 아니라 팝업일 수 있다(`RecipeMemoCarousel.onToBuyPresentationChange` 참고).
     @State private var toBuyOverDeck = false
-    /// 그 이유로 미뤄 둔 덱 닫기의 커버 세대(nil = 미뤄 둔 것 없음). To buy가 닫히면 이어서 닫는다.
+    /// 그 이유로 미뤄 둔 덱 닫기의 커버 세대(nil = 미뤄 둔 것 없음). 흐름이 끝나면 이어서 닫는다.
     @State private var pendingDeckDismiss: Int?
     @State private var fireHaptic = 0
     @State private var decisionHaptic = 0
@@ -129,6 +132,10 @@ struct MainView: View {
         .sensoryFeedback(.impact(weight: .medium), trigger: fireHaptic)
         .sensoryFeedback(.impact(weight: .light), trigger: decisionHaptic)
         .fullScreenCover(isPresented: $showCarousel, onDismiss: {
+            // 덱이 사라졌으면 그 위에 뭐가 떠 있을 수 없다 — 신호를 확실히 내려 둔다.
+            // 팝업은 커버와 달리 해체 훅이 없어(`alert`엔 onDismiss가 없다), 덱이 통째로 걷히는 경계에서
+            // 신호가 true로 굳으면 **다음 발주 사이클의 지연 닫기가 영영 미뤄진다**. 여기가 그 유일한 봉합점이다.
+            toBuyOverDeck = false
             // 발주로 닫혔으면 곧장 단계별 레시피로 — "Cook this"의 다음 화면은 조리다.
             if firedTicket, store.activeCook != nil { showSteps = true }
         }) {
@@ -660,10 +667,11 @@ struct MainView: View {
         let gen = coverGeneration
         DispatchQueue.main.asyncAfter(deadline: .now() + Self.fireDismissDelay) {
             guard coverGeneration == gen else { return }   // 새로 연 커버는 닫지 않는다
-            // 덱 위에 To buy가 떠 있으면 지금 닫지 않는다 — 부모 커버를 닫으면 그 위의 자식까지
-            // 함께 걷혀(실측 확인), 사용자가 방금 연 장보기 목록이 손에서 사라지고 조리 화면에 떨어진다.
+            // 덱 위에 To buy 흐름(팝업 또는 커버)이 떠 있으면 지금 닫지 않는다 — 부모 커버를 닫으면
+            // 그 위의 것까지 함께 걷혀(실측 확인), 사용자가 방금 띄운 질문이나 장보기 목록이 손에서
+            // 사라지고 조리 화면에 떨어진다.
             // "Add to To buy" 칩은 발주 후에도 살아 있는 게 설계 의도라(§13.5 ⑩) 이 창은 실제로 열린다.
-            // 전환을 취소하는 게 아니라 **미룬다** — To buy를 닫는 순간 이어서 조리 화면으로 간다.
+            // 전환을 취소하는 게 아니라 **미룬다** — 흐름이 끝나는 순간 이어서 조리 화면으로 간다.
             if toBuyOverDeck {
                 pendingDeckDismiss = gen
             } else {
@@ -672,7 +680,10 @@ struct MainView: View {
         }
     }
 
-    /// 덱이 자기 위에 띄운 To buy 커버의 표시 상태 변화 — 미뤄 둔 발주 전환을 여기서 이어 붙인다.
+    /// 덱이 자기 위에 띄운 To buy 흐름(팝업 → 커버)의 표시 상태 변화 — 미뤄 둔 발주 전환을 여기서
+    /// 이어 붙인다. 덱은 흐름의 **시작(팝업①)과 끝(이동 취소 / 커버 닫힘)에만** 통지하므로,
+    /// 팝업①→②→커버로 넘어가는 중간에는 여기로 false가 들어오지 않는다(들어오면 그 틈으로 지연 닫기가
+    /// 빠져나가 사용자가 고른 화면 대신 조리 화면이 뜬다).
     /// 세대(`coverGeneration`)를 함께 확인해, 미루는 사이에 새 발주 사이클이 시작됐으면 조용히 버린다.
     private func toBuyCoverDidChange(_ presented: Bool) {
         toBuyOverDeck = presented

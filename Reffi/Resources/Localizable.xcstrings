@@ -169,12 +169,6 @@
     },
     "%lld times": {
       "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld회"
-          }
-        },
         "en": {
           "variations": {
             "plural": {
@@ -191,6 +185,12 @@
                 }
               }
             }
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld회"
           }
         }
       }
@@ -473,12 +473,22 @@
         }
       }
     },
-    "Adds the missing ingredients and opens your To buy list": {
+    "Added to To buy": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "부족한 재료를 담고 살 것 목록을 엽니다"
+            "value": "살 것에 담았어요"
+          }
+        }
+      }
+    },
+    "Adds the missing ingredients to your To buy list": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "부족한 재료를 살 것 목록에 담습니다"
           }
         }
       }
@@ -549,6 +559,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "이미 계정이 있으신가요?"
+          }
+        }
+      }
+    },
+    "Already on your To buy list": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이미 살 것 목록에 있어요"
           }
         }
       }
@@ -705,12 +725,6 @@
     },
     "Clears %lld before they spoil": {
       "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "상하기 전 %lld개 소진"
-          }
-        },
         "en": {
           "variations": {
             "plural": {
@@ -727,6 +741,12 @@
                 }
               }
             }
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "상하기 전 %lld개 소진"
           }
         }
       }
@@ -2474,12 +2494,6 @@
     },
     "Shopping list, %lld items": {
       "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "쇼핑리스트, %lld개"
-          }
-        },
         "en": {
           "variations": {
             "plural": {
@@ -2496,6 +2510,12 @@
                 }
               }
             }
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "쇼핑리스트, %lld개"
           }
         }
       }
@@ -3050,6 +3070,26 @@
         }
       }
     },
+    "View": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "보기"
+          }
+        }
+      }
+    },
+    "View your To buy list?": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "살 것 목록을 볼까요?"
+          }
+        }
+      }
+    },
     "Waste rate": {
       "localizations": {
         "ko": {
@@ -3146,6 +3186,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "구매처"
+          }
+        }
+      }
+    },
+    "You can open it later from the Fridge tab.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "나중에 냉장고 탭에서도 열 수 있어요."
           }
         }
       }

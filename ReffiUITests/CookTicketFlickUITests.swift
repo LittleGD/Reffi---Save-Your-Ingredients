@@ -195,6 +195,35 @@ final class CookTicketFlickUITests: XCTestCase {
         return chip.isHittable
     }
 
+    /// 팝업 제목 대조 — 시스템 알림의 제목은 알림 자신의 라벨로도, 자식 staticText로도 노출될 수 있어
+    /// 둘 다 받는다(어느 쪽이든 **문안이 화면에 있다**는 사실은 같다).
+    private func alertShowsTitle(_ app: XCUIApplication, _ title: String) -> Bool {
+        let alert = app.alerts.firstMatch
+        return alert.staticTexts[title].exists || alert.label == title
+    }
+
+    /// 팝업①(담기 결과 알림)이 뜰 때까지 기다리고 **문안 갈래까지** 확인한다 — 뜨지 않으면 false
+    /// (호출부가 skip/실패를 각자 판단한다).
+    /// 기대 갈래가 "담았다"로 고정인 이유: `-uiTestSampleFridge`가 `manualToBuy`를 비우므로 첫 탭은
+    /// 반드시 새로 담긴다(`FridgeStore.addToBuy`는 **이미 수동으로 담긴 것에만** false를 낸다).
+    private func waitForAddedPrompt(_ app: XCUIApplication, timeout: TimeInterval = 15) -> Bool {
+        guard app.alerts.firstMatch.waitForExistence(timeout: timeout) else { return false }
+        XCTAssertTrue(alertShowsTitle(app, "Added to To buy"),
+                      "첫 팝업은 담김을 알리는 문안이어야 한다 — 실제 라벨: \(app.alerts.firstMatch.label)")
+        return true
+    }
+
+    /// 팝업②(이동 질문) 응답 — 버튼이 실제로 나온 뒤 고른다. 순차 표시가 씹히면(첫 팝업 해체 중에
+    /// 두 번째를 요구하면 프레젠테이션이 삼켜진다) 여기서 대기가 만료돼 잡힌다.
+    private func answerOpenToBuyPrompt(_ app: XCUIApplication, view: Bool) {
+        let button = app.alerts.buttons[view ? "View" : "Cancel"]
+        XCTAssertTrue(button.waitForExistence(timeout: 15),
+                      "확인을 누르면 목록으로 갈지 묻는 두 번째 팝업이 떠야 한다")
+        XCTAssertTrue(alertShowsTitle(app, "View your To buy list?"),
+                      "두 번째 팝업은 이동 여부를 묻는 질문이어야 한다 — 실제 라벨: \(app.alerts.firstMatch.label)")
+        button.tap()
+    }
+
     /// 스크린샷 첨부 — 실패했을 때만이 아니라 **항상** 남긴다(이 흐름은 눈으로 봐야 납득되는 배선이다).
     private func attachScreenshot(_ app: XCUIApplication, named name: String) {
         let shot = XCTAttachment(screenshot: app.screenshot())
@@ -203,11 +232,14 @@ final class CookTicketFlickUITests: XCTestCase {
         add(shot)
     }
 
-    /// **"Add to To buy" 칩 → 살 것 목록**(§13.5 ⑩). 유닛 테스트가 닿지 못하는 **런타임 배선** 셋이 대상이다:
-    /// ① 칩 탭이 `store.addToBuy`까지 실제로 도달하는가 ② 덱(그 자체가 이미 풀스크린 커버) **위에**
-    /// `ShoppingListView` 커버가 중첩 프레젠테이션되며 환경(`FridgeStore`·`ProfileStore`)이 전파되는가
+    /// **"Add to To buy" 칩 → 2단 팝업 → 살 것 목록**(§13.5 ⑩). 유닛 테스트가 닿지 못하는
+    /// **런타임 배선** 넷이 대상이다:
+    /// ① 칩 탭이 `store.addToBuy`까지 실제로 도달하는가 ② 담기 결과 팝업 → 이동 질문 팝업이
+    /// **순차로** 뜨는가(첫 팝업 해체 중에 두 번째를 요구하면 프레젠테이션이 삼켜진다)
+    /// ③ '보기'를 골랐을 때 덱(그 자체가 이미 풀스크린 커버) **위에** `ShoppingListView` 커버가
+    /// 중첩 프레젠테이션되며 환경(`FridgeStore`·`ProfileStore`)이 전파되는가
     /// — 누락이면 `@Environment` 강제 언랩에서 즉시 크래시라 이 테스트가 유일한 방지선이다
-    /// ③ 커버를 닫으면 **원래 티켓으로 복귀**하는가(덱이 띄운 이유가 곧 이것이다).
+    /// ④ 커버를 닫으면 **원래 티켓으로 복귀**하는가(덱이 띄운 이유가 곧 이것이다).
     ///
     /// 재료 이름은 시드에서 오므로 테스트에 박지 않는다 — Short 줄에서 읽어 To buy 행과 대조한다.
     /// 대조는 **포함 관계**로 본다: 담길 때 표기가 사전 표제어로 정리되기 때문이다
@@ -228,12 +260,25 @@ final class CookTicketFlickUITests: XCTestCase {
 
         app.buttons["Add to To buy"].tap()
 
-        // ② 중첩 커버 — 여기서 환경이 안 전파되면 앱이 죽어 아래 단언 전에 테스트가 무너진다.
-        XCTAssertTrue(app.staticTexts["To buy"].waitForExistence(timeout: 15),
-                      "칩을 누르면 살 것(To buy) 커버가 덱 위에 열려야 한다")
-        attachScreenshot(app, named: "b-to-buy-after-tap")
+        // ② 2단 팝업 — 담김을 **알리고**, 이동은 그 다음에 **묻는다**. 확인 전에는 화면이 바뀌지 않는다.
+        XCTAssertTrue(waitForAddedPrompt(app),
+                      "칩을 누르면 담김을 알리는 팝업이 먼저 떠야 한다")
+        XCTAssertFalse(app.staticTexts["To buy"].exists,
+                       "확인을 누르기 전에 To buy 커버가 열려 있으면 안 된다 — 이동은 뒤에서 묻는다")
+        attachScreenshot(app, named: "b-added-prompt")
+        app.alerts.buttons["OK"].firstMatch.tap()
+        // 두 번째 팝업도 눈으로 볼 근거를 남긴다 — 이동을 **묻는** 자리라 버튼 두 개(취소/보기)가 핵심이다.
+        XCTAssertTrue(app.alerts.buttons["View"].waitForExistence(timeout: 15),
+                      "확인 뒤에는 이동을 묻는 팝업이 떠야 한다")
+        attachScreenshot(app, named: "c-open-prompt")
+        answerOpenToBuyPrompt(app, view: true)
 
-        // ① 담기 — 샘플 로드가 manualToBuy를 비우므로(`FridgeStore.loadSampleData`),
+        // ③ 중첩 커버 — 여기서 환경이 안 전파되면 앱이 죽어 아래 단언 전에 테스트가 무너진다.
+        XCTAssertTrue(app.staticTexts["To buy"].waitForExistence(timeout: 15),
+                      "'보기'를 고르면 살 것(To buy) 커버가 덱 위에 열려야 한다")
+        attachScreenshot(app, named: "d-to-buy-after-view")
+
+        // ① 담기 확인 — 샘플 로드가 manualToBuy를 비우므로(`FridgeStore.loadSampleData`),
         // "Added by you" 구역은 **이번 탭이 만든 것**일 수밖에 없다(인과 증거).
         XCTAssertTrue(app.staticTexts["Added by you"].waitForExistence(timeout: 5),
                       "직접 담은 구역이 생겨야 한다 — 칩이 store.addToBuy까지 도달했다는 증거")
@@ -250,7 +295,7 @@ final class CookTicketFlickUITests: XCTestCase {
         XCTAssertNotNil(matched,
                         "부족했던 재료가 목록에 없다 — Short: \(shortText) / 담긴 행: \(restocked)")
 
-        // ③ 닫으면 원래 티켓으로 복귀 — 덱이 커버를 소유하는 이유가 이것이다
+        // ④ 닫으면 원래 티켓으로 복귀 — 덱이 커버를 소유하는 이유가 이것이다
         // (메인에서 띄웠으면 커버 2장이 충돌해 티켓으로 못 돌아온다).
         app.buttons["Close"].firstMatch.tap()
         XCTAssertTrue(app.staticTexts["Today's tickets"].waitForExistence(timeout: 10),
@@ -281,8 +326,8 @@ final class CookTicketFlickUITests: XCTestCase {
     /// To buy를 열면 지연 닫기가 **부모 커버를 닫으며 방금 연 자식 커버까지 함께 걷어간다**
     /// — 사용자는 장보기 목록 대신 조리 화면에 떨어진다.
     ///
-    /// 이 테스트는 그 창을 **의도적으로** 노린다: "Cook this" 직후 곧바로 칩을 누르고,
-    /// 지연 닫기 시점을 **넘긴 뒤에도** To buy가 그대로 떠 있는지 본다.
+    /// 이 테스트는 그 창을 **의도적으로** 노린다: "Cook this" 직후 곧바로 칩을 누르고, 2단 팝업을
+    /// 확인·보기로 통과한 뒤, 지연 닫기 시점을 **넘긴 뒤에도** To buy가 그대로 떠 있는지 본다.
     ///
     /// 창은 `-fireDismissDelay`로 넓힌다(프로덕션은 1.25초 그대로). XCUITest는 탭마다 app-idle을
     /// 기다리는데 그 대기 대상이 바로 이 전환이라, 기본 1.25초에서는 **두 번째 탭이 항상 창 밖으로
@@ -320,10 +365,16 @@ final class CookTicketFlickUITests: XCTestCase {
         let tapLag = Date().timeIntervalSince(firedAt)
 
         // 창을 놓쳤으면(이미 커버가 닫혀 조리 화면으로 갔으면) 이 실행은 무효다.
-        let toBuy = app.staticTexts["To buy"]
-        guard tapLag < dismissDelay, toBuy.waitForExistence(timeout: 6) else {
+        // 창 안에 들어갔다는 신호는 이제 팝업①이다 — 칩 탭이 살아 있는 덱 위에서 먹었다는 뜻.
+        guard tapLag < dismissDelay, waitForAddedPrompt(app, timeout: 6) else {
             throw XCTSkip("칩 탭이 발주 후 \(String(format: "%.2f", tapLag))초에 도달해 \(Int(dismissDelay))초 창을 놓쳤다 — 경쟁 상태 미관측")
         }
+        app.alerts.buttons["OK"].firstMatch.tap()
+        answerOpenToBuyPrompt(app, view: true)
+
+        let toBuy = app.staticTexts["To buy"]
+        XCTAssertTrue(toBuy.waitForExistence(timeout: 15),
+                      "'보기'를 골랐으면 To buy 커버가 덱 위에 열려야 한다")
 
         // 지연 닫기가 도는 시점(발주 + dismissDelay)을 확실히 넘겨서 관찰한다.
         let observeUntil = firedAt.addingTimeInterval(dismissDelay + 1.5)
@@ -340,6 +391,66 @@ final class CookTicketFlickUITests: XCTestCase {
         app.buttons["Close"].firstMatch.tap()
         XCTAssertTrue(app.staticTexts["ORDER · FIRED"].waitForExistence(timeout: 15),
                       "To buy를 닫으면 미뤄 뒀던 발주 전환이 이어져 조리 화면으로 가야 한다")
+    }
+
+    // MARK: - ⑨ 발주 직후 창에서 담기 → 이동 취소
+
+    /// **취소 경로** — ⑧이 "보기"를 고른 쪽이라면 이쪽은 "취소"다. 두 가지를 한 번에 잠근다:
+    /// ① 지연 닫기가 도는 시점에 화면에 떠 있는 게 커버가 아니라 **팝업**일 때도 덱 닫기가 미뤄지는가
+    /// (미뤄지지 않으면 덱이 걷히며 팝업이 함께 사라져, 사용자가 방금 띄운 질문이 손에서 없어진다)
+    /// ② 취소로 흐름이 끝나면 **미뤄 뒀던 발주 전환이 그대로 이어지는가**(취소는 흐름의 끝이지
+    /// 발주의 취소가 아니다 — 지연은 취소가 아니라 미룸이라는 계약).
+    ///
+    /// 그래서 여기서는 팝업을 띄운 채 **지연 닫기 시각을 일부러 넘긴 뒤** 조작한다.
+    func testTicketDeck_AddToBuyThenCancel_ResumesFiredTransitionWithoutToBuy() throws {
+        let dismissDelay: TimeInterval = 6
+        let app = launchDeck(extraArguments: ["-fireDismissDelay", "\(Int(dismissDelay))"])
+        try XCTSkipUnless(frontTicketWithShortLine(app),
+                          "부족 재료가 있는 티켓이 없어 발주-경쟁 창을 만들 수 없다")
+
+        let chip = app.buttons["Add to To buy"]
+        let cook = try XCTUnwrap(
+            app.buttons.matching(identifier: "Cook this").allElementsBoundByIndex.first { $0.isHittable },
+            "미발주 티켓에는 히트 가능한 'Cook this' CTA가 있어야 한다")
+
+        // 좌표 탭 이유는 ⑧과 같다 — 엘리먼트 탭은 매번 idle을 기다려 창을 넘겨버린다.
+        let chipPoint = chip.frame
+        let cookPoint = cook.frame
+        func tap(_ rect: CGRect) {
+            app.coordinate(withNormalizedOffset: .zero)
+                .withOffset(CGVector(dx: rect.midX, dy: rect.midY))
+                .tap()
+        }
+
+        let firedAt = Date()
+        tap(cookPoint)
+        tap(chipPoint)
+        let tapLag = Date().timeIntervalSince(firedAt)
+
+        guard tapLag < dismissDelay, waitForAddedPrompt(app, timeout: 6) else {
+            throw XCTSkip("칩 탭이 발주 후 \(String(format: "%.2f", tapLag))초에 도달해 \(Int(dismissDelay))초 창을 놓쳤다 — 경쟁 상태 미관측")
+        }
+
+        // 팝업을 **띄운 채로** 지연 닫기 시점(발주 + dismissDelay)을 넘긴다.
+        let observeUntil = firedAt.addingTimeInterval(dismissDelay + 1.5)
+        _ = XCTWaiter().wait(for: [expectation(description: "지연 닫기 창 통과 대기")],
+                             timeout: max(0.1, observeUntil.timeIntervalSinceNow))
+
+        XCTAssertTrue(app.alerts.firstMatch.exists,
+                      "발주 \(String(format: "%.2f", tapLag))초 뒤 띄운 팝업이 지연 닫기(\(Int(dismissDelay))초)에 덱과 함께 걷혔다 — "
+                      + "팝업 구간도 부모 닫기를 미뤄야 한다")
+        XCTAssertFalse(app.staticTexts["ORDER · FIRED"].exists,
+                       "팝업이 떠 있는 동안에는 조리 화면으로 넘어가면 안 된다(닫기는 미뤄져 있어야 한다)")
+
+        app.alerts.buttons["OK"].firstMatch.tap()
+        answerOpenToBuyPrompt(app, view: false)
+
+        // 취소 = 이동만 안 한다. 미뤄 뒀던 발주 전환은 이어져야 한다.
+        XCTAssertTrue(app.staticTexts["ORDER · FIRED"].waitForExistence(timeout: 15),
+                      "취소로 흐름이 끝나면 미뤄 뒀던 발주 전환이 이어져 조리 화면으로 가야 한다")
+        XCTAssertFalse(app.staticTexts["To buy"].exists, "취소했는데 To buy 커버가 열렸다")
+        XCTAssertFalse(app.staticTexts["Today's tickets"].exists,
+                       "덱이 그대로 남아 있으면 미뤄 둔 닫기가 유실된 것이다")
     }
 
     // MARK: - ⑥ 단계 텍스트 없음 · 영상 CTA

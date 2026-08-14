@@ -24,9 +24,11 @@ struct OrderMemoCard: View {
     /// 헤더가 튀어나오지 않고 덱 회전 애니메이션을 타고 부드럽게 살아난다.
     var peek: Bool = false
     var onFire: () -> Void = {}
-    /// "살 것에 담기" 이후의 이동 — 담기는 카드가 store에 직접 하고, **화면 전환만** 부모에게 맡긴다.
-    /// 티켓 덱은 커버 안이라 자기 위에 To buy를 띄울 수 있는 건 덱(호스트)뿐이다.
-    var onOpenToBuy: () -> Void = {}
+    /// "살 것에 담기"를 마쳤다는 통지 — 담기는 카드가 store에 직접 하고, **화면(팝업·커버)은** 부모가 띄운다.
+    /// 티켓 덱은 커버 안이라 자기 위에 무언가를 띄울 수 있는 건 덱(호스트)뿐이다.
+    /// 인자는 **이번 탭으로 새로 담긴 게 있었나** — 결과 팝업의 문안이 사실을 반영해야 하므로 카드가 알린다
+    /// (전부 이미 담겨 있었으면 "담았다"고 말하면 거짓말이다, `addMissingToBuy`의 햅틱 규약과 같은 축).
+    var onAddedToBuy: (Bool) -> Void = { _ in }
     /// 오른쪽 플릭(Cook) 발주 트리거 — 덱이 값을 올리면 "Cook this" 버튼과 **같은** `fire()`를 태운다.
     /// 발주 상태(슬램·줄긋기·이중 발주 가드)를 카드가 소유하므로 부모가 `fired`를 직접 켜지 않는다.
     var fireTrigger: Int = 0
@@ -262,10 +264,12 @@ struct OrderMemoCard: View {
         }
         .buttonStyle(.paperPress)
         .accessibilityLabel(Text("Add to To buy"))
-        .accessibilityHint(Text("Adds the missing ingredients and opens your To buy list"))
+        // 힌트는 실제로 일어나는 일만 말한다 — 이 탭은 담기까지고, 목록으로 갈지는 뒤이어 **묻는다**.
+        .accessibilityHint(Text("Adds the missing ingredients to your To buy list"))
     }
 
-    /// 부족 재료를 **한꺼번에** 담고 곧장 목록으로 보낸다. 중복·파생 제안 흡수는 `addToBuy`가 처리하므로
+    /// 부족 재료를 **한꺼번에** 담고 결과를 호스트에 알린다(이동 여부는 호스트가 사용자에게 묻는다).
+    /// 중복·파생 제안 흡수는 `addToBuy`가 처리하므로
     /// 여기서 미리 거르지 않는다(이미 담긴 건 no-op, 이력 제안으로만 떠 있던 건 수동 항목으로 승격).
     /// 이름·캐논 ID·글리프는 `toBuyEntry`가 확정해 넘긴다 — 표시명을 store에 그대로 주면 괄호 주석이
     /// 포함 매칭에 걸려 엉뚱한 품목 키가 붙는다.
@@ -280,7 +284,7 @@ struct OrderMemoCard: View {
             addedAny = addedAny || added
         }
         if addedAny { addToBuyHaptic += 1 }
-        onOpenToBuy()
+        onAddedToBuy(addedAny)
     }
 
     /// 발주 도장 — "START"가 쾅(scale 1.5→1, pop) 찍힌다. 빨강 잉크(키친 fired).
