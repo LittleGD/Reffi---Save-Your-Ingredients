@@ -742,6 +742,9 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
 .tally::after  { bottom: -7px; }
 .tally__row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2);
   min-height: 30px; }
+/* ReffiRule(.receipt)와 같은 잉크 16% · dash 3/3. 잉크를 토큰에서 끌어와 다크에서도 살아 있게 한다 */
+.tally .rule-dashed { background: repeating-linear-gradient(90deg,
+  color-mix(in oklab, var(--color-ink) 16%, transparent) 0 3px, transparent 3px 6px); }
 .tally__item { display: flex; align-items: center; gap: var(--space-3); }
 .tally__item .silo { width: 30px; height: 30px; }
 /* 도장 = D-day 도장과 같은 문법(각도 튼 종이 도장). 잉크만 축의 의미색으로 바꾼다 */
