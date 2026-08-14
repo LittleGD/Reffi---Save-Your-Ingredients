@@ -9,7 +9,9 @@ import SwiftUI
 ///
 /// 목록에서 바로 지우는 경로는 유지한다: `List`를 걷어내며 `.swipeActions`를 못 쓰게 됐으므로
 /// 카드 롱프레스 `.contextMenu` → 삭제로 대체한다(편집 시트를 거치지 않는 1스텝 경로).
-/// 확인·햅틱은 `RecipeEditorView`의 삭제와 **동일 문법**: 국소·정정 가능 → `.confirmationDialog`(룰 ⑧) + `.warning`(룰 ⑦).
+/// 확인·햅틱은 `RecipeEditorView`의 삭제와 **동일 문법**: 복구 불가능 → `.alert`(룰 ⑧) + `.warning`(룰 ⑦).
+/// 재분류 근거(2026-08-13): 룰⑧이 dialog를 허용한 조건은 "`FridgeStore.pendingUndo` 기반 undo 토스트가 뜬다"인데,
+/// undo 모델은 재료·이력 스냅샷 전용이라 `deleteUserRecipe`에는 되살릴 장부가 없다 — 확정 후 복구 불가다.
 struct MyRecipesView: View {
     @Environment(FridgeStore.self) private var store
     @Environment(\.dismiss) private var dismiss
@@ -49,8 +51,11 @@ struct MyRecipesView: View {
         .presentationDragIndicator(.visible)              // 룰 ④: 핸들이 주 닫기 신호
         .presentationBackground(ReffiColor.canvas)
         .sensoryFeedback(.warning, trigger: deleteHaptic)
-        .confirmationDialog(Text("Delete this recipe?"), isPresented: $showDeleteConfirm,
-                            titleVisibility: .visible) {
+        // 룰⑧ — 커스텀 레시피 삭제는 **복구 불가능**이라 alert다(2026-08-13 재분류).
+        // dialog로 둘 근거였던 "pendingUndo 토스트가 뜬다"는 이 경로에 성립하지 않는다:
+        // undo 모델은 재료·이력 스냅샷 전용이고 `deleteUserRecipe`는 사용자가 직접 쓴 콘텐츠를
+        // 되살릴 장부 없이 지운다(감사 R4-3). 계정삭제·전체초기화·샘플로드와 같은 강도로 올린다.
+        .alert("Delete this recipe?", isPresented: $showDeleteConfirm) {
             Button("Delete", role: .destructive) {
                 if let target = deleteTarget { store.deleteUserRecipe(id: target.id) }  // 스토어가 persist까지 수행.
                 deleteHaptic += 1
@@ -58,7 +63,7 @@ struct MyRecipesView: View {
             }
             Button("Cancel", role: .cancel) { deleteTarget = nil }
         } message: {
-            Text("Removes it from your recipes. Built-in recipes stay.")
+            Text("Removes it from your recipes. This can't be undone. Built-in recipes stay.")
         }
         .sheet(isPresented: $creating) { RecipeEditorView(recipe: nil) }
         .sheet(item: $editing) { RecipeEditorView(recipe: $0) }
@@ -215,15 +220,16 @@ struct RecipeEditorView: View {
         } message: {
             Text("Your edits won't be saved.")
         }
-        .confirmationDialog(Text("Delete this recipe?"), isPresented: $showDeleteConfirm,
-                            titleVisibility: .visible) {
+        // 룰⑧ — 복구 불가능 → alert(목록 쪽 삭제와 같은 강도·같은 카피).
+        .alert("Delete this recipe?", isPresented: $showDeleteConfirm) {
             Button("Delete", role: .destructive) {
                 if let existing = recipe { store.deleteUserRecipe(id: existing.id) }
                 deleteHaptic += 1
                 dismiss()
             }
+            Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Removes it from your recipes. Built-in recipes stay.")
+            Text("Removes it from your recipes. This can't be undone. Built-in recipes stay.")
         }
         .onAppear { load() }
     }

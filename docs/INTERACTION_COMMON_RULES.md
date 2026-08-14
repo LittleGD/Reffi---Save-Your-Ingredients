@@ -89,6 +89,9 @@
   - **국소·되돌리기 가능**(재료삭제·조리취소) = `.confirmationDialog` (트리거 근처). `FridgeStore.pendingUndo` 기반 undo 토스트가 떠서 dialog로 충분.
   - **데이터를 지우지 않는 상태 전환**(**로그아웃**) = `.confirmationDialog`. 세션만 해지하고 냉장고·이력·프로필은 이 기기에 남는다. 소유자 키(`data.ownerUserID`)가 직전 계정 id로 유지되고 뒤이어 붙는 익명 게스트 세션은 소유자 대조 대상이 아니라(`AuthStore.accountUserID`가 nil), 콜드 런치를 거쳐 같은 계정으로 재로그인해도 와이프가 없다(`ReffiApp.reconcileDataOwner` 보장 ①). 룰 ⑦ 파괴 햅틱도 해당 없음.
   - 순수 알림성(알림 꺼짐 안내)은 `.alert` 유지.
+- **삭제 2종 정정(2026-08-13)**: 두 삭제가 dialog로 분류된 근거("`FridgeStore.pendingUndo` 기반 undo 토스트가 떠서 dialog로 충분")가 실제로는 비어 있었다 — `FridgeStore.remove(_:)`·`deleteUserRecipe(id:)` 어느 쪽도 `beginUndo`를 부르지 않았다. 판정 축("확정 후 되돌릴 수 있느냐")대로 각각 다르게 해소한다.
+  - **재료삭제 = 전제를 채운다(확인 강도 유지)**: `remove(_:)`가 `beginUndo(.removed(name:))`를 호출해 6초 undo 토스트를 실제로 띄운다. 이 함수는 **이력 없는 삭제**라 `logIDs` 경로를 쓸 수 없다(로그를 만들면 낭비율·쇼핑리스트가 오염돼 함수의 정의가 깨진다) → `PendingUndo.restoreSnapshots`로 원본을 직접 들고 있다가 복원한다. dialog 유지.
+  - **커스텀 레시피 삭제 = `.alert`로 승급**: undo 모델은 재료·이력 스냅샷 전용이라 사용자가 직접 쓴 레시피를 되살릴 장부가 없다. 억지로 얹으면 `PendingUndo`가 재료와 무관한 페이로드를 하나 더 짊어지고 토스트 카피·아이콘까지 갈라지므로, 사실대로 **복구 불가능**으로 재분류해 계정삭제·전체초기화·샘플로드와 같은 강도(`.alert` + 명시 Cancel + "This can't be undone" 카피)로 옮긴다. 호출부 2곳(`MyRecipesView` 목록 롱프레스·`RecipeEditorView` 삭제) 모두 이관.
 - **샘플로드 정정(2026-07-26)**: 최초 초안은 샘플로드를 "되돌리기 가능(undo 토스트 있음)"으로 분류했으나 사실이 아니다. `FridgeStore.loadSampleData()`는 `ingredients`·`history`를 샘플로 통째 대체하기 전에 `pendingUndo = nil`로 **undo를 먼저 지운다**(`FridgeStore.swift:717`) → 확정 후 복구 불가. 따라서 `.alert`로 분류를 옮긴다.
 - **적용**: 위 기준으로 각 호출부 재분류.
   - 반영 완료(2026-07-26): `ProfileView`의 샘플로드 호출부를 `.alert` + 명시 Cancel + 룰 ⑦ `.warning` 햅틱으로 이관했다(결과 명시 메시지는 유지).

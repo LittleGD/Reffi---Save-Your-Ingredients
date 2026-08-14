@@ -131,6 +131,30 @@ struct FridgeStoreTests {
         #expect(store.pendingUndo == nil)
     }
 
+    /// 이력 없는 삭제(정정)도 6초 undo 창을 연다(룰⑧) — 단, 이력 장부를 만들지 않는다.
+    /// 로그를 만들면 낭비율·쇼핑리스트가 오염돼 "이력 없는 삭제"라는 함수 정의가 깨진다.
+    @Test func removeOpensUndoWithoutWritingHistory() {
+        let store = makeStore()
+        let target = store.sorted[0]
+        let ingBefore = store.ingredients
+        let counterBefore = store.counterIDs
+
+        store.remove(target)
+        #expect(!store.ingredients.contains(where: { $0.id == target.id }))
+        #expect(store.history.isEmpty)                      // 통계 오염 없음
+        guard case .removed(let name)? = store.pendingUndo?.kind else {
+            Issue.record("삭제 후 undo 창은 .removed여야 한다")
+            return
+        }
+        #expect(name == target.name)
+
+        store.undoPending()
+        #expect(Set(store.ingredients.map(\.id)) == Set(ingBefore.map(\.id)))
+        #expect(store.history.isEmpty)
+        #expect(store.counterIDs == counterBefore)
+        #expect(store.pendingUndo == nil)
+    }
+
     // MARK: 예약 모델 (fire → Finish 확정)
 
     @Test func fireReservesWithoutLogging() {

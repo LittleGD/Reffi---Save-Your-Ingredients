@@ -320,11 +320,23 @@ final class FridgeStore {
     }
 
     /// 이력 없는 삭제 — 오입력·중복 정정용. 통계(낭비율·쇼핑리스트)를 오염시키지 않는다.
+    ///
+    /// **되돌리기 창을 연다(룰⑧)** — 커먼 룰이 재료삭제를 약한 `.confirmationDialog`로 분류한 근거가
+    /// "`pendingUndo` 기반 undo 토스트가 떠서 dialog로 충분"인데, 정작 이 경로는 `beginUndo`를 부르지
+    /// 않아 전제가 비어 있었다(감사 R4-3). 확인 강도는 그대로 두고 안전망만 더한다.
+    ///
+    /// 이력 로그를 만들지 않는 삭제라 `logIDs`가 아니라 `restoreSnapshots`로 원본을 들고 있는다 —
+    /// 로그를 만들면 6초 동안(그리고 되돌리지 않으면 영구히) 낭비율·쇼핑리스트가 오염돼
+    /// "이력 없는 삭제"라는 이 함수의 정의가 깨진다.
     func remove(_ ingredient: Ingredient) {
+        guard let removed = ingredients.first(where: { $0.id == ingredient.id }) else { return }
+        let counterBefore = counterIDs
         ingredients.removeAll { $0.id == ingredient.id }
         counterIDs.removeAll { $0 == ingredient.id }
         detachFromCookSession(ingredient.id)
         replenishCounter()
+        beginUndo(.removed(name: removed.name), logIDs: [], counterSnapshot: counterBefore,
+                  restoreSnapshots: [removed])
         persist()
     }
 
@@ -498,22 +510,27 @@ final class FridgeStore {
             case fired(recipe: String, count: Int)      // 발주(예약) — undo = 예약 해제
             case finished(recipe: String, count: Int)   // 완료(확정) — undo = 세션·수량·이력 원복
             case decision(name: String, wasted: Bool)
+            case removed(name: String)                 // 이력 없는 삭제(정정) — undo = 스냅샷 복원
         }
         let token: UUID       // 세대 토큰 — 이전 창의 만료 타이머가 새 창을 닫지 못하게
         let logIDs: [UUID]
         let kind: Kind
         let counterSnapshot: [UUID]        // 판정 전 작업대 — undo 시 통째로 원복
         var leftoverSnapshots: [Ingredient] = []   // finish의 '남았어요' 절반 처리 전 원본
+        /// 이력 로그 없이 지운 재료의 원본 — `logIDs` 경로와 달리 이력에서 되살릴 게 없어 직접 들고 있는다.
+        var restoreSnapshots: [Ingredient] = []
         var previousSession: CookSession?          // fired: 교체 전 세션 / finished: 종료된 세션
     }
 
     private func beginUndo(_ kind: PendingUndo.Kind, logIDs: [UUID], counterSnapshot: [UUID],
                            leftoverSnapshots: [Ingredient] = [],
+                           restoreSnapshots: [Ingredient] = [],
                            previousSession: CookSession? = nil) {
         let token = UUID()
         pendingUndo = PendingUndo(token: token, logIDs: logIDs, kind: kind,
                                   counterSnapshot: counterSnapshot,
                                   leftoverSnapshots: leftoverSnapshots,
+                                  restoreSnapshots: restoreSnapshots,
                                   previousSession: previousSession)
         Task { [weak self] in
             try? await Task.sleep(for: .seconds(6))
@@ -530,10 +547,11 @@ final class FridgeStore {
         switch undo.kind {
         case .fired, .finished:
             activeCook = undo.previousSession   // fired: 교체 전(보통 nil) / finished: 종료된 세션 재개
-        case .decision:
+        case .decision, .removed:
             break
         }
-        var restored: [Ingredient] = []
+        // 이력 로그 없이 지운 재료(정정 삭제)는 스냅샷에서 바로 되살린다.
+        var restored: [Ingredient] = undo.restoreSnapshots
         for logID in undo.logIDs {
             guard let i = history.firstIndex(where: { $0.id == logID }) else { continue }
             if let snap = history[i].snapshot { restored.append(snap) }

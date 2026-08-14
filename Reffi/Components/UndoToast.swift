@@ -26,6 +26,12 @@ struct UndoToast: View {
                 (wasted ? Text("\(name) · tossed") : Text("\(name) · eaten"))
                     .reffiType(.caption).foregroundStyle(.white)
                     .lineLimit(1)
+            case .removed(let name):
+                // 이력 없는 정정 삭제 — 판정(먹음/버림)이 아니라 "목록에서 지웠다"라 잉크 톤으로 조용히.
+                ReffiIcon.delete.reffi(15, .fill).foregroundStyle(ReffiColor.urgent)
+                Text("\(name) · removed")
+                    .reffiType(.caption).foregroundStyle(.white)
+                    .lineLimit(1)
             }
             Spacer(minLength: ReffiSpace.s2)
             Button(action: onUndo) {

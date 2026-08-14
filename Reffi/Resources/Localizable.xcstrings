@@ -11,6 +11,16 @@
         }
       }
     },
+    "%@ · removed": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · 지웠어요"
+          }
+        }
+      }
+    },
     "%@ · tossed": {
       "localizations": {
         "ko": {
@@ -2239,6 +2249,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "내 레시피에서만 지워져요. 기본 레시피는 그대로예요."
+          }
+        }
+      }
+    },
+    "Removes it from your recipes. This can't be undone. Built-in recipes stay.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "내 레시피에서만 지워져요. 되돌릴 수 없어요. 기본 레시피는 그대로예요."
           }
         }
       }
