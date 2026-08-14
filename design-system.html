@@ -1431,6 +1431,7 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">판정·확정은 <code class="inline">.impact</code>(판정 light · 발주 medium 두 강도뿐), 성공 완료는 <code class="inline">.success</code>, 파괴 확인은 <code class="inline">.warning</code>인가 · 매핑 밖 강도를 새로 만들지 않았는가 · 정보성 전환에 햅틱을 넣지 않았는가 (§7.6)</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">레시피 대표 아이콘을 그리는 새 표면이 뷰에서 <code class="inline">DishGlyphCatalog</code>를 직접 부르지 않고 <code class="inline">Recipe.heroIcon</code>/<code class="inline">RecipeHeroIcon.session</code>만 쓰는가 (§13.7)</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">영수증 종이를 새로 그릴 때 톱니를 <code class="inline">ReffiTooth</code>로 지정하고 면은 <code class="inline">receiptSurface(...)</code>로 얹었는가 — 숫자 리터럴·손조립 금지 (§13.8)</span></li>
+          <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">재료 실루엣·요리 아이콘 크기를 <code class="inline">ReffiFoodIcon</code>/<code class="inline">ReffiDishIcon</code>으로 지정했는가 — 표면마다 숫자를 흩뿌리지 않는가 (§13.3/§13.7)</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">점선 구분을 손으로 그리지 않고 <code class="inline">ReffiRule(.receipt|.ticket)</code>을 썼는가 (§13.8)</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">카드 그림자를 인라인 <code class="inline">.shadow(...)</code>가 아니라 <code class="inline">reffiShadowCard()</code>/<code class="inline">reffiShadowCardCompact()</code>로 얹었는가 (§6.4)</span></li>
         </ul>
@@ -1644,6 +1645,11 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
         <table class="tbl" style="margin-top:var(--space-4)">
           <thead><tr><th>토큰</th><th>크기</th><th>용도</th></tr></thead>
           <tbody>
+            <tr><td><code class="inline">ReffiFoodIcon.rowMini</code></td><td>32pt</td><td>재료 실루엣 — 조리 티켓 재료 행·온보딩 미니 영수증 행</td></tr>
+            <tr><td><code class="inline">ReffiFoodIcon.row</code></td><td>36pt</td><td>재료 실루엣 — 장보기·이력·냉장고 간편보기 목록 행(탭을 오가며 연달아 보는 같은 성격의 행)</td></tr>
+            <tr><td><code class="inline">ReffiFoodIcon.card</code></td><td>46pt</td><td>재료 실루엣 — 냉장고 카드</td></tr>
+            <tr><td><code class="inline">ReffiFoodIcon.tile</code></td><td>56pt</td><td>재료 실루엣 — 검색 그리드 타일</td></tr>
+            <tr><td><code class="inline">ReffiFoodIcon.hero</code></td><td>64pt</td><td>재료 실루엣 — 펼친 상세</td></tr>
             <tr><td><code class="inline">ReffiDishIcon.row</code></td><td>36pt</td><td>내 레시피 행</td></tr>
             <tr><td><code class="inline">ReffiDishIcon.card</code></td><td>56pt</td><td>공유 카드(340pt 폭)</td></tr>
             <tr><td><code class="inline">ReffiDishIcon.ticket</code></td><td>68pt</td><td>오더·조리 티켓 메뉴명 옆(두 티켓이 같은 자리·같은 크기)</td></tr>

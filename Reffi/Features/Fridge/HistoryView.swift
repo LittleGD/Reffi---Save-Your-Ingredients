@@ -223,7 +223,7 @@ struct HistoryView: View {
     /// 작은 일러스트 — 키운 실루엣(테두리 없음).
     private func miniGlyph(_ glyph: FoodGlyph) -> some View {
         PaperSilhouette(glyph: glyph, fresh: .fresh)
-            .frame(width: 36, height: 36)
+            .frame(width: ReffiFoodIcon.row, height: ReffiFoodIcon.row)
     }
 
     // MARK: 영수증 카드 래퍼 — Fridge 스택과 같은 흰 영수증(톱니)

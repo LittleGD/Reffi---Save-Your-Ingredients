@@ -142,7 +142,7 @@ struct CookingStepsView: View {
         } label: {
             HStack(spacing: ReffiSpace.s3) {
                 PaperSilhouette(glyph: ing.glyph, fresh: ing.freshness)
-                    .frame(width: 32, height: 32)
+                    .frame(width: ReffiFoodIcon.rowMini, height: ReffiFoodIcon.rowMini)
                 Text(verbatim: ing.name)
                     .reffiType(.body).foregroundStyle(ReffiColor.ink).lineLimit(1)
                 Spacer(minLength: ReffiSpace.s2)

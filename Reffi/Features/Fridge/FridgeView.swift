@@ -666,7 +666,7 @@ struct FridgeCompactRow: View {
         let f = ingredient.freshness
         return HStack(spacing: ReffiSpace.s3) {
             PaperSilhouette(glyph: ingredient.glyph, fresh: f)
-                .frame(width: 34, height: 34)
+                .frame(width: ReffiFoodIcon.row, height: ReffiFoodIcon.row)
             VStack(alignment: .leading, spacing: 1) {
                 Text(ingredient.name)
                     .reffiType(.checklistItem)
@@ -722,7 +722,7 @@ struct FridgeCard: View {
             }
             HStack(spacing: ReffiSpace.s3) {
                 PaperSilhouette(glyph: ingredient.glyph, fresh: f)
-                    .frame(width: 46, height: 46)
+                    .frame(width: ReffiFoodIcon.card, height: ReffiFoodIcon.card)
                 Text(ingredient.name)
                     .reffiType(.subhead).foregroundStyle(ReffiColor.ink).lineLimit(1)
                 Spacer(minLength: 0)
@@ -760,7 +760,7 @@ struct ExpandedFridgeCard: View {
             // 헤더 — 큰 일러스트 + (카테고리·편집) / (이름·Due date)
             HStack(spacing: ReffiSpace.s4) {
                 PaperSilhouette(glyph: ingredient.glyph, fresh: f)
-                    .frame(width: 64, height: 64)
+                    .frame(width: ReffiFoodIcon.hero, height: ReffiFoodIcon.hero)
                 VStack(alignment: .leading, spacing: 2) {
                     HStack {
                         Text(LocalizedStringKey(ingredient.category))

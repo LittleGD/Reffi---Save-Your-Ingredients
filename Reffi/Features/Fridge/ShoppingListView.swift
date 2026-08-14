@@ -106,7 +106,8 @@ struct ShoppingListView: View {
     /// 목록 한 줄 — 두 구역이 같은 문법을 쓴다(직접 담은 것도 제안과 똑같이 Add/Skip으로 처리한다).
     private func row(_ item: Row) -> some View {
         HStack(spacing: ReffiSpace.s3) {
-            PaperSilhouette(glyph: item.glyph, fresh: .fresh).frame(width: 36, height: 36)
+            PaperSilhouette(glyph: item.glyph, fresh: .fresh)
+                .frame(width: ReffiFoodIcon.row, height: ReffiFoodIcon.row)
             Text(verbatim: item.name).reffiType(.body).foregroundStyle(ReffiColor.ink)
             Spacer()
             Button {
@@ -342,7 +343,7 @@ private struct ToBuySearchSheet: View {
         } label: {
             VStack(spacing: ReffiSpace.s1) {
                 PaperSilhouette(glyph: item.glyph, fresh: .fresh)
-                    .frame(width: 56, height: 56)
+                    .frame(width: ReffiFoodIcon.tile, height: ReffiFoodIcon.tile)
                 Text(verbatim: item.name)
                     .reffiType(.metaText)
                     .foregroundStyle(ReffiColor.ink)

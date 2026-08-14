@@ -384,7 +384,7 @@ struct OnboardingView: View {
     private func heroRow(_ glyph: FoodGlyph, _ name: String, _ dDay: String, _ color: Color) -> some View {
         HStack(spacing: ReffiSpace.s3) {
             PaperSilhouette(glyph: glyph, fresh: .fresh)
-                .frame(width: 28, height: 28)
+                .frame(width: ReffiFoodIcon.rowMini, height: ReffiFoodIcon.rowMini)
             Text(verbatim: name)                           // 사전 표시명 — 데이터 verbatim(§i18n)
                 .reffiType(.badgeLabel)
                 .foregroundStyle(ReffiColor.ink)

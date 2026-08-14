@@ -39,6 +39,22 @@ enum ReffiDishIcon {
     static let ticket: CGFloat = 68
 }
 
+/// 재료 실루엣 크기(§13.3 `PaperSilhouette`) — `ReffiDishIcon`이 요리 아이콘에 푼 문제를 재료 쪽에도 푼다.
+/// 토큰이 없던 시절 같은 목록 행 역할에 28·32·34·36 네 값이 공존했다(탭을 오가면 같은 성격의 행이
+/// 미묘하게 다른 크기로 보인다). 다섯 자리만 두고 호출부는 전부 여기를 경유한다.
+enum ReffiFoodIcon {
+    /// 좁은 면 안의 행 — 조리 티켓 재료 행, 온보딩 미니 영수증 행.
+    static let rowMini: CGFloat = 32
+    /// 목록 행 리딩 — 장보기·이력·냉장고 간편보기. 셋은 탭 전환으로 연달아 보는 같은 성격의 행이다.
+    static let row: CGFloat = 36
+    /// 냉장고 카드(스택) 안 실루엣 — 이름과 나란히 서는 크기.
+    static let card: CGFloat = 46
+    /// 검색 그리드 타일 — 그림이 주인공이고 이름이 캡션인 배치.
+    static let tile: CGFloat = 56
+    /// 펼친 상세 — 한 재료만 남은 화면의 주인공.
+    static let hero: CGFloat = 64
+}
+
 /// 영수증 톱니(§13.5 `ReceiptShape`) — 앱의 시그니처 절취 엣지. 표면마다 숫자를 손으로 적으면
 /// 같은 성격의 종이가 6·7·8·9로 갈린다(온보딩 한 파일에서만 세 값이 공존했다).
 /// 세 자리만 두고 `ReceiptShape(tooth:)` 호출부는 전부 여기를 경유한다.
