@@ -30,6 +30,11 @@ struct SelectableChip: View {
 
 /// 시트 공통 셸 — 크림 캔버스 + `SheetHeader`(좌측 타이틀 + 종이 X) + 콘텐츠. 편집 시트를 통일한다.
 /// 헤더는 인터랙션 커먼 룰 ②③의 단일 공급원 `SheetHeader`에 위임 — 인라인 종이 X 조립을 제거했다.
+///
+/// **핸들도 셸이 보증한다(§14.3 / 룰④)** — `SheetHeader`는 "프레젠테이션 측에서 dragIndicator를 켠다"를
+/// 전제하는데, 호출부(ProfileView)마다 붙이면 같은 누락이 재발한다. 여기서 한 번 선언해 이 셸을 쓰는
+/// 프로필 시트 6종이 함께 정렬되게 한다. 단일 고정 detent(.height) 시트는 automatic으로 그래버가
+/// 뜨지 않으므로 이 선언이 곧 핸들 유무를 가른다.
 private struct SheetShell<Content: View>: View {
     let title: LocalizedStringKey
     let onClose: () -> Void
@@ -45,6 +50,7 @@ private struct SheetShell<Content: View>: View {
         .padding(.bottom, ReffiSpace.s5)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(ReffiColor.canvas.ignoresSafeArea())
+        .presentationDragIndicator(.visible)   // §14.3 — 핸들 없는 시트를 두지 않는다(룰④)
     }
 }
 

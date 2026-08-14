@@ -50,6 +50,7 @@
   - **풀스크린 커버 = 우상단/좌상단 `PaperCloseButton`(X)**로 닫는다.
   - 시트는 dragIndicator **필수**(핸들 없는 시트 금지).
 - **적용**: `AuthView`·`CookingStepsView` finishSheet에 dragIndicator 추가. 시스템 Cancel 텍스트로 닫던 화면은 룰 ⑤/⑥에서 종이화되며 해소.
+- **프로필 시트 6종 정렬(2026-08-13)**: 닉네임·Cuisines·Favorites·Disliked·Allergies·Alert time은 `presentationDragIndicator`가 한 곳도 없어 §14.3 필수 조항을 어기고 있었다(특히 `.height(260)`·`.height(300)` 단일 detent는 automatic으로도 그래버가 뜨지 않아 확정적으로 핸들이 없다). 호출부마다 붙이면 같은 드리프트가 재발하므로 **공용 셸 `SheetShell`(`ProfilePreferenceSheets.swift`)에서 한 번 선언**해 6종을 일괄 정렬했다. 이로써 `SheetHeader`가 전제하는 "헤더 + 핸들" 계약을 셸이 함께 보증한다.
 
 ---
 
