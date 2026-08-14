@@ -172,13 +172,14 @@ struct CookingStepsView: View {
                     closeHint: "Keeps cooking in progress",   // 닫아도 세션은 남는다는 결과 예고
                     onClose: onClose) {
             if let cook = store.activeCook {
+                // 한 구(句)를 두 role로 쪼개지 않는다 — "Started"가 caption(14/자간 +0.14),
+                // 바로 옆 경과 시간이 metaText(13/자간 0)라 같은 문장 안에서 1pt·자간만 어긋나
+                // 위계가 아니라 어색한 이격으로만 보였다. 데이터형 메타 하나로 묶는다(§3.5).
                 HStack(spacing: 4) {
                     Text("Started")
-                        .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
                     Text(cook.startedAt, style: .relative)
-                        .reffiType(.metaText)
-                        .foregroundStyle(ReffiColor.ink2)
                 }
+                .reffiType(.metaText).foregroundStyle(ReffiColor.ink2)
             }
         }
     }
