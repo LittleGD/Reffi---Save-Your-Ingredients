@@ -505,7 +505,12 @@ struct OnboardingView: View {
         .accessibilityLabel("Intro \(page + 1) of \(introLast + 1)")
     }
 
-    /// 인트로 하단 — 마지막 장에서만 "Let's Start"(셋업 시트 오픈). 그 전엔 스와이프로 이동.
+    /// 인트로 하단 — 마지막 장에서만 "Let's Start"(셋업 시트 오픈), 그 전엔 조용한 "Next".
+    ///
+    /// 1~2장에 전진 액션이 하나도 없던 시절엔 앱의 첫 화면에서 **유일하게 보이는 버튼이 이탈 경로(Skip)**라
+    /// 위계상 탈출구가 #1이었다(감사 R3-2). 슬롯 높이(52)는 원래 예약돼 있어 레이아웃 점프 없이 들어간다.
+    /// 스와이프가 여전히 주 이동 수단이므로 전진은 **조용한** 버튼이다 — 다만 tint가 `blueDark`라
+    /// 중립 회색(`ink2`)인 Skip보다 먼저 읽힌다. 셋업 단계의 "Next"와 라벨도 맞춘다(한 플로우, 한 문법).
     @ViewBuilder private var bottomButton: some View {
         VStack(spacing: ReffiSpace.s1) {
             if page == introLast {
@@ -513,8 +518,14 @@ struct OnboardingView: View {
                     showSetup = true
                 }
                 .transition(.opacity.combined(with: .move(edge: .bottom)))
+            } else {
+                // 아이콘은 붙이지 않는다 — `QuietButton`은 아이콘이 라벨 **앞**이라 전진 화살표가
+                // 뒤가 아닌 앞에 서서 방향 기표가 거꾸로 읽힌다(같은 파일 Skip도 아이콘 없는 호출이다).
+                QuietButton(title: "Next", tint: ReffiColor.blueDark) {
+                    withAnimation(motion) { page += 1 }
+                }
+                .transition(.opacity)
             }
-            // page < introLast: 하단 버튼 없음 — 스와이프로 이동, 인디케이터만 노출.
         }
         .frame(maxWidth: .infinity, minHeight: 52)   // 버튼 유무와 무관하게 높이 예약 → 인트로 스와이프 시 점 위치 고정
         .padding(.horizontal, ReffiGrid.margin + ReffiSpace.s2)
@@ -579,7 +590,9 @@ struct OnboardingView: View {
                 // 그림자는 shadowTint로 일관화(다크에서 ink가 크림으로 뒤집혀 밝아지는 문제 방지).
                 .shadow(color: ReffiColor.shadowTint.opacity(0.18), radius: 14, y: 8)
         }
-        .sensoryFeedback(.impact(weight: .heavy), trigger: stamping)
+        // §7.6 — 이 순간의 의미는 "셋업 저장 완료"라 성공 완료(`.success`)다. 앱에서 유일했던
+        // `.impact(.heavy)`는 매핑 표에도 예외(SpriteKit 물리 텍스처)에도 근거가 없는 오프맵이었다.
+        .sensoryFeedback(.success, trigger: stamping)
         .onAppear {
             let anim: Animation = reduceMotion
                 ? .easeOut(duration: 0.2)
