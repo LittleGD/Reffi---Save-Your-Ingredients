@@ -227,7 +227,10 @@ struct HistoryView: View {
     }
 
     // MARK: 영수증 카드 래퍼 — Fridge 스택과 같은 흰 영수증(톱니)
+    /// `seed`는 톱니 **위상**을 카드마다 어긋나게 한다 — 세 장이 세로로 이어지는 화면이라
+    /// 절취선이 자로 잰 듯 같은 자리에서 시작하면 오려 낸 종이가 아니라 찍어 낸 패턴으로 읽힌다.
+    /// (오래도록 인자만 받고 본문에서 쓰지 않아, 호출부 셋이 있지도 않은 변주를 믿고 있었다.)
     private func card<Content: View>(seed: Int, @ViewBuilder _ content: () -> Content) -> some View {
-        content().receiptSurface()
+        content().receiptSurface(seed: seed)
     }
 }
