@@ -360,7 +360,8 @@ struct MainView: View {
                     .foregroundStyle(.white)
                     .padding(.horizontal, ReffiSpace.s3 + 2)
                     .padding(.vertical, ReffiSpace.s1 + 2)
-                    .background(ReffiColor.blue, in: Capsule())
+                    // §13.1 종이컷 8각형(캡슐 금지) — 바로 아래 Start cooking(PaperButton)과 같은 재질 언어.
+                    .background(ReffiColor.blue, in: PaperCutRect(seed: 3))
                     .frame(minHeight: 44)
                     .contentShape(Rectangle())
             }

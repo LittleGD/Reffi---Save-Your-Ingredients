@@ -151,7 +151,8 @@ struct CookingStepsView: View {
                     .foregroundStyle(left ? ReffiColor.soonDark : ReffiColor.freshDark)
                     .padding(.horizontal, ReffiSpace.s3)
                     .padding(.vertical, ReffiSpace.s1 + 1)
-                    .background((left ? ReffiColor.soonLight : ReffiColor.freshLight), in: Capsule())
+                    // §13.1 종이컷 8각형(캡슐 금지) — 행동 표면의 상태 칩도 종이 문법을 따른다.
+                    .background((left ? ReffiColor.soonLight : ReffiColor.freshLight), in: PaperCutRect(seed: 5))
             }
             .padding(.horizontal, ReffiSpace.s3)
             .padding(.vertical, ReffiSpace.s2)

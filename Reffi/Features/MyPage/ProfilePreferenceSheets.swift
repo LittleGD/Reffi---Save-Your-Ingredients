@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// 선택 가능한 캡슐 칩 — 선택 시 Blue 면+화이트, 미선택은 sub 면+ink(§2.6). 칩 패턴은 Chips.swift 계열.
-/// 캡슐 비주얼은 작게 유지하되 히트 영역은 44pt 확보(§7.3).
+/// 선택 가능한 종이 칩 — 선택 시 Blue 면+화이트, 미선택은 sub 면+ink(§2.6). 칩 패턴은 Chips.swift 계열.
+/// 면은 §13.1 종이컷 8각형(`PaperCutRect`)이다 — 완벽한 캡슐은 행동 표면에서 금지다.
+/// 칩 비주얼은 작게 유지하되 히트 영역은 44pt 확보(§7.3).
 struct SelectableChip: View {
     let text: String
     let selected: Bool
@@ -18,8 +19,8 @@ struct SelectableChip: View {
                 .padding(.horizontal, ReffiSpace.s3)
                 .padding(.vertical, ReffiSpace.s2)
                 .frame(maxWidth: fullWidth ? .infinity : nil)
-                .background(selected ? ReffiColor.blue : ReffiColor.sub, in: Capsule())
-                .frame(minHeight: 44)          // §7.3 터치 타깃 — 비주얼은 캡슐, 히트는 44
+                .background(selected ? ReffiColor.blue : ReffiColor.sub, in: PaperCutRect(seed: 1))
+                .frame(minHeight: 44)          // §7.3 터치 타깃 — 비주얼은 종이 칩, 히트는 44
                 .contentShape(Rectangle())
         }
         .buttonStyle(.reffiPress)
@@ -151,7 +152,7 @@ struct TagEditorSheet: View {
                                 }
                                 .padding(.horizontal, ReffiSpace.s3)
                                 .padding(.vertical, ReffiSpace.s2)
-                                .background(ReffiColor.sub, in: Capsule())
+                                .background(ReffiColor.sub, in: PaperCutRect(seed: 4))   // §13.1 종이컷 8각형(캡슐 금지)
                                 .frame(minHeight: 44)          // §7.3 터치 타깃
                                 .contentShape(Rectangle())
                             }

@@ -226,6 +226,7 @@ struct OrderMemoCard: View {
     /// 티켓 한 줄 — 이름 + (임박할 때만) D-day 칩. 체크박스는 없다: 티켓은 체크하며 따라가는 목록이 아니라
     /// "무엇이 들어가나"를 한눈에 읽는 단서 블록이다. 발주하면 줄이 그어져 비웠음이 남는다(payoff).
     ///
+    /// D-day 칩의 면은 §13.1 종이컷 8각형(`PaperCutRect`)이다 — 행동 표면에 완벽한 캡슐을 두지 않는다.
     /// D-day는 `.soon`·`.urgent`에만 붙인다 — 신선도는 앱의 본체지만, 아직 여유 있는 재료의 카운트다운은
     /// 노이즈일 뿐이라 "지금 급한 것"만 눈에 띄게 남긴다(색+텍스트 동반, §1).
     private func ticketLine(_ ing: Ingredient, done: Bool) -> some View {
@@ -242,7 +243,7 @@ struct OrderMemoCard: View {
                     .foregroundStyle(ing.freshness.dark)
                     .padding(.horizontal, ReffiSpace.s2)
                     .padding(.vertical, 1)
-                    .background(ing.freshness.light, in: Capsule())
+                    .background(ing.freshness.light, in: PaperCutRect(seed: 2))   // §13.1 종이컷 8각형(캡슐 금지)
             }
         }
     }

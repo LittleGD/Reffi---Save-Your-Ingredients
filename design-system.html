@@ -713,11 +713,13 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
 .memo .ticket-head { display: flex; justify-content: space-between; align-items: baseline;
   font-weight: 700; letter-spacing: 2.5px; font-size: 13px; }
 .memo .ticket-head .right { display: flex; align-items: baseline; gap: 8px; letter-spacing: 0; }
-/* 추정 소비기한 배지 — 실물(ReceiptScanView)은 soonDark 글자 + soonLight 캡슐(pillLabel 13/SemiBold).
+/* 추정 소비기한 배지 — 실물(ReceiptScanView)은 soonDark 글자 + soonLight 종이 칩(pillLabel 13/SemiBold).
+   면은 §13.1 종이컷 8각형(PaperCutRect) — 캡슐 반지름은 행동 표면에서 금지다.
    예전 파랑 radius-xs 사각은 제거된 AI 배지의 잔재였다. */
 .memo .est-badge { display: inline-flex; align-items: center; gap: 3px; background: var(--color-soon-light);
   color: var(--color-soon-dark); font-size: 13px; font-weight: 600; letter-spacing: 0;
-  padding: 2px 8px; border-radius: var(--radius-pill); }
+  padding: 2px 8px; clip-path: polygon(5px 0, calc(100% - 5px) 0, 100% 5px, 100% calc(100% - 5px),
+                     calc(100% - 5px) 100%, 5px 100%, 0 calc(100% - 5px), 0 5px); }
 .memo .rule { height: 1px; margin: 12px 0; background: repeating-linear-gradient(90deg,
   oklch(25% 0.012 80 / 0.22) 0 4px, transparent 4px 8px); }
 .memo .menu { font-weight: 700; font-size: 26px; letter-spacing: -0.3px; }
@@ -1412,7 +1414,7 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">터치 타깃이 44×44(권장 48) 이상, 간격 ≥8px인가</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text"><code class="inline">prefers-reduced-motion</code>을 존중하고 <code class="inline">transition:all</code>을 쓰지 않았는가</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">보더·이모지·순백배경·순흑텍스트·네온을 쓰지 않았는가 · 1200px 분기로 함께 전환되는가</span></li>
-          <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">(행동 표면) 종이컷 셰이프에 완벽한 원·사각·캡슐을 쓰지 않고, 종이 헤어라인을 분리 보더로 오용하지 않았는가 (§13)</span></li>
+          <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">(행동 표면) 종이컷 셰이프에 완벽한 원·사각·캡슐을 쓰지 않고(소형 칩·필도 <code class="inline">PaperCutRect</code>), 종이 헤어라인을 분리 보더로 오용하지 않았는가 (§13)</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">통통 스프링을 행동 표면에만 쓰고 정보 표면(카드 스택)엔 남용하지 않았는가 · 추천 캐러셀에 네비 없이 닫기(X)가 있는가 (§7.5/§13)</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">종이 X 닫기가 <code class="inline">PaperCloseButton</code>인가 (시각 40 · 히트 44 · <code class="inline">paper</code> 단일 토큰, 인라인 재조립 금지 §14)</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">시트에 dragIndicator(핸들)와 콘텐츠 양에 맞는 detent가 있는가 (§14)</span></li>
@@ -1426,6 +1428,7 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
         <span class="section__num num">11</span>
         <h2 class="text">종이 · 글래스 · 모션 <span class="t-caption" style="color:var(--color-muted)">— MD §13</span></h2>
         <p class="section__lead text">메인 플로우의 <strong>행동 표면</strong>(재료·버튼·티켓)에 입히는 한 겹: 손으로 자른 종이 + 리퀴드글래스 + 일러스트 실루엣 + 통통 튀는 모션. 정보 표면(§02~§09)의 규율은 그대로 둔다.</p>
+        <div class="note"><strong>칩·필도 예외가 아니다 — 소형 면의 정본은 <code class="inline">PaperCutRect</code>다.</strong> <code class="inline">PaperRect</code>는 코너 반지름이 <code class="inline">min(w,h)/2</code>로 클램프돼 pill 반지름을 넘기면 정확한 캡슐로 퇴화하고, 변 휨(≈1pt)도 칩 크기에선 지각되지 않는다. D-day 칩·상태 칩·추정 기한 배지·취향 칩·알림 배너 액션처럼 작고 반복되는 행동 표면 면은 <code class="inline">Capsule()</code>이 아니라 <code class="inline">PaperCutRect(seed:)</code>를 쓴다. 예외는 글래스 캡슐 네비와 잉크 토스트 두 곳뿐 — 둘 다 종이가 아닌 재질이라 이 규칙 밖이다.</div>
 
         <div class="paper-demo">
           <div class="demo-pane">
@@ -1522,7 +1525,7 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
 
           <div class="demo-pane" style="grid-column: 1 / -1;">
             <p class="subhead text">오더 메모 카드 — 단서 카드 (추천 캐러셀)</p>
-            <p class="lbl">주방 오더 티켓, <strong>단서 카드로 축소(2026-08)</strong>: 상·하 톱니 절취 + 모노 "ORDER" 헤더 + "TABLE · REFFI KITCHEN" 에보로우 + 점선 룰 + 판정문 키커("Saves N expiring today" 등) + 메뉴명/시간 + "ON THE TICKET" + 재료 이름 블록(체크박스 없음, 최대 5줄 + N more, D-day 칩은 <strong>soon·urgent에만</strong>) + Short 문구 + "이걸로 요리" 발주 CTA(발주 시 START 스탬프 슬램). <strong>PREP 단계 미리보기는 제거했다</strong> — 조리법의 디테일은 발주 후 조리 화면의 영상 링크가 맡는다. 덱은 풀스크린·네비 없음 — 뒤에 겹친 종이가 실제 다음 티켓이며(가장 깊은 티켓만 머리 렌더 — 바로 뒤는 풀 렌더라 플릭 승격이 매끄럽다), 맨 앞을 튕겨(플릭) 넘긴다(아래 "플릭 방향 의미론" 참고). 카드는 화면 높이에 캡되고 중간 섹션은 필요 시 카드 안에서 스크롤(큰 글씨 안전망). <strong>발주 = 예약</strong>(START 슬램은 연출, 재고 차감·이력은 <strong>요리 완료에서 확정</strong> — 재료별 "다 썼어요/조금 남았어요" 원탭, 조리 취소는 예약 해제). 발주는 커버당 1회 + 6초 되돌리기(<strong>상단</strong> 잉크 캡슐 토스트 — 탭 공통, 하단 CTA·네비를 가리지 않는다) → 곧장 조리 화면(영상 CTA), 메인의 Cooking now 카드로 복귀. 판정 커버엔 urgent 한정 <strong>Freeze</strong> 3번째 선택지 — 얼리면 유예 14일의 새 D-day(재냉동 불가), 냉장고 카드엔 FROZEN 도장. <strong>발주 덱은 시드 + 커스텀 레시피로 구성된다</strong> — 인앱 AI 레시피 생성은 2026-08 owner decision으로 제거했다(서버 함수는 유지, MD §11.8 참고).</p>
+            <p class="lbl">주방 오더 티켓, <strong>단서 카드로 축소(2026-08)</strong>: 상·하 톱니 절취 + 모노 "ORDER" 헤더 + "TABLE · REFFI KITCHEN" 에보로우 + 점선 룰 + 판정문 키커("Saves N expiring today" 등) + 메뉴명/시간 + "ON THE TICKET" + 재료 이름 블록(체크박스 없음, 최대 5줄 + N more, D-day 종이 칩(<code class="inline">PaperCutRect</code>)은 <strong>soon·urgent에만</strong>) + Short 문구 + "이걸로 요리" 발주 CTA(발주 시 START 스탬프 슬램). <strong>PREP 단계 미리보기는 제거했다</strong> — 조리법의 디테일은 발주 후 조리 화면의 영상 링크가 맡는다. 덱은 풀스크린·네비 없음 — 뒤에 겹친 종이가 실제 다음 티켓이며(가장 깊은 티켓만 머리 렌더 — 바로 뒤는 풀 렌더라 플릭 승격이 매끄럽다), 맨 앞을 튕겨(플릭) 넘긴다(아래 "플릭 방향 의미론" 참고). 카드는 화면 높이에 캡되고 중간 섹션은 필요 시 카드 안에서 스크롤(큰 글씨 안전망). <strong>발주 = 예약</strong>(START 슬램은 연출, 재고 차감·이력은 <strong>요리 완료에서 확정</strong> — 재료별 "다 썼어요/조금 남았어요" 원탭, 조리 취소는 예약 해제). 발주는 커버당 1회 + 6초 되돌리기(<strong>상단</strong> 잉크 캡슐 토스트 — 탭 공통, 하단 CTA·네비를 가리지 않는다) → 곧장 조리 화면(영상 CTA), 메인의 Cooking now 카드로 복귀. 판정 커버엔 urgent 한정 <strong>Freeze</strong> 3번째 선택지 — 얼리면 유예 14일의 새 D-day(재냉동 불가), 냉장고 카드엔 FROZEN 도장. <strong>발주 덱은 시드 + 커스텀 레시피로 구성된다</strong> — 인앱 AI 레시피 생성은 2026-08 owner decision으로 제거했다(서버 함수는 유지, MD §11.8 참고).</p>
             <div class="memo">
               <div class="ticket-head"><span>ORDER</span><span class="right"><span class="num">#01</span></span></div>
               <div class="rule"></div>

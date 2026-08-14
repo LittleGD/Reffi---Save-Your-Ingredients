@@ -202,14 +202,14 @@ struct ReceiptScanView: View {
     }
 
     /// 추정 기한 배지 — 사전 미매칭(D+3 폴백) 또는 매칭돼도 해당 보관 shelfLife 데이터가 없는 항목.
-    /// soonDark 톤 캡슐(§2.6 신선도 팔레트 재사용) — 새 컴포넌트가 아니라 기존 언어의 조합.
+    /// soonDark 톤 종이 칩(§2.6 신선도 팔레트 재사용 + §13.1 종이컷 8각형) — 새 컴포넌트가 아니라 기존 언어의 조합.
     private var estimateBadge: some View {
         Text("Est. date: check")
             .reffiType(.pillLabel)
             .foregroundStyle(ReffiColor.soonDark)
             .padding(.horizontal, ReffiSpace.s2)
             .padding(.vertical, 2)
-            .background(ReffiColor.soonLight, in: Capsule())
+            .background(ReffiColor.soonLight, in: PaperCutRect(seed: 6))
             .lineLimit(1)
             .fixedSize()
     }
