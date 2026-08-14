@@ -146,6 +146,14 @@ PaperCloseButton(seed: Int = 4, action: () -> Void)
 - 시각 40 · 히트 44 · `ReffiColor.paper` 면 · `paperEdge` · `.paperPress` · `accessibilityLabel("Close")`.
 - 커버 헤더·시트 헤더·doneBar 등 모든 종이 X를 이 컴포넌트로 대체.
 
+### `PaperButtonLabel` (2026-08-13 추가)
+```
+PaperButtonLabel(title: LocalizedStringKey, kind: .primary | .secondary, fullWidth: Bool = true, seed: Int = 0)
+```
+- `PaperButton`의 **표면만** 떼어낸 조각. `PaperButton`은 이걸 `Button` 안에 넣어 만든다(규격이 한 곳에서 나온다).
+- `Button`이 아닌 컨트롤(`PhotosPicker`·`ShareLink` 등)에 CTA 재질을 씌울 때 쓰고, 호출부가 `.buttonStyle(.paperPress)`를 함께 건다(선례: `CookingStepsView`의 ShareLink + `PaperIconLabel`).
+- **금지**: 종이 CTA 면을 호출부에서 손으로 재조립하는 것 — fill 토큰·`PaperGrain`·`--shadow-1`·프레스가 갈려 secondary CTA가 두 종류로 보인다(`ReceiptScanView`의 "Choose photos"가 그 사례였다).
+
 ### `SheetHeader`
 ```
 SheetHeader(title: LocalizedStringKey, showsClose: Bool = false, onClose: (() -> Void)? = nil)

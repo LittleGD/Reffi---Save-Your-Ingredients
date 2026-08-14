@@ -85,16 +85,13 @@ struct ReceiptScanView: View {
             if cameraAvailable {
                 PaperButton(title: "Scan with camera") { showCamera = true }
             }
+            // Button이 아닌 컨트롤에도 CTA 표면을 공용 킷에서 가져온다(`PaperButtonLabel` + `.paperPress`).
+            // 손으로 재조립하던 예전 면은 fill이 `blueLight`(킷 secondary 정본은 `sub`)에 질감·그림자·
+            // 눌림이 모두 빠져 있어, 바로 위 "Scan with camera"와 나란히 두면 재질이 어긋났다(감사 R4-2).
             PhotosPicker(selection: $photoItems, maxSelectionCount: 3, matching: .images) {
-                Text("Choose photos")
-                    .font(ReffiTextRole.subhead.font).tracking(ReffiTextRole.subhead.tracking)
-                    .foregroundStyle(ReffiColor.blueDark)
-                    .frame(maxWidth: .infinity, minHeight: 48)
-                    .background {
-                        let s = PaperCutRect(seed: 3)
-                        s.fill(ReffiColor.blueLight).paperEdge(s, tint: ReffiColor.ink.opacity(0.06))
-                    }
+                PaperButtonLabel(title: "Choose photos", kind: .secondary, seed: 3)
             }
+            .buttonStyle(.paperPress)
             Text("Everything is read on this device. Nothing is uploaded.")
                 .reffiType(.caption).foregroundStyle(ReffiColor.muted)
         }
@@ -158,12 +155,21 @@ struct ReceiptScanView: View {
             Button {
                 toggleSelection(c.id)
             } label: {
-                Image(systemName: isOn ? "checkmark.circle.fill" : "circle")
-                    .foregroundStyle(isOn ? ReffiColor.blue : ReffiColor.muted)
+                // 앱 유일하던 SF Symbol(checkmark.circle)을 걷어내고 Phosphor 체크 글리프 + 종이 상자로.
+                // "선택 = 체크 글리프"는 PaperDropdown·To buy 타일과 같은 문법이다.
+                let box = PaperRect(cornerRadius: ReffiRadius.sm, seed: 6)
+                ReffiIcon.check.reffi(12, .bold)
+                    .foregroundStyle(isOn ? Color.white : .clear)
+                    .frame(width: 22, height: 22)
+                    .background {
+                        box.fill(isOn ? ReffiColor.blue : ReffiColor.paper)
+                            .paperEdge(box, tint: isOn ? ReffiColor.paperEdgeOnFill
+                                                       : ReffiColor.ink.opacity(0.18))
+                    }
                     .frame(width: 44, height: 44)
                     .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.paperPress)
             .accessibilityLabel(Text(verbatim: c.name))
             .accessibilityValue(isOn ? Text("Selected") : Text(verbatim: ""))
 
@@ -196,7 +202,7 @@ struct ReceiptScanView: View {
                     .frame(minWidth: 44, minHeight: 44)   // §7.3 터치 타깃
                     .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.paperPress)   // §7.5 — 종이 면에는 종이 프레스(.plain은 눌림이 없다)
             .accessibilityLabel(Text("Edit \(c.name)"))
         }
     }
@@ -397,7 +403,9 @@ private struct CandidateEditSheet: View {
                 TextField("1", value: $candidate.quantity.value, format: .number)
                     .keyboardType(.decimalPad)
                     .multilineTextAlignment(.trailing)
-                    .reffiType(.body).foregroundStyle(ReffiColor.ink)
+                    // §3.4 숫자는 tabular·lining — 같은 역할의 `IngredientEditView` 수량 필드와 같은 롤.
+                    .font(.reffiNum(16, relativeTo: .body))
+                    .foregroundStyle(ReffiColor.ink)
                     .frame(width: 64)
                 Picker("Unit", selection: $candidate.quantity.unit) {
                     ForEach(IngredientUnit.allCases) { u in
