@@ -9,10 +9,19 @@ struct RecipeMemoCarousel: View {
     let results: [RecipeRecommender.Result]
     /// 재고가 있는데 매칭 레시피가 0인 경우와 재고 자체가 없는 경우를 구분(빈 상태 카피).
     var hasIngredients: Bool = false
+    /// 빈 덱에서 **호명할** 임박 재료 표시명 — 마감 임박순(호출부가 얼린 스냅샷).
+    /// 비어 있으면(전부 신선하거나 재고 없음) 기존 일반 카피가 그대로 뜬다.
+    var urgentNames: [String] = []
+    /// 덱은 살아 있는데 **어떤 티켓도 쓰지 않는** 오늘 만료 재료(`RecipeRecommender.uncoveredUrgent`).
+    /// 비어 있으면 브리지 행 자체를 그리지 않는다.
+    var uncoveredNames: [String] = []
     var onClose: () -> Void
     var onFire: (RecipeRecommender.Result) -> Void = { _ in }
+    /// Short 행의 To buy 원탭 — 부족 재료 이름들을 받아 **새로 담긴 수**를 돌려준다(스토어 배선).
+    var onAddMissing: (([String]) -> Int)?
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.openURL) private var openURL
     @State private var order: [Int] = []          // 덱 순서 — [0]이 맨 앞
     @State private var dragOffset: CGSize = .zero
     @State private var fired = false              // 발주 후 덱 잠금(슬램 유지)
@@ -22,6 +31,9 @@ struct RecipeMemoCarousel: View {
     /// 오른쪽 플릭(Cook) → 앞 티켓의 발주 트리거. 발주 상태는 카드가 소유하므로(슬램 연출 구동)
     /// 부모는 이 카운터로 카드의 `fire()`를 부른다 — "Cook this" 버튼과 같은 경로를 태우려는 것이다.
     @State private var fireTrigger = 0
+    /// 미커버 브리지 행의 실측 높이 — 카드 예산에서 빼려면 고정값이 아니라 실제 높이가 필요하다
+    /// (Dynamic Type을 키우면 한 줄도 두 배가 된다). 0 = 아직 안 그렸거나 행이 없음.
+    @State private var bridgeHeight: CGFloat = 0
 
     /// 수평 플릭 커밋 임계(예측 변위 width) — 넘기면 부호가 곧 의미다(+ Cook / − Pass).
     private let flickCommit: CGFloat = 160
@@ -36,12 +48,17 @@ struct RecipeMemoCarousel: View {
             // 카드 높이 캡(근본) — 카드가 컨테이너를 절대 넘지 못하게 safe area에 연동해 예산을 뺀다.
             // topInset = safe top + 헤더 예산(~72) + 뒤티켓 peek(28), botInset = safe bottom + 12.
             // 기존 124/86과 유사한 시각을 유지하되 기기별 노치·홈 인디케이터에 안전하다.
-            let topInset = geo.safeAreaInsets.top + 72 + 28
+            // 미커버 브리지 행이 있으면 그 실측 높이(+간격)만큼 카드 예산에서 더 뺀다 —
+            // 행은 카드 **위**에 서므로 겹칠 자리가 아니라 자기 자리를 가져가야 한다.
+            let headerBottom = geo.safeAreaInsets.top + 72
+            let bridgeBudget = showsBridge ? bridgeHeight + ReffiSpace.s2 : 0
+            let topInset = headerBottom + bridgeBudget + 28
             let botInset = geo.safeAreaInsets.bottom + 12
             let cardHeight = max(0, geo.size.height - topInset - botInset)
             ZStack(alignment: .top) {
                 ReffiColor.paperPass.ignoresSafeArea()
                 if results.isEmpty { emptyState } else { ticketDeck(cardHeight: cardHeight, topInset: topInset) }
+                if showsBridge { bridgeRow.padding(.top, headerBottom) }
                 topBar
             }
         }
@@ -71,7 +88,10 @@ struct RecipeMemoCarousel: View {
                       headerOnly: depth >= 2,
                       onFire: { fire(results[idx]) },
                       // 플릭 발주는 **앞 티켓만** — 뒤 티켓엔 0을 고정해 트리거가 전파되지 않게 한다.
-                      fireTrigger: isFront ? fireTrigger : 0)
+                      fireTrigger: isFront ? fireTrigger : 0,
+                      // 담을 이름은 **그 카드의** 부족 재료다 — 카드는 result를 다시 들고 오지 않고
+                      // '몇 개 새로 담겼나'만 돌려받는다(햅틱 판단은 카드가 한다).
+                      onAddMissing: onAddMissing.map { add in { add(results[idx].missing) } })
             .frame(height: cardHeight)   // 카드가 컨테이너를 넘지 못하게 캡(headerOnly도 동일 캡)
             .padding(.horizontal, ReffiGrid.margin + 8)
             .padding(.top, topInset)
@@ -246,12 +266,68 @@ struct RecipeMemoCarousel: View {
                     onClose: onClose)
     }
 
-    /// 빈 덱 — 원인 기반 안내: 재료가 있는데 매칭 0이면 이름 확인·커스텀 레시피를 유도한다.
+    // MARK: - 영상 브리지 (덱이 임박 재료를 못 다룰 때의 출구)
+
+    /// 호명 문구용 이름 묶음 — **최대 2개**만 ", "로 잇는다. 셋 이상을 다 부르면 한 줄에 안 들어가고
+    /// 목록이 되어버린다(티켓이 아니라 리스트 화면이 할 일). 나머지는 덱·냉장고가 계속 들고 있다.
+    private func named(_ names: [String]) -> String {
+        names.prefix(2).joined(separator: ", ")
+    }
+
+    /// 브리지 행은 **덱이 있을 때만** 뜬다 — 빈 덱의 출구는 빈 상태 자체가 담당한다(중복 안내 금지).
+    private var showsBridge: Bool { !results.isEmpty && !uncoveredNames.isEmpty }
+
+    /// 미커버 임박 브리지 — 티켓 덱 위 **한 줄짜리** 종이 행. "이 티켓들이 안 쓰는 재료"를 말하고
+    /// 그 자리에서 영상 검색으로 보낸다. 덱이 압박(“오늘 N개 위험”)만 하고 정작 그 재료를 다루지
+    /// 않는 침묵을 메우는 것이 목적이라, 다룰 게 없으면(=`uncoveredNames` 비면) 아예 그리지 않는다.
+    private var bridgeRow: some View {
+        HStack(spacing: ReffiSpace.s2) {
+            Text("Nothing on these tickets uses \(named(uncoveredNames)).")
+                .reffiType(.metaText).foregroundStyle(ReffiColor.ink2)
+                .lineLimit(1).minimumScaleFactor(0.8)
+            Spacer(minLength: ReffiSpace.s2)
+            Button {
+                if let first = uncoveredNames.first {
+                    openURL(RecipeVideoSearch.urlForIngredient(first))
+                }
+            } label: {
+                ReffiIcon.youtube.reffi(18, .fill)
+                    .foregroundStyle(ReffiColor.urgentDark)
+                    .frame(width: 44, height: 44)   // 시각 18pt, 히트 44pt(§7.3)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.paperPress)
+            .accessibilityLabel(Text("Open recipe videos"))
+            .accessibilityHint(Text("Opens YouTube in your browser"))
+        }
+        .padding(.leading, ReffiSpace.s4)
+        .padding(.trailing, ReffiSpace.s1)
+        .frame(minHeight: 44)
+        .background {
+            let shape = PaperRect(cornerRadius: ReffiRadius.sm, seed: 5)
+            shape.fill(ReffiColor.paper)
+                .paperEdge(shape, tint: ReffiColor.ink.opacity(0.08))
+        }
+        .padding(.horizontal, ReffiGrid.margin + 8)
+        // 실측 높이를 카드 예산으로 되돌린다 — 고정값으로 잡으면 큰 글씨에서 카드 머리를 덮는다.
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { bridgeHeight = $0 }
+    }
+
+    /// 빈 덱 — 원인 기반 안내: 재료가 있는데 매칭 0이면 **그 임박 재료를 호명하고** 영상으로 보낸다.
+    /// 이름을 부르지 않으면 "매칭 0"은 앱의 사정일 뿐이고, 사용자는 여전히 오늘 뭘 해야 할지 모른다.
+    /// 전부 신선하거나 재고가 없으면(=`urgentNames` 빔) 기존 카피 그대로 — 호명할 대상이 없다.
     private var emptyState: some View {
         VStack(spacing: ReffiSpace.s4) {
             FoodMotif(glyph: .generic).frame(width: 110, height: 110)
             Text("No tickets yet").reffiType(.heading).foregroundStyle(ReffiColor.ink)
-            if hasIngredients {
+            if let first = urgentNames.first {
+                Text("\(named(urgentNames)) won't last long. Find a video and cook it today.")
+                    .reffiType(.body).foregroundStyle(ReffiColor.ink2).multilineTextAlignment(.center)
+                PaperButton(title: "Open recipe videos", fullWidth: false, seed: 5) {
+                    openURL(RecipeVideoSearch.urlForIngredient(first))
+                }
+                .accessibilityHint(Text("Opens YouTube in your browser"))
+            } else if hasIngredients {
                 Text("No recipes match these ingredients yet.\nCheck their names, or add your own recipe in Profile.")
                     .reffiType(.body).foregroundStyle(ReffiColor.ink2).multilineTextAlignment(.center)
             } else {

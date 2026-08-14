@@ -713,6 +713,33 @@ final class FridgeStore {
         return true
     }
 
+    /// 티켓의 부족 재료(Short: …)를 한 번에 장보기 메모로 — 오더 카드의 원탭 담기(§13.5).
+    ///
+    /// 넘어오는 이름은 레시피 항목의 **표시명**(`Recipe.Item.displayName`)이라 캐논이 아니다.
+    /// 그래서 여기서 해석해 `addToBuy`의 캐논 키 규약을 지킨다: ① 정확 일치(`exactCanonicalID`)를
+    /// 먼저 본다 — "chicken or vegetable stock" 같은 서술형 표기가 포함 매칭으로 엉뚱한 캐논에
+    /// 붙는 것을 막는 `RecipeRecommender.canonicalID(of:)`와 같은 순서다. ② 그래도 없으면 포함
+    /// 매칭(`canonicalID`)으로 한 번 더 — "대파 한 단" 같은 수식 붙은 표기를 살린다. 둘 다 실패하면
+    /// `addToBuy`가 소문자 원문을 키로 쓴다(사전 밖 이름).
+    ///
+    /// 흡수 의미론은 `addToBuy` 그대로다 — 이미 수동으로 담긴 품목은 세지 않고, 파생 제안으로만
+    /// 있던 품목은 수동이 흡수해 한 줄이 된다.
+    /// - Returns: **새로 담긴** 개수. 호출부는 0이면 햅틱을 울리지 않는다(아무 일도 안 일어났으므로).
+    @discardableResult
+    func addMissingToBuy(_ names: [String]) -> Int {
+        let lex = IngredientLexicon.shared
+        var added = 0
+        for raw in names {
+            let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { continue }
+            let canonical = lex.exactCanonicalID(for: trimmed) ?? lex.canonicalID(for: trimmed)
+            if addToBuy(name: trimmed, canonicalID: canonical, glyph: FoodGlyph.match(trimmed)) {
+                added += 1
+            }
+        }
+        return added
+    }
+
     /// 이번엔 안 사기(레거시) — 이름을 사전으로 **역조회**해 키를 만든다. `addToBuy`는 호출부가 캐논 키를
     /// 직접 넘기도록 설계됐는데(이름 역조회로 다른 항목에 붙는 것 방지) 이 함수만 반대 방향이라 규약이
     /// 비대칭이다 — 표기가 갈라지는 이름이 들어오면 잘못된 품목의 키에 붙을 잠재 위험이 있다.
