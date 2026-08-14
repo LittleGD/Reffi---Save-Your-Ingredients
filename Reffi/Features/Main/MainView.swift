@@ -33,9 +33,11 @@ struct MainView: View {
     @State private var showSteps = false           // 단계별 레시피(발주 직후 + Cooking now 카드에서)
     @State private var showAdd = false
     @State private var carouselSnapshot: [RecipeRecommender.Result] = []   // 커버 입력 동결(발주 중 재랭크 방지)
-    /// 빈 덱에서 호명할 임박 재료 이름 — 덱과 **같은 틱**에 얼린다(아래 `snapshotCarousel`).
-    @State private var urgentSnapshot: [String] = []
-    /// 덱이 다루지 못한 오늘 만료 재료 이름 — 브리지 행의 입력. 역시 같은 틱에 얼린다.
+    /// 빈 덱에서 호명할 위험 재고 이름 — **비-fresh 전체**(soon + urgent). 덱과 **같은 틱**에 얼린다
+    /// (아래 `snapshotCarousel`). 아래 `uncoveredSnapshot`은 **urgent만** 세는 더 좁은 축이라
+    /// 이름을 atRisk 계열로 갈라 둔다 — 한쪽 기준으로 다른 쪽을 고치면 두 문구가 조용히 어긋난다.
+    @State private var atRiskSnapshot: [String] = []
+    /// 덱이 다루지 못한 오늘 만료(urgent) 재료 이름 — 브리지 행의 입력. 역시 같은 틱에 얼린다.
     @State private var uncoveredSnapshot: [String] = []
     @State private var firedTicket = false         // 커버당 발주 1회 — 슬램 창의 더블 파이어 방지
     @State private var coverGeneration = 0         // 지연 닫기 타이머가 새로 연 커버를 닫지 못하게
@@ -127,7 +129,7 @@ struct MainView: View {
         }) {
             RecipeMemoCarousel(results: carouselSnapshot,
                                hasIngredients: !store.ingredients.isEmpty,
-                               urgentNames: urgentSnapshot,
+                               atRiskNames: atRiskSnapshot,
                                uncoveredNames: uncoveredSnapshot,
                                onClose: { showCarousel = false },
                                onFire: fire,
@@ -574,7 +576,7 @@ struct MainView: View {
         let results = carouselResults
         let stock = store.available
         carouselSnapshot = results
-        urgentSnapshot = stock.filter { $0.freshness != .fresh }.map(\.name)   // available은 이미 임박순
+        atRiskSnapshot = stock.filter { $0.freshness != .fresh }.map(\.name)   // available은 이미 임박순
         uncoveredSnapshot = RecipeRecommender.uncoveredUrgent(ingredients: stock, results: results).map(\.name)
     }
 

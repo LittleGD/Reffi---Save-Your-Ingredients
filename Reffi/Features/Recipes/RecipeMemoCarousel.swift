@@ -9,11 +9,12 @@ struct RecipeMemoCarousel: View {
     let results: [RecipeRecommender.Result]
     /// 재고가 있는데 매칭 레시피가 0인 경우와 재고 자체가 없는 경우를 구분(빈 상태 카피).
     var hasIngredients: Bool = false
-    /// 빈 덱에서 **호명할** 임박 재료 표시명 — 마감 임박순(호출부가 얼린 스냅샷).
-    /// 비어 있으면(전부 신선하거나 재고 없음) 기존 일반 카피가 그대로 뜬다.
-    var urgentNames: [String] = []
-    /// 덱은 살아 있는데 **어떤 티켓도 쓰지 않는** 오늘 만료 재료(`RecipeRecommender.uncoveredUrgent`).
-    /// 비어 있으면 브리지 행 자체를 그리지 않는다.
+    /// 빈 덱에서 **호명할** 위험 재고 표시명 — **비-fresh 전체**(soon + urgent), 마감 임박순
+    /// (호출부가 얼린 스냅샷). 비어 있으면(전부 신선하거나 재고 없음) 기존 일반 카피가 그대로 뜬다.
+    /// 아래 `uncoveredNames`는 **urgent만** 세는 더 좁은 축이라 이름을 계열로 갈라 둔다.
+    var atRiskNames: [String] = []
+    /// 덱은 살아 있는데 **어떤 티켓도 쓰지 않는** 오늘 만료(`urgent`) 재료
+    /// (`RecipeRecommender.uncoveredUrgent`). 비어 있으면 브리지 행 자체를 그리지 않는다.
     var uncoveredNames: [String] = []
     var onClose: () -> Void
     var onFire: (RecipeRecommender.Result) -> Void = { _ in }
@@ -34,6 +35,10 @@ struct RecipeMemoCarousel: View {
     /// 미커버 브리지 행의 실측 높이 — 카드 예산에서 빼려면 고정값이 아니라 실제 높이가 필요하다
     /// (Dynamic Type을 키우면 한 줄도 두 배가 된다). 0 = 아직 안 그렸거나 행이 없음.
     @State private var bridgeHeight: CGFloat = 0
+    /// 커버 헤더의 실측 높이 — 브리지 행과 카드가 **둘 다** 이 값 아래에 선다. 기본 텍스트 크기의
+    /// `CoverHeader`는 s4(16) + 44 + s3(12) = 72이라 초기값도 72지만, 큰 글씨에서 타이틀·부제가
+    /// 2줄로 접히면 그만큼 자란다 — 고정 72로 두면 헤더가 브리지 행을 통째로 덮는다.
+    @State private var headerHeight: CGFloat = 72
 
     /// 수평 플릭 커밋 임계(예측 변위 width) — 넘기면 부호가 곧 의미다(+ Cook / − Pass).
     private let flickCommit: CGFloat = 160
@@ -46,11 +51,13 @@ struct RecipeMemoCarousel: View {
     var body: some View {
         GeometryReader { geo in
             // 카드 높이 캡(근본) — 카드가 컨테이너를 절대 넘지 못하게 safe area에 연동해 예산을 뺀다.
-            // topInset = safe top + 헤더 예산(~72) + 뒤티켓 peek(28), botInset = safe bottom + 12.
+            // topInset = safe top + 헤더 실측 높이 + 뒤티켓 peek(28), botInset = safe bottom + 12.
             // 기존 124/86과 유사한 시각을 유지하되 기기별 노치·홈 인디케이터에 안전하다.
+            // 헤더 예산은 **실측**이다(`headerHeight`) — 72로 박아 두면 큰 글씨에서 부제가 두 줄로
+            // 접히는 순간 헤더가 그 아래 브리지 행을 덮는다(ZStack에서 topBar가 마지막에 그려진다).
             // 미커버 브리지 행이 있으면 그 실측 높이(+간격)만큼 카드 예산에서 더 뺀다 —
             // 행은 카드 **위**에 서므로 겹칠 자리가 아니라 자기 자리를 가져가야 한다.
-            let headerBottom = geo.safeAreaInsets.top + 72
+            let headerBottom = geo.safeAreaInsets.top + headerHeight
             let bridgeBudget = showsBridge ? bridgeHeight + ReffiSpace.s2 : 0
             let topInset = headerBottom + bridgeBudget + 28
             let botInset = geo.safeAreaInsets.bottom + 12
@@ -264,14 +271,22 @@ struct RecipeMemoCarousel: View {
         CoverHeader(title: "Today's tickets",
                     subtitle: "Flick left to pass, right to cook. Ranked by what spoils first.",
                     onClose: onClose)
+            // 헤더가 실제로 차지한 높이를 브리지 행·카드 예산으로 되돌린다(고정값 금지 — 위 `headerBottom` 참고).
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { headerHeight = $0 }
     }
 
     // MARK: - 영상 브리지 (덱이 임박 재료를 못 다룰 때의 출구)
 
-    /// 호명 문구용 이름 묶음 — **최대 2개**만 ", "로 잇는다. 셋 이상을 다 부르면 한 줄에 안 들어가고
-    /// 목록이 되어버린다(티켓이 아니라 리스트 화면이 할 일). 나머지는 덱·냉장고가 계속 들고 있다.
+    /// 호명 대상 — **최대 2종**. 셋 이상을 다 부르면 안내가 목록이 되어버린다(티켓이 아니라 리스트
+    /// 화면이 할 일). 나머지는 덱·냉장고가 계속 들고 있다. 문구와 영상 버튼이 **같은 배열**을 본다 —
+    /// 버튼이 첫 번째만 열면 두 번째로 부른 재료에는 브리지가 메우려던 침묵이 그대로 남는다.
+    private func spoken(_ names: [String]) -> [String] {
+        Array(names.prefix(2))
+    }
+
+    /// 호명 문구용 이름 묶음 — 호명 대상을 ", "로 잇는다.
     private func named(_ names: [String]) -> String {
-        names.prefix(2).joined(separator: ", ")
+        spoken(names).joined(separator: ", ")
     }
 
     /// 브리지 행은 **덱이 있을 때만** 뜬다 — 빈 덱의 출구는 빈 상태 자체가 담당한다(중복 안내 금지).
@@ -282,14 +297,15 @@ struct RecipeMemoCarousel: View {
     /// 않는 침묵을 메우는 것이 목적이라, 다룰 게 없으면(=`uncoveredNames` 비면) 아예 그리지 않는다.
     private var bridgeRow: some View {
         HStack(spacing: ReffiSpace.s2) {
+            // 재료 이름은 영·한 모두 문장 **끝**에 온다 — 한 줄로 묶으면 큰 글씨에서 잘려 나가는 부분이
+            // 정확히 이 행의 유일한 payload다. 두 줄까지 접고 그 전에 더 깊이 축소한다(행 높이는 실측이라
+            // 자라도 카드를 덮지 않는다).
             Text("Nothing on these tickets uses \(named(uncoveredNames)).")
                 .reffiType(.metaText).foregroundStyle(ReffiColor.ink2)
-                .lineLimit(1).minimumScaleFactor(0.8)
+                .lineLimit(2).minimumScaleFactor(0.7)
             Spacer(minLength: ReffiSpace.s2)
             Button {
-                if let first = uncoveredNames.first {
-                    openURL(RecipeVideoSearch.urlForIngredient(first))
-                }
+                openURL(RecipeVideoSearch.urlForIngredients(spoken(uncoveredNames)))
             } label: {
                 ReffiIcon.youtube.reffi(18, .fill)
                     .foregroundStyle(ReffiColor.urgentDark)
@@ -315,16 +331,16 @@ struct RecipeMemoCarousel: View {
 
     /// 빈 덱 — 원인 기반 안내: 재료가 있는데 매칭 0이면 **그 임박 재료를 호명하고** 영상으로 보낸다.
     /// 이름을 부르지 않으면 "매칭 0"은 앱의 사정일 뿐이고, 사용자는 여전히 오늘 뭘 해야 할지 모른다.
-    /// 전부 신선하거나 재고가 없으면(=`urgentNames` 빔) 기존 카피 그대로 — 호명할 대상이 없다.
+    /// 전부 신선하거나 재고가 없으면(=`atRiskNames` 빔) 기존 카피 그대로 — 호명할 대상이 없다.
     private var emptyState: some View {
         VStack(spacing: ReffiSpace.s4) {
             FoodMotif(glyph: .generic).frame(width: 110, height: 110)
             Text("No tickets yet").reffiType(.heading).foregroundStyle(ReffiColor.ink)
-            if let first = urgentNames.first {
-                Text("\(named(urgentNames)) won't last long. Find a video and cook it today.")
+            if !atRiskNames.isEmpty {
+                Text("\(named(atRiskNames)) won't last long. Find a video and cook it today.")
                     .reffiType(.body).foregroundStyle(ReffiColor.ink2).multilineTextAlignment(.center)
                 PaperButton(title: "Open recipe videos", fullWidth: false, seed: 5) {
-                    openURL(RecipeVideoSearch.urlForIngredient(first))
+                    openURL(RecipeVideoSearch.urlForIngredients(spoken(atRiskNames)))
                 }
                 .accessibilityHint(Text("Opens YouTube in your browser"))
             } else if hasIngredients {

@@ -26,9 +26,43 @@ struct RecipeVideoSearchTests {
         #expect(comps.queryItems?.first?.value == "두부 recipe")
     }
 
+    @Test func encodesQuerySyntaxCharactersInsteadOfSplittingTheSearch() throws {
+        // "Mac & Cheese"는 사용자 커스텀 레시피명으로 실제로 들어온다. `&`가 날것으로 새면
+        // search_query 값이 "Mac "에서 끊기고 나머지가 별개 파라미터가 되어 조용히 다른 검색이 열린다.
+        let url = RecipeVideoSearch.url(query: "Mac & Cheese recipe")
+        let comps = try #require(URLComponents(url: url, resolvingAgainstBaseURL: false))
+        #expect(comps.queryItems?.count == 1)
+        #expect(comps.queryItems?.first?.value == "Mac & Cheese recipe")
+        #expect(url.absoluteString.contains("%26"))
+    }
+
+    @Test func encodesPlusAndEqualsWhichYouTubeWouldReinterpret() throws {
+        // `+`는 유튜브가 공백으로 읽고 `=`는 파라미터 문법이다 — 둘 다 값 안에서 인코딩돼야 원문이 남는다.
+        let url = RecipeVideoSearch.url(query: "a+b =c recipe")
+        let comps = try #require(URLComponents(url: url, resolvingAgainstBaseURL: false))
+        #expect(comps.queryItems?.count == 1)
+        #expect(comps.queryItems?.first?.value == "a+b =c recipe")
+    }
+
     @Test func ingredientHelperAppendsRecipeKeyword() {
         // 재료 브리지는 "<재료> recipe" 한 가지 모양만 만든다(조리 화면의 레시피명 경로와 같은 꼴).
         #expect(RecipeVideoSearch.urlForIngredient("두부") == RecipeVideoSearch.url(query: "두부 recipe"))
+    }
+
+    @Test func ingredientsHelperCoversEveryNameTheCopySpeaks() throws {
+        // 문구가 두 재료를 호명하면 버튼도 둘 다 책임진다 — 첫 번째만 열면 두 번째엔 침묵이 남는다.
+        let url = RecipeVideoSearch.urlForIngredients(["두부", "계란"])
+        #expect(url == RecipeVideoSearch.url(query: "두부 계란 recipe"))
+        let comps = try #require(URLComponents(url: url, resolvingAgainstBaseURL: false))
+        #expect(comps.queryItems?.first?.value == "두부 계란 recipe")
+        // 공백뿐인 이름은 검색어를 더럽히지 않고 빠진다.
+        #expect(RecipeVideoSearch.urlForIngredients(["두부", "  "]) == RecipeVideoSearch.url(query: "두부 recipe"))
+    }
+
+    @Test func ingredientsHelperFallsBackToHomeWhenNothingToSay() {
+        // 부를 이름이 없으면 "recipe"뿐인 무의미한 검색 대신 홈으로 — 죽은 버튼은 만들지 않는다.
+        #expect(RecipeVideoSearch.urlForIngredients([]) == RecipeVideoSearch.home)
+        #expect(RecipeVideoSearch.urlForIngredients([" ", ""]) == RecipeVideoSearch.home)
     }
 
     @Test func emptyQueryStillReturnsAUsableURL() {
