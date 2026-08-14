@@ -144,17 +144,17 @@
     --neutral-900: oklch(93%   0.010 85);
     --neutral-700: oklch(76%   0.012 82);
     --neutral-500: oklch(60%   0.012 80);
-    --neutral-200: oklch(30%   0.008 80);
+    --neutral-200: oklch(32%   0.008 80);
     --neutral-50:  oklch(21.5% 0.010 78);
-    --paper-surface:     oklch(28.5% 0.008 82);
-    --paper-pass:        oklch(25.5% 0.010 84);
+    --paper-surface:     oklch(33%   0.008 82);
+    --paper-pass:        oklch(24%   0.010 84);
     --paper-edge:        oklch(93% 0.010 85 / 0.07);
     --paper-edge-onfill: oklch(100% 0 0 / 0.10);
     --bg-sheen:          oklch(100% 0 0 / 0.045);
-    --receipt:           oklch(29%   0.007 83);
+    --receipt:           oklch(33.5% 0.007 83);
     --scrim:             oklch(0% 0 0 / 0.55);
     --shadow-tint:       oklch(0% 0 0);
-    --toast:             oklch(33% 0.010 80);
+    --toast:             oklch(38% 0.010 80);
     --on-ink:            oklch(22% 0.010 78);
     --shadow-1:
       0 1px 3px        oklch(0% 0 0 / 0.10),
@@ -180,17 +180,17 @@
   --neutral-900: oklch(93%   0.010 85);
   --neutral-700: oklch(76%   0.012 82);
   --neutral-500: oklch(60%   0.012 80);
-  --neutral-200: oklch(30%   0.008 80);
+  --neutral-200: oklch(32%   0.008 80);
   --neutral-50:  oklch(21.5% 0.010 78);
-  --paper-surface:     oklch(28.5% 0.008 82);
-  --paper-pass:        oklch(25.5% 0.010 84);
+  --paper-surface:     oklch(33%   0.008 82);
+  --paper-pass:        oklch(24%   0.010 84);
   --paper-edge:        oklch(93% 0.010 85 / 0.07);
   --paper-edge-onfill: oklch(100% 0 0 / 0.10);
   --bg-sheen:          oklch(100% 0 0 / 0.045);
-  --receipt:           oklch(29%   0.007 83);
+  --receipt:           oklch(33.5% 0.007 83);
   --scrim:             oklch(0% 0 0 / 0.55);
   --shadow-tint:       oklch(0% 0 0);
-  --toast:             oklch(33% 0.010 80);
+  --toast:             oklch(38% 0.010 80);
   --on-ink:            oklch(22% 0.010 78);
   --shadow-1:
     0 1px 3px        oklch(0% 0 0 / 0.10),
@@ -1029,7 +1029,7 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
         <div class="note" style="margin-top:var(--space-4)"><strong>파스텔 면 위 글자는 ink, Blue 면 위는 white.</strong> 파스텔은 크림 캔버스와 명도차(1.4~2.2:1)가 작아 면 경계는 색이 아니라 카드 스택 그림자·여백으로 만든다. 불투명도로 글자색을 만들지 않는다(neutral-700 솔리드).</div>
 
         <p class="subhead text" id="dark">2.8 다크 모드 — "밤의 주방 패스"</p>
-        <p class="t-body text" style="color:var(--color-ink-2);margin-bottom:var(--space-4)">라이트를 반전한 흑백이 아니라, 조명 낮은 주방에서 보이는 <strong>웜 차콜</strong>(hue 78~90 유지)이다. <strong>순검정은 쓰지 않는다</strong> — 예외는 그림자(<code class="inline">shadowTint</code>)와 모달 딤(<code class="inline">scrim</code>)뿐, 둘 다 "빛이 없는" 레이어라 온기가 필요 없다. 시맨틱 토큰만 적응하고 <strong>일러스트(FoodGlyph) 팔레트는 스킴 불변 고정색</strong>이다(§13.3) — 재료 식별이 스킴에 흔들리면 안 된다. 신선도에 따른 시듦(Wilt)도 같은 원칙 — 채도·명도 배수와 재질별 형태 값은 스킴과 무관한 순수 상수라 라이트·다크에서 동일하게 적용된다. 공유 카드(<code class="inline">RecipeShareCard</code>)는 항상 라이트로 굽는다. 그림자는 항상 <code class="inline">shadowTint</code>(<code class="inline">ink</code> 금지 — 다크에서 크림으로 뒤집혀 밝은 글로우가 된다). <code class="inline">paperEdge</code> 헤어라인의 다크 반전은 "종이 두께" 표현으로 의도적으로 둔다.</p>
+        <p class="t-body text" style="color:var(--color-ink-2);margin-bottom:var(--space-4)">라이트를 반전한 흑백이 아니라, 조명 낮은 주방에서 보이는 <strong>웜 차콜</strong>(hue 78~90 유지)이다. <strong>순검정은 쓰지 않는다</strong> — 예외는 그림자(<code class="inline">shadowTint</code>)와 모달 딤(<code class="inline">scrim</code>)뿐, 둘 다 "빛이 없는" 레이어라 온기가 필요 없다. 시맨틱 토큰만 적응하고 <strong>일러스트(FoodGlyph) 팔레트는 스킴 불변 고정색</strong>이다(§13.3) — 재료 식별이 스킴에 흔들리면 안 된다. 신선도에 따른 시듦(Wilt)도 같은 원칙 — 채도·명도 배수와 재질별 형태 값은 스킴과 무관한 순수 상수라 라이트·다크에서 동일하게 적용된다. 공유 카드(<code class="inline">RecipeShareCard</code>)는 항상 라이트로 굽는다. 그림자는 항상 <code class="inline">shadowTint</code>(<code class="inline">ink</code> 금지 — 다크에서 크림으로 뒤집혀 밝은 글로우가 된다). <code class="inline">paperEdge</code> 헤어라인의 다크 반전은 "종이 두께" 표현으로 의도적으로 둔다. <strong>다크에선 면 밝기가 그림자의 일을 대신한다</strong> — 카드·CTA 면(<code class="inline">paper</code>·<code class="inline">receipt</code>·<code class="inline">sub</code>)은 바탕과 1.35~1.5:1을 지키고, 커버의 바탕(<code class="inline">paperPass</code>)은 반대로 한 단 내려 그 위 카드가 같은 요건을 넘게 한다(아래 면 분리표).</p>
 
         <p class="t-caption text" style="color:var(--color-ink-2);margin-bottom:var(--space-3)">신규 토큰 5종 — 우측 상단 토글로 전환해 보면 스와치가 실시간으로 바뀐다(라이브 CSS 변수). <code class="inline">toastAction</code>만 고정색(비적응)이다.</p>
         <div class="swatch-row">
@@ -1060,8 +1060,8 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
           <thead><tr><th>항목</th><th>요구</th><th>라이트</th><th>다크</th></tr></thead>
           <tbody>
             <tr><td>ink on canvas</td><td>≥7.0</td><td class="num pass">14.68</td><td class="num pass">14.26</td></tr>
-            <tr><td>ink on paper</td><td>≥7.0</td><td class="num pass">15.56</td><td class="num pass">11.68</td></tr>
-            <tr><td>ink on receipt</td><td>≥7.0</td><td class="num pass">15.33</td><td class="num pass">11.49</td></tr>
+            <tr><td>ink on paper</td><td>≥7.0</td><td class="num pass">15.56</td><td class="num pass">9.94</td></tr>
+            <tr><td>ink on receipt</td><td>≥7.0</td><td class="num pass">15.33</td><td class="num pass">9.75</td></tr>
             <tr><td>ink2 on canvas</td><td>≥4.5</td><td class="num pass">7.44</td><td class="num pass">8.16</td></tr>
             <tr><td>muted on canvas</td><td>≥3.0</td><td class="num pass">4.27</td><td class="num pass">4.44</td></tr>
             <tr><td>soonDark on canvas</td><td>≥4.5</td><td class="num pass">4.96</td><td class="num pass">8.64</td></tr>
@@ -1071,10 +1071,25 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
             <tr><td>white on blue</td><td>≥4.5</td><td class="num pass">5.65</td><td class="num pass">4.64</td></tr>
             <tr><td>ink on urgent main</td><td>≥4.5</td><td class="num pass">6.84</td><td class="num pass">6.33</td></tr>
             <tr><td>onInk on ink</td><td>≥7.0</td><td class="num pass">16.01</td><td class="num pass">14.09</td></tr>
-            <tr><td>(참고) white on toast</td><td>≥4.5</td><td class="num pass">16.01</td><td class="num pass">12.22</td></tr>
+            <tr><td>(참고) white on toast</td><td>≥4.5</td><td class="num pass">16.01</td><td class="num pass">10.02</td></tr>
+            <tr><td>(참고) ink on sub</td><td>≥7.0</td><td class="num pass">13.22</td><td class="num pass">10.33</td></tr>
+            <tr><td>(참고) ink2 on receipt</td><td>≥4.5</td><td class="num pass">7.77</td><td class="num pass">5.58</td></tr>
+            <tr><td>(참고) muted on receipt</td><td>≥3.0</td><td class="num pass">4.46</td><td class="num pass">3.04</td></tr>
           </tbody>
         </table>
-        <div class="note" style="margin-top:var(--space-4)"><strong>toast 위 글자는 항상 <code class="inline">white</code></strong> — <code class="inline">onInk</code>가 아니다. <code class="inline">toast</code>는 양 모드 모두 어두운 면이라 white가 맞다(다크 12.22:1); <code class="inline">onInk</code>(다크 L .22)를 얹으면 1.42:1로 깨진다. <code class="inline">onInk</code>는 <strong><code class="inline">ink</code>로 채운 면 위에서만</strong> 쓴다(다크에서 ink가 크림으로 뒤집히는 면).</div>
+        <p class="t-caption text" style="color:var(--color-ink-2);margin:var(--space-5) 0 var(--space-3)">면 분리 실측표(다크 전용 요건) — 라이트에서 종이 한 장을 세우는 건 그림자지만, 다크에선 그 그림자가 거의 보이지 않아 <strong>면 밝기가 그 일을 혼자 짊어진다</strong>. 그래서 콘텐츠 카드·행동 표면 면은 그 화면의 바탕과 <strong>1.35~1.5:1</strong>을 지킨다(상한도 요건 — 넘기면 밤의 주방 패스 톤이 깨진다). 라이트 열은 참고값이며 이 요건의 대상이 아니다.</p>
+        <table class="tbl">
+          <thead><tr><th>면 위의 면</th><th>요구(다크)</th><th>라이트</th><th>다크</th></tr></thead>
+          <tbody>
+            <tr><td>paper on canvas</td><td>1.35~1.5</td><td class="num">1.06</td><td class="num pass">1.43</td></tr>
+            <tr><td>receipt on canvas</td><td>1.35~1.5</td><td class="num">1.04</td><td class="num pass">1.46</td></tr>
+            <tr><td>sub on canvas (secondary CTA)</td><td>1.35~1.5</td><td class="num">1.11</td><td class="num pass">1.38</td></tr>
+            <tr><td>paper on paperPass (커버 위 티켓)</td><td>1.35~1.5</td><td class="num">1.12</td><td class="num pass">1.35</td></tr>
+            <tr><td>receipt on paperPass</td><td>1.35~1.5</td><td class="num">1.11</td><td class="num pass">1.37</td></tr>
+            <tr><td>toast on paper (떠 있는 잉크 캡슐)</td><td>≥1.2</td><td class="num">15.56</td><td class="num pass">1.22</td></tr>
+          </tbody>
+        </table>
+        <div class="note" style="margin-top:var(--space-4)"><strong>toast 위 글자는 항상 <code class="inline">white</code></strong> — <code class="inline">onInk</code>가 아니다. <code class="inline">toast</code>는 양 모드 모두 어두운 면이라 white가 맞다(다크 10.02:1); <code class="inline">onInk</code>(다크 L .22)를 얹으면 1.73:1로 깨진다. <code class="inline">onInk</code>는 <strong><code class="inline">ink</code>로 채운 면 위에서만</strong> 쓴다(다크에서 ink가 크림으로 뒤집히는 면).</div>
       </section>
 
       <!-- 3. Typography -->
