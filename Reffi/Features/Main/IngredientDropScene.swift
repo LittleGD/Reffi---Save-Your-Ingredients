@@ -34,11 +34,15 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     private let calmSpeed: CGFloat = 40              // 이 미만이면 '조용' — 지터 대역을 포함
     private let settleDrift: CGFloat = 4             // calm 창 동안 이보다 덜 움직였으면 진짜 안착
     private var calmSnapshot: [UUID: CGPoint] = [:]  // calm 창 시작 시점의 칩 위치
-    private let settleBand: CGFloat = 80             // 이 미만 = 착지 후 잔여 운동(자유낙하·던지기 아님)
-    private let jitterDamp: CGFloat = 0.8            // 잔여 운동의 프레임당 곱셈 감쇠 — 접촉 임펄스를 이긴다
-    /// 중력 변화 직후 jitterDamp를 쉬게 할 프레임 수(≈1.5s) — 기울임에 더미가 반응할 시간을 준다.
-    private var dampSuppression = 0
-    private let dampSuppressionFrames = 90
+    /// 이 미만만 감쇠하는 **저속 지터 플로어** — 솔버 접촉 해소가 남기는 미세 요동 대역.
+    /// 실기기 검증(v1.0 (2))의 교훈: 이전 설계(settleBand 80 미만 전부 감쇠 + 중력 변화 시 90프레임
+    /// 유예)는 손떨림이 2° 데드밴드를 계속 넘겨 유예 창을 무한 리필했고, 감쇠가 영구 정지돼
+    /// 더미가 쉼 없이 움찔거렸다. 유예가 끝나는 순간엔 느린 굴림(<80)이 프레임당 20%씩 깎여
+    /// 얼었다 홱 움직이는 인위적 움직임이 됐다. 플로어를 지터 대역(≈수 pt/s)의 바로 위로 내리고
+    /// **항상 켜 두면** 두 문제가 같이 사라진다 — 진짜 움직임(기울임 굴림·킥·낙하)은 이 대역보다
+    /// 훨씬 빨라 감쇠를 전혀 받지 않고, 지터는 자세와 무관하게 몇 프레임 안에 죽는다.
+    private let jitterFloor: CGFloat = 14
+    private let jitterDamp: CGFloat = 0.8            // 플로어 미만의 프레임당 곱셈 감쇠
     private var foregroundObserver: NSObjectProtocol?      // 블록 옵저버라 명시 해제 필요
     private var memoryWarningObserver: NSObjectProtocol?   // 텍스처 캐시 비우기 — 동일 패턴
 
@@ -51,8 +55,8 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     /// 무방향 대역(기기를 눕힘) 히스테리시스의 유일한 상태 — 판정은 GravityMapper가 순수 계산으로 한다.
     private var gravityDirectionless = false
 
-    // 착지 임팩트 — 충돌 임펄스를 질량으로 나눈 근사 속도변화(pt/s)로 판정한다. calmSpeed(40)·
-    // settleBand(80)와 **같은 단위**라 기존 안착 튜닝과 임계가 일관된다.
+    // 착지 임팩트 — 충돌 임펄스를 질량으로 나눈 근사 속도변화(pt/s)로 판정한다. calmSpeed(40)와
+    // **같은 단위**라 기존 안착 튜닝과 임계가 일관된다.
     // 이 축은 **시각(스쿼시) 전용**이다. 햅틱은 질량으로 나누지 않은 **생 임펄스**를 쓴다 —
     // 눌림은 속도의 문제(같은 높이서 떨어진 무거운/가벼운 칩이 같게 눌려야 한다)지만,
     // 촉감은 운동량 전달의 문제(소고기가 잎사귀보다 묵직하게 느껴져야 한다)라 축이 다르다.
@@ -317,8 +321,8 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
             lastAppliedGravity = candidate
             calmFrames = 0
             calmSnapshot.removeAll()
-            // 이 경로는 일부러 wake()를 안 부른다(이미 깨어 있다) — 감쇠 유예는 여기서 직접 갱신한다.
-            dampSuppression = dampSuppressionFrames
+            // 이 경로는 일부러 wake()를 안 부른다(이미 깨어 있다). 감쇠는 저속 플로어 방식이라
+            // 갱신할 유예 카운터도 없다 — 굴림은 플로어 위 속도라 애초에 감쇠를 받지 않는다.
         }
     }
 
@@ -342,12 +346,36 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         // 화면에 없는 씬을 in-flight 샘플이 걷어차지 않게.
         guard view != nil, !externallyPaused else { return }
         guard !reduceMotion else { return }
-        let mag = hypot(sample.shakeX, sample.shakeY)
-        guard mag > shakeThreshold else { return }
-        guard lastUpdateTime - lastShakeTime >= shakeInterval else { return }
-        lastShakeTime = lastUpdateTime
-        kickChips(angle: atan2(sample.shakeY, sample.shakeX),
-                  deltaV: min((mag - shakeThreshold) * shakeGain, shakeMaxDeltaV))
+        guard let kick = Self.shakeKick(x: sample.shakeX, y: sample.shakeY, z: sample.shakeZ,
+                                        gravity: physicsWorld.gravity,
+                                        threshold: shakeThreshold) else { return }
+        // 휴면 중엔 update 시계(lastUpdateTime)가 멈춰 있어 실제 단조 시계로 잰다 —
+        // 잠든 씬을 흔들어 깨우는 첫 킥이 얼어붙은 시계에 막히면 안 된다.
+        let now = CACurrentMediaTime()
+        guard now - lastShakeTime >= shakeInterval else { return }
+        lastShakeTime = now
+        kickChips(angle: kick.angle, deltaV: min(kick.excess * shakeGain, shakeMaxDeltaV))
+    }
+
+    /// 흔들기 판정의 순수 계산부 — 씬 없이 테스트하기 위해 분리(GravityMapper와 같은 규율).
+    /// **z(화면 수직)를 크기에 포함한다**: 화면을 보며 폰을 흔들면 주 가속이 z축이라, 평면만 보면
+    /// 실기기에서 흔들기가 거의 감지되지 않았다(v1.0 (2) 검증). 방향은 평면 성분이 충분하면 그쪽,
+    /// z가 지배적이면 **중력 반대 방향**(쟁반을 아래에서 턴 느낌 — 더미가 위로 튀며 부딪힌다).
+    /// 임계 미만이면 nil.
+    static func shakeKick(x: CGFloat, y: CGFloat, z: CGFloat,
+                          gravity: CGVector, threshold: CGFloat) -> (angle: CGFloat, excess: CGFloat)? {
+        let mag = (x * x + y * y + z * z).squareRoot()
+        guard mag > threshold else { return nil }
+        let planar = hypot(x, y)
+        let angle: CGFloat
+        if planar > 0.12 {
+            angle = atan2(y, x)
+        } else if gravity.dx != 0 || gravity.dy != 0 {
+            angle = atan2(-gravity.dy, -gravity.dx)
+        } else {
+            angle = .pi * 0.5   // 중력이 0인 극단 폴백 — 위로
+        }
+        return (angle, mag - threshold)
     }
 
     /// 칩들을 한 방향으로 밀되 **칩마다 각도·세기를 흩는다** — 똑같이 밀면 나란히 움직여서
@@ -469,22 +497,16 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
             highlight(ateZone, hovering: captured === ateZone)
             return   // 드래그 중엔 절대 휴면 안 함
         }
-        // 잔여 운동 능동 감쇠 — 볼록 폴리곤 바디라 오목 알파 지터는 없지만, 강한 중력의 접촉 해소
-        // 임펄스로 착지 직후 미세 요동이 남을 수 있다. settleBand 미만(= 자유낙하·던지기 아님)만
-        // 프레임당 20% 곱셈 감쇠 → 수 프레임 내 calm 대역으로 수렴. 고속 칩은 안 건드려 낙하·던지기의
-        // 묵직함(§13.4)은 그대로.
-        // 중력이 막 바뀐 직후(= 기울이는 중)엔 이 감쇠를 쉰다. 안 그러면 느린 가속이 매 프레임 20%씩
-        // 깎여 **종단 2pt/s**에 갇히고, 정착한 더미는 기울여도 꿈쩍 않는다(기울임이 아예 안 보인다).
-        // 손을 멈추면 카운터가 소진되며 평소의 감쇠·안착 동작으로 돌아간다.
-        if dampSuppression > 0 {
-            dampSuppression -= 1
-        } else {
-            for node in chips.values {
-                guard let b = node.physicsBody else { continue }
-                if hypot(b.velocity.dx, b.velocity.dy) < settleBand {
-                    b.velocity = CGVector(dx: b.velocity.dx * jitterDamp, dy: b.velocity.dy * jitterDamp)
-                    b.angularVelocity *= jitterDamp
-                }
+        // 잔여 운동 능동 감쇠 — 강한 중력의 접촉 해소 임펄스가 남기는 미세 요동만 죽인다.
+        // 판정은 저속 플로어(`jitterFloor`) 하나: 그 미만이면 지터, 이상이면 진짜 움직임이라
+        // 절대 건드리지 않는다. 기울임 굴림·킥·낙하가 감쇠에 먹히지 않으므로 유예 카운터가
+        // 필요 없고(실기기에선 손떨림이 유예를 무한 리필해 지터가 영구화됐다 — jitterFloor 주석),
+        // 지터는 기기 자세와 무관하게 항상 몇 프레임 안에 calm 대역으로 수렴한다.
+        for node in chips.values {
+            guard let b = node.physicsBody else { continue }
+            if hypot(b.velocity.dx, b.velocity.dy) < jitterFloor {
+                b.velocity = CGVector(dx: b.velocity.dx * jitterDamp, dy: b.velocity.dy * jitterDamp)
+                b.angularVelocity *= jitterDamp
             }
         }
         // 드래그가 없을 때만 정착 판정 — 지터 때문에 '완전 정지'는 영원히 안 오므로,
@@ -585,12 +607,11 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     private func wake() {
         calmFrames = 0
         calmSnapshot.removeAll()
-        dampSuppression = dampSuppressionFrames   // 기울임 반응 창 — idle 여부와 무관하게 갱신
         guard idle else { return }
         idle = false
         // 스로틀 리셋은 **실제 휴면→기상 전이에서만**. wake()는 셰이크 킥(0.09초마다)·터치·sync가
-        // 깨어 있는 상태에서도 부르는데, 위에 두면 그때마다 쌍 쿨다운(0.14초)이 지워져 같은 두 칩이
-        // 초당 11번까지 다시 울린다 — 셰이크 중, 즉 접촉이 가장 많은 구간에서 게이트가 무력해진다.
+        // 깨어 있는 상태에서도 부르는데, 위에 두면 그때마다 쌍 쿨다운(0.26초)이 지워져 같은 두 칩이
+        // 전역 상한(11Hz)까지 다시 울린다 — 셰이크 중, 즉 접촉이 가장 많은 구간에서 게이트가 무력해진다.
         // 리셋의 근거(lastUpdateTime은 휴면을 건너뛰며 튄다)도 이 전이에서만 성립한다.
         clatterThrottle.reset()
         for node in chips.values { node.physicsBody?.usesPreciseCollisionDetection = true }
@@ -1043,7 +1064,7 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
 
     /// 접촉 시작 — **두 가지 일을 한 번에** 한다. 축이 일부러 다르다.
     /// ① 스쿼시: 임펄스를 질량으로 나눠 **근사 속도변화(pt/s)**로 환산한다. 나눈 값은
-    ///    calmSpeed·settleBand와 같은 축이라 "쌓이는 더미의 잔접촉"과 "실제 착지"를 기존 튜닝과
+    ///    calmSpeed와 같은 축이라 "쌓이는 더미의 잔접촉"과 "실제 착지"를 기존 튜닝과
     ///    같은 기준으로 가른다.
     /// ② 달그락: **생 임펄스** 그대로 세 관문(임펄스·전역간격·쌍 쿨다운)에 태운다. 운동량 전달이
     ///    곧 체감 크기라, 질량으로 나누면 소고기와 잎사귀가 같은 세기로 느껴진다.

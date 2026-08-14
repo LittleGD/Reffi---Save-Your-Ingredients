@@ -20,12 +20,15 @@ struct ClatterPair: Hashable {
 ///   ③ 같은 쌍 쿨다운 — 두 재료가 비빌 때의 연타 방지
 /// 순수 로직이라 씬 없이 테스트된다(`ClatterThrottleTests`).
 struct ClatterThrottle {
-    /// 이 미만은 무시. 안착 직전의 잔여 접촉 임펄스가 대략 이 아래에 깔린다.
-    var minImpulse: CGFloat = 6
-    /// 전역 최소 간격(초). 22Hz 상한 — 이보다 촘촘하면 개별 '달그락'이 뭉개져 연속 진동으로 들린다.
-    var minInterval: TimeInterval = 0.045
-    /// 같은 쌍이 다시 울릴 수 있기까지의 시간(초).
-    var pairCooldown: TimeInterval = 0.14
+    /// 이 미만은 무시. 실기기 검증(v1.0 (2)): 6으로는 구르는 중의 잔접촉 대부분이 통과해
+    /// "움직이기 시작하면 그냥 일정한 진동"이 됐다 — 촉감은 **또렷한 부딪힘**에만 실려야 하므로
+    /// 하한을 확실한 노크 수준으로 올린다. 세기 곡선(clatterIntensity)도 이 값에서 시작한다.
+    var minImpulse: CGFloat = 20
+    /// 전역 최소 간격(초). 11Hz 상한 — 22Hz는 개별 '달그락'이 뭉개져 캐리어 진동처럼 들렸다(실기기).
+    /// 달그락은 리듬이 들려야 달그락이다.
+    var minInterval: TimeInterval = 0.09
+    /// 같은 쌍이 다시 울릴 수 있기까지의 시간(초) — 두 재료가 비빌 때의 연타 방지.
+    var pairCooldown: TimeInterval = 0.26
     /// 쿨다운 테이블 상한 — 오래된 항목을 걷어내 무한 성장 방지.
     var maxPairs = 64
 

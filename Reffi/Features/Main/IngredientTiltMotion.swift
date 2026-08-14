@@ -10,8 +10,11 @@ struct TiltSample {
     let gravityX: CGFloat
     let gravityY: CGFloat
     /// 사용자 가속도(G 단위, 중력 제외) — 흔들기 에너지.
+    /// z(화면 수직)까지 넘긴다: 화면을 보며 폰을 흔들면 주 가속이 z축이라, 평면(x·y)만 보면
+    /// 실기기에서 흔들기가 거의 감지되지 않는다(v1.0 (2) 검증에서 확인된 실패).
     let shakeX: CGFloat
     let shakeY: CGFloat
+    let shakeZ: CGFloat
 }
 
 /// 기울기 중력원(§13.4) — CoreMotion `deviceMotion.gravity`의 **화면 평면 성분(x, y)** 만 뽑아
@@ -47,7 +50,8 @@ final class IngredientTiltMotion {
             self.onSample?(TiltSample(gravityX: CGFloat(m.gravity.x),
                                       gravityY: CGFloat(m.gravity.y),
                                       shakeX: CGFloat(m.userAcceleration.x),
-                                      shakeY: CGFloat(m.userAcceleration.y)))
+                                      shakeY: CGFloat(m.userAcceleration.y),
+                                      shakeZ: CGFloat(m.userAcceleration.z)))
         }
     }
 

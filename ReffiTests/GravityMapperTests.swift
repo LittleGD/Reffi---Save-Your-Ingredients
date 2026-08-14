@@ -154,3 +154,47 @@ struct GravityMapperTests {
         #expect(close(GravityMapper.angle(a, a), 0, 0.0001))
     }
 }
+
+/// 셰이크 킥 판정(`IngredientDropScene.shakeKick`) — 순수 계산이라 씬 상태 없이 고정한다.
+/// v1.0 (2) 실기기 검증의 회귀 가드: 평면(x·y)만 재던 판정은 화면을 보며 흔드는
+/// 자연스러운 동작(주 가속 = z축)을 통째로 놓쳤다.
+@MainActor
+struct ShakeKickTests {
+
+    private let upright = CGVector(dx: 0, dy: -42)
+
+    /// z축 단독 흔들기가 감지되고, 방향은 중력 반대(위)로 나온다.
+    @Test func zOnlyShakeFiresAntiGravity() {
+        let kick = IngredientDropScene.shakeKick(x: 0, y: 0, z: 0.8, gravity: upright, threshold: 0.35)
+        #expect(kick != nil)
+        #expect(abs((kick?.angle ?? 0) - .pi * 0.5) < 0.0001)   // (0,-42)의 반대 = 위
+        #expect(abs((kick?.excess ?? 0) - 0.45) < 0.0001)
+    }
+
+    /// 평면 성분이 충분하면 그 방향을 따른다 — z가 섞여 있어도.
+    @Test func planarComponentStefersDirection() {
+        let kick = IngredientDropScene.shakeKick(x: 0.5, y: 0, z: 0.4, gravity: upright, threshold: 0.35)
+        #expect(kick != nil)
+        #expect(abs(kick?.angle ?? 1) < 0.0001)   // +x 방향
+    }
+
+    /// 세 축 합산 크기로 임계를 판정한다 — 평면만으론 미달이어도 z가 채우면 발화.
+    @Test func magnitudeCombinesAllThreeAxes() {
+        #expect(IngredientDropScene.shakeKick(x: 0.2, y: 0, z: 0.32, gravity: upright, threshold: 0.35) != nil)
+        #expect(IngredientDropScene.shakeKick(x: 0.2, y: 0, z: 0, gravity: upright, threshold: 0.35) == nil)
+    }
+
+    /// 손떨림·걷기 대역은 무시한다.
+    @Test func belowThresholdIsIgnored() {
+        #expect(IngredientDropScene.shakeKick(x: 0.1, y: 0.1, z: 0.15, gravity: upright, threshold: 0.35) == nil)
+    }
+
+    /// 기울인 채 z-흔들기 — 방향은 그 시점 중력의 반대를 따라간다.
+    @Test func antiGravityFollowsTiltedGravity() {
+        let tilted = CGVector(dx: 29.7, dy: -29.7)   // 45° 기울임
+        let kick = IngredientDropScene.shakeKick(x: 0, y: 0, z: 0.6, gravity: tilted, threshold: 0.35)
+        #expect(kick != nil)
+        let expected = atan2(29.7, -29.7)   // 중력 반대 방향
+        #expect(abs((kick?.angle ?? 0) - expected) < 0.0001)
+    }
+}
