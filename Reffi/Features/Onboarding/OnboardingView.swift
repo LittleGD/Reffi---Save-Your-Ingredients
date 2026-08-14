@@ -238,18 +238,19 @@ struct OnboardingView: View {
         let ticket = Self.heroTicket()
         return VStack(alignment: .leading, spacing: ReffiSpace.s2) {
             // 헤더 — 주방 오더 티켓
-            HStack(alignment: .firstTextBaseline) {
+            HStack(alignment: .firstTextBaseline, spacing: ReffiSpace.s2) {
                 // 모노 티켓 크롬은 verbatim 영문 고정 — 실제 OrderMemoCard와 같은 규칙(§13.5).
-                Text(verbatim: "ORDER").reffiType(.monoTicketLabel).foregroundStyle(ReffiColor.ink)
-                Spacer(minLength: 0)
-                Text(verbatim: "#01").font(.reffiNum(13, relativeTo: .caption)).foregroundStyle(ReffiColor.ink2)
+                // 크라운은 한 줄·한 role: 온보딩이 가르친 크롬을 본 앱이 그대로 쓴다.
+                Text(verbatim: "ORDER · REFFI KITCHEN")
+                    .reffiType(.monoTicketLabel).foregroundStyle(ReffiColor.ink)
+                    .lineLimit(1).minimumScaleFactor(0.7)
+                Spacer(minLength: ReffiSpace.s2)
+                Text(verbatim: "#01").reffiType(.monoTicketLabel).foregroundStyle(ReffiColor.ink2)
             }
-            Text(verbatim: "TABLE · REFFI KITCHEN")
-                .reffiType(.monoEyebrow).foregroundStyle(ReffiColor.ink2)
             ReffiRule(.ticket)
             // 판정문(임박 소진) + 메뉴 + 시간 — "1"은 아래 D-day 중 "Today" 1건과 짝지어진 장식 표기.
             Text("Saves \(1) expiring today")   // 기존 포맷 키 재사용 — ko 번역이 이미 존재
-                .reffiType(.pillLabel).foregroundStyle(ReffiColor.urgentDark)
+                .reffiType(.metaText).foregroundStyle(ReffiColor.urgentDark)
             HStack(alignment: .firstTextBaseline, spacing: ReffiSpace.s2) {
                 Text(verbatim: ticket.name)                // 시드 레시피명 — 데이터 verbatim(§i18n)
                     .reffiType(.menuName).foregroundStyle(ReffiColor.ink)
@@ -267,8 +268,8 @@ struct OnboardingView: View {
                 }
             }
             ReffiRule(.ticket)
-            Text(verbatim: "ON THE TICKET")   // 위 "ORDER"와 같은 모노 크롬 규칙
-                .reffiType(.sectionLabel).foregroundStyle(ReffiColor.ink2)
+            Text(verbatim: "ON THE TICKET")   // 위 크라운과 같은 모노 크롬 role
+                .reffiType(.monoTicketLabel).foregroundStyle(ReffiColor.ink2)
             ForEach(Array(ticket.rows.enumerated()), id: \.offset) { _, row in
                 ticketMiniRow(row.name, row.dDay, row.color)
             }

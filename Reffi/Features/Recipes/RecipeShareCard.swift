@@ -70,7 +70,7 @@ struct RecipeShareCard: View {
 
                 // 티켓 크롬은 형제 라벨(ORDER · FIRED)과 같이 verbatim — 인쇄 문자열이라 번역하지 않는다.
                 Text(verbatim: "ON THE TICKET")
-                    .reffiType(.sectionLabel).foregroundStyle(ReffiColor.ink2)
+                    .reffiType(.monoTicketLabel).foregroundStyle(ReffiColor.ink2)
 
                 VStack(alignment: .leading, spacing: ReffiSpace.s1 + 2) {
                     ForEach(Array(ingredientNames.prefix(Self.namePreview).enumerated()), id: \.offset) { _, name in

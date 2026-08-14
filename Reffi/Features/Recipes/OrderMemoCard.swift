@@ -88,8 +88,10 @@ struct OrderMemoCard: View {
                 ReffiRule(.ticket)
 
                 // 판정문 키커 — 이 티켓이 비우는 임박 재료(미션 페이로드).
+                // role은 metaText 축으로 흡수한다: 신선도 색(verdictColor)이 이미 강조를 맡고 있어
+                // 13pt에서 SemiBold/Medium 한 단을 더 두면 계층이 아니라 잡음으로 읽혔다.
                 verdictKicker
-                    .reffiType(.pillLabel).foregroundStyle(verdictColor)
+                    .reffiType(.metaText).foregroundStyle(verdictColor)
 
                 // 메뉴명 + 시간 + 요리 아이콘. 아이콘은 **오른쪽 여백에 얹힌 그림**이고 글이 주인공이다 —
                 // 이름 위에 한 줄로 올리면 티켓 상단이 그림에 밀려 "주문서"가 아니라 메뉴판이 된다.
@@ -123,8 +125,9 @@ struct OrderMemoCard: View {
 
                 // 모노 올캡 티켓 크롬은 형제 라벨(ORDER · FIRED · TABLE · REFFI KITCHEN)과 같이 verbatim —
                 // 주방 티켓의 인쇄 문자열이라 번역하지 않는다.
+                // 티켓 위 인쇄 크롬은 크라운 행과 **같은 모노 role**이다 — 색(ink vs ink2)으로만 갈린다.
                 Text(verbatim: "ON THE TICKET")
-                    .reffiType(.sectionLabel).foregroundStyle(ReffiColor.ink2)   // §2.6 — 소형 텍스트는 불투명 토큰으로
+                    .reffiType(.monoTicketLabel).foregroundStyle(ReffiColor.ink2)   // §2.6 — 소형 텍스트는 불투명 토큰으로
 
                 // 이름 블록은 최대 5줄 미리보기(+N more) — 소비는 result.used 전체를 쓰므로 표시만 축약.
                 VStack(alignment: .leading, spacing: ReffiSpace.s1 + 2) {
@@ -163,18 +166,21 @@ struct OrderMemoCard: View {
         }
     }
 
+    /// 티켓 크롬 한 줄(§13.5) — 옛 2행("ORDER"/"#NN" + "TABLE · REFFI KITCHEN" 에보로우)을 한 줄로 합쳤다.
+    /// 메뉴명까지 닿기 전에 크롬만 3계층(모노13 + 숫자14 + 에보로우10)을 지나야 했고, 그게 티켓 한 장의
+    /// 텍스트 계층을 10종까지 밀어 올린 주범이었다. 지금은 **한 모노 role·한 크기**로 좌 발주처·우 번호다.
     private var header: some View {
-        VStack(alignment: .leading, spacing: ReffiSpace.s2) {
-            HStack(alignment: .firstTextBaseline) {
-                // 모노 티켓 크롬은 번역하지 않는다(§13.5) — "ON THE TICKET"·"TABLE · REFFI KITCHEN"과
-                // 같은 규칙. verbatim으로 카탈로그 조회 자체를 끊어, 누가 키를 등록해도 흔들리지 않게 한다.
-                Text(verbatim: "ORDER").reffiType(.monoTicketLabel).foregroundStyle(ReffiColor.ink)
-                Spacer()
-                Text(String(format: "#%02d", number))
-                    .font(.reffiNum(14, relativeTo: .caption)).foregroundStyle(ReffiColor.ink2)
-            }
-            Text(verbatim: "TABLE · REFFI KITCHEN")
-                .reffiType(.monoEyebrow).foregroundStyle(ReffiColor.ink2)   // §2.6 — 소형 텍스트 대비
+        HStack(alignment: .firstTextBaseline, spacing: ReffiSpace.s2) {
+            // 모노 티켓 크롬은 번역하지 않는다(§13.5) — "ON THE TICKET"·"ORDER · FIRED"와 같은 규칙.
+            // verbatim으로 카탈로그 조회 자체를 끊어, 누가 키를 등록해도 흔들리지 않게 한다.
+            Text(verbatim: "ORDER · REFFI KITCHEN")
+                .reffiType(.monoTicketLabel).foregroundStyle(ReffiColor.ink)
+                .lineLimit(1).minimumScaleFactor(0.7)
+            Spacer(minLength: ReffiSpace.s2)
+            // 번호도 같은 모노 role·크기 — 옛 GSF 14는 크롬 안에서 홀로 다른 서체였다.
+            Text(verbatim: String(format: "#%02d", number))
+                .reffiType(.monoTicketLabel).foregroundStyle(ReffiColor.ink2)   // §2.6 — 소형 텍스트 대비
+                .lineLimit(1)
         }
         .opacity(peek ? 0 : 1)   // 뒤 티켓 노출 띠는 빈 종이 — 톱니 골에 반쪽 글리프가 새지 않게
     }
