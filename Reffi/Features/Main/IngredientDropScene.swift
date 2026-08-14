@@ -1537,16 +1537,40 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         return CGFloat(h % 1000) / 1000
     }
 
-    /// 볼록 N각형 타원 바디(dy로 중심 오프셋) — SpriteKit `polygonFrom`은 볼록만 허용해 끼임·진동이 없다.
-    private static func ovalBody(_ w: CGFloat, _ h: CGFloat, dy: CGFloat = 0, sides: Int = 14) -> SKPhysicsBody {
+    /// 볼록 **수퍼타원** 바디(dy로 중심 오프셋) — `|x/a|^n + |y/b|^n = 1`.
+    /// SpriteKit `polygonFrom`은 볼록만 허용해 끼임·진동이 없고, 수퍼타원은 n ≥ 1이면 항상 볼록이다.
+    ///
+    /// **왜 타원이 아닌가.** 컷페이퍼 글리프는 자기 bbox의 **모서리와 뾰족한 끝까지** 그림이 차 있다
+    /// (생선 꼬리·우유갑 모서리·치즈 꼭짓점·베이컨 끝). 내접 타원은 그 모서리를 통째로 비워서
+    /// bbox 대비 커버리지가 `0.90² × π/4 ≈ 0.64`에 그쳤다 — 두 칩의 바디가 **정확히 맞닿은 상태에서도**
+    /// 그림끼리는 수십 pt 겹쳐 보인다(실측: 생선 꼬리 29pt, 우유갑 모서리 27pt). n을 올리면 모서리가 찬다.
+    ///
+    /// **크기를 키워 고치면 안 된다.** 타원을 bbox 모서리에 닿게 하려면 두 축 모두 √2배가 필요한데,
+    /// 그러면 평평한 변이 bbox 밖으로 41% 삐져나가 칩 사이에 눈에 띄는 빈틈이 생긴다 —
+    /// `e5b2bb2`가 고쳤던 바로 그 버그다. **모양만 바꾸고 0.90 인셋과 실측 테이블은 건드리지 않는다.**
+    /// 질량(`mass(for:)`)은 바디 면적이 아니라 테이블을 읽으므로 이 변경으로 1비트도 달라지지 않는다.
+    private static func ovalBody(_ w: CGFloat, _ h: CGFloat, dy: CGFloat = 0,
+                                 sides: Int = 16, n: CGFloat = 4) -> SKPhysicsBody {
         let path = CGMutablePath()
-        for i in 0..<sides {
-            let a = CGFloat(i) / CGFloat(sides) * 2 * .pi
-            let p = CGPoint(x: cos(a) * w / 2, y: sin(a) * h / 2 + dy)
+        for (i, p) in bodyPolygon(w: w, h: h, dy: dy, sides: sides, n: n).enumerated() {
             if i == 0 { path.move(to: p) } else { path.addLine(to: p) }
         }
         path.closeSubpath()
         return SKPhysicsBody(polygonFrom: path)
+    }
+
+    /// 바디 꼭짓점 — `ovalBody`가 **이 점들로** path를 만든다.
+    /// `internal`(비-private): 커버리지 테스트가 실제 바디와 **같은 점**을 검사하게 하려고 공유한다.
+    /// 테스트가 수식을 복제하면 모양을 바꿔도 테스트만 옛 모양을 검사해 회귀를 놓친다(`textureKey` 선례).
+    static func bodyPolygon(w: CGFloat, h: CGFloat, dy: CGFloat = 0,
+                            sides: Int = 16, n: CGFloat = 4) -> [CGPoint] {
+        (0..<sides).map { i in
+            let a = CGFloat(i) / CGFloat(sides) * 2 * .pi
+            let c = cos(a), s = sin(a)
+            // 수퍼타원 파라메트릭: x = a·sgn(cos)·|cos|^(2/n), y = b·sgn(sin)·|sin|^(2/n). n=2면 타원.
+            return CGPoint(x: copysign(pow(abs(c), 2 / n), c) * w / 2,
+                           y: copysign(pow(abs(s), 2 / n), s) * h / 2 + dy)
+        }
     }
 
     // MARK: - 착지 임팩트 (스쿼시 + 달그락 햅틱)

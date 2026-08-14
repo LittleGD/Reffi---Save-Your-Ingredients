@@ -76,6 +76,7 @@ xcrun simctl io booted screenshot reffi-home.png
   xcrun simctl launch booted com.reffi.app -skipOnboarding -skipAuth -loadSample -physLab
   cat "$(xcrun simctl get_app_container booted com.reffi.app data)/Documents/phys-lab.txt"
   ```
+  주의: `SpriteView`가 내부 SKView의 `debugOptions`를 소유해 씬의 `didMove`에서 `showsPhysics`를 켜면 매 업데이트마다 덮인다(실측: 아무것도 안 그려진다) — 오버레이는 반드시 `SpriteView` 생성 인자로 준다.
 
 **냉장고**
 - `-showHistory` History 커버 · `-fridgeExpand` 첫 재료 펼침 · `-fridgeExpandSolo` 재료 1개만 남기고 펼침(네비 클리어런스 QA)

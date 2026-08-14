@@ -53,6 +53,27 @@ enum GlyphBodyMetrics {
                       minYf: CGFloat(minY) / CGFloat(H), maxYf: CGFloat(maxY) / CGFloat(H))
     }
 
+    /// 알파 마스크 그대로 — 충돌체가 **그려진 픽셀을 얼마나 덮는가**를 재는 커버리지 테스트용.
+    /// `measure`와 같은 래스터 경로·같은 임계(alpha > 127)를 쓴다. 반환 좌표계는 `measure`와 동일하게
+    /// row 0 = 시각 top이고, 호출부가 SpriteKit 좌표(+y 위)로 뒤집어 쓴다.
+    @MainActor
+    static func alphaMask(_ glyph: FoodGlyph, side: Int = 140) -> [Bool]? {
+        let renderer = ImageRenderer(content:
+            PaperSilhouette(glyph: glyph, fresh: .fresh, shadowed: false)
+                .frame(width: CGFloat(side), height: CGFloat(side)))
+        renderer.scale = 1
+        guard let cg = renderer.uiImage?.cgImage else { return nil }
+        var data = [UInt8](repeating: 0, count: side * side * 4)
+        let cs = CGColorSpaceCreateDeviceRGB()
+        guard let ctx = CGContext(data: &data, width: side, height: side, bitsPerComponent: 8,
+                                  bytesPerRow: side * 4, space: cs,
+                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+        ctx.translateBy(x: 0, y: CGFloat(side))
+        ctx.scaleBy(x: 1, y: -1)
+        ctx.draw(cg, in: CGRect(x: 0, y: 0, width: CGFloat(side), height: CGFloat(side)))
+        return (0..<(side * side)).map { data[$0 * 4 + 3] > 127 }
+    }
+
     /// 전 글리프 측정 → makeBody 테이블용 라인을 콘솔 + 파일(Documents/glyph-metrics.txt)로 출력.
     @MainActor
     static func dump(fill: CGFloat = 0.90) {
