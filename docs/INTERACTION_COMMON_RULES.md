@@ -187,7 +187,9 @@ SheetHeader(title: LocalizedStringKey, showsClose: Bool = false, onClose: (() ->
 - 다크 모드 토큰(현재 라이트 고정 — `design_system.md` §2.1).
 - 시스템 push 스택(`NavigationLink`) 도입 — 앱은 의도적으로 모달+상태스위칭 아키텍처. 유지.
 - 큰 플로우 전환 애니메이션(온보딩→메인, 로그아웃) — 낮음 심각도, 별도 과제.
-- ~~`Menu`(sortMenu)의 눌림 피드백 — SwiftUI 플랫폼 제약, 손대지 않음.~~ **철회(2026-07-26)**: 같은 작업에서 스톡 `Menu`를 앱 커스텀 `PaperDropdown`(`Reffi/Components/PaperDropdown.swift`)으로 전면 교체해, 눌림 피드백이 종이 문법(`.paperPress`)으로 들어왔다. 플랫폼 제약은 컴포넌트 교체로 해소됐고 이 항목은 더 이상 범위 밖이 아니다.
+- ~~`Menu`(sortMenu)의 눌림 피드백 — SwiftUI 플랫폼 제약, 손대지 않음.~~ **철회(2026-07-26)**: 같은 작업에서 스톡 `Menu`를 앱 커스텀 `PaperDropdown`(`Reffi/Components/PaperDropdown.swift`)으로 교체해, 눌림 피드백이 종이 문법(`.paperPress`)으로 들어왔다. 플랫폼 제약은 컴포넌트 교체로 해소됐고 이 항목은 더 이상 범위 밖이 아니다.
+  - **범위 정정 + 완료(2026-08-13)**: 위 문장은 "전면 교체"라고 적었지만 실제 교체율은 1/5였다 — 냉장고 정렬 1곳만 `PaperDropdown`이고 편집 시트의 단위·보관 선택 4곳은 스톡 `.pickerStyle(.menu)`로 남아, "탭 → 옵션 목록"이 두 문법으로 갈려 있었다(감사 R4-6). 이번에 네 곳을 모두 이관해 `.pickerStyle(.menu)`가 **0**이 됐다(남은 스톡 픽커는 `NotifyTimeSheet`의 `.wheel` 하나 — 시각 선택은 목록이 아니라 다이얼이라 다른 문법이다).
+  - 시트 안 앵커링은 정렬 칩과 조건이 다르다 — 시스템 팝오버와 달리 오버레이는 시트 밖으로 나갈 수 없다. 그래서 `paperDropdownOverlay(...)` 모디파이어가 **아래/위 여유를 재 뒤집고 팝업 높이를 캡**하며, 넘치면 `PaperDropdown(maxHeight:)`이 내부 스크롤한다(단위 10종). 한 화면에 트리거가 둘이므로 **열린 트리거만 앵커를 발행**해 `DropdownAnchorKey`의 "화면당 한 개" 전제를 지킨다.
 
 ---
 

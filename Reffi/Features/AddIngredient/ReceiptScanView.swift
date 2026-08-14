@@ -321,9 +321,14 @@ private struct EditableCandidate: Identifiable {
 /// 후보 한 건만 고치는 컴팩트 편집 시트 — 종이 언어 재사용(크림 캔버스 + 흰 영수증 카드 + DashedRule +
 /// 모노 라벨 없이 라벨 좌/컨트롤 우 행). 새 컴포넌트가 아니라 `AddIngredientSheet`와 같은 문법.
 private struct CandidateEditSheet: View {
+    /// 이 시트에서 열릴 수 있는 종이 드롭다운 — 한 번에 하나만 연다(`DropdownAnchorKey` 전제).
+    private enum OpenDropdown { case unit, storage }
+
     @State var candidate: EditableCandidate
     var onSave: (EditableCandidate) -> Void
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var openDropdown: OpenDropdown?
 
     /// applySmartExpiry와 같은 결정론 가드 — 대입 전 기록한 값과 다르면만 사용자 터치로 인정.
     @State private var lastProgrammaticExpiry: Date?
@@ -344,6 +349,20 @@ private struct CandidateEditSheet: View {
             actionBar
         }
         .background(ReffiColor.canvas)
+        // 종이 드롭다운 오버레이 2종 — 열린 트리거만 앵커를 올리므로 동시에 하나만 뜬다.
+        // `.medium` 시트라 세로 여유가 좁다: 모디파이어가 아래/위 공간을 재 뒤집고 높이를 캡한다.
+        .paperDropdownOverlay(isPresented: openDropdown == .unit,
+                              options: IngredientUnit.allCases,
+                              selected: candidate.quantity.unit,
+                              label: { $0.label }, seed: 5,
+                              onDismiss: { closeDropdown() },
+                              onSelect: { candidate.quantity.unit = $0 })
+        .paperDropdownOverlay(isPresented: openDropdown == .storage,
+                              options: StorageLocation.allCases,
+                              selected: candidate.storage,
+                              label: { $0.label }, seed: 3,
+                              onDismiss: { closeDropdown() },
+                              onSelect: { candidate.storage = $0 })
         .presentationDetents([.medium])
         .presentationDragIndicator(.visible)
         .presentationBackground(ReffiColor.canvas)
@@ -378,6 +397,18 @@ private struct CandidateEditSheet: View {
         SheetHeader(title: "Edit item", showsClose: true) { requestClose() }
     }
 
+    private func toggle(_ which: OpenDropdown) {
+        let opening = openDropdown != which
+        withAnimation(ReffiMotion.gated(opening ? ReffiMotion.pop : ReffiMotion.exit,
+                                        reduce: reduceMotion)) {
+            openDropdown = opening ? which : nil
+        }
+    }
+
+    private func closeDropdown() {
+        withAnimation(ReffiMotion.gated(ReffiMotion.exit, reduce: reduceMotion)) { openDropdown = nil }
+    }
+
     /// 미저장 변경이 있으면 즉시 닫지 않고 Discard 확인을 띄운다(룰⑨).
     private func requestClose() {
         if isDirty {
@@ -407,14 +438,11 @@ private struct CandidateEditSheet: View {
                     .font(.reffiNum(16, relativeTo: .body))
                     .foregroundStyle(ReffiColor.ink)
                     .frame(width: 64)
-                Picker("Unit", selection: $candidate.quantity.unit) {
-                    ForEach(IngredientUnit.allCases) { u in
-                        Text(verbatim: u.label).tag(u)
-                    }
-                }
-                .labelsHidden()
-                .pickerStyle(.menu)
-                .tint(ReffiColor.blue)
+                // 스톡 시스템 팝업 대신 앱 커스텀 종이 드롭다운(커먼 룰 H) — IngredientEditView와 같은 문법.
+                PaperDropdownTrigger(label: candidate.quantity.unit.label,
+                                     isOpen: openDropdown == .unit, seed: 5) { toggle(.unit) }
+                    .accessibilityLabel(Text("Unit"))
+                    .accessibilityValue(Text(verbatim: candidate.quantity.unit.label))
             }
             .frame(minHeight: 44)
 
@@ -423,14 +451,11 @@ private struct CandidateEditSheet: View {
             HStack {
                 Text("Storage").reffiType(.body).foregroundStyle(ReffiColor.ink)
                 Spacer()
-                Picker("Storage", selection: $candidate.storage) {
-                    ForEach(StorageLocation.allCases) { s in
-                        Text(LocalizedStringKey(s.rawValue)).tag(s)
-                    }
-                }
-                .labelsHidden()
-                .pickerStyle(.menu)
-                .tint(ReffiColor.blue)
+                // 저장값은 영문 식별자 그대로, 표시만 로컬라이즈(`StorageLocation.label`).
+                PaperDropdownTrigger(label: candidate.storage.label,
+                                     isOpen: openDropdown == .storage, seed: 3) { toggle(.storage) }
+                    .accessibilityLabel(Text("Storage"))
+                    .accessibilityValue(Text(verbatim: candidate.storage.label))
             }
             .frame(minHeight: 44)
 

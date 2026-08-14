@@ -12,10 +12,16 @@ struct IngredientEditView: View {
     @Environment(FridgeStore.self) private var store
     @Environment(\.dismiss) private var dismiss
 
+    /// 이 시트에서 열릴 수 있는 종이 드롭다운 — 한 번에 하나만 연다(`DropdownAnchorKey` 전제).
+    private enum OpenDropdown { case unit, storage }
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     @State private var draft: Ingredient
     @State private var showDeleteConfirm = false
     @State private var showDiscardConfirm = false
     @State private var deleteHaptic = 0
+    @State private var openDropdown: OpenDropdown?
 
     private let original: Ingredient
 
@@ -46,6 +52,19 @@ struct IngredientEditView: View {
             actionBar
         }
         .background(ReffiColor.canvas)
+        // 종이 드롭다운 오버레이 2종 — 열린 트리거만 앵커를 올리므로 동시에 하나만 뜬다.
+        .paperDropdownOverlay(isPresented: openDropdown == .unit,
+                              options: IngredientUnit.allCases,
+                              selected: draft.quantity.unit,
+                              label: { $0.label }, seed: 5,
+                              onDismiss: { closeDropdown() },
+                              onSelect: { draft.quantity.unit = $0 })
+        .paperDropdownOverlay(isPresented: openDropdown == .storage,
+                              options: storageOptions,
+                              selected: draft.storage,
+                              label: { $0.label }, seed: 3,
+                              onDismiss: { closeDropdown() },
+                              onSelect: { draft.storage = $0 })
         .presentationDetents([.large])
         .presentationDragIndicator(.visible)
         .presentationBackground(ReffiColor.canvas)
@@ -76,6 +95,27 @@ struct IngredientEditView: View {
     /// 이 시트와 `CandidateEditSheet`를 연달아 열 때 타이틀 기준선이 서로 다른 높이에 앉는다.
     private var header: some View {
         SheetHeader(title: "Edit \(draft.name)", showsClose: true) { requestClose() }
+    }
+
+    // MARK: - 종이 드롭다운 (단위·보관)
+
+    /// 재냉동 금지 — 이미 한 번 얼렸던 재료는 Freezer를 다시 고를 수 없다(§13.6 유예 1회 제한).
+    private var storageOptions: [StorageLocation] {
+        StorageLocation.allCases.filter {
+            $0 != .freezer || draft.storage == .freezer || draft.frozenAt == nil
+        }
+    }
+
+    private func toggle(_ which: OpenDropdown) {
+        let opening = openDropdown != which
+        withAnimation(ReffiMotion.gated(opening ? ReffiMotion.pop : ReffiMotion.exit,
+                                        reduce: reduceMotion)) {
+            openDropdown = opening ? which : nil
+        }
+    }
+
+    private func closeDropdown() {
+        withAnimation(ReffiMotion.gated(ReffiMotion.exit, reduce: reduceMotion)) { openDropdown = nil }
     }
 
     /// 미저장 변경이 있으면 즉시 닫지 않고 Discard 확인을 띄운다(룰⑨).
@@ -114,14 +154,12 @@ struct IngredientEditView: View {
                     .font(.reffiNum(16, relativeTo: .body))
                     .foregroundStyle(ReffiColor.ink)
                     .frame(width: 64)
-                Picker("Unit", selection: $draft.quantity.unit) {
-                    ForEach(IngredientUnit.allCases) { u in
-                        Text(verbatim: u.label).tag(u)
-                    }
-                }
-                .labelsHidden()
-                .pickerStyle(.menu)
-                .tint(ReffiColor.blue)
+                // 스톡 `.pickerStyle(.menu)`(흰 시스템 팝업) 대신 앱 커스텀 종이 드롭다운 —
+                // "탭 → 옵션 목록"이 앱 전체에서 한 문법이어야 한다(커먼 룰 H).
+                PaperDropdownTrigger(label: draft.quantity.unit.label,
+                                     isOpen: openDropdown == .unit, seed: 5) { toggle(.unit) }
+                    .accessibilityLabel(Text("Unit"))
+                    .accessibilityValue(Text(verbatim: draft.quantity.unit.label))
             }
             .frame(minHeight: 40)
 
@@ -142,18 +180,11 @@ struct IngredientEditView: View {
             HStack {
                 Text("Storage").reffiType(.body).foregroundStyle(ReffiColor.ink)
                 Spacer()
-                Picker("Storage", selection: $draft.storage) {
-                    // 저장값은 영문 식별자 그대로, 표시만 로컬라이즈.
-                    // 재냉동 금지: 이미 한 번 얼렸던 재료는 Freezer 재선택 불가.
-                    ForEach(StorageLocation.allCases) { s in
-                        if s != .freezer || draft.storage == .freezer || draft.frozenAt == nil {
-                            Text(LocalizedStringKey(s.rawValue)).tag(s)
-                        }
-                    }
-                }
-                .labelsHidden()
-                .pickerStyle(.menu)
-                .tint(ReffiColor.blue)
+                // 저장값은 영문 식별자 그대로, 표시만 로컬라이즈(`StorageLocation.label`).
+                PaperDropdownTrigger(label: draft.storage.label,
+                                     isOpen: openDropdown == .storage, seed: 3) { toggle(.storage) }
+                    .accessibilityLabel(Text("Storage"))
+                    .accessibilityValue(Text(verbatim: draft.storage.label))
             }
             .frame(minHeight: 40)
 
