@@ -389,7 +389,8 @@ struct FridgeView: View {
     }
 
     // MARK: 카테고리 필터 칩 행 — 정렬(순서)과 직교하는 "좁혀 보기". 정렬 칩과 같은 종이 문법이되,
-    // 선택 상태는 면 반전(ink 면 + onInk 글자)으로 한눈에 구분한다(드롭다운의 체크 문법은 팝업 전용).
+    // 선택 상태는 굵은 잉크 단면(sub 면 + ink 2pt)으로 구분한다 — 면 반전은 필터 상태가
+    // 콘텐츠보다 무거워져 폐기(드롭다운의 체크 문법은 팝업 전용).
     private var categoryFilterRow: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: ReffiSpace.s2) {
@@ -412,7 +413,7 @@ struct FridgeView: View {
         .padding(.vertical, -3)
     }
 
-    /// 필터 칩 한 개 — 라벨 + 개수. 히트 44(§7.3), 선택은 면 반전 + `.isSelected` 트레잇.
+    /// 필터 칩 한 개 — 라벨 + 개수. 히트 44(§7.3), 선택은 굵은 잉크 테두리 + `.isSelected` 트레잇.
     private func categoryChip(name: String, count: Int, on: Bool, seed: Int,
                               action: @escaping () -> Void) -> some View {
         Button(action: action) {
@@ -420,10 +421,10 @@ struct FridgeView: View {
                 Text(name)
                     .font(ReffiTextRole.caption.font)
                     .tracking(ReffiTextRole.caption.tracking)
-                    .foregroundStyle(on ? ReffiColor.onInk : ReffiColor.ink)
+                    .foregroundStyle(ReffiColor.ink)
                 Text(count.formatted())
                     .font(.reffiNum(.meta))
-                    .foregroundStyle(on ? ReffiColor.onInk.opacity(0.72) : ReffiColor.ink2)
+                    .foregroundStyle(ReffiColor.ink2)
             }
             .lineLimit(1)
             .padding(.horizontal, ReffiSpace.s3)
@@ -431,7 +432,9 @@ struct FridgeView: View {
             .background {
                 let s = PaperRect(cornerRadius: ReffiRadius.xs, seed: seed)
                 if on {
-                    s.fill(ReffiColor.ink)   // 선택 = 면 반전(윤곽선 칩들 사이에서 유일한 채워진 면)
+                    // 선택 = sub 면 + 굵은 잉크 단면. 옛 ink 솔리드 반전은 화면 최고 대비를
+                    // 필터 '상태'가 가져가 콘텐츠(영수증 스택)를 눌렀다(감사 미검출 ①).
+                    s.fill(ReffiColor.sub).paperEdge(s, tint: ReffiColor.ink.opacity(0.55), width: 2)
                 } else {
                     s.fill(ReffiColor.paper).paperEdge(s)
                 }
