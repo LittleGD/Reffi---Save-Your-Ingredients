@@ -69,20 +69,13 @@ struct IngredientEditView: View {
         }
     }
 
-    // MARK: - 헤더 (좌측 타이틀 + PaperCloseButton, 룰①. 동적 타이틀 truncation 보호를 유지하려 커스텀 HStack은 유지)
+    // MARK: - 헤더 (§14.2 단일 공급원 `SheetHeader` — 룰②③)
 
+    /// 커스텀 HStack을 남겼던 사유("동적 타이틀 truncation 보호")는 `SheetHeader`가 한 줄·말줄임을
+    /// 컴포넌트로 흡수하며 사라졌다. 인라인으로 두면 패딩이 달라(위 s4/아래 s2 vs 컴포넌트 s5/s3)
+    /// 이 시트와 `CandidateEditSheet`를 연달아 열 때 타이틀 기준선이 서로 다른 높이에 앉는다.
     private var header: some View {
-        HStack(alignment: .firstTextBaseline) {
-            // 이름이 길어도 헤더가 깨지지 않게 한 줄·말줄임(X 버튼은 항상 자리 유지).
-            Text("Edit \(draft.name)")
-                .reffiType(.heading).foregroundStyle(ReffiColor.ink)
-                .lineLimit(1).truncationMode(.tail)
-            Spacer(minLength: ReffiSpace.s3)
-            PaperCloseButton { requestClose() }
-        }
-        .padding(.horizontal, ReffiGrid.margin)
-        .padding(.top, ReffiSpace.s4)
-        .padding(.bottom, ReffiSpace.s2)
+        SheetHeader(title: "Edit \(draft.name)", showsClose: true) { requestClose() }
     }
 
     /// 미저장 변경이 있으면 즉시 닫지 않고 Discard 확인을 띄운다(룰⑨).

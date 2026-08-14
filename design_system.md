@@ -915,7 +915,8 @@ SheetHeader(title: LocalizedStringKey, showsClose: Bool = false, onClose: (() ->
 ```
 - **정렬로 두 헤더의 성격 차이를 표현한다**: 커버 헤더 = 중앙, 시트 헤더 = 좌측.
 - **타이포는 둘 다 `.heading`으로 통일** — `.subhead`를 쓰는 예외를 두지 않는다.
-- `CoverHeader`는 풀스크린 커버의, `SheetHeader`는 하단 시트의 **유일한 헤더 공급원**이다.
+- `CoverHeader`는 풀스크린 커버의, `SheetHeader`는 하단 시트의 **유일한 헤더 공급원**이다. 인라인 예외는 0이다.
+- **동적 타이틀 보호는 컴포넌트가 흡수한다** — `SheetHeader` 타이틀은 한 줄·말줄임(`lineLimit(1)` + `.tail`)이라 재료명처럼 길이가 변하는 타이틀에도 헤더가 깨지지 않고 X가 자리를 지킨다. 호출부가 이 보호를 이유로 커스텀 HStack을 남기면 패딩(위 `s5`/아래 `s3`)이 갈려 시트 간 타이틀 기준선이 어긋난다.
 
 ### 14.3 모달 종류별 닫기 방법
 | 모달 종류 | 헤더 | 닫는 방법 |

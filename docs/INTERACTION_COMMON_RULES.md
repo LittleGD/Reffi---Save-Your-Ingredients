@@ -163,8 +163,8 @@ PaperButtonLabel(title: LocalizedStringKey, kind: .primary | .secondary, fullWid
 ```
 SheetHeader(title: LocalizedStringKey, showsClose: Bool = false, onClose: (() -> Void)? = nil)
 ```
-- 좌측 타이틀(`.heading`) + (선택)`PaperCloseButton`. dragIndicator는 시트 프레젠테이션 측에서 `.visible`.
-- 하단 시트 헤더의 유일한 공급원.
+- 좌측 타이틀(`.heading`, **한 줄·말줄임**) + (선택)`PaperCloseButton`. dragIndicator는 시트 프레젠테이션 측에서 `.visible`(`SheetShell`을 쓰면 셸이 보증한다).
+- 하단 시트 헤더의 유일한 공급원. **예외 0(2026-08-13)** — 마지막 인라인 헤더였던 `IngredientEditView`가 "동적 타이틀 truncation 보호" 때문에 커스텀 HStack을 유지했는데, 그 보호를 컴포넌트가 흡수하며(모든 시트가 함께 안전해진다) 예외 사유가 사라졌다. 인라인으로 두면 패딩이 달라(위 s4/아래 s2 vs s5/s3) 시트 간 타이틀 기준선이 어긋난다.
 
 ### `CoverHeader` (기존, 재사용 강제)
 - 중앙 타이틀(`.heading`) + `PaperCloseButton`(X). 풀스크린 커버의 유일한 공급원.

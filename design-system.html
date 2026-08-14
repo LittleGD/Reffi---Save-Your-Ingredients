@@ -1645,7 +1645,7 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
         <p class="t-caption text" style="color:var(--color-ink-2);margin-bottom:var(--space-4)">헤더는 목적에 따라 <strong>2개 컴포넌트로 분리</strong>하고, 화면마다 인라인으로 복붙하지 않는다. 두 헤더의 성격 차이는 <strong>정렬</strong>로 표현한다 — 커버는 중앙, 시트는 좌측. 타이포는 <strong>둘 다 <code class="inline">.heading</code>으로 통일</strong>하며 <code class="inline">.subhead</code> 예외를 두지 않는다.</p>
         <div class="paper-demo">
           <div class="demo-pane">
-            <p class="lbl"><code class="inline">SheetHeader</code> — 하단 시트. 좌측 타이틀 + (선택)X. dragIndicator(핸들)를 전제한다.</p>
+            <p class="lbl"><code class="inline">SheetHeader</code> — 하단 시트. 좌측 타이틀(한 줄·말줄임) + (선택)X. dragIndicator(핸들)를 전제한다(<code class="inline">SheetShell</code>을 쓰면 셸이 보증). 인라인 헤더 예외는 0 — 동적 타이틀 truncation 보호는 컴포넌트가 흡수한다.</p>
             <div class="mock">
               <div class="mock__grab"></div>
               <div class="hdr-sheet">
