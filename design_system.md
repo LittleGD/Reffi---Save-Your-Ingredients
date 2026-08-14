@@ -427,7 +427,7 @@
 
 | 의미 | 트리거 예시 | 햅틱 |
 |---|---|---|
-| 판정·확정 | Ate/Tossed/Freeze 판정, 레시피 발주(Fire the Ticket) | `.impact` |
+| 판정·확정 | Ate/Tossed/Freeze 판정, 레시피 발주(Fire the Ticket), 장보기 Skip(이번엔 안 사기) | `.impact` |
 | 성공 완료 | 저장·추가·재입고 | `.success` |
 | 파괴 확인 | 삭제·초기화 확정(계정삭제·전체초기화·재료/레시피 삭제 등) | `.warning` |
 

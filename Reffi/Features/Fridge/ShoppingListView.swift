@@ -11,6 +11,9 @@ struct ShoppingListView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var restockHaptic = 0
+    /// Skip은 §7.6의 **판정·확정**이다(Ate/Tossed와 같은 결의 "이번엔 안 사기") — `.impact(.light)`.
+    /// 목록에 담기는 Add 쪽이 성공 완료(`.success`)이므로 같은 행의 두 알약이 다른 의미로 갈린다.
+    @State private var skipHaptic = 0
     @State private var showSearch = false
 
     private typealias Row = (name: String, glyph: FoodGlyph, manual: Bool, key: String)
@@ -37,6 +40,7 @@ struct ShoppingListView: View {
             }
         }
         .sensoryFeedback(.success, trigger: restockHaptic)
+        .sensoryFeedback(.impact(weight: .light), trigger: skipHaptic)
         .sheet(isPresented: $showSearch) { ToBuySearchSheet() }
         #if DEBUG
         // `-toBuy.search` — 검색 시트 자동 오픈(스크린샷·QA용). 커버 자체는 `FridgeView`가 연다.
@@ -134,6 +138,7 @@ struct ShoppingListView: View {
                 withAnimation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion)) {
                     store.skipBuy(key: item.key)
                 }
+                skipHaptic += 1   // §7.6 판정·확정 = .impact (Add의 .success와 짝)
             } label: {
                 Text("Skip")
                     .reffiType(.pillLabel)
