@@ -231,7 +231,7 @@ struct OrderMemoCard: View {
     /// 노이즈일 뿐이라 "지금 급한 것"만 눈에 띄게 남긴다(색+텍스트 동반, §1).
     private func ticketLine(_ ing: Ingredient, done: Bool) -> some View {
         HStack(spacing: ReffiSpace.s2) {
-            Text(verbatim: ing.name)
+            Text(verbatim: ing.displayName)
                 .reffiType(.checklistItem)
                 .foregroundStyle(done ? ReffiColor.muted : ReffiColor.ink)
                 .strikethrough(done, color: ReffiColor.muted)

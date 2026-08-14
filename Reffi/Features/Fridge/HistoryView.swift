@@ -21,12 +21,13 @@ struct HistoryView: View {
         }
     }
 
-    /// 자주 버린 품목 — 버림 이력을 이름으로 묶어 많은 순.
-    private var topTossed: [(name: String, glyph: FoodGlyph, count: Int)] {
-        let grouped = Dictionary(grouping: logs.filter(\.wasted)) { $0.name }
+    /// 자주 버린 품목 — 버림 이력을 **매칭 키**(표기 무관)로 묶어 많은 순.
+    /// 표기로 묶으면 언어를 바꾸기 전후에 담은 같은 재료가 두 줄로 갈린다.
+    private var topTossed: [(key: String, name: String, glyph: FoodGlyph, count: Int)] {
+        let grouped = Dictionary(grouping: logs.filter(\.wasted)) { $0.matchKey }
         return grouped
-            .compactMap { name, group in
-                group.first.map { (name: name, glyph: $0.glyph, count: group.count) }
+            .compactMap { key, group in
+                group.first.map { (key: key, name: $0.displayName, glyph: $0.glyph, count: group.count) }
             }
             .sorted { $0.count != $1.count ? $0.count > $1.count : $0.name < $1.name }
     }
@@ -179,7 +180,7 @@ struct HistoryView: View {
         card(seed: 1) {
             VStack(alignment: .leading, spacing: ReffiSpace.s3) {
                 Text("Most tossed").reffiType(.subhead).foregroundStyle(ReffiColor.ink)
-                ForEach(topTossed, id: \.name) { row in
+                ForEach(topTossed, id: \.key) { row in
                     HStack(spacing: ReffiSpace.s3) {
                         miniGlyph(row.glyph)
                         Text(verbatim: row.name).reffiType(.body).foregroundStyle(ReffiColor.ink)
@@ -201,7 +202,7 @@ struct HistoryView: View {
                     HStack(spacing: ReffiSpace.s3) {
                         miniGlyph(log.glyph)
                         VStack(alignment: .leading, spacing: 1) {
-                            Text(verbatim: log.name).reffiType(.body).foregroundStyle(ReffiColor.ink)
+                            Text(verbatim: log.displayName).reffiType(.body).foregroundStyle(ReffiColor.ink)
                             // 발주로 소비된 재료는 "한 요리"로 귀속(조리 payoff의 기록면).
                             if let via = log.via {
                                 Text("Cooked · \(via)")

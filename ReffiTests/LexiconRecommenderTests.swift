@@ -375,3 +375,27 @@ struct RecommenderTests {
         #expect(base.map(\.id) == withNone.map(\.id))
     }
 }
+
+/// 표시 캐논화 — 저장 스키마(name)는 그대로 두고 표시만 사전에서 다시 읽는지.
+struct DisplayNameTests {
+
+    @Test func canonicalIDWinsOverStoredName() {
+        let ing = Ingredient(name: "연두부라고 저장된 옛 표기", category: "Veg",
+                             expiresAt: Date(), canonicalID: "egg")
+        let expected = IngredientLexicon.shared.entry(id: "egg")?.displayName
+        #expect(ing.displayName == expected)
+    }
+
+    @Test func freeTextKeepsStoredName() {
+        let ing = Ingredient(name: "할머니표 장아찌", category: "Other", expiresAt: Date())
+        #expect(ing.displayName == "할머니표 장아찌")
+    }
+
+    @Test func removalLogFollowsSameRule() {
+        let log = RemovalLog(name: "old label", glyph: .milk, canonicalID: "milk",
+                             removedAt: Date(), wasted: false)
+        #expect(log.displayName == IngredientLexicon.shared.entry(id: "milk")?.displayName)
+        let free = RemovalLog(name: "직접 만든 잼", glyph: .generic, removedAt: Date(), wasted: true)
+        #expect(free.displayName == "직접 만든 잼")
+    }
+}

@@ -47,7 +47,7 @@ struct CookingStepsView: View {
 
     private func shareCardKey(for cook: FridgeStore.CookSession) -> ShareCardKey {
         ShareCardKey(recipeName: cook.recipeName,
-                     ingredientNames: reservedIngredients.map(\.name),
+                     ingredientNames: reservedIngredients.map(\.displayName),
                      minutes: cook.minutes,
                      count: cook.count,
                      icon: heroIcon(for: cook))
@@ -143,7 +143,7 @@ struct CookingStepsView: View {
             HStack(spacing: ReffiSpace.s3) {
                 PaperSilhouette(glyph: ing.glyph, fresh: ing.freshness)
                     .frame(width: ReffiFoodIcon.rowMini, height: ReffiFoodIcon.rowMini)
-                Text(verbatim: ing.name)
+                Text(verbatim: ing.displayName)
                     .reffiType(.body).foregroundStyle(ReffiColor.ink).lineLimit(1)
                 Spacer(minLength: ReffiSpace.s2)
                 Text(left ? "Some left" : "Used it all")
@@ -160,7 +160,7 @@ struct CookingStepsView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.reffiPress)
-        .accessibilityLabel(Text("\(ing.name)"))
+        .accessibilityLabel(Text("\(ing.displayName)"))
         .accessibilityValue(left ? Text("Some left") : Text("Used it all"))
         .accessibilityHint(Text("Toggles whether some is left over"))
     }
@@ -317,7 +317,7 @@ struct CookingStepsView: View {
         // 공유 이미지는 물리 산출물(인쇄된 영수증)이라 기기 다크모드와 무관하게 항상 라이트 종이로 렌더한다.
         // ImageRenderer는 환경을 명시하지 않으면 항상 라이트로 해석하지만, 명시적으로 고정해 의도를 문서화한다.
         let card = RecipeShareCard(recipeName: cook.recipeName,
-                                   ingredientNames: reservedIngredients.map(\.name),
+                                   ingredientNames: reservedIngredients.map(\.displayName),
                                    minutes: cook.minutes,
                                    count: cook.count,
                                    icon: icon)

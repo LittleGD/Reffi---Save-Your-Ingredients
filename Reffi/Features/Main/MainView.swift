@@ -625,7 +625,7 @@ private struct DecisionCover: View {
     private var card: some View {
         VStack(spacing: ReffiSpace.s5) {
             VStack(spacing: 2) {
-                Text(verbatim: ingredient.name).reffiType(.heading).foregroundStyle(ReffiColor.ink)
+                Text(verbatim: ingredient.displayName).reffiType(.heading).foregroundStyle(ReffiColor.ink)
                 Text("Did you eat it, or toss it?")
                     .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
             }

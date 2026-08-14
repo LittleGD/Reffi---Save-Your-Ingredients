@@ -668,7 +668,7 @@ struct FridgeCompactRow: View {
             PaperSilhouette(glyph: ingredient.glyph, fresh: f)
                 .frame(width: ReffiFoodIcon.row, height: ReffiFoodIcon.row)
             VStack(alignment: .leading, spacing: 1) {
-                Text(ingredient.name)
+                Text(verbatim: ingredient.displayName)
                     .reffiType(.checklistItem)
                     .foregroundStyle(ReffiColor.ink).lineLimit(1)
                 Text(verbatim: ingredient.quantityText)
@@ -723,7 +723,7 @@ struct FridgeCard: View {
             HStack(spacing: ReffiSpace.s3) {
                 PaperSilhouette(glyph: ingredient.glyph, fresh: f)
                     .frame(width: ReffiFoodIcon.card, height: ReffiFoodIcon.card)
-                Text(ingredient.name)
+                Text(verbatim: ingredient.displayName)
                     .reffiType(.subhead).foregroundStyle(ReffiColor.ink).lineLimit(1)
                 Spacer(minLength: 0)
             }
@@ -776,7 +776,7 @@ struct ExpandedFridgeCard: View {
                         .accessibilityLabel("Edit")
                     }
                     HStack(alignment: .center, spacing: ReffiSpace.s2) {
-                        Text(ingredient.name).reffiType(.heading).foregroundStyle(ReffiColor.ink)
+                        Text(verbatim: ingredient.displayName).reffiType(.heading).foregroundStyle(ReffiColor.ink)
                         Spacer()
                         if ingredient.isFrozen {
                             DDayStamp(text: String(localized: "FROZEN"), color: ReffiColor.blueDark, size: 11)

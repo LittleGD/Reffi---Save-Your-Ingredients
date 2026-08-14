@@ -221,6 +221,15 @@ struct Ingredient: Identifiable, Codable, Equatable {
     /// 중복 판정·쇼핑리스트·재입고 조회의 공통 기준(§개발규칙 — 정규화 키로 저장, 표시만 로케일).
     var matchKey: String { canonicalID ?? name.lowercased() }
 
+    /// 화면에 그릴 이름 — 캐논 ID가 있으면 **표시 시점의 기기 언어**로 사전에서 다시 읽는다.
+    /// 저장 `name`은 담던 순간의 표기(사전 밖 자유 입력의 원본 보관용)라 그대로 두고 표시만 로컬라이즈한다
+    /// (§개발규칙 — 정규화 키로 저장, 표시만 로케일). 이게 없으면 한국어로 담은 재료가 iOS 언어를
+    /// 영어로 바꿔도 계속 한국어로 남아, 크롬만 영어인 반쪽 화면이 된다. 마이그레이션은 필요 없다 —
+    /// 기존 레코드도 canonicalID만 있으면 즉시 따라온다.
+    var displayName: String {
+        canonicalID.flatMap { IngredientLexicon.shared.entry(id: $0)?.displayName } ?? name
+    }
+
     // MARK: - 시간 모델 (asOf 주입 — 테스트에서 자정 경계·타임존 검증 가능)
 
     /// 두 시각의 달력 일수 차(자정 기준).
