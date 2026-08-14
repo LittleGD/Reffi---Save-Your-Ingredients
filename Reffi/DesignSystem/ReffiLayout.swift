@@ -67,6 +67,23 @@ enum ReffiTooth {
     static let ticket: CGFloat = 9
 }
 
+/// 판정 존 규격(§13.4) — 홈의 판정 바스켓(SpriteKit)과 캐러셀의 플릭 예고 블롭(SwiftUI)은
+/// DS가 "같은 문법"이라고 못 박은 한 쌍이다. 그런데 두 파일이 각자 `private let`으로 같은 숫자를
+/// 들고 있었고, 결속은 "홈 존과 같은 값"이라는 주석뿐이었다 — 주석은 다음 튜닝을 막지 못한다.
+/// 두 표면이 같은 심볼을 읽게 해 한쪽만 움직이는 일을 구조적으로 막는다.
+enum ReffiJudgeZone {
+    /// 블롭 한 변(정사각).
+    static let side: CGFloat = 86
+    /// 떠 있을 때 알파 — 완전 불투명이 아니라 종이가 살짝 비친다.
+    static let alpha: Double = 0.96
+    /// 커밋 임박(호버·임계 60% 초과) 하이라이트 배율 — 색은 바꾸지 않고 스케일만.
+    static let hotScale: CGFloat = 1.14
+    /// 등장·소멸 페이드(초).
+    static let fade: TimeInterval = 0.15
+    /// 하이라이트 전환(초).
+    static let hotDuration: TimeInterval = 0.1
+}
+
 /// 상태 투명도(§7.2) — 디밍은 반드시 이 토큰으로. 리터럴을 호출부에 흩뿌리면
 /// 컴포넌트 디밍과 곱해져(예: 0.45 × 0.5 = 0.225) CTA가 소실된다.
 enum ReffiOpacity {
