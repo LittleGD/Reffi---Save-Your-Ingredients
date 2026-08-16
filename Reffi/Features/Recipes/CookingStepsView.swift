@@ -301,12 +301,10 @@ struct CookingStepsView: View {
         .accessibilityHint(Text("Opens YouTube in your browser"))
     }
 
-    /// 유튜브 검색 URL — 레시피명 + "recipe"를 퍼센트 인코딩. 인코딩·URL 생성 실패 시 유튜브 홈으로 폴백.
+    /// 유튜브 검색 URL — 조립은 `RecipeVideoSearch`(단일 공급원)가 한다. 티켓 덱의 영상 브리지와
+    /// 같은 규칙을 쓰려고 여기서 다시 만들지 않는다(동작은 이전과 동일: 레시피명 + " recipe").
     private func youtubeSearchURL(for recipeName: String) -> URL {
-        let fallback = URL(string: "https://www.youtube.com")!
-        guard let encoded = "\(recipeName) recipe"
-            .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else { return fallback }
-        return URL(string: "https://www.youtube.com/results?search_query=\(encoded)") ?? fallback
+        RecipeVideoSearch.url(query: "\(recipeName) recipe")
     }
 
     /// 공유 카드 이미지 렌더 — `RecipeShareCard`를 레티나 스케일로 오프스크린 래스터라이즈한다. 실패하면 nil.

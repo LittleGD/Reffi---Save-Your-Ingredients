@@ -33,6 +33,12 @@ struct MainView: View {
     @State private var showSteps = false           // 단계별 레시피(발주 직후 + Cooking now 카드에서)
     @State private var showAdd = false
     @State private var carouselSnapshot: [RecipeRecommender.Result] = []   // 커버 입력 동결(발주 중 재랭크 방지)
+    /// 빈 덱에서 호명할 위험 재고 이름 — **비-fresh 전체**(soon + urgent). 덱과 **같은 틱**에 얼린다
+    /// (아래 `snapshotCarousel`). 아래 `uncoveredSnapshot`은 **urgent만** 세는 더 좁은 축이라
+    /// 이름을 atRisk 계열로 갈라 둔다 — 한쪽 기준으로 다른 쪽을 고치면 두 문구가 조용히 어긋난다.
+    @State private var atRiskSnapshot: [String] = []
+    /// 덱이 다루지 못한 오늘 만료(urgent) 재료 이름 — 브리지 행의 입력. 역시 같은 틱에 얼린다.
+    @State private var uncoveredSnapshot: [String] = []
     @State private var firedTicket = false         // 커버당 발주 1회 — 슬램 창의 더블 파이어 방지
     @State private var coverGeneration = 0         // 지연 닫기 타이머가 새로 연 커버를 닫지 못하게
     @State private var fireHaptic = 0
@@ -123,8 +129,11 @@ struct MainView: View {
         }) {
             RecipeMemoCarousel(results: carouselSnapshot,
                                hasIngredients: !store.ingredients.isEmpty,
+                               atRiskNames: atRiskSnapshot,
+                               uncoveredNames: uncoveredSnapshot,
                                onClose: { showCarousel = false },
-                               onFire: fire)
+                               onFire: fire,
+                               onAddMissing: { store.addMissingToBuy($0) })
         }
         .fullScreenCover(isPresented: $showSteps) {
             CookingStepsView(onClose: { showSteps = false })
@@ -155,7 +164,7 @@ struct MainView: View {
                 store.loadSampleData()
             }
             if args.contains("-previewCarousel") {
-                carouselSnapshot = carouselResults
+                snapshotCarousel()
                 showCarousel = true
             }
             if args.contains("-previewAdd") { showAdd = true }   // 재료 추가 시트 스크린샷 검증용
@@ -167,7 +176,7 @@ struct MainView: View {
                     // 늦으면 덱이 영구히 빈 채로 열린다(테스트는 느려지는 게 아니라 실패한다).
                     // `-cookTicket`이 loadSampleData()를 직접 부르는 선례를 따라 여기서 채운다.
                     if store.available.isEmpty { store.loadSampleData() }
-                    carouselSnapshot = carouselResults
+                    snapshotCarousel()
                     showCarousel = true
                 }
             }
@@ -572,9 +581,20 @@ struct MainView: View {
 
     // MARK: - Cook / Fire the Ticket
 
+    /// 커버 입력 3종(덱·호명 이름·미커버 임박)을 **한 번에** 얼린다.
+    /// 따로 계산하면 발주로 store가 바뀌는 사이에 서로 다른 시점의 재고를 보게 되고,
+    /// 브리지 행이 덱에 실제로 있는 재료를 "안 쓴다"고 말하는 자기모순이 생긴다.
+    private func snapshotCarousel() {
+        let results = carouselResults
+        let stock = store.available
+        carouselSnapshot = results
+        atRiskSnapshot = stock.filter { $0.freshness != .fresh }.map(\.name)   // available은 이미 임박순
+        uncoveredSnapshot = RecipeRecommender.uncoveredUrgent(ingredients: stock, results: results).map(\.name)
+    }
+
     private func cook() {
         guard !counter.isEmpty else { return }
-        carouselSnapshot = carouselResults   // 발주로 store가 바뀌어도 커버 입력은 고정(재랭크 방지)
+        snapshotCarousel()   // 발주로 store가 바뀌어도 커버 입력은 고정(재랭크 방지)
         firedTicket = false
         coverGeneration += 1                 // 이전 발주의 지연 닫기 타이머 무효화
         // 커버 표시를 한 틱 지연 — 80레시피 스코어링(carouselResults)과 커버 첫 프레임이
