@@ -129,6 +129,17 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         guard let t = tossZone, let a = ateZone else { return nil }
         return (t.position, a.position)
     }
+
+    /// `-physLab` — 물리 진단 모드. SKView의 콜라이더 오버레이(`showsPhysics`, MainView가 켠다)와
+    /// **주기 계측 덤프**를 함께 켠다. 콜라이더-일러스트 정합·겹침·정지 움찔은 화면만 봐선 못 가른다:
+    /// 오버레이는 "바디가 그림 어디에 서는가", 덤프는 "속도·isResting·쌍별 AABB 관통률"을 준다.
+    /// 덤프는 앱 Documents/phys-lab.txt (`xcrun simctl get_app_container booted com.reffi.app data`).
+    static let physLab = ProcessInfo.processInfo.arguments.contains("-physLab")
+    private var physLabNext: TimeInterval = 0
+    private var physLabSamples = 0
+    private var physLabLog = ""
+    private let physLabPeriod: TimeInterval = 0.5
+    private let physLabMaxSamples = 40
     #endif
 
     // 던지기 회전 — 토크 암 계수(작을수록 잘 돈다)와 각속도 상한(rad/s).
@@ -514,6 +525,9 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         // 비정상적으로 벌어졌으면 타이머만 접는다 — 회수 자체는 다음 프레임부터 정상적으로 잰다.
         if lastUpdateTime > 0, currentTime - lastUpdateTime > 1.0 { unsealedSince = nil }
         lastUpdateTime = currentTime   // didBegin엔 시간 인자가 없어 여기서 받아 둔다(햅틱 스로틀용)
+        #if DEBUG
+        if Self.physLab { physLabTick(currentTime) }
+        #endif
         maintainCeiling(currentTime)   // 낙하 끝나면 밀폐, 위쪽에 갇힌 칩은 회수(§13.4 컨테인먼트)
         if let node = dragged, let body = node.physicsBody {
             // 마그네틱 캡처 — 손가락이 바스켓 근처면 추종 목표가 바스켓 중심으로 스냅되어
@@ -580,6 +594,51 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     }
 
     #if DEBUG
+    /// `-physLab` 계측 한 틱 — 씬 상태 + 칩별 운동량/휴면 + 쌍별 AABB 관통률을 파일에 누적한다.
+    /// 화면 캡처로는 못 보는 두 가지를 잡으려는 것이다: ① 속도가 0인데도 isResting=false로 남는
+    /// (= 엔진이 못 재우는) 바디 ② 눈으로는 한 덩이로 보이는 칩들의 실제 관통 깊이.
+    private func physLabTick(_ now: TimeInterval) {
+        guard physLabSamples < physLabMaxSamples else { return }
+        if physLabNext == 0 { physLabNext = now }
+        guard now >= physLabNext else { return }
+        physLabNext = now + physLabPeriod
+        physLabSamples += 1
+        let g = physicsWorld.gravity
+        var out = String(format: "t=%.2f idle=%d calm=%d sealed=%d g=(%.1f,%.1f) side=%.0f scene=%.0fx%.0f\n",
+                         now, idle ? 1 : 0, calmFrames, ceilingSealed ? 1 : 0,
+                         g.dx, g.dy, chipSide, size.width, size.height)
+        let items = chips.sorted { $0.key.uuidString < $1.key.uuidString }
+        for (id, n) in items {
+            let r = bodyAABB(n)
+            let v = n.physicsBody?.velocity ?? .zero
+            out += String(format: "  %@ %@ p(%.1f,%.1f) v(%.1f,%.1f)=%.2f w=%.3f rest=%d z=%.3f rot=%.2f aabb(%.0f,%.0f,%.0f,%.0f)\n",
+                          String(id.uuidString.prefix(4)),
+                          (n.userData?["glyph"] as? String) ?? "?",
+                          n.position.x, n.position.y, v.dx, v.dy, hypot(v.dx, v.dy),
+                          n.physicsBody?.angularVelocity ?? 0,
+                          (n.physicsBody?.isResting ?? false) ? 1 : 0,
+                          n.zPosition, n.zRotation,
+                          r.minX, r.minY, r.width, r.height)
+        }
+        for i in items.indices {
+            for j in items.indices where j > i {
+                let ri = bodyAABB(items[i].value), rj = bodyAABB(items[j].value)
+                let hit = ri.intersection(rj)
+                guard !hit.isNull, hit.width > 0, hit.height > 0 else { continue }
+                let frac = (hit.width * hit.height) / min(ri.width * ri.height, rj.width * rj.height)
+                out += String(format: "  OVERLAP %@~%@ %.1f%% (dx=%.0f dy=%.0f)\n",
+                              String(items[i].key.uuidString.prefix(4)),
+                              String(items[j].key.uuidString.prefix(4)),
+                              frac * 100, hit.width, hit.height)
+            }
+        }
+        physLabLog += out
+        if let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
+            try? physLabLog.write(to: dir.appendingPathComponent("phys-lab.txt"),
+                                  atomically: true, encoding: .utf8)
+        }
+    }
+
     private var lastRestlessLog: TimeInterval = 0
     /// calm 창은 통과했는데 변위 검증에서 되돌아온 횟수 — 안착이 반복 실패하는 상태의 관측구.
     private var driftRetries = 0
@@ -981,6 +1040,23 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     private func makeBody(for glyph: FoodGlyph, side s: CGFloat) -> SKPhysicsBody {
         let m = Self.bodyMetrics[glyph] ?? (0.62, 0.60, 0)
         return Self.ovalBody(s * m.w, s * m.h, dy: s * m.dy)
+    }
+
+    /// 칩 물리 바디(볼록 타원 폴리곤)의 **회전 반영 AABB**(씬 좌표).
+    /// 진단 계측(`-physLab`)과 관통 해소가 **같은 식**을 써야 "측정한 겹침"과 "푸는 겹침"이 어긋나지 않는다.
+    /// 회전한 타원의 AABB 반폭 = √((a·cosθ)² + (b·sinθ)²) — 폴리곤 근사분의 오차는 1% 미만이다.
+    /// dy 오프셋은 바디 로컬 좌표라 노드 회전을 함께 먹인다.
+    private func bodyAABB(_ node: SKSpriteNode) -> CGRect {
+        let s = node.size.width
+        let glyph = (node.userData?["glyph"] as? String).flatMap(FoodGlyph.init(rawValue:))
+        let m = glyph.flatMap { Self.bodyMetrics[$0] } ?? (w: 0.62, h: 0.60, dy: 0)
+        let a = s * m.w * 0.5, b = s * m.h * 0.5
+        let c = cos(node.zRotation), si = sin(node.zRotation)
+        let hw = ((a * c) * (a * c) + (b * si) * (b * si)).squareRoot()
+        let hh = ((a * si) * (a * si) + (b * c) * (b * c)).squareRoot()
+        let off = s * m.dy
+        return CGRect(x: node.position.x - si * off - hw, y: node.position.y + c * off - hh,
+                      width: hw * 2, height: hh * 2)
     }
 
     /// 실측 바디 파라미터 (폭비, 높이비, y오프셋[+위]) — `-glyphMetrics` 계측값(알파 bbox×0.9 + bbox중심 정렬).
