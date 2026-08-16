@@ -27,8 +27,9 @@ struct RecipeMemoCarousel: View {
     /// 나쁘면 팝업 해체 전환과 겹쳐 부모 닫기 요청 자체가 삼켜져 덱이 영영 안 닫힌다(`82cc116` 참고).
     /// true는 팝업①이 뜰 때 한 번, false는 흐름이 **끝날 때**(이동 취소 / To buy 닫힘) 한 번 —
     /// 팝업①→②→커버 사이에는 내려가지 않는다. 중간에 false가 새면 그 틈으로 지연 닫기가 빠져나간다.
-    /// false를 **언제** 보내는지도 계약이다: 커버는 `onDismiss`(완료 훅), 팝업은 `endToBuyFlow()`의
-    /// 지연 — 둘 다 "해체가 끝난 뒤"라야 부모의 닫기 요청이 전환에 삼켜지지 않는다.
+    /// false를 **언제** 보내는지도 계약이다: 커버는 `onDismiss`(해체 완료 훅), 다이얼로그는 버튼을
+    /// 누른 그 자리에서 곧바로 — 다이얼로그는 UIKit 프레젠테이션이 아니라 오버레이라 부모의 닫기 요청과
+    /// 겹칠 전환이 없다(`endToBuyFlow()`에 근거).
     var onToBuyPresentationChange: (Bool) -> Void = { _ in }
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -54,16 +55,16 @@ struct RecipeMemoCarousel: View {
     /// 이제 칩 탭이 곧장 켜지 않는다 — 아래 두 팝업을 거쳐 사용자가 "보기"를 고를 때만 켜진다.
     @State private var showToBuy = false
     /// 팝업①(알림) — 담기 결과를 알린다. 두 상태를 **분리**해 두는 이유는 순차 표시 때문이다:
-    /// 하나의 상태로 문안만 갈아끼우면 표시 중 내용 교체가 되어 갱신이 씹힌다.
+    /// 하나의 상태로 문안만 갈아끼우면 표시 중 내용 교체가 되어(같은 뷰가 정체를 유지한 채 글자만
+    /// 바뀌어) 두 장이 한 장처럼 읽힌다. 상태가 갈라져 있으면 첫 장이 사라지고 둘째 장이 들어온다.
     @State private var showAddedPrompt = false
     /// 팝업①의 문안 갈래 — 새로 담긴 게 있었나. 팝업을 켜는 것과 **같은 업데이트**에서 정해지므로
     /// 표시 시점엔 이미 올바른 값이다.
     @State private var addedSomething = false
     /// 팝업②(질문) — 목록으로 갈지 묻는다. 팝업①의 확인 액션에서만 켜진다.
     ///
-    /// **연달아 띄우는 것 자체는 지연 트릭이 필요 없다** — 다음 프레젠테이션 *요청*은 진행 중인 해체가
-    /// 끝난 뒤 처리되도록 큐에 남기 때문이다(실측: ⑦⑧⑨ 전 실행에서 팝업②가 빠짐없이 떴다).
-    /// 삼켜지는 건 **부모 커버를 닫는 요청** 쪽이다 — 아래 `endToBuyFlow()` 참고.
+    /// 오버레이라 교대에 트릭이 필요 없다 — 첫 장을 내리는 것과 둘째 장을 올리는 것이 **같은 업데이트**에서
+    /// 처리된다(시스템 알림 시절엔 프레젠테이션 큐를 믿어야 했다).
     @State private var showOpenToBuyPrompt = false
 
     /// 수평 플릭 커밋 임계(예측 변위 width) — 넘기면 부호가 곧 의미다(+ Cook / − Pass).
@@ -110,23 +111,30 @@ struct RecipeMemoCarousel: View {
             ShoppingListView()
         }
         // 팝업① 알림 — **사실만** 말한다. 담긴 게 하나도 없었으면 담았다고 하지 않는다.
-        // 룰⑧ 분류: 파괴가 아니라 순수 알림성 → `.alert`(중앙 고정). 버튼은 확인 하나뿐이라
-        // `.cancel` 역할을 준다 — VoiceOver 이스케이프 제스처가 이 버튼으로 매핑돼 닫는 길이 하나로 모인다.
-        .alert(addedSomething ? Text("Added to To buy") : Text("Already on your To buy list"),
-               isPresented: $showAddedPrompt) {
-            Button("OK", role: .cancel) { showOpenToBuyPrompt = true }
-        }
+        // 룰⑧ 분류상 파괴가 아니라 순수 알림성이라 확인 버튼 하나짜리 중앙 다이얼로그다.
+        // **바깥 탭은 무시**한다(`backdropDismisses` 기본값) — 여기서 조용히 끝나면 이어질 질문을
+        // 못 받고, 방금 담긴 사실도 못 본 채 티켓으로 돌아간다. 나가는 길은 확인 하나뿐이다.
+        .paperDialog(isPresented: $showAddedPrompt,
+                     title: addedSomething ? "Added to To buy" : "Already on your To buy list",
+                     seed: number(for: 3),
+                     primary: PaperDialogAction("OK") { showOpenToBuyPrompt = true })
         // 팝업② 질문 — 이동은 **사용자가 고른다**(칩 탭이 곧 화면 이동이던 예전 동작을 대체한다).
-        .alert(Text("View your To buy list?"), isPresented: $showOpenToBuyPrompt) {
-            Button("View") { showToBuy = true }
-            // 취소로 흐름이 끝난다 — 신호를 내려야 부모의 미뤄 둔 발주 전환이 이어진다(취소는 이동만
-            // 안 하는 것이지 발주 취소가 아니다). **다만 이 자리에서 곧바로 내리면 안 된다** — `endToBuyFlow`.
-            Button("Cancel", role: .cancel) { endToBuyFlow() }
-        } message: {
-            // 취소를 안전한 선택으로 만드는 한 줄 — 목록은 냉장고 탭의 To buy 카드로 언제든 다시 열린다.
-            Text("You can open it later from the Fridge tab.")
-        }
+        // 이쪽은 **바깥 탭 = 취소**다. 되돌릴 게 없는 질문이라 실수로 닫아도 잃는 게 없고,
+        // 취소와 다른 결과를 내면 실수로 닫은 사용자가 의도하지 않은 이동을 하게 된다.
+        .paperDialog(isPresented: $showOpenToBuyPrompt,
+                     title: "View your To buy list?",
+                     // 취소를 안전한 선택으로 만드는 한 줄 — 목록은 냉장고 탭의 To buy 카드로 다시 열린다.
+                     message: "You can open it later from the Fridge tab.",
+                     seed: number(for: 6),
+                     backdropDismisses: true,
+                     primary: PaperDialogAction("View") { showToBuy = true },
+                     // 취소로 흐름이 끝난다 — 신호를 내려야 부모의 미뤄 둔 발주 전환이 이어진다
+                     // (취소는 이동만 안 하는 것이지 발주 취소가 아니다).
+                     secondary: PaperDialogAction("Cancel") { endToBuyFlow() })
     }
+
+    /// 종이 삐뚤빼뚤함 시드 — 두 다이얼로그가 서로 다른 종이로 보이도록 앞 티켓 번호에 섞는다.
+    private func number(for salt: Int) -> Int { (deck.first ?? 0) &+ salt }
 
     /// 칩이 담기를 마쳤다 — 결과 팝업을 띄우고, **이 순간부터** 덱 위에 무언가 떠 있다고 부모에게 알린다.
     /// 신호를 팝업 시작점에 두는 게 핵심이다: 담기 직후~팝업 표시 사이에 지연 닫기가 끼어들면
@@ -137,20 +145,19 @@ struct RecipeMemoCarousel: View {
         showAddedPrompt = true
     }
 
-    /// 팝업 해체 애니메이션이 끝날 시간을 **주고 나서** 흐름 종료를 알린다.
+    /// 흐름이 끝났음을 곧바로 알린다 — 부모의 미뤄 둔 발주 전환이 여기서 이어진다.
     ///
-    /// **왜 지연이 필요한가(실측)**: 취소 버튼 액션에서 곧바로 알리면 부모(`MainView`)가 같은 틱에
-    /// 덱 커버를 닫는데, 그때 이 팝업의 해체 전환이 아직 진행 중이면 UIKit이 **닫기 요청을 삼킨다**.
-    /// `showCarousel`은 이미 false가 된 뒤라 SwiftUI가 다시 시도할 일이 없어 덱이 그대로 남고,
-    /// 미뤄 둔 조리 화면 전환도 오지 않는다(커밋 `82cc116`이 중첩 커버에서 잡았던 그 메커니즘).
-    /// UITest ⑨에서 3회 중 1회 재현 — "취소했는데 조리 화면으로 안 감"으로 실패했다.
+    /// **10차에는 여기에 0.6초 지연이 있었고, 11차에서 걷어냈다.** 지연의 이유는 순전히 시스템 알림
+    /// 때문이었다: `.alert`은 UIKit 프레젠테이션이라 해체 전환이 진행 중일 때 부모 커버 닫기 요청이
+    /// 들어오면 UIKit이 그 요청을 삼켰고(10차 UITest ⑨에서 3회 중 1회 재현), `.alert`에는
+    /// 커버의 `onDismiss` 같은 완료 훅이 없어 지연으로 때울 수밖에 없었다.
     ///
-    /// **왜 하필 지연인가**: 커버에는 `onDismiss`라는 완료 훅이 있어 4차에서는 그걸 썼지만
-    /// `.alert`에는 대응 훅이 없다. 그래서 시스템 알림 해체 애니메이션(약 0.25초)에 넉넉한 여유를
-    /// 더한 값을 쓴다. 값이 짧으면 위 결함이 돌아오고, 길면 취소 후 조리 화면 전환이 그만큼 늦어질 뿐이라
-    /// **한쪽으로만 안전한 방향**이다(그래서 여유를 크게 잡았다).
+    /// 이제 다이얼로그는 **같은 뷰 트리 안의 오버레이**(`PaperDialog`)다. 프레젠테이션 큐도, 겹칠
+    /// 전환도 없다 — 오버레이가 사라지는 것과 부모 커버가 닫히는 것은 서로를 삼킬 수 없다.
+    /// 지연을 걷어낸 뒤 취소 경로 UITest를 **10회 연속** 돌려 전부 통과하는 것으로 확인했다
+    /// (10차에 이 결함이 있었을 때는 3회 중 1회 실패했다).
     private func endToBuyFlow() {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { onToBuyPresentationChange(false) }
+        onToBuyPresentationChange(false)
     }
 
     // MARK: - 티켓 덱 (뒤 종이 = 실제 다음 티켓)

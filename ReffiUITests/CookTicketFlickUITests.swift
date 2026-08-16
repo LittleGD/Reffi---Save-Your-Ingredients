@@ -195,32 +195,30 @@ final class CookTicketFlickUITests: XCTestCase {
         return chip.isHittable
     }
 
-    /// 팝업 제목 대조 — 시스템 알림의 제목은 알림 자신의 라벨로도, 자식 staticText로도 노출될 수 있어
-    /// 둘 다 받는다(어느 쪽이든 **문안이 화면에 있다**는 사실은 같다).
-    private func alertShowsTitle(_ app: XCUIApplication, _ title: String) -> Bool {
-        let alert = app.alerts.firstMatch
-        return alert.staticTexts[title].exists || alert.label == title
+    /// 팝업①(담기 결과)의 제목. **종이 다이얼로그는 시스템 알림이 아니라 앱 안의 오버레이**라
+    /// `app.alerts`가 아니라 평범한 요소 조회로 잡는다(라벨은 11차에도 그대로다).
+    private func addedPromptTitle(_ app: XCUIApplication) -> XCUIElement {
+        app.staticTexts["Added to To buy"]
     }
 
-    /// 팝업①(담기 결과 알림)이 뜰 때까지 기다리고 **문안 갈래까지** 확인한다 — 뜨지 않으면 false
-    /// (호출부가 skip/실패를 각자 판단한다).
+    /// 팝업①이 뜰 때까지 기다린다 — 뜨지 않으면 false(호출부가 skip/실패를 각자 판단한다).
     /// 기대 갈래가 "담았다"로 고정인 이유: `-uiTestSampleFridge`가 `manualToBuy`를 비우므로 첫 탭은
     /// 반드시 새로 담긴다(`FridgeStore.addToBuy`는 **이미 수동으로 담긴 것에만** false를 낸다).
+    /// 즉 이 제목이 떴다는 것 자체가 문안 갈래까지 맞았다는 뜻이다.
     private func waitForAddedPrompt(_ app: XCUIApplication, timeout: TimeInterval = 15) -> Bool {
-        guard app.alerts.firstMatch.waitForExistence(timeout: timeout) else { return false }
-        XCTAssertTrue(alertShowsTitle(app, "Added to To buy"),
-                      "첫 팝업은 담김을 알리는 문안이어야 한다 — 실제 라벨: \(app.alerts.firstMatch.label)")
-        return true
+        addedPromptTitle(app).waitForExistence(timeout: timeout)
     }
 
-    /// 팝업②(이동 질문) 응답 — 버튼이 실제로 나온 뒤 고른다. 순차 표시가 씹히면(첫 팝업 해체 중에
-    /// 두 번째를 요구하면 프레젠테이션이 삼켜진다) 여기서 대기가 만료돼 잡힌다.
+    /// 팝업②(이동 질문) 응답 — 버튼이 실제로 나온 뒤 고른다. 두 장이 교대되지 않으면(첫 장이 안 사라지거나
+    /// 둘째 장이 안 뜨면) 여기서 대기가 만료돼 잡힌다.
     private func answerOpenToBuyPrompt(_ app: XCUIApplication, view: Bool) {
-        let button = app.alerts.buttons[view ? "View" : "Cancel"]
+        let button = app.buttons[view ? "View" : "Cancel"]
         XCTAssertTrue(button.waitForExistence(timeout: 15),
                       "확인을 누르면 목록으로 갈지 묻는 두 번째 팝업이 떠야 한다")
-        XCTAssertTrue(alertShowsTitle(app, "View your To buy list?"),
-                      "두 번째 팝업은 이동 여부를 묻는 질문이어야 한다 — 실제 라벨: \(app.alerts.firstMatch.label)")
+        XCTAssertTrue(app.staticTexts["View your To buy list?"].exists,
+                      "두 번째 팝업은 이동 여부를 묻는 질문이어야 한다")
+        XCTAssertFalse(addedPromptTitle(app).exists,
+                       "첫 팝업은 두 번째가 뜰 때 이미 사라져 있어야 한다(두 장이 겹치면 안 된다)")
         button.tap()
     }
 
@@ -266,9 +264,9 @@ final class CookTicketFlickUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["To buy"].exists,
                        "확인을 누르기 전에 To buy 커버가 열려 있으면 안 된다 — 이동은 뒤에서 묻는다")
         attachScreenshot(app, named: "b-added-prompt")
-        app.alerts.buttons["OK"].firstMatch.tap()
+        app.buttons["OK"].firstMatch.tap()
         // 두 번째 팝업도 눈으로 볼 근거를 남긴다 — 이동을 **묻는** 자리라 버튼 두 개(취소/보기)가 핵심이다.
-        XCTAssertTrue(app.alerts.buttons["View"].waitForExistence(timeout: 15),
+        XCTAssertTrue(app.buttons["View"].waitForExistence(timeout: 15),
                       "확인 뒤에는 이동을 묻는 팝업이 떠야 한다")
         attachScreenshot(app, named: "c-open-prompt")
         answerOpenToBuyPrompt(app, view: true)
@@ -369,7 +367,7 @@ final class CookTicketFlickUITests: XCTestCase {
         guard tapLag < dismissDelay, waitForAddedPrompt(app, timeout: 6) else {
             throw XCTSkip("칩 탭이 발주 후 \(String(format: "%.2f", tapLag))초에 도달해 \(Int(dismissDelay))초 창을 놓쳤다 — 경쟁 상태 미관측")
         }
-        app.alerts.buttons["OK"].firstMatch.tap()
+        app.buttons["OK"].firstMatch.tap()
         answerOpenToBuyPrompt(app, view: true)
 
         let toBuy = app.staticTexts["To buy"]
@@ -436,13 +434,13 @@ final class CookTicketFlickUITests: XCTestCase {
         _ = XCTWaiter().wait(for: [expectation(description: "지연 닫기 창 통과 대기")],
                              timeout: max(0.1, observeUntil.timeIntervalSinceNow))
 
-        XCTAssertTrue(app.alerts.firstMatch.exists,
+        XCTAssertTrue(addedPromptTitle(app).exists,
                       "발주 \(String(format: "%.2f", tapLag))초 뒤 띄운 팝업이 지연 닫기(\(Int(dismissDelay))초)에 덱과 함께 걷혔다 — "
                       + "팝업 구간도 부모 닫기를 미뤄야 한다")
         XCTAssertFalse(app.staticTexts["ORDER · FIRED"].exists,
                        "팝업이 떠 있는 동안에는 조리 화면으로 넘어가면 안 된다(닫기는 미뤄져 있어야 한다)")
 
-        app.alerts.buttons["OK"].firstMatch.tap()
+        app.buttons["OK"].firstMatch.tap()
         answerOpenToBuyPrompt(app, view: false)
 
         // 취소 = 이동만 안 한다. 미뤄 뒀던 발주 전환은 이어져야 한다.
