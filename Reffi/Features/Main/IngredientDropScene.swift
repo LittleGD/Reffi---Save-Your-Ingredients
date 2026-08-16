@@ -212,6 +212,29 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         s * (spawnBase + CGFloat(max(0, order)) * spawnStep)
     }
 
+    /// Reduce Motion 정적 배치 — 낙하 연출 없이 **처음부터 바닥 근처에** 놓는 자리
+    /// (dx = 밴드 중앙 기준 x 오프셋, dy = 바닥 기준 높이, 둘 다 pt).
+    ///
+    /// 낙하 사다리와 **같은 declump 불변식**을 지켜야 한다. 옛 식은 `0.45 + (order % 3) × 0.5`라
+    /// 행 간격이 0.5s로 바디 최대 높이(0.70s)보다 좁아 이웃 order가 겹쳐 태어났다 —
+    /// 사다리 쪽만 고치고 이쪽을 두면 Reduce Motion 사용자만 겹친 더미를 본다.
+    /// 그래서 **격자**로 놓는다: 한 행에 넣는 개수는 밴드가 **바디 최대 폭 이상** 벌릴 수 있는
+    /// 만큼으로 제한하고(같은 행끼리 안 겹침), 행 간격은 사다리와 같은 `spawnStep`(0.85s >
+    /// 바디 최대 높이 0.70s)이다(위아래로 안 겹침). 순수 함수 — SpawnLadderTests가 전 쌍을 건다.
+    static func staticSlot(order: Int, count: Int, side s: CGFloat, band: CGFloat)
+        -> (dx: CGFloat, dy: CGFloat) {
+        let n = max(1, count)
+        let o = min(max(0, order), n - 1)
+        let width = max(1, maxBodyWidthRatio * s)
+        let perRow = max(1, min(n, Int(band / width) + 1))
+        let row = o / perRow, col = o % perRow
+        let inRow = min(perRow, n - row * perRow)   // 마지막 행은 덜 찬다 — 그만큼 더 넓게 벌린다
+        let dx = inRow <= 1 ? 0 : (CGFloat(col) / CGFloat(inRow - 1) - 0.5) * band
+        return (dx: dx, dy: s * (staticBase + CGFloat(row) * spawnStep))
+    }
+    /// 정적 배치 첫 행의 높이(칩 변 배수) — 바닥에 붙지 않을 만큼만 띄운다.
+    static let staticBase: CGFloat = 0.45
+
     /// 스폰 천장 — 재료는 화면 위에서 떨어져 들어오므로(§13) 낙하 중엔 천장을 스폰 위치 위로 올려 둔다.
     /// **이번 캐스케이드가 실제로 쓴 최고 스폰 높이의 래칫**이다. 옛 상수 천장(size.height + 700)은
     /// 사다리를 담지 못해(작업대 6개 · s=169면 사다리 꼭대기가 +786pt) order가 큰 칩들을 클램프로
@@ -638,16 +661,12 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
             calmFrames += 1
             if calmFrames >= calmThreshold {
                 if chipsHeldStill() {
-                    // **겹친 채 얼리지 않는다** — 밀어냈으면 창을 다시 돌려 새 배치에서 판정한다.
-                    if separateOverlappingChips() {
-                        calmFrames = 0
-                    } else {
-                        forceSettle()
-                        separationTries = 0
-                        #if DEBUG
-                        driftRetries = 0
-                        #endif
-                    }
+                    // **겹친 채 얼리지 않는다** — 겹침은 forceSettle 안에서 위치로 푼 뒤 굳힌다
+                    // (`depenetrateChips`). 여기서 밀고 창을 다시 돌리는 옛 방식은 예산이 말랐다.
+                    forceSettle()
+                    #if DEBUG
+                    driftRetries = 0
+                    #endif
                 } else {
                     calmFrames = 0   // 아직 흐르는 중 — 창 재시작(스냅샷은 0→1 전이에서 갱신)
                     #if DEBUG
@@ -769,26 +788,60 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     static let zZone: CGFloat = 30           // 판정 바스켓
     static let zPopOut: CGFloat = 50         // 사라지는 칩 — 항상 최상위
     /// order번째로 스폰된 칩의 고정 z(1부터). 순수 함수 — 테스트가 단조·간격을 고정한다.
-    static func chipZ(spawnIndex i: CGFloat) -> CGFloat { zBase + i * zStep }
+    static func chipZ(spawnIndex i: CGFloat, step: CGFloat = zStep) -> CGFloat { zBase + i * step }
+
+    /// `count`개를 z 예산(zBase..zTop) 안에 담는 간격. 기본은 `zStep`이고, 예산을 넘길 만큼
+    /// 칩이 많아지면 **균등 분할로 좁힌다**. 압축(compactZOrder)만으로는 부족하기 때문이다 —
+    /// 압축은 zCounter를 살아 있는 칩 수로 되돌릴 뿐이라, 칩이 예산 칸 수(36)보다 많으면
+    /// 압축이 사실상 무동작이 되어 z가 zTop을 넘어 계속 올라간다(잡은 칩 29·존 30을 침범).
+    /// 작업대 상한(6)에선 도달하지 않는 영역이지만, 상한은 불변식이지 희망사항이 아니다.
+    static func zStepFor(count: Int) -> CGFloat {
+        guard count > 0 else { return zStep }
+        return min(zStep, (zTop - zBase) / CGFloat(count))
+    }
+
+    /// 압축 배정(순수) — `slots`(각 칩의 보관 z)를 오름차순 순위 그대로 1..n에 다시 매긴다.
+    /// 반환은 **입력 순서 그대로**의 (보관 슬롯, 실제 zPosition).
+    /// `draggedIndex`의 실제 z만 승격값(`zDragged`)을 유지한다 — 잡고 있는 칩의 z를 압축이 덮으면
+    /// 그 칩이 손끝에서 더미 **밑으로** 가라앉고, 놓을 때 되돌릴 값(`userData["z"]`)도 함께 날아간다.
+    static func compactedZ(slots: [CGFloat], step: CGFloat = zStep,
+                           draggedIndex: Int? = nil) -> [(slot: CGFloat, live: CGFloat)] {
+        let rank = slots.indices.sorted { slots[$0] < slots[$1] }
+        var out = [(slot: CGFloat, live: CGFloat)](repeating: (0, 0), count: slots.count)
+        for (i, idx) in rank.enumerated() {
+            let z = chipZ(spawnIndex: CGFloat(i + 1), step: step)
+            out[idx] = (slot: z, live: idx == draggedIndex ? zDragged : z)
+        }
+        return out
+    }
+
     private var zCounter: CGFloat = 0
+    /// 지금 쓰는 z 간격 — 평소엔 `zStep`, 칩이 예산을 넘치면 압축이 좁혀 놓는다(`zStepFor`).
+    private var zStepLive: CGFloat = zStep
 
     /// 다음 칩의 고정 z를 뽑는다. 상한에 닿으면 살아 있는 칩만 현재 순서대로 다시 촘촘히 매겨
     /// (세션 내내 칩을 넣고 빼도) z가 상한에 몰려 동률이 되는 일이 없게 한다.
     private func nextChipZ() -> CGFloat {
-        if Self.chipZ(spawnIndex: zCounter + 1) > Self.zTop { compactZOrder() }
+        // 압축엔 **다음 칩 자리까지** 예산을 잡아 준다 — 압축 직후 태어나는 칩이 곧바로 상한을 넘지 않게.
+        if Self.chipZ(spawnIndex: zCounter + 1, step: zStepLive) > Self.zTop { compactZOrder(reserving: 1) }
         zCounter += 1
-        return Self.chipZ(spawnIndex: zCounter)
+        return Self.chipZ(spawnIndex: zCounter, step: zStepLive)
     }
 
     /// 살아 있는 칩의 z를 현재 순서 그대로 1..n으로 다시 매긴다 — 순서는 보존, 값만 회수.
-    private func compactZOrder() {
-        let ordered = chips.values.sorted { $0.zPosition < $1.zPosition }
-        for (i, node) in ordered.enumerated() {
-            let z = Self.chipZ(spawnIndex: CGFloat(i + 1))
-            node.zPosition = z
-            node.userData?["z"] = z
+    /// 잡고 있는 칩은 슬롯만 받고 화면 z(승격)는 그대로 둔다(`compactedZ`).
+    private func compactZOrder(reserving extra: Int = 0) {
+        let nodes = Array(chips.values)
+        guard !nodes.isEmpty else { zCounter = 0; zStepLive = Self.zStep; return }
+        let slots = nodes.map { ($0.userData?["z"] as? CGFloat) ?? $0.zPosition }
+        let step = Self.zStepFor(count: nodes.count + max(0, extra))
+        let draggedIndex = dragged.flatMap { d in nodes.firstIndex(where: { $0 === d }) }
+        for (i, z) in Self.compactedZ(slots: slots, step: step, draggedIndex: draggedIndex).enumerated() {
+            nodes[i].userData?["z"] = z.slot
+            nodes[i].zPosition = z.live
         }
-        zCounter = CGFloat(ordered.count)
+        zStepLive = step
+        zCounter = CGFloat(nodes.count)
     }
 
     /// 모든 칩이 조용한가 — 관측 지터 대역(v 4~30)을 통째로 덮는 넉넉한 문턱(40).
@@ -814,54 +867,93 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
 
     /// AABB 관통률(교집합 면적 / 작은 쪽 AABB 면적) 문턱 — 이 위는 "겹쳐 보인다".
     /// 볼록 타원 바디는 모서리에서 AABB보다 안쪽이라, 15%는 실제 바디 관통으로 치면 한 자릿수다.
-    private let separationOverlap: CGFloat = 0.15
-    /// 분리 목표 속도(pt/s) — **실제로 미끄러질 만큼**이어야 한다.
-    /// 씬 중력 42는 m/s² 단위(SpriteKit 규약, 150pt = 1m)라 **6300pt/s²** = 640g다. 그 아래서
-    /// 마찰 0.55가 만드는 감속은 0.55 × 6300 = 3465pt/s²이므로, 8pt를 밀어내려면 √(2×3465×8) ≈
-    /// 235pt/s가 든다. 옛 감각으로 잡은 26pt/s는 0.1pt를 움직이고 끝난다 — 분리 시늉만 하는 값이었다.
-    private let separationSpeed: CGFloat = 240
-    /// 시도 상한 — 풀리지 않는 배치(벽에 낀 3중 겹침 등)에서 영원히 안 자는 것을 막는 안전판.
-    /// 넘으면 그냥 얼린다: 안 자는 것이 살짝 겹쳐 보이는 것보다 나쁘다(배터리·상시 움찔).
-    private let separationMaxTries = 8
-    private var separationTries = 0
+    /// 세 상수 모두 `static` — 테스트가 리터럴을 다시 적지 않고 실제 예산에 불변식을 건다.
+    static let separationOverlap: CGFloat = 0.15
+    /// 위치 보정 반복 상한 — 한 바퀴(Gauss-Seidel)가 쌍 하나를 완전히 떼어 놓으므로 몇 바퀴면 수렴한다.
+    /// **10**은 최악 배치의 실측에서 왔다: 6칩이 한 줄로 완전히 포개진 상태(칩당 20pt 간격,
+    /// 인접 쌍 80% 관통)가 8바퀴에 수렴한다(`ChipDepenetrationTests`). 그래도 못 푸는 배치는
+    /// 남은 겹침을 안고 얼린다 — 영영 안 자는 것이 살짝 겹쳐 보이는 것보다 나쁘다.
+    static let separationPasses = 10
+    /// 떼어 놓은 뒤 남기는 여유(pt) — 부동소수 경계에 딱 붙여 놓지 않는다.
+    static let separationSlop: CGFloat = 0.5
 
-    /// 안착 직전 관통 해소 — 밀어냈으면 true.
+    /// 안착 직전 관통 해소 — **속도가 아니라 위치로** 푼다. 밀어낸 쌍 수를 돌려준다.
     ///
     /// 실기기 3차 ②("칩들이 절반 가까이 겹친 채 고착")의 마지막 방어선이다. 스폰 declump가 깊은
     /// **초기** 관통을 없애도 던지기·셰이크·회수가 만든 관통은 남을 수 있고, force-settle은
     /// 속도를 0으로 굳히므로 그 순간의 겹침이 **영구 고착**이 된다.
-    /// 미는 방향은 AABB 최소 관통 축(MTV) — 대각으로 밀면 더미가 옆으로 무너진다.
-    private func separateOverlappingChips() -> Bool {
-        guard separationTries < separationMaxTries else { return false }
-        let items = chips.values.map { $0 }
-        var pushed = false
-        for i in items.indices {
-            for j in items.indices where j > i {
-                let a = items[i], b = items[j]
-                guard let ba = a.physicsBody, let bb = b.physicsBody else { continue }
-                let ra = bodyAABB(a), rb = bodyAABB(b)
-                let hit = ra.intersection(rb)
-                guard !hit.isNull, hit.width > 0, hit.height > 0 else { continue }
-                let area = min(ra.width * ra.height, rb.width * rb.height)
-                guard area > 0, (hit.width * hit.height) / area > separationOverlap else { continue }
-                var dx: CGFloat = 0, dy: CGFloat = 0
-                if hit.width <= hit.height {
-                    dx = ra.midX <= rb.midX ? -1 : 1
-                } else {
-                    dy = ra.midY <= rb.midY ? -1 : 1
+    ///
+    /// v1.0 (6)까지는 얼리기 **전에** 임펄스(240pt/s)로 밀고 calm 창을 다시 돌렸다. 그 방식은
+    /// 예산이 마르며 실패했다 — 640g 아래 마찰 0.55가 임펄스를 곧바로 먹어 한 번에 문턱 아래로
+    /// 못 벗어나고, 밀 때마다 창이 처음부터 다시 돌아 시도 8회가 ~6.6초에 소진된 뒤 **15% 초과 쌍이
+    /// 남은 채** 더미가 얼었다(-physLab 콜드런치 실측, 씨앗 6개·무입력). 위치 보정엔 그 두 실패
+    /// 모드가 구조적으로 없다: 속도가 0이라 두께 0의 벽을 뚫을 수 없고(터널링 불가), 얼리는 순간에
+    /// 도는 것이라 calm 창을 되돌리지 않는다(예산 소진 자체가 성립하지 않는다).
+    /// 미는 축은 AABB 최소 관통 축(MTV) — 대각으로 밀면 더미가 옆으로 무너진다.
+    @discardableResult
+    private func depenetrateChips() -> Int {
+        var separated = 0
+        for _ in 0..<Self.separationPasses {
+            let items = Array(chips.values)
+            var movedThisPass = 0
+            for i in items.indices {
+                for j in items.indices where j > i {
+                    // AABB는 매번 현재 위치에서 다시 잰다 — 같은 바퀴 안의 앞선 보정이 즉시 반영된다.
+                    let a = items[i], b = items[j]
+                    guard let push = Self.depenetration(bodyAABB(a), bodyAABB(b),
+                                                        overlap: Self.separationOverlap,
+                                                        slop: Self.separationSlop) else { continue }
+                    a.position.x += push.dx
+                    a.position.y += push.dy
+                    b.position.x -= push.dx
+                    b.position.y -= push.dy
+                    clampIntoBox(a)
+                    clampIntoBox(b)
+                    movedThisPass += 1
                 }
-                ba.velocity = CGVector(dx: dx * separationSpeed, dy: dy * separationSpeed)
-                bb.velocity = CGVector(dx: -dx * separationSpeed, dy: -dy * separationSpeed)
-                pushed = true
             }
+            separated += movedThisPass
+            if movedThisPass == 0 { break }
         }
-        if pushed {
-            separationTries += 1
-            #if DEBUG
-            if Self.physLab { physLabSeparations += 1 }
-            #endif
+        #if DEBUG
+        if Self.physLab, separated > 0 { physLabSeparations += separated }
+        #endif
+        return separated
+    }
+
+    /// 두 AABB의 관통을 푸는 **반쪽 이동량**(a에 +, b에 − 로 적용) — 관통률이 문턱 이하면 nil.
+    /// 미는 축은 **최소 관통 축**(가로 관통이 얕으면 가로로) 하나뿐이고, 이동량은 그 축 관통의
+    /// 절반 + 여유라 둘을 반대로 밀면 겹침이 완전히 사라진다. 순수 함수 — 테스트가 "밀고 나면
+    /// 정말 문턱 아래인가"를 씬 없이 고정한다(`ChipDepenetrationTests`).
+    static func depenetration(_ a: CGRect, _ b: CGRect,
+                              overlap threshold: CGFloat, slop: CGFloat) -> CGVector? {
+        let hit = a.intersection(b)
+        guard !hit.isNull, hit.width > 0, hit.height > 0 else { return nil }
+        let area = min(a.width * a.height, b.width * b.height)
+        guard area > 0, (hit.width * hit.height) / area > threshold else { return nil }
+        // 반씩 나눠 민다 — 한쪽만 밀면 더미 전체가 한 방향으로 흐른다.
+        let push = min(hit.width, hit.height) * 0.5 + slop
+        if hit.width <= hit.height {
+            return CGVector(dx: (a.midX <= b.midX ? -1 : 1) * push, dy: 0)
         }
-        return pushed
+        return CGVector(dx: 0, dy: (a.midY <= b.midY ? -1 : 1) * push)
+    }
+
+    /// 칩 바디의 AABB를 밀폐 상자(벽 안쪽) 안으로 되돌린다 — 위치 보정이 칩을 벽 밖으로 내보내면
+    /// 다음 프레임 `recoverEscapedChips`가 천장으로 회수해 더미가 통째로 다시 무너진다.
+    private func clampIntoBox(_ node: SKSpriteNode) {
+        let r = bodyAABB(node)
+        let left = wallInset, right = max(left, size.width - wallInset)
+        let bottom = floorY, top = max(bottom, sealedCeiling)
+        var dx: CGFloat = 0, dy: CGFloat = 0
+        if r.minX < left { dx = left - r.minX } else if r.maxX > right { dx = right - r.maxX }
+        if r.minY < bottom { dy = bottom - r.minY } else if r.maxY > top { dy = top - r.maxY }
+        // 상자보다 큰 바디는 어느 쪽으로 밀어도 못 담는다 — 그 축은 가운데 정렬로 끝낸다.
+        if r.width > right - left { dx = (left + right) * 0.5 - r.midX }
+        if r.height > top - bottom { dy = (bottom + top) * 0.5 - r.midY }
+        guard dx != 0 || dy != 0 else { return }
+        node.position.x += dx
+        node.position.y += dy
     }
 
     /// 변위 검증 통과 → 강제 안착(freeze). 지터로 요동하던 미세 속도를 그 자리에서 0으로 굳혀
@@ -871,6 +963,8 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         // update()가 멈춰 maintainCeiling의 sealTimeout 강제 회수가 영영 돌지 않는다 —
         // §13.4의 "6초 넘게 열려 있으면 구조적으로 막는다"는 보증은 이 가드가 지킨다.
         guard ceilingSealed else { return }
+        // 속도를 굳히기 **직전에** 겹침을 위치로 푼다 — 순서가 뒤바뀌면 겹친 배치가 그대로 영구 고착이다.
+        depenetrateChips()
         for node in chips.values {
             node.physicsBody?.velocity = .zero
             node.physicsBody?.angularVelocity = 0
@@ -904,7 +998,6 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         calmFrames = 0
         calmSnapshot.removeAll()
         calmBreaches = 0
-        separationTries = 0   // 새 물리 이벤트 = 새 배치 — 관통 해소 예산도 다시 채운다
         guard idle else { return }
         idle = false
         // 스로틀 리셋은 **실제 휴면→기상 전이에서만**. wake()는 셰이크 킥(0.09초마다)·터치·sync가
@@ -1234,7 +1327,13 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         let x = size.width / 2 + (frac - 0.5) * band
         node.zRotation = (order % 2 == 0) ? 0.16 : -0.18
         if reduceMotion {
-            node.position = CGPoint(x: x, y: floorY + s * (0.45 + CGFloat(order % 3) * 0.5))
+            // 낙하 없이 바로 놓는다 — 자리는 사다리와 같은 declump 불변식을 지키는 격자(`staticSlot`).
+            // 천장 아래로 클램프하는 것은 상자 밖 스폰을 막기 위한 것이다(밖에 놓이면 6초 뒤
+            // `tuckStraysUnderCeiling`이 전부 같은 y로 끌어내려 오히려 한 줄로 뭉친다).
+            let slot = Self.staticSlot(order: order, count: n, side: s, band: band)
+            let top = max(floorY, sealedCeiling - s * 0.5)
+            node.position = CGPoint(x: size.width / 2 + slot.dx,
+                                    y: min(floorY + slot.dy, top))
         } else {
             // 위에서 스태거 낙하 → 더미. **클램프하지 않는다** — 사다리를 접으면 order가 큰 칩들이
             // 같은 y에 겹쳐 태어나고(실측 43.1% 관통), 그 깊은 관통이 벽 관통·고착·상시 움찔의
@@ -1325,6 +1424,10 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     /// 표에서 가장 높은 바디의 높이비 — **스폰 간격(`spawnStep`)이 이 값을 넘어야** 이웃 order가
     /// 겹쳐 태어나지 않는다. `internal`이라 SpawnLadderTests가 리터럴을 다시 적지 않고 불변식을 건다.
     static let maxBodyHeightRatio: CGFloat = bodyMetrics.values.map(\.h).max() ?? 0.7
+
+    /// 표에서 가장 넓은 바디의 폭비 — **정적 배치(`staticSlot`)의 열 간격이 이 값을 넘어야**
+    /// 같은 행의 두 칩이 겹쳐 태어나지 않는다. 세로 축의 `maxBodyHeightRatio`와 짝이다.
+    static let maxBodyWidthRatio: CGFloat = bodyMetrics.values.map(\.w).max() ?? 0.72
 
     /// 표 조회구 — 빠진 글리프는 nil. `internal`: 전수 커버(53종)를 테스트가 고정한다.
     /// 실제로 `.gimbap`이 표에서 누락돼 폴백 바디(0.62×0.60)를 쓰고 있었다(실루엣과 어긋남).

@@ -58,4 +58,62 @@ struct ChipZOrderTests {
             #expect(IngredientDropScene.chipZ(spawnIndex: CGFloat(i)) <= IngredientDropScene.zTop)
         }
     }
+
+    /// **압축은 잡고 있는 칩의 승격 z를 덮지 않는다.** 압축이 잡은 칩까지 다시 매기면 그 칩이
+    /// 손끝에서 더미 밑으로 가라앉고(zDragged 29 → 10대), 놓을 때 되돌릴 보관값도 같이 날아간다.
+    @Test func compactionKeepsTheDraggedChipPromoted() {
+        let slots: [CGFloat] = [14, 11, 28, 12.5, 19]
+        let dragged = 2
+        let out = IngredientDropScene.compactedZ(slots: slots, draggedIndex: dragged)
+        #expect(out[dragged].live == IngredientDropScene.zDragged, "잡은 칩의 화면 z가 압축에 덮였다")
+        #expect(out[dragged].slot < IngredientDropScene.zDragged, "잡은 칩도 보관 슬롯은 받아야 한다")
+        for i in slots.indices where i != dragged {
+            #expect(out[i].live == out[i].slot, "안 잡은 칩은 슬롯과 화면 z가 같아야 한다")
+        }
+        // 순서는 보존되고(슬롯 순위 = 원래 z 순위), 값은 전부 다르다.
+        let byRank = slots.indices.sorted { slots[$0] < slots[$1] }
+        var previous = -CGFloat.infinity
+        for idx in byRank {
+            #expect(out[idx].slot > previous, "압축이 순서를 뒤집었다")
+            previous = out[idx].slot
+        }
+    }
+
+    /// **칩이 예산 칸 수를 넘어도 z는 상한 안에 있다.** 압축은 zCounter를 살아 있는 칩 수로
+    /// 되돌릴 뿐이라, 칩이 36개를 넘으면 압축이 무동작이 되어 z가 zTop을 넘어 계속 올라갔다
+    /// (잡은 칩 29·판정 존 30을 칩이 덮는다). 간격을 좁혀 예산 안에 담는 것이 정본이다.
+    @Test func zStaysUnderTheCapForAnyChipCount() {
+        for count in 1...80 {
+            let step = IngredientDropScene.zStepFor(count: count)
+            #expect(step > 0, "count=\(count) 간격이 0 이하다")
+            #expect(step <= IngredientDropScene.zStep, "count=\(count) 간격이 기본값보다 넓다")
+            for i in 1...count {
+                let z = IngredientDropScene.chipZ(spawnIndex: CGFloat(i), step: step)
+                #expect(z > IngredientDropScene.zBase, "count=\(count) i=\(i) z=\(z)")
+                #expect(z <= IngredientDropScene.zTop, "count=\(count) i=\(i) z=\(z)가 상한을 넘었다")
+            }
+        }
+    }
+
+    /// 40칩 압축 — 값이 전부 다르고, 순서가 보존되고, 상한을 안 넘는다.
+    @Test func fortyChipsCompactWithinBudget() {
+        let count = 40
+        let slots = (0..<count).map { CGFloat($0) * 0.5 + 10 }.shuffled()
+        let out = IngredientDropScene.compactedZ(slots: slots,
+                                                 step: IngredientDropScene.zStepFor(count: count))
+        var seen = Set<CGFloat>()
+        for z in out {
+            #expect(z.live == z.slot)
+            #expect(z.slot <= IngredientDropScene.zTop, "z=\(z.slot)가 상한을 넘었다")
+            #expect(z.slot > IngredientDropScene.zBase)
+            #expect(!seen.contains(z.slot), "z=\(z.slot) 동률 — 그리기 순서가 비결정이 된다")
+            seen.insert(z.slot)
+        }
+        let byRank = slots.indices.sorted { slots[$0] < slots[$1] }
+        var previous = -CGFloat.infinity
+        for idx in byRank {
+            #expect(out[idx].slot > previous)
+            previous = out[idx].slot
+        }
+    }
 }

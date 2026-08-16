@@ -43,6 +43,49 @@ struct SpawnLadderTests {
         }
     }
 
+    /// **Reduce Motion 정적 배치도 같은 불변식을 지킨다** — 낙하 사다리만 고치면 Reduce Motion
+    /// 사용자만 겹친 더미를 본다. 옛 식(`floorY + s × (0.45 + order%3 × 0.5)`)은 행 간격이 0.5s로
+    /// 바디 최대 높이(0.70s)보다 좁아 이웃 order가 겹쳐 태어났다(같은 행끼리도 밴드를 개수로 나눠
+    /// 벌리기만 해서, 개수가 늘면 열 간격이 바디 폭 아래로 내려갔다).
+    /// 어떤 두 칩도 **가로로 바디 최대 폭 이상 떨어져 있거나 세로로 바디 최대 높이 이상** 떨어져
+    /// 있어야 한다(둘 중 하나만 성립해도 AABB가 안 겹친다).
+    @Test func reduceMotionSlotsNeverOverlap() {
+        let maxW = IngredientDropScene.maxBodyWidthRatio
+        let maxH = IngredientDropScene.maxBodyHeightRatio
+        for side in sides {
+            // 밴드는 addChip과 같은 식 — 칩 변에서 역산한 실제 폭 + 대표 기기 폭을 함께 건다.
+            for width in [side / 0.42, 320, 402, 440] as [CGFloat] {
+                let band = min(width * 0.66, side * 2.1)
+                for count in 1...12 {
+                    let slots = (0..<count).map {
+                        IngredientDropScene.staticSlot(order: $0, count: count, side: side, band: band)
+                    }
+                    for i in slots.indices {
+                        for j in slots.indices where j > i {
+                            let dx = abs(slots[i].dx - slots[j].dx)
+                            let dy = abs(slots[i].dy - slots[j].dy)
+                            #expect(dx >= maxW * side - 1e-6 || dy >= maxH * side - 1e-6,
+                                    "side=\(side) count=\(count) \(i)~\(j) 간격 (dx=\(dx), dy=\(dy))이 바디 (폭 \(maxW * side), 높이 \(maxH * side)) 안에 들어 겹쳐 태어난다")
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// 정적 배치의 행 간격은 낙하 사다리와 **같은 상수**(0.85s)다 — 한쪽만 고쳐지는 일이 없게.
+    @Test func reduceMotionRowStepMatchesTheLadderStep() {
+        let side: CGFloat = 168.8
+        // 한 행에 한 칩만 들어가는 좁은 밴드 → 연속 order가 곧 연속 행이다.
+        let narrow: CGFloat = 1
+        for order in 0..<8 {
+            let a = IngredientDropScene.staticSlot(order: order, count: 8, side: side, band: narrow)
+            let b = IngredientDropScene.staticSlot(order: order + 1, count: 9, side: side, band: narrow)
+            #expect(abs((b.dy - a.dy) - IngredientDropScene.spawnStep * side) < 1e-6,
+                    "행 간격이 사다리 간격과 다르다")
+        }
+    }
+
     /// 첫 칩은 화면 바로 위에서 떨어진다 — 캐스케이드가 시작부터 화면 밖 먼 곳에 있지 않게.
     @Test func firstChipStartsJustAboveTheScreen() {
         for side in sides {
