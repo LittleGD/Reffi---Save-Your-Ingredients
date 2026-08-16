@@ -241,7 +241,7 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         lastAppliedGravity = GravityMapper.fallback
         physicsWorld.contactDelegate = self   // 착지 스쿼시·햅틱
         view.preferredFramesPerSecond = 60
-        view.ignoresSiblingOrder = true   // 칩 z가 전부 달라(§안착 z-순서) 순서 결정적 — 안전
+        view.ignoresSiblingOrder = true   // 칩 z는 스폰 카운터 기반 **고정 상이값**이라 순서 결정적(§그리기 순서)
         // 칩·존을 굽기 **전에** 현재 스킴을 확정한다(첫 렌더부터 올바른 팔레트로).
         applyInterfaceStyle(view.traitCollection.userInterfaceStyle)
         if traitRegistration == nil {
@@ -745,12 +745,50 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     }
     #endif
 
-    /// 물리 시뮬레이션 직후 — 안착 z-순서를 y로 결정한다. 아래(작은 y) 재료가 더 앞에 그려져
-    /// 자연스러운 더미가 된다. 상한 29로 클램프(존 z=30·popOut z=50보다 항상 아래).
-    override func didSimulatePhysics() {
-        for node in chips.values where node.physicsBody != nil {
-            node.zPosition = min(29, 10 + (size.height - node.position.y) * 0.01)
+    // MARK: - 그리기 순서 (§13.4)
+
+    /// 칩 z-순서 — **스폰 카운터 기반 고정값**이다.
+    ///
+    /// 실기기 3차 피드백 ② "겹친 부분이 보였다 안 보였다 깜빡임"의 원인은 알파도 텍스처도 아니라
+    /// **그리기 순서가 매 프레임 뒤집힌 것**이었다. 옛 코드는 `didSimulatePhysics`에서 z를 y로
+    /// 다시 계산했다(`z = 10 + (H − y) × 0.01`). 바닥 한 줄에 쌓인 칩들은 y가 서로 몇 pt 안이라
+    /// z가 **0.01 단위로 붙고**(-physLab 실측: 바닥 6칩이 13.52~13.61, 폭 0.09 안), 솔버 미세
+    /// 요동으로 y가 1~2pt만 흔들려도 순서가 뒤집힌다 — 겹친 영역만 프레임마다 다시 칠해진다.
+    /// `ignoresSiblingOrder = true`가 그 뒤집힘을 그대로 화면에 통과시킨다.
+    ///
+    /// 그래서 z를 스폰 순간 한 번만 정하고 다시는 건드리지 않는다. **나중에 떨어진 칩이 위**라는
+    /// 규칙은 캐스케이드의 물리와도 일치한다(먼저 떨어진 것 위에 쌓인다). y 기반 깊이 단서는
+    /// 어차피 없다시피 했다 — 안착하면 전부 바닥 한 줄이라 z 차이가 0.09였다.
+    /// 레이어 상수는 `static`이다 — 겹침 순서 불변식(칩 < 드래그 < 존 < 사라지는 칩)을
+    /// ChipZOrderTests가 리터럴을 다시 적지 않고 직접 건다. 값이 서로를 넘으면 존이 칩 뒤로
+    /// 숨거나 사라지는 칩이 더미에 파묻힌다.
+    static let zBase: CGFloat = 10
+    static let zStep: CGFloat = 0.5          // 칩 사이 최소 간격 — 동률이면 그리기 순서가 비결정
+    static let zTop: CGFloat = 28            // 여기 닿기 전에 압축(compactZOrder)이 돈다
+    static let zDragged: CGFloat = 29        // 잡은 칩은 더미 위, 존 아래
+    static let zZone: CGFloat = 30           // 판정 바스켓
+    static let zPopOut: CGFloat = 50         // 사라지는 칩 — 항상 최상위
+    /// order번째로 스폰된 칩의 고정 z(1부터). 순수 함수 — 테스트가 단조·간격을 고정한다.
+    static func chipZ(spawnIndex i: CGFloat) -> CGFloat { zBase + i * zStep }
+    private var zCounter: CGFloat = 0
+
+    /// 다음 칩의 고정 z를 뽑는다. 상한에 닿으면 살아 있는 칩만 현재 순서대로 다시 촘촘히 매겨
+    /// (세션 내내 칩을 넣고 빼도) z가 상한에 몰려 동률이 되는 일이 없게 한다.
+    private func nextChipZ() -> CGFloat {
+        if Self.chipZ(spawnIndex: zCounter + 1) > Self.zTop { compactZOrder() }
+        zCounter += 1
+        return Self.chipZ(spawnIndex: zCounter)
+    }
+
+    /// 살아 있는 칩의 z를 현재 순서 그대로 1..n으로 다시 매긴다 — 순서는 보존, 값만 회수.
+    private func compactZOrder() {
+        let ordered = chips.values.sorted { $0.zPosition < $1.zPosition }
+        for (i, node) in ordered.enumerated() {
+            let z = Self.chipZ(spawnIndex: CGFloat(i + 1))
+            node.zPosition = z
+            node.userData?["z"] = z
         }
+        zCounter = CGFloat(ordered.count)
     }
 
     /// 모든 칩이 조용한가 — 관측 지터 대역(v 4~30)을 통째로 덮는 넉넉한 문턱(40).
@@ -919,7 +957,7 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         let node = SKSpriteNode(texture: renderer.uiImage.map { SKTexture(image: $0) },
                                 size: CGSize(width: zoneSide, height: zoneSide))
         node.alpha = 0
-        node.zPosition = 30
+        node.zPosition = Self.zZone
         return node
     }
 
@@ -1139,7 +1177,7 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         chips[id] = nil
         node.name = nil          // 사라지는 중엔 히트 대상에서 제외
         node.physicsBody = nil   // 물리 정지(충돌에서 제외)
-        node.zPosition = 50
+        node.zPosition = Self.zPopOut
         if node === dragged { dragged = nil; dragTouch = nil }
 
         if reduceMotion {
@@ -1168,8 +1206,11 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         node.physicsBody = body
         node.name = "chip:\(ing.id.uuidString)"
         // glyph는 충돌 시 촉감(sharpness·세기)을 되찾기 위해 — 물리 바디에서 노드로 거슬러 읽는다.
+        // z는 드래그 승격에서 되돌릴 **원래 고정값**의 보관처다(nextChipZ 주석).
+        let z = nextChipZ()
+        node.zPosition = z
         node.userData = ["name": ing.name, "glyph": ing.glyph.rawValue,
-                         "wilt": WiltStyle.for(ing.freshness).token]
+                         "wilt": WiltStyle.for(ing.freshness).token, "z": z]
         // 물성은 글리프 클래스별 차등(위 ChipMaterial) — 계란은 굴러가고 두부는 눌러앉는다.
         // **낙하 축은 차등하지 않는다**: linearDamping 0.2와 중력 42는 §13.4의 "쿵" 감각이다.
         let mat = Self.material(for: ing.glyph)
@@ -1494,6 +1535,19 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
 
     // MARK: - Drag / throw / tap (단일 터치 추적)
 
+    /// 드래그 승격 해제 — 스폰 때 정한 고정 z로 되돌린다. 보관값이 없으면(옛 노드) 새로 뽑아
+    /// 어떤 경우에도 다른 칩과 z가 겹치지 않게 한다(동률 = 그리기 순서 비결정 = 깜빡임).
+    private func restoreChipZ(_ node: SKSpriteNode?) {
+        guard let node, node.physicsBody != nil else { return }   // popOut 중인 노드는 z=50 유지
+        if let z = node.userData?["z"] as? CGFloat {
+            node.zPosition = z
+        } else {
+            let z = nextChipZ()
+            node.zPosition = z
+            node.userData?["z"] = z
+        }
+    }
+
     /// 터치 지점의 재료 칩.
     private func chip(at p: CGPoint) -> SKSpriteNode? {
         for node in nodes(at: p) {
@@ -1519,6 +1573,7 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         setZones(visible: true)
         node.removeAction(forKey: "squash")   // 잡는 순간 눌림 연출은 끊고 배율 원복
         node.setScale(1)
+        node.zPosition = Self.zDragged   // 잡은 칩은 더미 위로 — 복귀값은 userData["z"]에 그대로 있다
         if let body = node.physicsBody {
             body.affectedByGravity = false   // 잡는 동안 중력 off → 손가락 추종(동적 유지)
             body.angularVelocity = 0
@@ -1550,7 +1605,10 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         // 반대로 "다른 손가락이 떨어진 경우"는 그대로 무시한다(진행 중인 드래그의 예고를 지우면 안 된다).
         guard let t = dragTouch else { setZones(visible: false); return }
         guard touches.contains(t) else { return }
-        defer { dragTouch = nil; dragged = nil; setZones(visible: false) }
+        defer {
+            restoreChipZ(dragged)   // 승격 해제 — 스폰 때 정한 고정값으로 되돌린다(결정적)
+            dragTouch = nil; dragged = nil; setZones(visible: false)
+        }
         guard let node = dragged, let body = node.physicsBody else { return }
         body.affectedByGravity = true   // 놓으면 중력 복귀 — 현재 속도 그대로 자연스럽게 던져짐
         let cap: CGFloat = 1000
@@ -1579,6 +1637,7 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         guard let t = dragTouch else { setZones(visible: false); return }   // touchesEnded와 같은 이유
         guard touches.contains(t) else { return }
         dragged?.physicsBody?.affectedByGravity = true
+        restoreChipZ(dragged)
         dragTouch = nil
         dragged = nil
         setZones(visible: false)
