@@ -37,6 +37,10 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     private let calmSpeed: CGFloat = 40              // 이 미만이면 '조용' — 지터 대역을 포함
     private let settleDrift: CGFloat = 4             // calm 창 동안 이보다 덜 움직였으면 진짜 안착
     private var calmSnapshot: [UUID: CGPoint] = [:]  // calm 창 시작 시점의 칩 위치
+    /// calm 창이 열린 시점의 중력 — 창을 접을지 판정하는 기준(`GravityMapper.shouldResetCalm`).
+    /// 마지막 재적용값이 아니라 **창의 시작값**이어야 한다: 2°씩 야금야금 도는 손떨림을 매번
+    /// 새 기준으로 갈아 끼우면 누적 회전이 영원히 문턱을 못 넘어 리셋 판정이 무의미해진다.
+    private var calmGravity = GravityMapper.fallback
     /// 이 미만만 감쇠하는 **저속 지터 플로어** — 솔버 접촉 해소가 남기는 미세 요동 대역.
     /// 실기기 검증(v1.0 (2))의 교훈: 이전 설계(settleBand 80 미만 전부 감쇠 + 중력 변화 시 90프레임
     /// 유예)는 손떨림이 2° 데드밴드를 계속 넘겨 유예 창을 무한 리필했고, 감쇠가 영구 정지돼
@@ -50,6 +54,16 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     /// 빼는 것은 의도된 선택이고, 그 대역은 감쇠가 아니라 calm 창 + 변위 검증이 책임진다.
     private let jitterFloor: CGFloat = 14
     private let jitterDamp: CGFloat = 0.8            // 플로어 미만의 프레임당 곱셈 감쇠
+    /// **감쇠 하한 — 이 아래는 대입 자체를 생략한다.** 실기기 3차 피드백 ①("가만히 있어도 움찔움찔")의
+    /// 구조적 원인이 여기였다: `SKPhysicsBody.velocity`/`angularVelocity`에 값을 넣는 행위는 그 자체로
+    /// 바디를 **깨워** 엔진의 수면 타이머를 0으로 되돌린다. v≈0인 바디까지 매 프레임 곱해 다시
+    /// 넣으면 솔버가 영원히 그 바디를 계산하고, 접촉 해소가 남기는 미세 진동도 영원히 안 죽는다
+    /// (-physLab 실측: 구 코드는 20초 40샘플 240칩 관측 전부 `rest=0`, idle 도달 0회).
+    /// 그래서 감쇠는 (jitterRestFloor, jitterFloor) **구간에서만** 곱하고, 그 아래는 손대지 않아
+    /// 엔진이 스스로 재우게 둔다(`isResting` 존중). 이 대역은 프레임당 0.35pt 미만 = 보이지 않는다.
+    private let jitterRestFloor: CGFloat = 2
+    /// 각속도의 같은 규율(rad/s) — 0.05rad/s면 1초에 3°, 눈에 안 보인다.
+    private let jitterRestSpin: CGFloat = 0.05
     private var foregroundObserver: NSObjectProtocol?      // 블록 옵저버라 명시 해제 필요
     private var memoryWarningObserver: NSObjectProtocol?   // 텍스처 캐시 비우기 — 동일 패턴
 
@@ -346,8 +360,12 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
             guard GravityMapper.shouldApply(candidate, lastApplied: lastAppliedGravity) else { return }
             physicsWorld.gravity = candidate
             lastAppliedGravity = candidate
-            calmFrames = 0
-            calmSnapshot.removeAll()
+            // calm 창은 **진짜 기울임에서만** 접는다. 재적용 데드밴드(2°)로 접던 옛 코드는 손떨림이
+            // 창을 무한 리필해 force-settle이 영영 성립하지 않았다(shouldResetCalm 주석).
+            if calmFrames > 0, GravityMapper.shouldResetCalm(candidate, calmGravity: calmGravity) {
+                calmFrames = 0
+                calmSnapshot.removeAll()
+            }
             // 이 경로는 일부러 wake()를 안 부른다(이미 깨어 있다). 감쇠는 저속 플로어 방식이라
             // 갱신할 유예 카운터도 없다 — 굴림은 플로어 위 속도라 애초에 감쇠를 받지 않는다.
         }
@@ -553,10 +571,16 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         // 절대 건드리지 않는다. 기울임 굴림·킥·낙하가 감쇠에 먹히지 않으므로 유예 카운터가
         // 필요 없고(실기기에선 손떨림이 유예를 무한 리필해 지터가 영구화됐다 — jitterFloor 주석),
         // 지터는 기기 자세와 무관하게 항상 몇 프레임 안에 calm 대역으로 수렴한다.
+        // **잠든 바디·거의 멈춘 바디는 손대지 않는다** — 대입이 곧 기상이라(jitterRestFloor 주석)
+        // 여기서 한 번이라도 쓰면 그 칩은 그 프레임에 다시 깨어난다.
         for node in chips.values {
-            guard let b = node.physicsBody else { continue }
-            if hypot(b.velocity.dx, b.velocity.dy) < jitterFloor {
+            guard let b = node.physicsBody, !b.isResting else { continue }
+            let v = hypot(b.velocity.dx, b.velocity.dy)
+            guard v < jitterFloor else { continue }   // 진짜 움직임(굴림·킥·낙하) — 절대 안 건드린다
+            if v >= jitterRestFloor {
                 b.velocity = CGVector(dx: b.velocity.dx * jitterDamp, dy: b.velocity.dy * jitterDamp)
+            }
+            if abs(b.angularVelocity) >= jitterRestSpin {
                 b.angularVelocity *= jitterDamp
             }
         }
@@ -564,7 +588,10 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         // calm 창(전 칩 v<calmSpeed 연속 0.5s) + 변위 검증(<settleDrift)으로 안착을 판정한다.
         // 변위 검증이 스폰 직후의 느린 낙하를 걸러낸다(v≈20은 calm 대역이지만 0.5s에 10pt+ 이동).
         if allChipsCalm() {
-            if calmFrames == 0 { calmSnapshot = chips.mapValues(\.position) }
+            if calmFrames == 0 {
+                calmSnapshot = chips.mapValues(\.position)
+                calmGravity = physicsWorld.gravity   // 이 창의 판정 기준(shouldResetCalm)
+            }
             calmFrames += 1
             if calmFrames >= calmThreshold {
                 if chipsHeldStill() {

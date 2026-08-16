@@ -153,6 +153,43 @@ struct GravityMapperTests {
         #expect(close(GravityMapper.angle(b, a), .pi / 2, 0.0001))
         #expect(close(GravityMapper.angle(a, a), 0, 0.0001))
     }
+
+    // MARK: - calm 창 유지 (실기기 3차 ① "움직임 판정 지속")
+
+    /// **손떨림은 calm 창을 접지 못한다.** 재적용 데드밴드(2°)로 창을 접던 옛 코드는 손에 든
+    /// 기기의 미세 떨림이 그 문턱을 쉼 없이 넘겨 30프레임(0.5초)을 한 번도 못 채웠고,
+    /// force-settle이 영영 성립하지 않아 씬이 60fps로 계속 움찔거렸다.
+    @Test func handTremorDoesNotResetCalmWindow() {
+        let opened = GravityMapper.mapped(x: 0, y: -1)
+        // 2.1°~5.9° — 재적용 데드밴드(2°)는 넘지만 창을 접을 자세 변화는 아니다.
+        for deg in [2.1, 3.0, 4.0, 5.0, 5.9] {
+            let t = tilt(degrees: deg)
+            let candidate = GravityMapper.mapped(x: t.x, y: t.y)
+            #expect(GravityMapper.shouldApply(candidate, lastApplied: opened),
+                    "\(deg)°는 재적용 데드밴드를 넘어야 한다(중력 자체는 따라가야 함)")
+            #expect(!GravityMapper.shouldResetCalm(candidate, calmGravity: opened),
+                    "\(deg)°로 calm 창을 접으면 안 된다")
+        }
+    }
+
+    /// 진짜 기울임(깨우기 각 초과)은 창을 접는다 — 새 자세에서 안착을 다시 검증해야 한다.
+    @Test func realTiltResetsCalmWindow() {
+        let opened = GravityMapper.mapped(x: 0, y: -1)
+        for deg in [7.0, 15.0, 45.0, 90.0] {
+            let t = tilt(degrees: deg)
+            #expect(GravityMapper.shouldResetCalm(GravityMapper.mapped(x: t.x, y: t.y), calmGravity: opened),
+                    "\(deg)°는 calm 창을 접어야 한다")
+        }
+    }
+
+    /// 크기만 달라지는 경우(기기를 눕히는 중) — 15% 넘게 변하면 접는다.
+    @Test func calmWindowResetsOnLargeMagnitudeChange() {
+        let opened = GravityMapper.mapped(x: 0, y: -1)                  // 크기 = base
+        let slightlyFlatter = GravityMapper.mapped(x: 0, y: -0.9)       // 크기 = base × 0.9 (10%)
+        let muchFlatter = GravityMapper.mapped(x: 0, y: -0.6)           // 크기 = base × 0.6 (40%)
+        #expect(!GravityMapper.shouldResetCalm(slightlyFlatter, calmGravity: opened))
+        #expect(GravityMapper.shouldResetCalm(muchFlatter, calmGravity: opened))
+    }
 }
 
 /// 셰이크 킥 판정(`IngredientDropScene.shakeKick`) — 순수 계산이라 씬 상태 없이 고정한다.
