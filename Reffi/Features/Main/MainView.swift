@@ -450,7 +450,10 @@ struct MainView: View {
                 // 주의: SpriteView(isPaused:)는 초기화 시점에 멈춰 첫 프레임이 안 그려질 수 있다(회색).
                 // 일시정지는 씬이 스스로 관리한다(externallyPaused ∥ idle) — 첫 프레임 이후엔
                 // SKView 렌더 루프까지 멈춰(마지막 프레임 정지화면) 가려진 탭의 유휴 CPU를 없앤다.
-                SpriteView(scene: scene, options: [.allowsTransparency])
+                // `-physLab`(DEBUG) — 콜라이더 오버레이. 칩 실루엣과 실제 충돌체가 어긋나면
+                // 겹침·끼임의 원인이 물리 루프가 아니라 **바디 메트릭**이라, 화면만 봐선 못 가른다.
+                SpriteView(scene: scene, options: [.allowsTransparency],
+                           debugOptions: physLabDebugOptions)
                     .onAppear { configureScene(size: geo.size) }
                     .onChange(of: geo.size) { _, s in scene.size = s }
                     .onChange(of: sceneSyncKey) { _, _ in scene.sync(counter) }
@@ -460,6 +463,15 @@ struct MainView: View {
             }
             .frame(width: geo.size.width, height: geo.size.height)
         }
+    }
+
+    /// 릴리스에선 항상 빈 집합 — 진단 오버레이는 `#if DEBUG` 경로에만 존재한다.
+    private var physLabDebugOptions: SpriteView.DebugOptions {
+        #if DEBUG
+        IngredientDropScene.physLab ? [.showsPhysics, .showsFPS] : []
+        #else
+        []
+        #endif
     }
 
     private func configureScene(size: CGSize) {
