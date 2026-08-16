@@ -152,6 +152,14 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     private var physLabNext: TimeInterval = 0
     private var physLabSamples = 0
     private var physLabLog = ""
+    /// 샘플 사이에 발생한 이벤트 수 — 정지한 더미에서 이게 0이 아니면 "누가 더미를 계속 건드리는가"의 답이다.
+    private var physLabContacts = 0
+    private var physLabSquashes = 0
+    private var physLabSeparations = 0
+    /// 접촉 Δv(= 임펄스/질량) 분포 — 착지 임계(squashImpact)가 **정지 접촉 바닥** 위에 있는지 보는 눈.
+    private var physLabDvMax: CGFloat = 0
+    private var physLabDvSum: CGFloat = 0
+    private var physLabDvCount = 0
     private let physLabPeriod: TimeInterval = 0.5
     private let physLabMaxSamples = 40
     #endif
@@ -176,10 +184,26 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     /// 밀폐 천장 — 가시 영역의 위끝. 벽·회수 목표·드래그 클램프가 모두 이 선을 쓴다.
     /// 밀폐되면 상자가 가시 영역과 일치해 **어느 중력 방향에서도** 재료가 화면 밖으로 안 샌다.
     private var sealedCeiling: CGFloat { max(1, size.height) - wallInset }
+    /// 스폰 스태거 — order번째 칩은 화면 위 `chipSide × (spawnBase + order × spawnStep)`에서 떨어진다.
+    /// **spawnStep은 바디 최대 높이(0.70s = chili)보다 넉넉해야** 이웃한 두 order가 겹쳐 태어나지 않는다.
+    /// 순수 함수라 씬 없이 불변식을 고정할 수 있다(SpawnLadderTests).
+    static let spawnBase: CGFloat = 0.4
+    static let spawnStep: CGFloat = 0.85
+    static let spawnHeadroom: CGFloat = 0.6
+    static func spawnHeight(order: Int, side s: CGFloat) -> CGFloat {
+        s * (spawnBase + CGFloat(max(0, order)) * spawnStep)
+    }
+
     /// 스폰 천장 — 재료는 화면 위에서 떨어져 들어오므로(§13) 낙하 중엔 천장을 스폰 위치 위로 올려 둔다.
-    /// 값은 기존 `boxTop`(+700)을 그대로 유지한다 — 스폰 클램프가 이 값을 읽어 낙하 스태거 구성이
-    /// 정해지므로, 낮추면 런치 캐스케이드의 그림이 통째로 달라진다.
-    private var spawnCeiling: CGFloat { size.height + 700 }
+    /// **이번 캐스케이드가 실제로 쓴 최고 스폰 높이의 래칫**이다. 옛 상수 천장(size.height + 700)은
+    /// 사다리를 담지 못해(작업대 6개 · s=169면 사다리 꼭대기가 +786pt) order가 큰 칩들을 클램프로
+    /// **같은 y에 접어 낳았다** — -physLab 실측: 6개 중 2개가 y 동일, AABB 43.1% 관통.
+    /// 그 깊은 관통을 푸느라 솔버가 한 칩을 2050pt/s로 걷어차 두께 0의 벽을 뚫었고(y=-438000까지
+    /// 영구 낙하), 살아남은 칩들도 상시 분리 압력에 눌려 영영 안 잤다.
+    /// 래칫이라 **재료가 빠져 개수가 줄거나 씬이 리사이즈돼도 비행 중인 칩 위로 천장이 안 내려온다**
+    /// (절대 좌표 — 배너가 뜨며 씬 높이가 551→419로 줄던 실측 케이스가 여기서 막힌다).
+    private var spawnCeilingMark: CGFloat = 0
+    private var spawnCeiling: CGFloat { max(spawnCeilingMark, size.height + chipSide) }
     /// 천장이 지금 밀폐돼 있나 — 낙하가 끝나면 true가 되어 상자가 가시 영역과 일치한다.
     private var ceilingSealed = false
     /// 천장이 열린 채 흘러간 시간의 기준점(아래 maintainCeiling의 타임아웃용).
@@ -595,10 +619,16 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
             calmFrames += 1
             if calmFrames >= calmThreshold {
                 if chipsHeldStill() {
-                    forceSettle()
-                    #if DEBUG
-                    driftRetries = 0
-                    #endif
+                    // **겹친 채 얼리지 않는다** — 밀어냈으면 창을 다시 돌려 새 배치에서 판정한다.
+                    if separateOverlappingChips() {
+                        calmFrames = 0
+                    } else {
+                        forceSettle()
+                        separationTries = 0
+                        #if DEBUG
+                        driftRetries = 0
+                        #endif
+                    }
                 } else {
                     calmFrames = 0   // 아직 흐르는 중 — 창 재시작(스냅샷은 0→1 전이에서 갱신)
                     #if DEBUG
@@ -631,9 +661,16 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         physLabNext = now + physLabPeriod
         physLabSamples += 1
         let g = physicsWorld.gravity
-        var out = String(format: "t=%.2f idle=%d calm=%d sealed=%d g=(%.1f,%.1f) side=%.0f scene=%.0fx%.0f\n",
+        var out = String(format: "t=%.2f idle=%d calm=%d sealed=%d g=(%.1f,%.1f) side=%.0f scene=%.0fx%.0f contacts=%d squash=%d sep=%d\n",
                          now, idle ? 1 : 0, calmFrames, ceilingSealed ? 1 : 0,
-                         g.dx, g.dy, chipSide, size.width, size.height)
+                         g.dx, g.dy, chipSide, size.width, size.height,
+                         physLabContacts, physLabSquashes, physLabSeparations)
+        out += String(format: "  DV n=%d max=%.0f mean=%.0f (gravity floor g·dt=%.0f)\n",
+                      physLabDvCount, physLabDvMax,
+                      physLabDvCount > 0 ? physLabDvSum / CGFloat(physLabDvCount) : 0,
+                      hypot(g.dx, g.dy) * 150 / 60)
+        physLabContacts = 0; physLabSquashes = 0; physLabSeparations = 0
+        physLabDvMax = 0; physLabDvSum = 0; physLabDvCount = 0
         let items = chips.sorted { $0.key.uuidString < $1.key.uuidString }
         for (id, n) in items {
             let r = bodyAABB(n)
@@ -711,6 +748,60 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         return true
     }
 
+    // MARK: - 관통 해소 (§13.4)
+
+    /// AABB 관통률(교집합 면적 / 작은 쪽 AABB 면적) 문턱 — 이 위는 "겹쳐 보인다".
+    /// 볼록 타원 바디는 모서리에서 AABB보다 안쪽이라, 15%는 실제 바디 관통으로 치면 한 자릿수다.
+    private let separationOverlap: CGFloat = 0.15
+    /// 분리 목표 속도(pt/s) — **실제로 미끄러질 만큼**이어야 한다.
+    /// 씬 중력 42는 m/s² 단위(SpriteKit 규약, 150pt = 1m)라 **6300pt/s²** = 640g다. 그 아래서
+    /// 마찰 0.55가 만드는 감속은 0.55 × 6300 = 3465pt/s²이므로, 8pt를 밀어내려면 √(2×3465×8) ≈
+    /// 235pt/s가 든다. 옛 감각으로 잡은 26pt/s는 0.1pt를 움직이고 끝난다 — 분리 시늉만 하는 값이었다.
+    private let separationSpeed: CGFloat = 240
+    /// 시도 상한 — 풀리지 않는 배치(벽에 낀 3중 겹침 등)에서 영원히 안 자는 것을 막는 안전판.
+    /// 넘으면 그냥 얼린다: 안 자는 것이 살짝 겹쳐 보이는 것보다 나쁘다(배터리·상시 움찔).
+    private let separationMaxTries = 8
+    private var separationTries = 0
+
+    /// 안착 직전 관통 해소 — 밀어냈으면 true.
+    ///
+    /// 실기기 3차 ②("칩들이 절반 가까이 겹친 채 고착")의 마지막 방어선이다. 스폰 declump가 깊은
+    /// **초기** 관통을 없애도 던지기·셰이크·회수가 만든 관통은 남을 수 있고, force-settle은
+    /// 속도를 0으로 굳히므로 그 순간의 겹침이 **영구 고착**이 된다.
+    /// 미는 방향은 AABB 최소 관통 축(MTV) — 대각으로 밀면 더미가 옆으로 무너진다.
+    private func separateOverlappingChips() -> Bool {
+        guard separationTries < separationMaxTries else { return false }
+        let items = chips.values.map { $0 }
+        var pushed = false
+        for i in items.indices {
+            for j in items.indices where j > i {
+                let a = items[i], b = items[j]
+                guard let ba = a.physicsBody, let bb = b.physicsBody else { continue }
+                let ra = bodyAABB(a), rb = bodyAABB(b)
+                let hit = ra.intersection(rb)
+                guard !hit.isNull, hit.width > 0, hit.height > 0 else { continue }
+                let area = min(ra.width * ra.height, rb.width * rb.height)
+                guard area > 0, (hit.width * hit.height) / area > separationOverlap else { continue }
+                var dx: CGFloat = 0, dy: CGFloat = 0
+                if hit.width <= hit.height {
+                    dx = ra.midX <= rb.midX ? -1 : 1
+                } else {
+                    dy = ra.midY <= rb.midY ? -1 : 1
+                }
+                ba.velocity = CGVector(dx: dx * separationSpeed, dy: dy * separationSpeed)
+                bb.velocity = CGVector(dx: -dx * separationSpeed, dy: -dy * separationSpeed)
+                pushed = true
+            }
+        }
+        if pushed {
+            separationTries += 1
+            #if DEBUG
+            if Self.physLab { physLabSeparations += 1 }
+            #endif
+        }
+        return pushed
+    }
+
     /// 변위 검증 통과 → 강제 안착(freeze). 지터로 요동하던 미세 속도를 그 자리에서 0으로 굳혀
     /// 시각적 '꿈틀'까지 없애고 재운다. 물리 파라미터는 건드리지 않는다.
     private func forceSettle() {
@@ -745,6 +836,7 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     private func wake() {
         calmFrames = 0
         calmSnapshot.removeAll()
+        separationTries = 0   // 새 물리 이벤트 = 새 배치 — 관통 해소 예산도 다시 채운다
         guard idle else { return }
         idle = false
         // 스로틀 리셋은 **실제 휴면→기상 전이에서만**. wake()는 셰이크 킥(0.09초마다)·터치·sync가
@@ -850,12 +942,48 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         addChild(walls)
     }
 
-    /// 천장을 연다 — 새 재료가 화면 위에서 떨어져 들어오기 직전에 부른다.
-    /// 밀폐된 채로 스폰하면 칩이 천장 **위**에 얹혀 영영 안 보인다.
-    private func openCeiling() {
-        guard ceilingSealed else { return }
-        ceilingSealed = false
-        buildWalls()
+    /// 천장을 스폰 높이 위로 올린다(래칫) — 새 재료가 화면 위에서 떨어져 들어오기 직전에 부른다.
+    /// 밀폐된 채로 스폰하면 칩이 천장 **위**에 얹혀 영영 안 보이고, 사다리보다 낮은 천장에
+    /// 스폰하면 칩이 상자 밖에서 태어나 벽에 걸려 튕겨 나간다.
+    private func raiseSpawnCeiling(to top: CGFloat) {
+        let grew = top > spawnCeilingMark
+        if grew { spawnCeilingMark = top }
+        if ceilingSealed {
+            ceilingSealed = false
+            buildWalls()
+        } else if grew {
+            buildWalls()
+        }
+    }
+
+    /// 상자 **바깥**으로 새어 나간 칩 회수 — 어느 방향이든(아래·옆·위).
+    /// 벽은 두께 0의 edge loop라 깊은 관통을 푸는 큰 임펄스를 받으면 CCD로도 못 막고 뚫린다
+    /// (-physLab 실측: 스폰 43% 관통 → 한 칩이 v=2050pt/s로 튀어나가 y=−438000까지 낙하).
+    /// 새어 나간 칩은 화면에서 사라질 뿐 아니라 **씬 전체의 안착을 영원히 막는다** —
+    /// `allChipsCalm()`이 전 칩을 보므로 자유낙하하는 한 칩의 속도가 calm 판정을 계속 깨고,
+    /// 그러면 force-settle이 없어 씬이 60fps로 영영 돈다(실기기 ①의 가장 지독한 형태).
+    /// 회수 위치는 **그 칩의 x를 유지한 채 천장 바로 아래** — 결정적이고, 더미를 흩지 않는다.
+    /// 방향이 고정 하강 벡터인 이유는 `tuckStraysUnderCeiling`과 같다(중력 방향을 쓰면 되쏜다).
+    @discardableResult
+    private func recoverEscapedChips() -> Bool {
+        let s = chipSide, inset = wallInset
+        // 판정 여유 = 칩 변 — 벽에 살짝 걸친 정상 상태를 이탈로 오인하지 않는다.
+        let lowY = floorY - s, highY = spawnCeiling + s
+        let lowX = inset - s, highX = size.width - inset + s
+        let minX = inset + s * 0.5, maxX = max(minX, size.width - inset - s * 0.5)
+        var recovered = false
+        for node in chips.values {
+            let p = node.position
+            guard !p.x.isFinite || !p.y.isFinite
+                    || p.y < lowY || p.y > highY || p.x < lowX || p.x > highX else { continue }
+            let x = p.x.isFinite ? min(max(p.x, minX), maxX) : size.width * 0.5
+            node.position = CGPoint(x: x, y: sealedCeiling - s * 0.5)
+            node.physicsBody?.velocity = CGVector(dx: 0, dy: -220)
+            node.physicsBody?.angularVelocity = 0
+            recovered = true
+        }
+        if recovered { wake() }
+        return recovered
     }
 
     /// 천장 관리(매 프레임) — 모든 칩이 가시 영역 안으로 들어오면 밀폐하고, 낙하 중이면 열어 둔다.
@@ -863,16 +991,17 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     /// "화면 밖으로 나가서 안 돌아옴"을 구조적으로 불가능하게 만든다.
     private func maintainCeiling(_ now: TimeInterval) {
         guard size.width > 1, size.height > 1 else { return }
+        recoverEscapedChips()   // 상자를 뚫고 나간 칩 — 남겨 두면 안착이 영영 성립하지 않는다
         // 매 프레임 도는 자리다 — 불리언 하나 얻자고 배열을 만들지 않고, 계산 프로퍼티 체인
         // (`sealedCeiling` → `wallInset` → `chipSideFor`)도 칩마다 다시 타지 않게 한 번만 편다
         // (`tuckStraysUnderCeiling`이 이미 쓰는 방식).
         let ceiling = sealedCeiling
         guard chips.values.contains(where: { $0.position.y > ceiling }) else {
             unsealedSince = nil
-            if !ceilingSealed { ceilingSealed = true; buildWalls() }
+            // 밀폐 = 이번 캐스케이드 종료 — 래칫을 내려 다음 캐스케이드가 자기 사다리를 새로 세운다.
+            if !ceilingSealed { ceilingSealed = true; spawnCeilingMark = 0; buildWalls() }
             return
         }
-        openCeiling()
         let since = unsealedSince ?? now
         unsealedSince = since
         guard now - since > sealTimeout else { return }
@@ -880,6 +1009,7 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         tuckStraysUnderCeiling()
         unsealedSince = nil
         ceilingSealed = true
+        spawnCeilingMark = 0
         buildWalls()
         wake()
     }
@@ -1035,11 +1165,12 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         if reduceMotion {
             node.position = CGPoint(x: x, y: floorY + s * (0.45 + CGFloat(order % 3) * 0.5))
         } else {
-            // 위에서 스태거 낙하 → 더미. 스폰은 항상 **스폰 천장** 아래로 클램프하고, 밀폐돼 있으면
-            // 먼저 연다 — 밀폐된 채로 화면 위에 놓으면 칩이 천장 **위**에 얹혀 영영 안 보인다.
-            openCeiling()
-            let y = min(size.height + s * (0.4 + CGFloat(order) * 0.85), spawnCeiling - s * 0.6)
+            // 위에서 스태거 낙하 → 더미. **클램프하지 않는다** — 사다리를 접으면 order가 큰 칩들이
+            // 같은 y에 겹쳐 태어나고(실측 43.1% 관통), 그 깊은 관통이 벽 관통·고착·상시 움찔의
+            // 공통 뿌리가 된다. 대신 천장을 사다리 위로 **올려서** 상자 안에 담는다.
+            let y = size.height + Self.spawnHeight(order: order, side: s)
             node.position = CGPoint(x: x, y: y)
+            raiseSpawnCeiling(to: y + s * Self.spawnHeadroom)
         }
         addChild(node)
         chips[ing.id] = node
@@ -1086,29 +1217,49 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
                       width: hw * 2, height: hh * 2)
     }
 
-    /// 실측 바디 파라미터 (폭비, 높이비, y오프셋[+위]) — `-glyphMetrics` 계측값(알파 bbox×0.9 + bbox중심 정렬).
+    /// 실측 바디 파라미터 (폭비, 높이비, y오프셋[+위]) — `-glyphMetrics` 계측값 그대로 붙여 넣는다:
+    /// (w, h) = 알파 bbox × 0.9, dy = **알파 bbox 중심의 상향 오프셋**(`bboxCtrUp`).
+    ///
+    /// **dy 부호·기준 정정(실기기 3차 ②)**: 여기 있던 값들은 두 가지가 동시에 틀려 있었다 —
+    /// v1 34종은 `bboxCtrUp`의 **부호가 뒤집힌** 채였고(그림이 프레임 위쪽에 그려진 글리프의 바디를
+    /// 아래로 내려, 오차가 두 배가 됐다), v2 17종은 `dump()`가 세 번째 칸에 찍던 **질량중심**
+    /// (`massUp`)을 그대로 옮겨 기준 자체가 달랐다. `-physLab` 콜라이더 오버레이에서 버섯의 바디가
+    /// 갓만 덮고 자루를 비우는 식으로 눈에 보인다(어긋남 최대 0.12s ≈ 20pt @ s=169).
+    /// 정본은 **bbox 중심**이다 — 볼록 근사 바디는 그려진 영역을 고르게 덮어야 하고, 질량중심은
+    /// 짙은 쪽으로 쏠려 옅은 끝을 비운다. `dump()`도 이 칸을 찍도록 함께 고쳤다(재측정 = 재현).
     private static let bodyMetrics: [FoodGlyph: (w: CGFloat, h: CGFloat, dy: CGFloat)] = [
-        .leaf: (0.52, 0.68, 0.00),  .root: (0.27, 0.67, -0.01), .squash: (0.35, 0.59, 0.03),
-        .onion: (0.52, 0.65, -0.05), .tomato: (0.56, 0.60, 0.00), .pepper: (0.55, 0.64, -0.01),
-        .mushroom: (0.59, 0.54, 0.02), .broccoli: (0.56, 0.62, 0.01), .potato: (0.59, 0.46, 0.00),
-        .garlic: (0.46, 0.58, -0.03), .cucumber: (0.60, 0.59, 0.01), .pea: (0.59, 0.36, 0.06),
-        .cabbage: (0.62, 0.59, -0.02), .chili: (0.30, 0.70, 0.00), .pumpkin: (0.60, 0.54, -0.02),
-        .apple: (0.61, 0.67, 0.02),  .citrus: (0.60, 0.45, 0.00), .berry: (0.46, 0.61, -0.01),
-        .avocado: (0.44, 0.62, 0.00), .banana: (0.61, 0.35, 0.05), .egg: (0.54, 0.59, 0.01),
-        .tofu: (0.68, 0.42, -0.02),  .meat: (0.62, 0.47, 0.01),  .poultry: (0.42, 0.59, 0.01),
-        .fish: (0.67, 0.40, 0.00),   .shrimp: (0.48, 0.57, -0.01), .milk: (0.41, 0.62, 0.00),
-        .cheese: (0.62, 0.45, -0.04), .bread: (0.56, 0.54, -0.03), .rice: (0.54, 0.49, -0.03),
-        .noodles: (0.56, 0.48, -0.06), .corn: (0.46, 0.59, 0.01), .sauceBottle: (0.30, 0.65, -0.01),
+        .leaf: (0.52, 0.68, 0.00),  .root: (0.27, 0.67, 0.01), .squash: (0.35, 0.59, -0.03),
+        .onion: (0.52, 0.65, 0.05), .tomato: (0.56, 0.60, 0.00), .pepper: (0.55, 0.64, 0.01),
+        .mushroom: (0.59, 0.54, -0.02), .broccoli: (0.56, 0.62, -0.01), .potato: (0.59, 0.46, 0.00),
+        .garlic: (0.46, 0.58, 0.03), .cucumber: (0.60, 0.59, -0.01), .pea: (0.59, 0.36, -0.06),
+        .cabbage: (0.62, 0.59, 0.02), .chili: (0.30, 0.70, 0.00), .pumpkin: (0.60, 0.54, 0.02),
+        .apple: (0.61, 0.67, -0.02),  .citrus: (0.60, 0.45, 0.00), .berry: (0.46, 0.61, 0.01),
+        .avocado: (0.44, 0.62, 0.00), .banana: (0.61, 0.35, -0.05), .egg: (0.54, 0.59, -0.01),
+        .tofu: (0.68, 0.42, 0.02),  .meat: (0.62, 0.47, -0.01),  .poultry: (0.42, 0.59, -0.01),
+        .fish: (0.67, 0.40, 0.00),   .shrimp: (0.48, 0.57, 0.01), .milk: (0.41, 0.62, 0.00),
+        .cheese: (0.62, 0.45, 0.04), .bread: (0.56, 0.54, 0.03), .rice: (0.54, 0.49, 0.03),
+        .noodles: (0.56, 0.48, 0.06), .corn: (0.46, 0.59, -0.01), .sauceBottle: (0.30, 0.65, 0.01),
         .can: (0.45, 0.47, 0.00),
         // v2 신규 17종 — `-glyphMetrics` 실측(알파 bbox×0.9 + 질량중심 정렬).
-        .eggplant: (0.35, 0.63, 0.03), .sweetPotato: (0.55, 0.28, 0.01), .ginger: (0.49, 0.40, 0.03),
-        .seaweed: (0.51, 0.58, 0.00), .grape: (0.42, 0.54, 0.01), .watermelon: (0.63, 0.51, -0.02),
-        .pineapple: (0.38, 0.65, 0.04), .mango: (0.52, 0.48, 0.00), .sausage: (0.57, 0.52, -0.02),
-        .bacon: (0.67, 0.36, 0.00), .crab: (0.61, 0.54, 0.06), .squid: (0.29, 0.61, 0.03),
-        .clam: (0.56, 0.43, 0.09), .yogurt: (0.44, 0.61, 0.01), .butter: (0.64, 0.33, 0.07),
-        .honey: (0.43, 0.61, 0.07), .dumpling: (0.54, 0.32, 0.06),
-        .generic: (0.60, 0.56, 0.01),
+        .eggplant: (0.35, 0.63, 0.00), .sweetPotato: (0.55, 0.28, 0.01), .ginger: (0.49, 0.40, 0.02),
+        .seaweed: (0.51, 0.58, 0.00), .grape: (0.42, 0.54, -0.02), .watermelon: (0.63, 0.51, 0.02),
+        .pineapple: (0.38, 0.65, -0.02), .mango: (0.52, 0.48, -0.02), .sausage: (0.57, 0.52, -0.03),
+        .bacon: (0.67, 0.36, -0.02), .crab: (0.61, 0.54, 0.04), .squid: (0.29, 0.61, 0.01),
+        .clam: (0.56, 0.43, 0.12), .yogurt: (0.44, 0.61, 0.02), .butter: (0.64, 0.33, 0.07),
+        .honey: (0.43, 0.61, 0.02), .dumpling: (0.54, 0.32, 0.04),
+        .gimbap: (0.72, 0.71, -0.01),
+        .generic: (0.60, 0.56, -0.01),
     ]
+
+    /// 표에서 가장 높은 바디의 높이비 — **스폰 간격(`spawnStep`)이 이 값을 넘어야** 이웃 order가
+    /// 겹쳐 태어나지 않는다. `internal`이라 SpawnLadderTests가 리터럴을 다시 적지 않고 불변식을 건다.
+    static let maxBodyHeightRatio: CGFloat = bodyMetrics.values.map(\.h).max() ?? 0.7
+
+    /// 표 조회구 — 빠진 글리프는 nil. `internal`: 전수 커버(53종)를 테스트가 고정한다.
+    /// 실제로 `.gimbap`이 표에서 누락돼 폴백 바디(0.62×0.60)를 쓰고 있었다(실루엣과 어긋남).
+    static func bodyMetric(for glyph: FoodGlyph) -> (w: CGFloat, h: CGFloat, dy: CGFloat)? {
+        bodyMetrics[glyph]
+    }
 
     /// 바디 면적(폭비×높이비)의 전체 평균 — 질량비의 기준. 타원 면적의 π/4는 비율에서 약분된다.
     private static let meanFootprint: CGFloat = {
@@ -1233,11 +1384,17 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         guard !idle, !externallyPaused else { return }
         let impulse = contact.collisionImpulse
         guard impulse > 0 else { return }
+        #if DEBUG
+        if Self.physLab { physLabContacts += 1 }
+        #endif
         // 착지 게이트 — 접촉 법선이 현재 중력과 나란한 접촉만 스쿼시한다(굴림 옆접촉 제외).
         // 중력이 0인 극단에선 방향이 정의되지 않으니 게이트를 열어 둔다.
         if isLandingContact(contact) {
             for body in [contact.bodyA, contact.bodyB] where body.categoryBitMask & Category.chip != 0 {
                 let dv = impulse / max(0.2, body.mass)
+                #if DEBUG
+                if Self.physLab { physLabDvMax = max(physLabDvMax, dv); physLabDvSum += dv; physLabDvCount += 1 }
+                #endif
                 guard dv >= squashImpact, let node = body.node as? SKSpriteNode else { continue }
                 squash(node, strength: min(1, (dv - squashImpact) / (squashImpactMax - squashImpact)))
             }
@@ -1292,6 +1449,9 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         if let last = node.userData?["squashAt"] as? TimeInterval, now - last < squashCooldown { return }
         if node.userData == nil { node.userData = [:] }
         node.userData?["squashAt"] = now
+        #if DEBUG
+        if Self.physLab { physLabSquashes += 1 }
+        #endif
         let amt = 0.03 + 0.03 * min(1, max(0, strength))
         let d = ReffiMotion.dur2
         let press = SKAction.scaleX(to: 1 + amt, y: 1 - amt, duration: d * 0.35)
