@@ -88,6 +88,22 @@ enum GravityMapper {
         angle(candidate, lastApplied) > wakeAngle
     }
 
+    /// calm 창(안착 판정)을 무효화할 만한 자세 변화인가 — **창이 열린 시점의 중력** 기준으로 잰다.
+    ///
+    /// 실기기 3차 피드백 ①("움직임 판정이 계속됨")의 나머지 절반이 여기다. 씬은 중력을 재적용할
+    /// 때마다 calm 창을 0으로 접었는데, 재적용 문턱이 데드밴드(2°)라 **손에 들고 있는 기기의
+    /// 미세 떨림이 그 2°를 쉼 없이 넘겨** 창이 영원히 다시 시작됐다 — 30프레임(0.5초)을 한 번도
+    /// 못 채우니 force-settle이 성립할 수 없고, 씬은 60fps로 계속 돌며 움찔거렸다.
+    /// 문턱을 깨우기 각(6°)과 같이 두면 **진짜 기울임만** 창을 접는다. 떨림으로 칩이 실제로
+    /// 흘렀다면 변위 검증(`settleDrift`)이 이미 창을 되돌리므로 판정의 엄밀함은 그대로다.
+    static let calmMagnitudeRatio: CGFloat = 0.15
+    static func shouldResetCalm(_ candidate: CGVector, calmGravity: CGVector) -> Bool {
+        if angle(candidate, calmGravity) > wakeAngle { return true }
+        let m0 = hypot(calmGravity.dx, calmGravity.dy)
+        guard m0 > 1e-4 else { return true }
+        return abs(hypot(candidate.dx, candidate.dy) - m0) / m0 > calmMagnitudeRatio
+    }
+
     /// 휴면 중 깨울지(샘플 버전) — **무방향 구간에선 절대 깨우지 않는다**. 눕혀 둔 기기의 센서 노이즈로
     /// 잠든 씬이 되살아나면(그리고 다시 잠들면) 배터리 최적화가 통째로 무너진다.
     static func shouldWake(_ sample: Sample, lastApplied: CGVector) -> Bool {

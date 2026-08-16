@@ -153,4 +153,120 @@ struct GravityMapperTests {
         #expect(close(GravityMapper.angle(b, a), .pi / 2, 0.0001))
         #expect(close(GravityMapper.angle(a, a), 0, 0.0001))
     }
+
+    // MARK: - calm 창 유지 (실기기 3차 ① "움직임 판정 지속")
+
+    /// **손떨림은 calm 창을 접지 못한다.** 재적용 데드밴드(2°)로 창을 접던 옛 코드는 손에 든
+    /// 기기의 미세 떨림이 그 문턱을 쉼 없이 넘겨 30프레임(0.5초)을 한 번도 못 채웠고,
+    /// force-settle이 영영 성립하지 않아 씬이 60fps로 계속 움찔거렸다.
+    @Test func handTremorDoesNotResetCalmWindow() {
+        let opened = GravityMapper.mapped(x: 0, y: -1)
+        // 2.1°~5.9° — 재적용 데드밴드(2°)는 넘지만 창을 접을 자세 변화는 아니다.
+        for deg in [2.1, 3.0, 4.0, 5.0, 5.9] {
+            let t = tilt(degrees: deg)
+            let candidate = GravityMapper.mapped(x: t.x, y: t.y)
+            #expect(GravityMapper.shouldApply(candidate, lastApplied: opened),
+                    "\(deg)°는 재적용 데드밴드를 넘어야 한다(중력 자체는 따라가야 함)")
+            #expect(!GravityMapper.shouldResetCalm(candidate, calmGravity: opened),
+                    "\(deg)°로 calm 창을 접으면 안 된다")
+        }
+    }
+
+    /// 진짜 기울임(깨우기 각 초과)은 창을 접는다 — 새 자세에서 안착을 다시 검증해야 한다.
+    @Test func realTiltResetsCalmWindow() {
+        let opened = GravityMapper.mapped(x: 0, y: -1)
+        for deg in [7.0, 15.0, 45.0, 90.0] {
+            let t = tilt(degrees: deg)
+            #expect(GravityMapper.shouldResetCalm(GravityMapper.mapped(x: t.x, y: t.y), calmGravity: opened),
+                    "\(deg)°는 calm 창을 접어야 한다")
+        }
+    }
+
+    /// 크기만 달라지는 경우(기기를 눕히는 중) — 15% 넘게 변하면 접는다.
+    @Test func calmWindowResetsOnLargeMagnitudeChange() {
+        let opened = GravityMapper.mapped(x: 0, y: -1)                  // 크기 = base
+        let slightlyFlatter = GravityMapper.mapped(x: 0, y: -0.9)       // 크기 = base × 0.9 (10%)
+        let muchFlatter = GravityMapper.mapped(x: 0, y: -0.6)           // 크기 = base × 0.6 (40%)
+        #expect(!GravityMapper.shouldResetCalm(slightlyFlatter, calmGravity: opened))
+        #expect(GravityMapper.shouldResetCalm(muchFlatter, calmGravity: opened))
+    }
+}
+
+/// 셰이크 킥 판정(`IngredientDropScene.shakeKick`) — 순수 계산이라 씬 상태 없이 고정한다.
+/// v1.0 (2) 실기기 검증의 회귀 가드: 평면(x·y)만 재던 판정은 화면을 보며 흔드는
+/// 자연스러운 동작(주 가속 = z축)을 통째로 놓쳤다.
+@MainActor
+struct ShakeKickTests {
+
+    private let upright = CGVector(dx: 0, dy: -42)
+
+    /// z축 단독 흔들기가 감지되고, 방향은 중력 반대(위)로 나온다.
+    @Test func zOnlyShakeFiresAntiGravity() {
+        let kick = IngredientDropScene.shakeKick(x: 0, y: 0, z: 0.8, gravity: upright, threshold: 0.35)
+        #expect(kick != nil)
+        #expect(abs((kick?.angle ?? 0) - .pi * 0.5) < 0.0001)   // (0,-42)의 반대 = 위
+        #expect(abs((kick?.excess ?? 0) - 0.45) < 0.0001)
+    }
+
+    /// 평면 성분이 충분하면 그 방향을 따른다 — z가 섞여 있어도.
+    @Test func planarComponentStefersDirection() {
+        let kick = IngredientDropScene.shakeKick(x: 0.5, y: 0, z: 0.4, gravity: upright, threshold: 0.35)
+        #expect(kick != nil)
+        #expect(abs(kick?.angle ?? 1) < 0.0001)   // +x 방향
+    }
+
+    /// 세 축 합산 크기로 임계를 판정한다 — 평면만으론 미달이어도 z가 채우면 발화.
+    @Test func magnitudeCombinesAllThreeAxes() {
+        #expect(IngredientDropScene.shakeKick(x: 0.2, y: 0, z: 0.32, gravity: upright, threshold: 0.35) != nil)
+        #expect(IngredientDropScene.shakeKick(x: 0.2, y: 0, z: 0, gravity: upright, threshold: 0.35) == nil)
+    }
+
+    /// 손떨림·걷기 대역은 무시한다.
+    @Test func belowThresholdIsIgnored() {
+        #expect(IngredientDropScene.shakeKick(x: 0.1, y: 0.1, z: 0.15, gravity: upright, threshold: 0.35) == nil)
+    }
+
+    /// 운영 임계에서의 초과분 산식 고정 — v1.0 (3) "흔들어도 아무 반응 없음" 회귀 가드.
+    /// **씬의 상수를 심볼로 읽는다** — 리터럴을 다시 적으면 씬 값을 되돌려도 초록이 뜬다.
+    /// 0.5G 흔들기의 초과분은 0.25, 이득 480을 곱하면 120pt/s로 **눈에 보이는** 킥이 된다
+    /// (옛 임계 0.35·이득 150에선 22pt/s라 사실상 정지처럼 보였다).
+    @Test func excessAtShippingThreshold() {
+        let threshold = IngredientDropScene.shakeThreshold
+        let gain = IngredientDropScene.shakeGain
+        // 상수 자체를 고정 — 이 셋이 흔들리면 아래 산식 기대값의 근거가 사라진다.
+        #expect(threshold == 0.25)
+        #expect(gain == 480)
+        #expect(IngredientDropScene.shakeMaxDeltaV == 210)
+        let half = IngredientDropScene.shakeKick(x: 0, y: 0, z: 0.5, gravity: upright, threshold: threshold)
+        #expect(abs((half?.excess ?? 0) - 0.25) < 0.0001)
+        #expect(abs((half?.excess ?? 0) * gain - 120) < 0.0001)
+        // 손떨림 대역은 새 임계에서도 여전히 막힌다.
+        #expect(IngredientDropScene.shakeKick(x: 0, y: 0, z: 0.2, gravity: upright, threshold: threshold) == nil)
+    }
+
+    /// **터널링 상한 불변식** — 칩이 킥 한 번에 받는 Δv는 흩뿌림을 곱한 뒤에도 상한을 못 넘는다.
+    /// v1.0 (4)까지는 클램프가 흩뿌림 **앞**에 있어 실최대가 210 × 1.35 = 283.5pt/s(프레임당 4.7pt)로
+    /// 새어 나갔다 — 문서와 주석이 선언한 불변식이 기본 동작에서 거짓이었다.
+    @Test func scatterNeverExceedsTunnelingCap() {
+        let cap = IngredientDropScene.shakeMaxDeltaV
+        // 이득 포화 구간(0.7G 이상)의 공칭 Δv로 흩뿌림 전 구간을 훑는다.
+        for step in 0...20 {
+            let j = CGFloat(step) / 20
+            #expect(IngredientDropScene.scatteredDeltaV(cap, jitter: j) <= cap)
+            #expect(IngredientDropScene.scatteredDeltaV(cap * 4, jitter: j) <= cap)
+        }
+        // 상한 아래에선 흩뿌림이 그대로 살아 있다(전부 같은 세기면 부딪히지 않아 달그락이 없다).
+        let nominal: CGFloat = 120                                   // 0.5G 흔들기
+        #expect(abs(IngredientDropScene.scatteredDeltaV(nominal, jitter: 0) - 78) < 0.0001)
+        #expect(abs(IngredientDropScene.scatteredDeltaV(nominal, jitter: 1) - 162) < 0.0001)
+    }
+
+    /// 기울인 채 z-흔들기 — 방향은 그 시점 중력의 반대를 따라간다.
+    @Test func antiGravityFollowsTiltedGravity() {
+        let tilted = CGVector(dx: 29.7, dy: -29.7)   // 45° 기울임
+        let kick = IngredientDropScene.shakeKick(x: 0, y: 0, z: 0.6, gravity: tilted, threshold: 0.35)
+        #expect(kick != nil)
+        let expected = atan2(29.7, -29.7)   // 중력 반대 방향
+        #expect(abs((kick?.angle ?? 0) - expected) < 0.0001)
+    }
 }

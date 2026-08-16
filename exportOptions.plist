@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- TestFlight 업로드용 — RUN.md의 아카이브 레시피와 함께 쓴다:
+	     xcodebuild -exportArchive -archivePath <아카이브> -exportOptionsPlist exportOptions.plist \
+	       -exportPath /tmp/reffi-tf -allowProvisioningUpdates
+	     destination=upload 라 IPA를 남기지 않고 곧장 App Store Connect로 올린다(Xcode 로그인 세션 사용). -->
+	<key>method</key>
+	<string>app-store-connect</string>
+	<key>destination</key>
+	<string>upload</string>
+	<key>signingStyle</key>
+	<string>automatic</string>
+	<key>teamID</key>
+	<string>L3RY7X2WBC</string>
+	<key>manageAppVersionAndBuildNumber</key>
+	<false/>
+</dict>
+</plist>
