@@ -35,6 +35,15 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     private var calmFrames = 0                       // calm 연속 프레임(임계 도달 시 변위 검증)
     private let calmThreshold = 30                   // ≈0.5s(60fps)
     private let calmSpeed: CGFloat = 40              // 이 미만이면 '조용' — 지터 대역을 포함
+    /// **속도 스파이크 관용 프레임 수.** 640g(중력 42 m/s² = 6300pt/s²) 아래서 솔버는 정지한
+    /// 더미에도 프레임당 105pt/s의 접촉 임펄스를 걸어야 하고, 그 잔차가 이따금 한 프레임짜리
+    /// 스파이크(실측 50~104pt/s)로 튄다. 칩은 **10초에 3pt도 안 움직이는데**(실측) 그 스파이크
+    /// 하나가 calm 창을 0으로 되돌려, 창이 30프레임을 영원히 못 채우고 force-settle이 성립하지
+    /// 않았다(실측 calm 카운터가 0~6에서 무한 진동). 위치를 안 움직인 1프레임 스파이크는 안착을
+    /// 뒤집을 근거가 못 된다 — 연속 breach가 이 수를 넘을 때만 창을 접는다.
+    /// 판정의 엄밀함은 변위 검증(`settleDrift` 4pt)이 그대로 지킨다: 진짜 움직였으면 창이 되돌아간다.
+    private let calmBreachTolerance = 4
+    private var calmBreaches = 0
     private let settleDrift: CGFloat = 4             // calm 창 동안 이보다 덜 움직였으면 진짜 안착
     private var calmSnapshot: [UUID: CGPoint] = [:]  // calm 창 시작 시점의 칩 위치
     /// calm 창이 열린 시점의 중력 — 창을 접을지 판정하는 기준(`GravityMapper.shouldResetCalm`).
@@ -76,13 +85,22 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     /// 무방향 대역(기기를 눕힘) 히스테리시스의 유일한 상태 — 판정은 GravityMapper가 순수 계산으로 한다.
     private var gravityDirectionless = false
 
-    // 착지 임팩트 — 충돌 임펄스를 질량으로 나눈 근사 속도변화(pt/s)로 판정한다. calmSpeed(40)와
-    // **같은 단위**라 기존 안착 튜닝과 임계가 일관된다.
+    // 착지 임팩트 — 충돌 임펄스를 질량으로 나눈 근사 속도변화(pt/s)로 판정한다.
     // 이 축은 **시각(스쿼시) 전용**이다. 햅틱은 질량으로 나누지 않은 **생 임펄스**를 쓴다 —
     // 눌림은 속도의 문제(같은 높이서 떨어진 무거운/가벼운 칩이 같게 눌려야 한다)지만,
     // 촉감은 운동량 전달의 문제(소고기가 잎사귀보다 묵직하게 느껴져야 한다)라 축이 다르다.
-    private let squashImpact: CGFloat = 30       // 이 이상이면 눈에 보이는 착지 — 스쿼시
-    private let squashImpactMax: CGFloat = 260   // 이 이상은 최대 눌림(자유낙하·던지기)
+    //
+    // **임계가 정지 접촉 바닥 아래에 있었다**(실기기 3차 ①·④ "가만히 있어도 움찔움찔"의 정체).
+    // 씬 중력 42는 m/s² 단위(SpriteKit 규약, 150pt = 1m) = **6300pt/s²**라, 바닥에 가만히
+    // 놓인 칩도 매 프레임 g·dt = 105pt/s를 접촉 임펄스로 상쇄한다. 옛 임계 30은 그 바닥의
+    // 1/3이라 **모든 정지 접촉이 통과했고**, 상한 260도 정지 접촉의 관측 최대(≈470)보다 낮아
+    // 더미가 **최대 진폭으로 영구히 펄스**했다. -physLab 실측(정지한 더미 20초):
+    //   접촉 95회/초 · 스쿼시 20회/초(칩당 쿨다운 상한에 붙어 있음) · Δv 평균 130 최대 470.
+    //   진짜 착지(캐스케이드가 바닥을 치는 순간)는 Δv 평균 1074 최대 3104 — 두 대역이 완전히 갈린다.
+    // 그래서 임계를 정지 대역 **위**로 올린다. 100pt 자유낙하만 해도 √(2×6300×100) ≈ 1120이라
+    // 진짜 착지는 전부 통과하고, 20pt짜리 잔움직임(≈500)은 눌리지 않는다.
+    private let squashImpact: CGFloat = 600       // 이 이상이면 눈에 보이는 착지 — 스쿼시
+    private let squashImpactMax: CGFloat = 3000   // 이 이상은 최대 눌림(자유낙하·던지기)
     /// 착지 법선 정렬 하한 — |dot(접촉 법선, 중력 단위벡터)|이 이 이상이어야 '착지'로 본다.
     /// v1.0 (3) 실기기 피드백 "크기가 커졌다 작아지는 움찔거림이 심함"의 원인 게이트다:
     /// 기울여 굴릴 때 더미의 **옆접촉**(법선 ⟂ 중력)도 Δv 30을 쉽게 넘겨, 굴리는 내내
@@ -612,6 +630,7 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         // calm 창(전 칩 v<calmSpeed 연속 0.5s) + 변위 검증(<settleDrift)으로 안착을 판정한다.
         // 변위 검증이 스폰 직후의 느린 낙하를 걸러낸다(v≈20은 calm 대역이지만 0.5s에 10pt+ 이동).
         if allChipsCalm() {
+            calmBreaches = 0
             if calmFrames == 0 {
                 calmSnapshot = chips.mapValues(\.position)
                 calmGravity = physicsWorld.gravity   // 이 창의 판정 기준(shouldResetCalm)
@@ -643,10 +662,15 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
                 }
             }
         } else {
-            calmFrames = 0
-            #if DEBUG
-            logRestlessChipsIfNeeded(currentTime)
-            #endif
+            // 한 프레임짜리 솔버 스파이크로는 창을 접지 않는다(calmBreachTolerance 주석).
+            // 연속으로 시끄러워야 진짜 움직임 — 그때 창을 접는다.
+            calmBreaches += 1
+            if calmBreaches > calmBreachTolerance {
+                calmFrames = 0
+                #if DEBUG
+                logRestlessChipsIfNeeded(currentTime)
+                #endif
+            }
         }
     }
 
@@ -825,6 +849,11 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
             node.setScale(1)
         }
         idle = true
+        #if DEBUG
+        // 마지막 샘플을 남긴다 — 잠들면 update()가 멈춰 로그가 끊기므로, 안착 시점·최종 배치를
+        // 기록해 두지 않으면 "언제 어떤 모양으로 잤는지"가 파일에 영영 안 남는다.
+        if Self.physLab { physLabNext = 0; physLabTick(lastUpdateTime) }
+        #endif
         refreshPaused()
         #if DEBUG
         Logger(subsystem: "com.reffi.app", category: "scene")
@@ -836,6 +865,7 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     private func wake() {
         calmFrames = 0
         calmSnapshot.removeAll()
+        calmBreaches = 0
         separationTries = 0   // 새 물리 이벤트 = 새 배치 — 관통 해소 예산도 다시 채운다
         guard idle else { return }
         idle = false
