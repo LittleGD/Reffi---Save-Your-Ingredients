@@ -27,10 +27,16 @@ struct OrderMemoCard: View {
     /// 오른쪽 플릭(Cook) 발주 트리거 — 덱이 값을 올리면 "Cook this" 버튼과 **같은** `fire()`를 태운다.
     /// 발주 상태(슬램·줄긋기·이중 발주 가드)를 카드가 소유하므로 부모가 `fired`를 직접 켜지 않는다.
     var fireTrigger: Int = 0
+    /// Short 행의 To buy 원탭 — 부족 재료 **전부**를 장보기 메모로 담고 **새로 담긴 수**를 돌려준다.
+    /// nil이면 알약 자체를 그리지 않는다(스토어에 닿지 못하는 프리뷰·공유 렌더에서 위약 버튼 금지).
+    var onAddMissing: (() -> Int)?
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var fired = false
     @State private var middleScrolls = false   // 중간 섹션이 실제로 스크롤되는가(안전망 발동 여부)
+    @State private var justAdded = false       // Short 알약의 임시 '담김' 상태(≈1.5초)
+    @State private var addedGeneration = 0     // 연타 시 앞선 타이머가 뒤 상태를 끄지 못하게
+    @State private var addHaptic = 0
 
     /// 임박(urgent+soon) 재료 수 — 안티-웨이스트 증명.
     private var rescuedCount: Int { result.used.filter { $0.freshness != .fresh }.count }
@@ -74,6 +80,7 @@ struct OrderMemoCard: View {
         .shadow(color: ReffiColor.shadowTint.opacity(headerOnly ? 0 : 0.05),
                 radius: 10, x: 0, y: 8)
         .onChange(of: fireTrigger) { _, _ in fire() }
+        .sensoryFeedback(.success, trigger: addHaptic)   // 목록에 담김 = 성공 완료(§7.6)
     }
 
     /// 중간 섹션 — 헤더·fireBand는 고정, 판정문~'ON THE TICKET'(+ Short 문구)만 내부 스크롤(§13.6).
@@ -139,11 +146,7 @@ struct OrderMemoCard: View {
                     }
                 }
 
-                if !result.missing.isEmpty {
-                    Text("Short: \(result.missing.joined(separator: ", "))")
-                        .reffiType(.metaText)
-                        .foregroundStyle(ReffiColor.ink2).lineLimit(2).padding(.top, 1)
-                }
+                if !result.missing.isEmpty { shortLine }
             }
         }
         .scrollBounceBehavior(.basedOnSize)
@@ -164,6 +167,63 @@ struct OrderMemoCard: View {
                 Rectangle()
             }
         }
+    }
+
+    /// 부족 재료 줄 — "Short: …" + **To buy 원탭 알약**(§13.5).
+    ///
+    /// 여기까지가 '이 티켓을 못 하는 이유'인데, 지금까지 그 다음 행동(장보기 메모에 적기)은 화면
+    /// 두 개 건너에 있었다. 알약은 그 왕복을 없앤다 — 부족 재료를 **전부** 한 번에 담는다(하나씩
+    /// 고르게 하면 티켓 위에 목록 UI를 또 얹는 셈이라, 티켓은 단서 카드라는 규율을 깬다).
+    ///
+    /// **제스처 우선순위** — 카드 본문엔 탭 제스처가 없고 플릭은 덱의 `frontDrag`(`.gesture`,
+    /// minimumDistance 14)라, 알약의 탭은 버튼이 가져간다("Cook this" CTA가 같은 카드 안에서
+    /// 이미 성립하는 선례). 알약 위에서 시작한 **드래그**는 그대로 덱으로 흘러 플릭이 산다.
+    private var shortLine: some View {
+        HStack(alignment: .firstTextBaseline, spacing: ReffiSpace.s2) {
+            Text("Short: \(result.missing.joined(separator: ", "))")
+                .reffiType(.metaText)
+                .foregroundStyle(ReffiColor.ink2).lineLimit(2)
+            if let onAddMissing { addMissingPill(onAddMissing) }
+        }
+        .padding(.top, 1)
+    }
+
+    /// To buy 원탭 알약 — 담기 성공(새로 담긴 것이 있을 때)에만 `.success` 햅틱을 울리고,
+    /// 라벨은 ≈1.5초 동안 '담김'으로 바뀐다. **이미 담겨 있어 0건이어도 라벨은 바뀐다** —
+    /// 그것도 참인 상태 보고이고(목록에 있다), 아무 반응이 없으면 버튼이 죽은 것으로 읽힌다.
+    private func addMissingPill(_ add: @escaping () -> Int) -> some View {
+        Button {
+            let added = add()
+            if added > 0 { addHaptic += 1 }
+            addedGeneration += 1
+            let gen = addedGeneration
+            withAnimation(ReffiMotion.gated(ReffiMotion.pop, reduce: reduceMotion)) { justAdded = true }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                guard addedGeneration == gen else { return }   // 연타 — 마지막 탭만 시계를 쥔다
+                withAnimation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion)) {
+                    justAdded = false
+                }
+            }
+        } label: {
+            HStack(spacing: 3) {
+                (justAdded ? ReffiIcon.check : ReffiIcon.add).reffi(11, .bold)
+                Text(justAdded ? "Added" : "Add to list").reffiType(.pillLabel)
+            }
+            .foregroundStyle(justAdded ? ReffiColor.freshDark : ReffiColor.blueDark)
+            .padding(.horizontal, ReffiSpace.s2 + 2)
+            .padding(.vertical, 4)
+            .background {
+                let shape = PaperRect(cornerRadius: ReffiRadius.sm, seed: number &+ 7)
+                shape.fill(justAdded ? ReffiColor.freshLight : ReffiColor.blueLight)
+                    .paperEdge(shape, tint: (justAdded ? ReffiColor.freshDark : ReffiColor.blueDark).opacity(0.18))
+            }
+            // 시각은 작아도 히트 영역은 44pt(§7.3) — 투명 여백으로 확보한다.
+            .frame(minWidth: 44, minHeight: 44)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.paperPress)
+        .accessibilityLabel(justAdded ? Text("Added") : Text("Add to list"))
+        .accessibilityValue(Text(verbatim: result.missing.joined(separator: ", ")))
     }
 
     /// 티켓 크롬 한 줄(§13.5) — 옛 2행("ORDER"/"#NN" + "TABLE · REFFI KITCHEN" 에보로우)을 한 줄로 합쳤다.

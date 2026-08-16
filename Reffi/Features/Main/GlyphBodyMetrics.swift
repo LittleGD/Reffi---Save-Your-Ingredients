@@ -61,11 +61,13 @@ enum GlyphBodyMetrics {
             guard let m = measure(g) else { out += "\(g.rawValue): <empty>\n"; continue }
             let wf = (m.w * fill * 100).rounded() / 100
             let hf = (m.h * fill * 100).rounded() / 100
-            let dy = (m.dyUp * 100).rounded() / 100
+            let massUp = (m.dyUp * 100).rounded() / 100
             let bw = (m.w * 100).rounded() / 100, bh = (m.h * 100).rounded() / 100
             let bcUp = ((0.5 - (m.minYf + m.maxYf) / 2) * 100).rounded() / 100   // bbox 중심 오프셋(+ = 위)
+            // 세 번째 칸 = **bboxCtrUp**(bodyMetrics의 dy 정본). 여기서 massUp을 찍던 옛 코드가
+            // 표의 기준을 v1/v2에서 갈라놓았다 — 붙여 넣기만으로 표가 재현돼야 기준이 안 흔들린다.
             out += String(format: "case .%@: (%.2f, %.2f, %.2f)   // bbox %.2fx%.2f massUp=%.2f bboxCtrUp=%.2f rows[%.2f..%.2f]\n",
-                          g.rawValue, wf, hf, dy, bw, bh, dy, bcUp, m.minYf, m.maxYf)
+                          g.rawValue, wf, hf, bcUp, bw, bh, massUp, bcUp, m.minYf, m.maxYf)
         }
         out += "=== END METRICS ===\n"
         print(out)

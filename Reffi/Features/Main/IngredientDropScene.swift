@@ -26,19 +26,53 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     }
     /// 모든 칩이 정착하면 씬을 스스로 재운다 — 유휴 프레임에서 물리·렌더 비용 0.
     private var idle = false
-    // 강제 안착(force-settle) — 알파 텍스처의 오목 충돌체는 접촉 해소 지터(v 4~30pt/s)가 영원히
-    // 안 죽어 '완전 정지' 판정이 성립하지 않는다. 조용함(calm) 대역 + 변위 검증으로 판정하고
-    // 통과하면 속도를 0으로 굳혀 재운다.
+    // 강제 안착(force-settle) — 알파 텍스처의 오목 충돌체는 접촉 해소 지터(관측 대역 v 4~30pt/s)가
+    // 영원히 안 죽어 '완전 정지' 판정이 성립하지 않는다. 조용함(calm) 대역 + 변위 검증으로 판정하고
+    // 통과하면 속도를 0으로 굳혀 재운다. 세 상수의 역할이 다르므로 값도 다르다:
+    //   calmSpeed 40  — 판정 대역. 지터 상단(30)을 넉넉히 덮는다(여기 걸린다고 감쇠하진 않는다).
+    //   jitterFloor 14 — **감쇠** 하한. 지터 대역의 아래 절반만 깎는다(아래 주석 참조).
+    //   settleDrift 4  — 순변위 문턱. 진동성 지터(제자리 요동)와 느린 미끄러짐을 여기서 가른다.
     private var calmFrames = 0                       // calm 연속 프레임(임계 도달 시 변위 검증)
     private let calmThreshold = 30                   // ≈0.5s(60fps)
     private let calmSpeed: CGFloat = 40              // 이 미만이면 '조용' — 지터 대역을 포함
+    /// **속도 스파이크 관용 프레임 수.** 640g(중력 42 m/s² = 6300pt/s²) 아래서 솔버는 정지한
+    /// 더미에도 프레임당 105pt/s의 접촉 임펄스를 걸어야 하고, 그 잔차가 이따금 한 프레임짜리
+    /// 스파이크(실측 50~104pt/s)로 튄다. 칩은 **10초에 3pt도 안 움직이는데**(실측) 그 스파이크
+    /// 하나가 calm 창을 0으로 되돌려, 창이 30프레임을 영원히 못 채우고 force-settle이 성립하지
+    /// 않았다(실측 calm 카운터가 0~6에서 무한 진동). 위치를 안 움직인 1프레임 스파이크는 안착을
+    /// 뒤집을 근거가 못 된다 — 연속 breach가 이 수를 넘을 때만 창을 접는다.
+    /// 판정의 엄밀함은 변위 검증(`settleDrift` 4pt)이 그대로 지킨다: 진짜 움직였으면 창이 되돌아간다.
+    private let calmBreachTolerance = 4
+    private var calmBreaches = 0
     private let settleDrift: CGFloat = 4             // calm 창 동안 이보다 덜 움직였으면 진짜 안착
     private var calmSnapshot: [UUID: CGPoint] = [:]  // calm 창 시작 시점의 칩 위치
-    private let settleBand: CGFloat = 80             // 이 미만 = 착지 후 잔여 운동(자유낙하·던지기 아님)
-    private let jitterDamp: CGFloat = 0.8            // 잔여 운동의 프레임당 곱셈 감쇠 — 접촉 임펄스를 이긴다
-    /// 중력 변화 직후 jitterDamp를 쉬게 할 프레임 수(≈1.5s) — 기울임에 더미가 반응할 시간을 준다.
-    private var dampSuppression = 0
-    private let dampSuppressionFrames = 90
+    /// calm 창이 열린 시점의 중력 — 창을 접을지 판정하는 기준(`GravityMapper.shouldResetCalm`).
+    /// 마지막 재적용값이 아니라 **창의 시작값**이어야 한다: 2°씩 야금야금 도는 손떨림을 매번
+    /// 새 기준으로 갈아 끼우면 누적 회전이 영원히 문턱을 못 넘어 리셋 판정이 무의미해진다.
+    private var calmGravity = GravityMapper.fallback
+    /// 이 미만만 감쇠하는 **저속 지터 플로어** — 솔버 접촉 해소가 남기는 미세 요동 대역.
+    /// 실기기 검증(v1.0 (2))의 교훈: 이전 설계(settleBand 80 미만 전부 감쇠 + 중력 변화 시 90프레임
+    /// 유예)는 손떨림이 2° 데드밴드를 계속 넘겨 유예 창을 무한 리필했고, 감쇠가 영구 정지돼
+    /// 더미가 쉼 없이 움찔거렸다. 유예가 끝나는 순간엔 느린 굴림(<80)이 프레임당 20%씩 깎여
+    /// 얼었다 홱 움직이는 인위적 움직임이 됐다. 플로어를 낮게 내리고 **항상 켜 두면** 두 문제가
+    /// 같이 사라진다 — 진짜 움직임은 이 대역보다 빨라 감쇠를 전혀 받지 않고, 지터는 자세와
+    /// 무관하게 몇 프레임 안에 죽는다.
+    /// **왜 지터 상단(30)이 아니라 14인가**: 14~40pt/s는 기울임 굴림이 실제로 사는 대역이다
+    /// (기울기가 얕으면 칩이 이 속도로 천천히 구른다). 플로어를 30으로 올리면 그 굴림이
+    /// 프레임당 20%씩 깎여 다시 '얼었다 홱' 감각으로 돌아간다 — 지터 상단 절반을 감쇠 대상에서
+    /// 빼는 것은 의도된 선택이고, 그 대역은 감쇠가 아니라 calm 창 + 변위 검증이 책임진다.
+    private let jitterFloor: CGFloat = 14
+    private let jitterDamp: CGFloat = 0.8            // 플로어 미만의 프레임당 곱셈 감쇠
+    /// **감쇠 하한 — 이 아래는 대입 자체를 생략한다.** 실기기 3차 피드백 ①("가만히 있어도 움찔움찔")의
+    /// 구조적 원인이 여기였다: `SKPhysicsBody.velocity`/`angularVelocity`에 값을 넣는 행위는 그 자체로
+    /// 바디를 **깨워** 엔진의 수면 타이머를 0으로 되돌린다. v≈0인 바디까지 매 프레임 곱해 다시
+    /// 넣으면 솔버가 영원히 그 바디를 계산하고, 접촉 해소가 남기는 미세 진동도 영원히 안 죽는다
+    /// (-physLab 실측: 구 코드는 20초 40샘플 240칩 관측 전부 `rest=0`, idle 도달 0회).
+    /// 그래서 감쇠는 (jitterRestFloor, jitterFloor) **구간에서만** 곱하고, 그 아래는 손대지 않아
+    /// 엔진이 스스로 재우게 둔다(`isResting` 존중). 이 대역은 프레임당 0.35pt 미만 = 보이지 않는다.
+    private let jitterRestFloor: CGFloat = 2
+    /// 각속도의 같은 규율(rad/s) — 0.05rad/s면 1초에 3°, 눈에 안 보인다.
+    private let jitterRestSpin: CGFloat = 0.05
     private var foregroundObserver: NSObjectProtocol?      // 블록 옵저버라 명시 해제 필요
     private var memoryWarningObserver: NSObjectProtocol?   // 텍스처 캐시 비우기 — 동일 패턴
 
@@ -51,20 +85,38 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     /// 무방향 대역(기기를 눕힘) 히스테리시스의 유일한 상태 — 판정은 GravityMapper가 순수 계산으로 한다.
     private var gravityDirectionless = false
 
-    // 착지 임팩트 — 충돌 임펄스를 질량으로 나눈 근사 속도변화(pt/s)로 판정한다. calmSpeed(40)·
-    // settleBand(80)와 **같은 단위**라 기존 안착 튜닝과 임계가 일관된다.
+    // 착지 임팩트 — 충돌 임펄스를 질량으로 나눈 근사 속도변화(pt/s)로 판정한다.
     // 이 축은 **시각(스쿼시) 전용**이다. 햅틱은 질량으로 나누지 않은 **생 임펄스**를 쓴다 —
     // 눌림은 속도의 문제(같은 높이서 떨어진 무거운/가벼운 칩이 같게 눌려야 한다)지만,
     // 촉감은 운동량 전달의 문제(소고기가 잎사귀보다 묵직하게 느껴져야 한다)라 축이 다르다.
-    private let squashImpact: CGFloat = 30       // 이 이상이면 눈에 보이는 착지 — 스쿼시
-    private let squashImpactMax: CGFloat = 260   // 이 이상은 최대 눌림(자유낙하·던지기)
+    //
+    // **임계가 정지 접촉 바닥 아래에 있었다**(실기기 3차 ①·④ "가만히 있어도 움찔움찔"의 정체).
+    // 씬 중력 42는 m/s² 단위(SpriteKit 규약, 150pt = 1m) = **6300pt/s²**라, 바닥에 가만히
+    // 놓인 칩도 매 프레임 g·dt = 105pt/s를 접촉 임펄스로 상쇄한다. 옛 임계 30은 그 바닥의
+    // 1/3이라 **모든 정지 접촉이 통과했고**, 상한 260도 정지 접촉의 관측 최대(≈470)보다 낮아
+    // 더미가 **최대 진폭으로 영구히 펄스**했다. -physLab 실측(정지한 더미 20초):
+    //   접촉 95회/초 · 스쿼시 20회/초(칩당 쿨다운 상한에 붙어 있음) · Δv 평균 130 최대 470.
+    //   진짜 착지(캐스케이드가 바닥을 치는 순간)는 Δv 평균 1074 최대 3104 — 두 대역이 완전히 갈린다.
+    // 그래서 임계를 정지 대역 **위**로 올린다. 100pt 자유낙하만 해도 √(2×6300×100) ≈ 1120이라
+    // 진짜 착지는 전부 통과하고, 20pt짜리 잔움직임(≈500)은 눌리지 않는다.
+    private let squashImpact: CGFloat = 600       // 이 이상이면 눈에 보이는 착지 — 스쿼시
+    private let squashImpactMax: CGFloat = 3000   // 이 이상은 최대 눌림(자유낙하·던지기)
+    /// 착지 법선 정렬 하한 — |dot(접촉 법선, 중력 단위벡터)|이 이 이상이어야 '착지'로 본다.
+    /// v1.0 (3) 실기기 피드백 "크기가 커졌다 작아지는 움찔거림이 심함"의 원인 게이트다:
+    /// 기울여 굴릴 때 더미의 **옆접촉**(법선 ⟂ 중력)도 Δv 30을 쉽게 넘겨, 굴리는 내내
+    /// 더미 전체가 숨쉬듯 눌렸다 폈다 했다. 실제 착지(바닥·더미 위)는 **어떤 중력 방향에서도**
+    /// 법선이 중력축과 나란하므로(기울인 상태 포함) 그대로 통과한다.
+    private let squashNormalAlign: CGFloat = 0.55
+    /// 칩당 스쿼시 쿨다운(초). `action(forKey:)` 재진입 가드는 애니메이션 길이(~180ms)만 덮어,
+    /// 끝나자마자 다음 접촉이 또 눌러 떨림이 이어졌다. 250ms로 한 칩의 눌림 빈도를 묶는다.
+    private let squashCooldown: TimeInterval = 0.25
 
     // 달그락 햅틱(§13.4) — CoreHaptics 직접 구동. 세기·날카로움 두 축이 있어야 재료별 촉감이
     // 생기고, SwiftUI `.sensoryFeedback`은 파라미터가 없어 쓸 수 없다(§7.6 의미별 매핑은 그대로).
     private let clatter = IngredientClatterHaptics()
     private var clatterThrottle = ClatterThrottle()
-    /// 임펄스가 이 값이면 최대 세기 — 이 위는 전부 1.0으로 포화(클램프 곡선의 상한).
-    private let clatterImpulseCeiling: CGFloat = 90
+    /// 임펄스·재료 → 촉감(세기·날카로움·감쇠 꼬리) 변환 규칙. 순수 계산기라 씬 없이 테스트된다.
+    private let clatterRule = ClatterFeelRule()
     /// 스로틀 판정용 현재 시각 — `didBegin`엔 시간 인자가 없어 update에서 받아 둔다.
     private var lastUpdateTime: TimeInterval = 0
     /// QA 계측용 — 햅틱이 실제로 발화할 때마다 호출된다(TILT LAB 카운터).
@@ -109,6 +161,25 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         guard let t = tossZone, let a = ateZone else { return nil }
         return (t.position, a.position)
     }
+
+    /// `-physLab` — 물리 진단 모드. SKView의 콜라이더 오버레이(`showsPhysics`, MainView가 켠다)와
+    /// **주기 계측 덤프**를 함께 켠다. 콜라이더-일러스트 정합·겹침·정지 움찔은 화면만 봐선 못 가른다:
+    /// 오버레이는 "바디가 그림 어디에 서는가", 덤프는 "속도·isResting·쌍별 AABB 관통률"을 준다.
+    /// 덤프는 앱 Documents/phys-lab.txt (`xcrun simctl get_app_container booted com.reffi.app data`).
+    static let physLab = ProcessInfo.processInfo.arguments.contains("-physLab")
+    private var physLabNext: TimeInterval = 0
+    private var physLabSamples = 0
+    private var physLabLog = ""
+    /// 샘플 사이에 발생한 이벤트 수 — 정지한 더미에서 이게 0이 아니면 "누가 더미를 계속 건드리는가"의 답이다.
+    private var physLabContacts = 0
+    private var physLabSquashes = 0
+    private var physLabSeparations = 0
+    /// 접촉 Δv(= 임펄스/질량) 분포 — 착지 임계(squashImpact)가 **정지 접촉 바닥** 위에 있는지 보는 눈.
+    private var physLabDvMax: CGFloat = 0
+    private var physLabDvSum: CGFloat = 0
+    private var physLabDvCount = 0
+    private let physLabPeriod: TimeInterval = 0.5
+    private let physLabMaxSamples = 40
     #endif
 
     // 던지기 회전 — 토크 암 계수(작을수록 잘 돈다)와 각속도 상한(rad/s).
@@ -131,10 +202,49 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     /// 밀폐 천장 — 가시 영역의 위끝. 벽·회수 목표·드래그 클램프가 모두 이 선을 쓴다.
     /// 밀폐되면 상자가 가시 영역과 일치해 **어느 중력 방향에서도** 재료가 화면 밖으로 안 샌다.
     private var sealedCeiling: CGFloat { max(1, size.height) - wallInset }
+    /// 스폰 스태거 — order번째 칩은 화면 위 `chipSide × (spawnBase + order × spawnStep)`에서 떨어진다.
+    /// **spawnStep은 바디 최대 높이(0.70s = chili)보다 넉넉해야** 이웃한 두 order가 겹쳐 태어나지 않는다.
+    /// 순수 함수라 씬 없이 불변식을 고정할 수 있다(SpawnLadderTests).
+    static let spawnBase: CGFloat = 0.4
+    static let spawnStep: CGFloat = 0.85
+    static let spawnHeadroom: CGFloat = 0.6
+    static func spawnHeight(order: Int, side s: CGFloat) -> CGFloat {
+        s * (spawnBase + CGFloat(max(0, order)) * spawnStep)
+    }
+
+    /// Reduce Motion 정적 배치 — 낙하 연출 없이 **처음부터 바닥 근처에** 놓는 자리
+    /// (dx = 밴드 중앙 기준 x 오프셋, dy = 바닥 기준 높이, 둘 다 pt).
+    ///
+    /// 낙하 사다리와 **같은 declump 불변식**을 지켜야 한다. 옛 식은 `0.45 + (order % 3) × 0.5`라
+    /// 행 간격이 0.5s로 바디 최대 높이(0.70s)보다 좁아 이웃 order가 겹쳐 태어났다 —
+    /// 사다리 쪽만 고치고 이쪽을 두면 Reduce Motion 사용자만 겹친 더미를 본다.
+    /// 그래서 **격자**로 놓는다: 한 행에 넣는 개수는 밴드가 **바디 최대 폭 이상** 벌릴 수 있는
+    /// 만큼으로 제한하고(같은 행끼리 안 겹침), 행 간격은 사다리와 같은 `spawnStep`(0.85s >
+    /// 바디 최대 높이 0.70s)이다(위아래로 안 겹침). 순수 함수 — SpawnLadderTests가 전 쌍을 건다.
+    static func staticSlot(order: Int, count: Int, side s: CGFloat, band: CGFloat)
+        -> (dx: CGFloat, dy: CGFloat) {
+        let n = max(1, count)
+        let o = min(max(0, order), n - 1)
+        let width = max(1, maxBodyWidthRatio * s)
+        let perRow = max(1, min(n, Int(band / width) + 1))
+        let row = o / perRow, col = o % perRow
+        let inRow = min(perRow, n - row * perRow)   // 마지막 행은 덜 찬다 — 그만큼 더 넓게 벌린다
+        let dx = inRow <= 1 ? 0 : (CGFloat(col) / CGFloat(inRow - 1) - 0.5) * band
+        return (dx: dx, dy: s * (staticBase + CGFloat(row) * spawnStep))
+    }
+    /// 정적 배치 첫 행의 높이(칩 변 배수) — 바닥에 붙지 않을 만큼만 띄운다.
+    static let staticBase: CGFloat = 0.45
+
     /// 스폰 천장 — 재료는 화면 위에서 떨어져 들어오므로(§13) 낙하 중엔 천장을 스폰 위치 위로 올려 둔다.
-    /// 값은 기존 `boxTop`(+700)을 그대로 유지한다 — 스폰 클램프가 이 값을 읽어 낙하 스태거 구성이
-    /// 정해지므로, 낮추면 런치 캐스케이드의 그림이 통째로 달라진다.
-    private var spawnCeiling: CGFloat { size.height + 700 }
+    /// **이번 캐스케이드가 실제로 쓴 최고 스폰 높이의 래칫**이다. 옛 상수 천장(size.height + 700)은
+    /// 사다리를 담지 못해(작업대 6개 · s=169면 사다리 꼭대기가 +786pt) order가 큰 칩들을 클램프로
+    /// **같은 y에 접어 낳았다** — -physLab 실측: 6개 중 2개가 y 동일, AABB 43.1% 관통.
+    /// 그 깊은 관통을 푸느라 솔버가 한 칩을 2050pt/s로 걷어차 두께 0의 벽을 뚫었고(y=-438000까지
+    /// 영구 낙하), 살아남은 칩들도 상시 분리 압력에 눌려 영영 안 잤다.
+    /// 래칫이라 **재료가 빠져 개수가 줄거나 씬이 리사이즈돼도 비행 중인 칩 위로 천장이 안 내려온다**
+    /// (절대 좌표 — 배너가 뜨며 씬 높이가 551→419로 줄던 실측 케이스가 여기서 막힌다).
+    private var spawnCeilingMark: CGFloat = 0
+    private var spawnCeiling: CGFloat { max(spawnCeilingMark, size.height + chipSide) }
     /// 천장이 지금 밀폐돼 있나 — 낙하가 끝나면 true가 되어 상자가 가시 영역과 일치한다.
     private var ceilingSealed = false
     /// 천장이 열린 채 흘러간 시간의 기준점(아래 maintainCeiling의 타임아웃용).
@@ -154,7 +264,7 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         lastAppliedGravity = GravityMapper.fallback
         physicsWorld.contactDelegate = self   // 착지 스쿼시·햅틱
         view.preferredFramesPerSecond = 60
-        view.ignoresSiblingOrder = true   // 칩 z가 전부 달라(§안착 z-순서) 순서 결정적 — 안전
+        view.ignoresSiblingOrder = true   // 칩 z는 스폰 카운터 기반 **고정 상이값**이라 순서 결정적(§그리기 순서)
         // 칩·존을 굽기 **전에** 현재 스킴을 확정한다(첫 렌더부터 올바른 팔레트로).
         applyInterfaceStyle(view.traitCollection.userInterfaceStyle)
         if traitRegistration == nil {
@@ -315,23 +425,38 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
             guard GravityMapper.shouldApply(candidate, lastApplied: lastAppliedGravity) else { return }
             physicsWorld.gravity = candidate
             lastAppliedGravity = candidate
-            calmFrames = 0
-            calmSnapshot.removeAll()
-            // 이 경로는 일부러 wake()를 안 부른다(이미 깨어 있다) — 감쇠 유예는 여기서 직접 갱신한다.
-            dampSuppression = dampSuppressionFrames
+            // calm 창은 **진짜 기울임에서만** 접는다. 재적용 데드밴드(2°)로 접던 옛 코드는 손떨림이
+            // 창을 무한 리필해 force-settle이 영영 성립하지 않았다(shouldResetCalm 주석).
+            if calmFrames > 0, GravityMapper.shouldResetCalm(candidate, calmGravity: calmGravity) {
+                calmFrames = 0
+                calmSnapshot.removeAll()
+            }
+            // 이 경로는 일부러 wake()를 안 부른다(이미 깨어 있다). 감쇠는 저속 플로어 방식이라
+            // 갱신할 유예 카운터도 없다 — 굴림은 플로어 위 속도라 애초에 감쇠를 받지 않는다.
         }
     }
 
     // MARK: - 흔들기 에너지 주입
 
-    /// 이 G 미만은 손떨림·걷기 — 무시한다.
-    private let shakeThreshold: CGFloat = 0.35
+    /// 이 G 미만은 손떨림·걷기 — 무시한다. v1.0 (3) 실기기 피드백("흔들어도 아무 반응 없음")에
+    /// 따라 0.35 → 0.25. z축 감지가 들어온 뒤에도 임계가 높아 평범한 손목 흔들기가 자주 미달했다.
+    /// 셰이크 3종 상수는 `static let` — 테스트가 리터럴을 다시 적지 않고 **이 심볼을 읽어야**
+    /// 값을 되돌렸을 때 빨간불이 든다(ShakeKickTests). 씬 상태와 무관한 순수 튜닝값이라 안전하다.
+    static let shakeThreshold: CGFloat = 0.25
     /// 킥 사이 최소 간격(초) — 매 프레임 밀면 흔들기가 아니라 연속 가속이 된다.
     private let shakeInterval: TimeInterval = 0.09
-    /// 킥 하나가 줄 수 있는 최대 속도 변화(pt/s). **벽 터널링 방지 상한** — 60fps에서 프레임당
-    /// 3.5pt라 두께 0인 edge loop도 못 뚫는다(게다가 wake로 CCD가 켜진 상태다).
-    private let shakeMaxDeltaV: CGFloat = 210
-    private let shakeGain: CGFloat = 150
+    /// **칩 하나가 킥 한 번에 받는 최대 속도 변화(pt/s)** — 벽 터널링 방지 상한. 60fps에서
+    /// 프레임당 3.5pt라 두께 0인 edge loop도 못 뚫는다(게다가 wake로 CCD가 켜진 상태다).
+    /// 흩뿌림 배율(최대 1.35배)을 곱한 **뒤**에 적용해야 이 불변식이 실제로 참이 된다 —
+    /// 곱하기 전에만 걸었던 v1.0 (4)에서는 실최대가 283.5pt/s(프레임당 4.7pt)로 새어 나갔다.
+    static let shakeMaxDeltaV: CGFloat = 210
+    /// 초과분(G) → 속도 변화(pt/s) 환산 이득. **150 → 480**(v1.0 (3) 실기기 피드백).
+    /// 옛 값 산식: 0.5G 흔들기 → (0.5 − 0.35) × 150 = **22pt/s**. 칩 한 변의 1/3이 1초에 걸쳐
+    /// 움직이는 정도라 사실상 보이지 않았고, 그래서 "흔들어도 반응이 없다"로 읽혔다.
+    /// 새 값 산식: 0.5G → (0.5 − 0.25) × 480 = **120pt/s**(확실히 보인다). 이 값은 흩뿌림 전의
+    /// **공칭 Δv**이고, 칩마다 0.65~1.35배로 흩은 뒤 상한 210에서 잘린다.
+    /// 원 튜닝(150)은 중력 28·종단속도 62~140의 수중 씬 값이었다. 우리 중력은 42다.
+    static let shakeGain: CGFloat = 480
     private var lastShakeTime: TimeInterval = 0
 
     /// `userAcceleration`(중력 제외 고역) → 칩들에 임펄스 킥. 이게 있어야 "흔들면 달그락"이 성립한다.
@@ -342,28 +467,62 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         // 화면에 없는 씬을 in-flight 샘플이 걷어차지 않게.
         guard view != nil, !externallyPaused else { return }
         guard !reduceMotion else { return }
-        let mag = hypot(sample.shakeX, sample.shakeY)
-        guard mag > shakeThreshold else { return }
-        guard lastUpdateTime - lastShakeTime >= shakeInterval else { return }
-        lastShakeTime = lastUpdateTime
-        kickChips(angle: atan2(sample.shakeY, sample.shakeX),
-                  deltaV: min((mag - shakeThreshold) * shakeGain, shakeMaxDeltaV))
+        guard let kick = Self.shakeKick(x: sample.shakeX, y: sample.shakeY, z: sample.shakeZ,
+                                        gravity: physicsWorld.gravity,
+                                        threshold: Self.shakeThreshold) else { return }
+        // 휴면 중엔 update 시계(lastUpdateTime)가 멈춰 있어 실제 단조 시계로 잰다 —
+        // 잠든 씬을 흔들어 깨우는 첫 킥이 얼어붙은 시계에 막히면 안 된다.
+        let now = CACurrentMediaTime()
+        guard now - lastShakeTime >= shakeInterval else { return }
+        lastShakeTime = now
+        // 여기선 클램프하지 않는다 — 상한은 흩뿌림을 곱한 **칩별 최종값**에 걸어야 터널링
+        // 불변식이 참이 된다(kickChips → scatteredDeltaV). 넘기는 값은 공칭 Δv다.
+        kickChips(angle: kick.angle, deltaV: kick.excess * Self.shakeGain)
+    }
+
+    /// 흔들기 판정의 순수 계산부 — 씬 없이 테스트하기 위해 분리(GravityMapper와 같은 규율).
+    /// **z(화면 수직)를 크기에 포함한다**: 화면을 보며 폰을 흔들면 주 가속이 z축이라, 평면만 보면
+    /// 실기기에서 흔들기가 거의 감지되지 않았다(v1.0 (2) 검증). 방향은 평면 성분이 충분하면 그쪽,
+    /// z가 지배적이면 **중력 반대 방향**(쟁반을 아래에서 턴 느낌 — 더미가 위로 튀며 부딪힌다).
+    /// 임계 미만이면 nil.
+    static func shakeKick(x: CGFloat, y: CGFloat, z: CGFloat,
+                          gravity: CGVector, threshold: CGFloat) -> (angle: CGFloat, excess: CGFloat)? {
+        let mag = (x * x + y * y + z * z).squareRoot()
+        guard mag > threshold else { return nil }
+        let planar = hypot(x, y)
+        let angle: CGFloat
+        if planar > 0.12 {
+            angle = atan2(y, x)
+        } else if gravity.dx != 0 || gravity.dy != 0 {
+            angle = atan2(-gravity.dy, -gravity.dx)
+        } else {
+            angle = .pi * 0.5   // 중력이 0인 극단 폴백 — 위로
+        }
+        return (angle, mag - threshold)
+    }
+
+    /// 공칭 Δv에 칩별 흩뿌림(0.65~1.35배)을 곱하고 **터널링 상한에서 자른다**.
+    /// 순서가 핵심이다 — 클램프를 곱하기 앞에 두면 상한이 1.35배 새어 나간다(v1.0 (4) 결함).
+    /// 씬 없이 테스트하기 위해 순수 함수로 분리(shakeKick과 같은 규율).
+    static func scatteredDeltaV(_ deltaV: CGFloat, jitter j: CGFloat) -> CGFloat {
+        min(deltaV * (0.65 + 0.7 * j), shakeMaxDeltaV)
     }
 
     /// 칩들을 한 방향으로 밀되 **칩마다 각도·세기를 흩는다** — 똑같이 밀면 나란히 움직여서
-    /// 서로 부딪히지 않고, 부딪히지 않으면 달그락도 없다.
+    /// 서로 부딪히지 않고, 부딪히지 않으면 달그락도 없다. 세기는 상한에서 잘리지만 각도는
+    /// 안 잘리므로, 포화 구간(0.7G 이상)에서도 칩들이 서로 다른 방향으로 흩어져 부딪힌다.
     private func kickChips(angle: CGFloat, deltaV: CGFloat) {
         guard !chips.isEmpty else { return }
         for (id, node) in chips {
             guard let body = node.physicsBody else { continue }
             let j = Self.stableJitter(id)                 // 0..1 결정적
             let a = angle + (j - 0.5) * 1.3               // ±0.65rad 흩뿌림
-            let dv = deltaV * (0.65 + 0.7 * j)
+            let dv = Self.scatteredDeltaV(deltaV, jitter: j)
             body.applyImpulse(CGVector(dx: cos(a) * dv * body.mass,
                                        dy: sin(a) * dv * body.mass))
             body.applyAngularImpulse((j - 0.5) * 0.02 * body.mass)
         }
-        wake()   // CCD 복구 + 감쇠 유예 — 킥이 감쇠에 바로 먹히지 않게
+        wake()   // 휴면이었으면 기상 + CCD 복구 — 킥은 빠른 이동이라 정밀 충돌이 필요하다
     }
 
     #if DEBUG
@@ -372,14 +531,14 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     /// 실제 흔들기는 **왕복 운동**이라 한 번 미는 것으론 재현이 안 된다 — 방향을 바꿔 3연타를 넣는다.
     func shakeBurst() {
         wake()   // 휴면 중이면 먼저 깨운다(멈춘 씬은 SKAction도 안 돈다)
-        kickChips(angle: .pi * 0.5, deltaV: shakeMaxDeltaV * 0.9)
+        kickChips(angle: .pi * 0.5, deltaV: Self.shakeMaxDeltaV * 0.9)
         let followUps: [CGFloat] = [-.pi * 0.35, .pi * 0.8]
         for (i, angle) in followUps.enumerated() {
             run(.sequence([
                 .wait(forDuration: 0.13 * Double(i + 1)),
                 .run { [weak self] in
                     guard let self else { return }
-                    self.kickChips(angle: angle, deltaV: self.shakeMaxDeltaV * 0.75)
+                    self.kickChips(angle: angle, deltaV: Self.shakeMaxDeltaV * 0.75)
                 },
             ]))
         }
@@ -449,6 +608,9 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         // 비정상적으로 벌어졌으면 타이머만 접는다 — 회수 자체는 다음 프레임부터 정상적으로 잰다.
         if lastUpdateTime > 0, currentTime - lastUpdateTime > 1.0 { unsealedSince = nil }
         lastUpdateTime = currentTime   // didBegin엔 시간 인자가 없어 여기서 받아 둔다(햅틱 스로틀용)
+        #if DEBUG
+        if Self.physLab { physLabTick(currentTime) }
+        #endif
         maintainCeiling(currentTime)   // 낙하 끝나면 밀폐, 위쪽에 갇힌 칩은 회수(§13.4 컨테인먼트)
         if let node = dragged, let body = node.physicsBody {
             // 마그네틱 캡처 — 손가락이 바스켓 근처면 추종 목표가 바스켓 중심으로 스냅되어
@@ -469,47 +631,124 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
             highlight(ateZone, hovering: captured === ateZone)
             return   // 드래그 중엔 절대 휴면 안 함
         }
-        // 잔여 운동 능동 감쇠 — 볼록 폴리곤 바디라 오목 알파 지터는 없지만, 강한 중력의 접촉 해소
-        // 임펄스로 착지 직후 미세 요동이 남을 수 있다. settleBand 미만(= 자유낙하·던지기 아님)만
-        // 프레임당 20% 곱셈 감쇠 → 수 프레임 내 calm 대역으로 수렴. 고속 칩은 안 건드려 낙하·던지기의
-        // 묵직함(§13.4)은 그대로.
-        // 중력이 막 바뀐 직후(= 기울이는 중)엔 이 감쇠를 쉰다. 안 그러면 느린 가속이 매 프레임 20%씩
-        // 깎여 **종단 2pt/s**에 갇히고, 정착한 더미는 기울여도 꿈쩍 않는다(기울임이 아예 안 보인다).
-        // 손을 멈추면 카운터가 소진되며 평소의 감쇠·안착 동작으로 돌아간다.
-        if dampSuppression > 0 {
-            dampSuppression -= 1
-        } else {
-            for node in chips.values {
-                guard let b = node.physicsBody else { continue }
-                if hypot(b.velocity.dx, b.velocity.dy) < settleBand {
-                    b.velocity = CGVector(dx: b.velocity.dx * jitterDamp, dy: b.velocity.dy * jitterDamp)
-                    b.angularVelocity *= jitterDamp
-                }
+        // 잔여 운동 능동 감쇠 — 강한 중력의 접촉 해소 임펄스가 남기는 미세 요동만 죽인다.
+        // 판정은 저속 플로어(`jitterFloor`) 하나: 그 미만이면 지터, 이상이면 진짜 움직임이라
+        // 절대 건드리지 않는다. 기울임 굴림·킥·낙하가 감쇠에 먹히지 않으므로 유예 카운터가
+        // 필요 없고(실기기에선 손떨림이 유예를 무한 리필해 지터가 영구화됐다 — jitterFloor 주석),
+        // 지터는 기기 자세와 무관하게 항상 몇 프레임 안에 calm 대역으로 수렴한다.
+        // **잠든 바디·거의 멈춘 바디는 손대지 않는다** — 대입이 곧 기상이라(jitterRestFloor 주석)
+        // 여기서 한 번이라도 쓰면 그 칩은 그 프레임에 다시 깨어난다.
+        for node in chips.values {
+            guard let b = node.physicsBody, !b.isResting else { continue }
+            let v = hypot(b.velocity.dx, b.velocity.dy)
+            guard v < jitterFloor else { continue }   // 진짜 움직임(굴림·킥·낙하) — 절대 안 건드린다
+            if v >= jitterRestFloor {
+                b.velocity = CGVector(dx: b.velocity.dx * jitterDamp, dy: b.velocity.dy * jitterDamp)
+            }
+            if abs(b.angularVelocity) >= jitterRestSpin {
+                b.angularVelocity *= jitterDamp
             }
         }
         // 드래그가 없을 때만 정착 판정 — 지터 때문에 '완전 정지'는 영원히 안 오므로,
         // calm 창(전 칩 v<calmSpeed 연속 0.5s) + 변위 검증(<settleDrift)으로 안착을 판정한다.
         // 변위 검증이 스폰 직후의 느린 낙하를 걸러낸다(v≈20은 calm 대역이지만 0.5s에 10pt+ 이동).
         if allChipsCalm() {
-            if calmFrames == 0 { calmSnapshot = chips.mapValues(\.position) }
+            calmBreaches = 0
+            if calmFrames == 0 {
+                calmSnapshot = chips.mapValues(\.position)
+                calmGravity = physicsWorld.gravity   // 이 창의 판정 기준(shouldResetCalm)
+            }
             calmFrames += 1
             if calmFrames >= calmThreshold {
                 if chipsHeldStill() {
+                    // **겹친 채 얼리지 않는다** — 겹침은 forceSettle 안에서 위치로 푼 뒤 굳힌다
+                    // (`depenetrateChips`). 여기서 밀고 창을 다시 돌리는 옛 방식은 예산이 말랐다.
                     forceSettle()
+                    #if DEBUG
+                    driftRetries = 0
+                    #endif
                 } else {
                     calmFrames = 0   // 아직 흐르는 중 — 창 재시작(스냅샷은 0→1 전이에서 갱신)
+                    #if DEBUG
+                    // 진단 — calm은 통과하는데 변위 검증만 계속 떨어지는 상태(느린 미끄러짐).
+                    // 이 실패 모드는 allChipsCalm()이 true라 logRestlessChipsIfNeeded가 안 돈다.
+                    driftRetries += 1
+                    if driftRetries % 4 == 0 {
+                        Logger(subsystem: "com.reffi.app", category: "scene")
+                            .debug("settle retry \(self.driftRetries): calm window passed but chips drifted > \(self.settleDrift, format: .fixed(precision: 0))pt")
+                    }
+                    #endif
                 }
             }
         } else {
-            calmFrames = 0
-            #if DEBUG
-            logRestlessChipsIfNeeded(currentTime)
-            #endif
+            // 한 프레임짜리 솔버 스파이크로는 창을 접지 않는다(calmBreachTolerance 주석).
+            // 연속으로 시끄러워야 진짜 움직임 — 그때 창을 접는다.
+            calmBreaches += 1
+            if calmBreaches > calmBreachTolerance {
+                calmFrames = 0
+                #if DEBUG
+                logRestlessChipsIfNeeded(currentTime)
+                #endif
+            }
         }
     }
 
     #if DEBUG
+    /// `-physLab` 계측 한 틱 — 씬 상태 + 칩별 운동량/휴면 + 쌍별 AABB 관통률을 파일에 누적한다.
+    /// 화면 캡처로는 못 보는 두 가지를 잡으려는 것이다: ① 속도가 0인데도 isResting=false로 남는
+    /// (= 엔진이 못 재우는) 바디 ② 눈으로는 한 덩이로 보이는 칩들의 실제 관통 깊이.
+    private func physLabTick(_ now: TimeInterval) {
+        guard physLabSamples < physLabMaxSamples else { return }
+        if physLabNext == 0 { physLabNext = now }
+        guard now >= physLabNext else { return }
+        physLabNext = now + physLabPeriod
+        physLabSamples += 1
+        let g = physicsWorld.gravity
+        var out = String(format: "t=%.2f idle=%d calm=%d sealed=%d g=(%.1f,%.1f) side=%.0f scene=%.0fx%.0f contacts=%d squash=%d sep=%d\n",
+                         now, idle ? 1 : 0, calmFrames, ceilingSealed ? 1 : 0,
+                         g.dx, g.dy, chipSide, size.width, size.height,
+                         physLabContacts, physLabSquashes, physLabSeparations)
+        out += String(format: "  DV n=%d max=%.0f mean=%.0f (gravity floor g·dt=%.0f)\n",
+                      physLabDvCount, physLabDvMax,
+                      physLabDvCount > 0 ? physLabDvSum / CGFloat(physLabDvCount) : 0,
+                      hypot(g.dx, g.dy) * 150 / 60)
+        physLabContacts = 0; physLabSquashes = 0; physLabSeparations = 0
+        physLabDvMax = 0; physLabDvSum = 0; physLabDvCount = 0
+        let items = chips.sorted { $0.key.uuidString < $1.key.uuidString }
+        for (id, n) in items {
+            let r = bodyAABB(n)
+            let v = n.physicsBody?.velocity ?? .zero
+            out += String(format: "  %@ %@ p(%.1f,%.1f) v(%.1f,%.1f)=%.2f w=%.3f rest=%d z=%.3f rot=%.2f aabb(%.0f,%.0f,%.0f,%.0f)\n",
+                          String(id.uuidString.prefix(4)),
+                          (n.userData?["glyph"] as? String) ?? "?",
+                          n.position.x, n.position.y, v.dx, v.dy, hypot(v.dx, v.dy),
+                          n.physicsBody?.angularVelocity ?? 0,
+                          (n.physicsBody?.isResting ?? false) ? 1 : 0,
+                          n.zPosition, n.zRotation,
+                          r.minX, r.minY, r.width, r.height)
+        }
+        for i in items.indices {
+            for j in items.indices where j > i {
+                let ri = bodyAABB(items[i].value), rj = bodyAABB(items[j].value)
+                let hit = ri.intersection(rj)
+                guard !hit.isNull, hit.width > 0, hit.height > 0 else { continue }
+                let frac = (hit.width * hit.height) / min(ri.width * ri.height, rj.width * rj.height)
+                out += String(format: "  OVERLAP %@~%@ %.1f%% (dx=%.0f dy=%.0f)\n",
+                              String(items[i].key.uuidString.prefix(4)),
+                              String(items[j].key.uuidString.prefix(4)),
+                              frac * 100, hit.width, hit.height)
+            }
+        }
+        physLabLog += out
+        if let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
+            try? physLabLog.write(to: dir.appendingPathComponent("phys-lab.txt"),
+                                  atomically: true, encoding: .utf8)
+        }
+    }
+
     private var lastRestlessLog: TimeInterval = 0
+    /// calm 창은 통과했는데 변위 검증에서 되돌아온 횟수 — 안착이 반복 실패하는 상태의 관측구.
+    private var driftRetries = 0
     /// 진단 — calm 진입을 막는 칩의 속도/각속도를 1초에 한 번만 로그(콘솔 폭주 방지).
     private func logRestlessChipsIfNeeded(_ now: TimeInterval) {
         guard now - lastRestlessLog > 1 else { return }
@@ -525,15 +764,88 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     }
     #endif
 
-    /// 물리 시뮬레이션 직후 — 안착 z-순서를 y로 결정한다. 아래(작은 y) 재료가 더 앞에 그려져
-    /// 자연스러운 더미가 된다. 상한 29로 클램프(존 z=30·popOut z=50보다 항상 아래).
-    override func didSimulatePhysics() {
-        for node in chips.values where node.physicsBody != nil {
-            node.zPosition = min(29, 10 + (size.height - node.position.y) * 0.01)
-        }
+    // MARK: - 그리기 순서 (§13.4)
+
+    /// 칩 z-순서 — **스폰 카운터 기반 고정값**이다.
+    ///
+    /// 실기기 3차 피드백 ② "겹친 부분이 보였다 안 보였다 깜빡임"의 원인은 알파도 텍스처도 아니라
+    /// **그리기 순서가 매 프레임 뒤집힌 것**이었다. 옛 코드는 `didSimulatePhysics`에서 z를 y로
+    /// 다시 계산했다(`z = 10 + (H − y) × 0.01`). 바닥 한 줄에 쌓인 칩들은 y가 서로 몇 pt 안이라
+    /// z가 **0.01 단위로 붙고**(-physLab 실측: 바닥 6칩이 13.52~13.61, 폭 0.09 안), 솔버 미세
+    /// 요동으로 y가 1~2pt만 흔들려도 순서가 뒤집힌다 — 겹친 영역만 프레임마다 다시 칠해진다.
+    /// `ignoresSiblingOrder = true`가 그 뒤집힘을 그대로 화면에 통과시킨다.
+    ///
+    /// 그래서 z를 스폰 순간 한 번만 정하고 다시는 건드리지 않는다. **나중에 떨어진 칩이 위**라는
+    /// 규칙은 캐스케이드의 물리와도 일치한다(먼저 떨어진 것 위에 쌓인다). y 기반 깊이 단서는
+    /// 어차피 없다시피 했다 — 안착하면 전부 바닥 한 줄이라 z 차이가 0.09였다.
+    /// 레이어 상수는 `static`이다 — 겹침 순서 불변식(칩 < 드래그 < 존 < 사라지는 칩)을
+    /// ChipZOrderTests가 리터럴을 다시 적지 않고 직접 건다. 값이 서로를 넘으면 존이 칩 뒤로
+    /// 숨거나 사라지는 칩이 더미에 파묻힌다.
+    static let zBase: CGFloat = 10
+    static let zStep: CGFloat = 0.5          // 칩 사이 최소 간격 — 동률이면 그리기 순서가 비결정
+    static let zTop: CGFloat = 28            // 여기 닿기 전에 압축(compactZOrder)이 돈다
+    static let zDragged: CGFloat = 29        // 잡은 칩은 더미 위, 존 아래
+    static let zZone: CGFloat = 30           // 판정 바스켓
+    static let zPopOut: CGFloat = 50         // 사라지는 칩 — 항상 최상위
+    /// order번째로 스폰된 칩의 고정 z(1부터). 순수 함수 — 테스트가 단조·간격을 고정한다.
+    static func chipZ(spawnIndex i: CGFloat, step: CGFloat = zStep) -> CGFloat { zBase + i * step }
+
+    /// `count`개를 z 예산(zBase..zTop) 안에 담는 간격. 기본은 `zStep`이고, 예산을 넘길 만큼
+    /// 칩이 많아지면 **균등 분할로 좁힌다**. 압축(compactZOrder)만으로는 부족하기 때문이다 —
+    /// 압축은 zCounter를 살아 있는 칩 수로 되돌릴 뿐이라, 칩이 예산 칸 수(36)보다 많으면
+    /// 압축이 사실상 무동작이 되어 z가 zTop을 넘어 계속 올라간다(잡은 칩 29·존 30을 침범).
+    /// 작업대 상한(6)에선 도달하지 않는 영역이지만, 상한은 불변식이지 희망사항이 아니다.
+    static func zStepFor(count: Int) -> CGFloat {
+        guard count > 0 else { return zStep }
+        return min(zStep, (zTop - zBase) / CGFloat(count))
     }
 
-    /// 모든 칩이 조용한가 — 지터(v 4~30)를 포함하는 넉넉한 대역. 진짜 안착은 변위 검증이 가른다.
+    /// 압축 배정(순수) — `slots`(각 칩의 보관 z)를 오름차순 순위 그대로 1..n에 다시 매긴다.
+    /// 반환은 **입력 순서 그대로**의 (보관 슬롯, 실제 zPosition).
+    /// `draggedIndex`의 실제 z만 승격값(`zDragged`)을 유지한다 — 잡고 있는 칩의 z를 압축이 덮으면
+    /// 그 칩이 손끝에서 더미 **밑으로** 가라앉고, 놓을 때 되돌릴 값(`userData["z"]`)도 함께 날아간다.
+    static func compactedZ(slots: [CGFloat], step: CGFloat = zStep,
+                           draggedIndex: Int? = nil) -> [(slot: CGFloat, live: CGFloat)] {
+        let rank = slots.indices.sorted { slots[$0] < slots[$1] }
+        var out = [(slot: CGFloat, live: CGFloat)](repeating: (0, 0), count: slots.count)
+        for (i, idx) in rank.enumerated() {
+            let z = chipZ(spawnIndex: CGFloat(i + 1), step: step)
+            out[idx] = (slot: z, live: idx == draggedIndex ? zDragged : z)
+        }
+        return out
+    }
+
+    private var zCounter: CGFloat = 0
+    /// 지금 쓰는 z 간격 — 평소엔 `zStep`, 칩이 예산을 넘치면 압축이 좁혀 놓는다(`zStepFor`).
+    private var zStepLive: CGFloat = zStep
+
+    /// 다음 칩의 고정 z를 뽑는다. 상한에 닿으면 살아 있는 칩만 현재 순서대로 다시 촘촘히 매겨
+    /// (세션 내내 칩을 넣고 빼도) z가 상한에 몰려 동률이 되는 일이 없게 한다.
+    private func nextChipZ() -> CGFloat {
+        // 압축엔 **다음 칩 자리까지** 예산을 잡아 준다 — 압축 직후 태어나는 칩이 곧바로 상한을 넘지 않게.
+        if Self.chipZ(spawnIndex: zCounter + 1, step: zStepLive) > Self.zTop { compactZOrder(reserving: 1) }
+        zCounter += 1
+        return Self.chipZ(spawnIndex: zCounter, step: zStepLive)
+    }
+
+    /// 살아 있는 칩의 z를 현재 순서 그대로 1..n으로 다시 매긴다 — 순서는 보존, 값만 회수.
+    /// 잡고 있는 칩은 슬롯만 받고 화면 z(승격)는 그대로 둔다(`compactedZ`).
+    private func compactZOrder(reserving extra: Int = 0) {
+        let nodes = Array(chips.values)
+        guard !nodes.isEmpty else { zCounter = 0; zStepLive = Self.zStep; return }
+        let slots = nodes.map { ($0.userData?["z"] as? CGFloat) ?? $0.zPosition }
+        let step = Self.zStepFor(count: nodes.count + max(0, extra))
+        let draggedIndex = dragged.flatMap { d in nodes.firstIndex(where: { $0 === d }) }
+        for (i, z) in Self.compactedZ(slots: slots, step: step, draggedIndex: draggedIndex).enumerated() {
+            nodes[i].userData?["z"] = z.slot
+            nodes[i].zPosition = z.live
+        }
+        zStepLive = step
+        zCounter = CGFloat(nodes.count)
+    }
+
+    /// 모든 칩이 조용한가 — 관측 지터 대역(v 4~30)을 통째로 덮는 넉넉한 문턱(40).
+    /// 감쇠 플로어(14)와 값이 다른 것은 의도다(jitterFloor 주석). 진짜 안착은 변위 검증이 가른다.
     private func allChipsCalm() -> Bool {
         for node in chips.values {
             guard let b = node.physicsBody else { continue }
@@ -551,6 +863,99 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         return true
     }
 
+    // MARK: - 관통 해소 (§13.4)
+
+    /// AABB 관통률(교집합 면적 / 작은 쪽 AABB 면적) 문턱 — 이 위는 "겹쳐 보인다".
+    /// 볼록 타원 바디는 모서리에서 AABB보다 안쪽이라, 15%는 실제 바디 관통으로 치면 한 자릿수다.
+    /// 세 상수 모두 `static` — 테스트가 리터럴을 다시 적지 않고 실제 예산에 불변식을 건다.
+    static let separationOverlap: CGFloat = 0.15
+    /// 위치 보정 반복 상한 — 한 바퀴(Gauss-Seidel)가 쌍 하나를 완전히 떼어 놓으므로 몇 바퀴면 수렴한다.
+    /// **10**은 최악 배치의 실측에서 왔다: 6칩이 한 줄로 완전히 포개진 상태(칩당 20pt 간격,
+    /// 인접 쌍 80% 관통)가 8바퀴에 수렴한다(`ChipDepenetrationTests`). 그래도 못 푸는 배치는
+    /// 남은 겹침을 안고 얼린다 — 영영 안 자는 것이 살짝 겹쳐 보이는 것보다 나쁘다.
+    static let separationPasses = 10
+    /// 떼어 놓은 뒤 남기는 여유(pt) — 부동소수 경계에 딱 붙여 놓지 않는다.
+    static let separationSlop: CGFloat = 0.5
+
+    /// 안착 직전 관통 해소 — **속도가 아니라 위치로** 푼다. 밀어낸 쌍 수를 돌려준다.
+    ///
+    /// 실기기 3차 ②("칩들이 절반 가까이 겹친 채 고착")의 마지막 방어선이다. 스폰 declump가 깊은
+    /// **초기** 관통을 없애도 던지기·셰이크·회수가 만든 관통은 남을 수 있고, force-settle은
+    /// 속도를 0으로 굳히므로 그 순간의 겹침이 **영구 고착**이 된다.
+    ///
+    /// v1.0 (6)까지는 얼리기 **전에** 임펄스(240pt/s)로 밀고 calm 창을 다시 돌렸다. 그 방식은
+    /// 예산이 마르며 실패했다 — 640g 아래 마찰 0.55가 임펄스를 곧바로 먹어 한 번에 문턱 아래로
+    /// 못 벗어나고, 밀 때마다 창이 처음부터 다시 돌아 시도 8회가 ~6.6초에 소진된 뒤 **15% 초과 쌍이
+    /// 남은 채** 더미가 얼었다(-physLab 콜드런치 실측, 씨앗 6개·무입력). 위치 보정엔 그 두 실패
+    /// 모드가 구조적으로 없다: 속도가 0이라 두께 0의 벽을 뚫을 수 없고(터널링 불가), 얼리는 순간에
+    /// 도는 것이라 calm 창을 되돌리지 않는다(예산 소진 자체가 성립하지 않는다).
+    /// 미는 축은 AABB 최소 관통 축(MTV) — 대각으로 밀면 더미가 옆으로 무너진다.
+    @discardableResult
+    private func depenetrateChips() -> Int {
+        var separated = 0
+        for _ in 0..<Self.separationPasses {
+            let items = Array(chips.values)
+            var movedThisPass = 0
+            for i in items.indices {
+                for j in items.indices where j > i {
+                    // AABB는 매번 현재 위치에서 다시 잰다 — 같은 바퀴 안의 앞선 보정이 즉시 반영된다.
+                    let a = items[i], b = items[j]
+                    guard let push = Self.depenetration(bodyAABB(a), bodyAABB(b),
+                                                        overlap: Self.separationOverlap,
+                                                        slop: Self.separationSlop) else { continue }
+                    a.position.x += push.dx
+                    a.position.y += push.dy
+                    b.position.x -= push.dx
+                    b.position.y -= push.dy
+                    clampIntoBox(a)
+                    clampIntoBox(b)
+                    movedThisPass += 1
+                }
+            }
+            separated += movedThisPass
+            if movedThisPass == 0 { break }
+        }
+        #if DEBUG
+        if Self.physLab, separated > 0 { physLabSeparations += separated }
+        #endif
+        return separated
+    }
+
+    /// 두 AABB의 관통을 푸는 **반쪽 이동량**(a에 +, b에 − 로 적용) — 관통률이 문턱 이하면 nil.
+    /// 미는 축은 **최소 관통 축**(가로 관통이 얕으면 가로로) 하나뿐이고, 이동량은 그 축 관통의
+    /// 절반 + 여유라 둘을 반대로 밀면 겹침이 완전히 사라진다. 순수 함수 — 테스트가 "밀고 나면
+    /// 정말 문턱 아래인가"를 씬 없이 고정한다(`ChipDepenetrationTests`).
+    static func depenetration(_ a: CGRect, _ b: CGRect,
+                              overlap threshold: CGFloat, slop: CGFloat) -> CGVector? {
+        let hit = a.intersection(b)
+        guard !hit.isNull, hit.width > 0, hit.height > 0 else { return nil }
+        let area = min(a.width * a.height, b.width * b.height)
+        guard area > 0, (hit.width * hit.height) / area > threshold else { return nil }
+        // 반씩 나눠 민다 — 한쪽만 밀면 더미 전체가 한 방향으로 흐른다.
+        let push = min(hit.width, hit.height) * 0.5 + slop
+        if hit.width <= hit.height {
+            return CGVector(dx: (a.midX <= b.midX ? -1 : 1) * push, dy: 0)
+        }
+        return CGVector(dx: 0, dy: (a.midY <= b.midY ? -1 : 1) * push)
+    }
+
+    /// 칩 바디의 AABB를 밀폐 상자(벽 안쪽) 안으로 되돌린다 — 위치 보정이 칩을 벽 밖으로 내보내면
+    /// 다음 프레임 `recoverEscapedChips`가 천장으로 회수해 더미가 통째로 다시 무너진다.
+    private func clampIntoBox(_ node: SKSpriteNode) {
+        let r = bodyAABB(node)
+        let left = wallInset, right = max(left, size.width - wallInset)
+        let bottom = floorY, top = max(bottom, sealedCeiling)
+        var dx: CGFloat = 0, dy: CGFloat = 0
+        if r.minX < left { dx = left - r.minX } else if r.maxX > right { dx = right - r.maxX }
+        if r.minY < bottom { dy = bottom - r.minY } else if r.maxY > top { dy = top - r.maxY }
+        // 상자보다 큰 바디는 어느 쪽으로 밀어도 못 담는다 — 그 축은 가운데 정렬로 끝낸다.
+        if r.width > right - left { dx = (left + right) * 0.5 - r.midX }
+        if r.height > top - bottom { dy = (bottom + top) * 0.5 - r.midY }
+        guard dx != 0 || dy != 0 else { return }
+        node.position.x += dx
+        node.position.y += dy
+    }
+
     /// 변위 검증 통과 → 강제 안착(freeze). 지터로 요동하던 미세 속도를 그 자리에서 0으로 굳혀
     /// 시각적 '꿈틀'까지 없애고 재운다. 물리 파라미터는 건드리지 않는다.
     private func forceSettle() {
@@ -558,6 +963,8 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         // update()가 멈춰 maintainCeiling의 sealTimeout 강제 회수가 영영 돌지 않는다 —
         // §13.4의 "6초 넘게 열려 있으면 구조적으로 막는다"는 보증은 이 가드가 지킨다.
         guard ceilingSealed else { return }
+        // 속도를 굳히기 **직전에** 겹침을 위치로 푼다 — 순서가 뒤바뀌면 겹친 배치가 그대로 영구 고착이다.
+        depenetrateChips()
         for node in chips.values {
             node.physicsBody?.velocity = .zero
             node.physicsBody?.angularVelocity = 0
@@ -574,6 +981,11 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
             node.setScale(1)
         }
         idle = true
+        #if DEBUG
+        // 마지막 샘플을 남긴다 — 잠들면 update()가 멈춰 로그가 끊기므로, 안착 시점·최종 배치를
+        // 기록해 두지 않으면 "언제 어떤 모양으로 잤는지"가 파일에 영영 안 남는다.
+        if Self.physLab { physLabNext = 0; physLabTick(lastUpdateTime) }
+        #endif
         refreshPaused()
         #if DEBUG
         Logger(subsystem: "com.reffi.app", category: "scene")
@@ -585,12 +997,12 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     private func wake() {
         calmFrames = 0
         calmSnapshot.removeAll()
-        dampSuppression = dampSuppressionFrames   // 기울임 반응 창 — idle 여부와 무관하게 갱신
+        calmBreaches = 0
         guard idle else { return }
         idle = false
         // 스로틀 리셋은 **실제 휴면→기상 전이에서만**. wake()는 셰이크 킥(0.09초마다)·터치·sync가
-        // 깨어 있는 상태에서도 부르는데, 위에 두면 그때마다 쌍 쿨다운(0.14초)이 지워져 같은 두 칩이
-        // 초당 11번까지 다시 울린다 — 셰이크 중, 즉 접촉이 가장 많은 구간에서 게이트가 무력해진다.
+        // 깨어 있는 상태에서도 부르는데, 위에 두면 그때마다 쌍 쿨다운(0.26초)이 지워져 같은 두 칩이
+        // 전역 상한(11Hz)까지 다시 울린다 — 셰이크 중, 즉 접촉이 가장 많은 구간에서 게이트가 무력해진다.
         // 리셋의 근거(lastUpdateTime은 휴면을 건너뛰며 튄다)도 이 전이에서만 성립한다.
         clatterThrottle.reset()
         for node in chips.values { node.physicsBody?.usesPreciseCollisionDetection = true }
@@ -638,7 +1050,7 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         let node = SKSpriteNode(texture: renderer.uiImage.map { SKTexture(image: $0) },
                                 size: CGSize(width: zoneSide, height: zoneSide))
         node.alpha = 0
-        node.zPosition = 30
+        node.zPosition = Self.zZone
         return node
     }
 
@@ -694,12 +1106,48 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         addChild(walls)
     }
 
-    /// 천장을 연다 — 새 재료가 화면 위에서 떨어져 들어오기 직전에 부른다.
-    /// 밀폐된 채로 스폰하면 칩이 천장 **위**에 얹혀 영영 안 보인다.
-    private func openCeiling() {
-        guard ceilingSealed else { return }
-        ceilingSealed = false
-        buildWalls()
+    /// 천장을 스폰 높이 위로 올린다(래칫) — 새 재료가 화면 위에서 떨어져 들어오기 직전에 부른다.
+    /// 밀폐된 채로 스폰하면 칩이 천장 **위**에 얹혀 영영 안 보이고, 사다리보다 낮은 천장에
+    /// 스폰하면 칩이 상자 밖에서 태어나 벽에 걸려 튕겨 나간다.
+    private func raiseSpawnCeiling(to top: CGFloat) {
+        let grew = top > spawnCeilingMark
+        if grew { spawnCeilingMark = top }
+        if ceilingSealed {
+            ceilingSealed = false
+            buildWalls()
+        } else if grew {
+            buildWalls()
+        }
+    }
+
+    /// 상자 **바깥**으로 새어 나간 칩 회수 — 어느 방향이든(아래·옆·위).
+    /// 벽은 두께 0의 edge loop라 깊은 관통을 푸는 큰 임펄스를 받으면 CCD로도 못 막고 뚫린다
+    /// (-physLab 실측: 스폰 43% 관통 → 한 칩이 v=2050pt/s로 튀어나가 y=−438000까지 낙하).
+    /// 새어 나간 칩은 화면에서 사라질 뿐 아니라 **씬 전체의 안착을 영원히 막는다** —
+    /// `allChipsCalm()`이 전 칩을 보므로 자유낙하하는 한 칩의 속도가 calm 판정을 계속 깨고,
+    /// 그러면 force-settle이 없어 씬이 60fps로 영영 돈다(실기기 ①의 가장 지독한 형태).
+    /// 회수 위치는 **그 칩의 x를 유지한 채 천장 바로 아래** — 결정적이고, 더미를 흩지 않는다.
+    /// 방향이 고정 하강 벡터인 이유는 `tuckStraysUnderCeiling`과 같다(중력 방향을 쓰면 되쏜다).
+    @discardableResult
+    private func recoverEscapedChips() -> Bool {
+        let s = chipSide, inset = wallInset
+        // 판정 여유 = 칩 변 — 벽에 살짝 걸친 정상 상태를 이탈로 오인하지 않는다.
+        let lowY = floorY - s, highY = spawnCeiling + s
+        let lowX = inset - s, highX = size.width - inset + s
+        let minX = inset + s * 0.5, maxX = max(minX, size.width - inset - s * 0.5)
+        var recovered = false
+        for node in chips.values {
+            let p = node.position
+            guard !p.x.isFinite || !p.y.isFinite
+                    || p.y < lowY || p.y > highY || p.x < lowX || p.x > highX else { continue }
+            let x = p.x.isFinite ? min(max(p.x, minX), maxX) : size.width * 0.5
+            node.position = CGPoint(x: x, y: sealedCeiling - s * 0.5)
+            node.physicsBody?.velocity = CGVector(dx: 0, dy: -220)
+            node.physicsBody?.angularVelocity = 0
+            recovered = true
+        }
+        if recovered { wake() }
+        return recovered
     }
 
     /// 천장 관리(매 프레임) — 모든 칩이 가시 영역 안으로 들어오면 밀폐하고, 낙하 중이면 열어 둔다.
@@ -707,16 +1155,17 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     /// "화면 밖으로 나가서 안 돌아옴"을 구조적으로 불가능하게 만든다.
     private func maintainCeiling(_ now: TimeInterval) {
         guard size.width > 1, size.height > 1 else { return }
+        recoverEscapedChips()   // 상자를 뚫고 나간 칩 — 남겨 두면 안착이 영영 성립하지 않는다
         // 매 프레임 도는 자리다 — 불리언 하나 얻자고 배열을 만들지 않고, 계산 프로퍼티 체인
         // (`sealedCeiling` → `wallInset` → `chipSideFor`)도 칩마다 다시 타지 않게 한 번만 편다
         // (`tuckStraysUnderCeiling`이 이미 쓰는 방식).
         let ceiling = sealedCeiling
         guard chips.values.contains(where: { $0.position.y > ceiling }) else {
             unsealedSince = nil
-            if !ceilingSealed { ceilingSealed = true; buildWalls() }
+            // 밀폐 = 이번 캐스케이드 종료 — 래칫을 내려 다음 캐스케이드가 자기 사다리를 새로 세운다.
+            if !ceilingSealed { ceilingSealed = true; spawnCeilingMark = 0; buildWalls() }
             return
         }
-        openCeiling()
         let since = unsealedSince ?? now
         unsealedSince = since
         guard now - since > sealTimeout else { return }
@@ -724,6 +1173,7 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         tuckStraysUnderCeiling()
         unsealedSince = nil
         ceilingSealed = true
+        spawnCeilingMark = 0
         buildWalls()
         wake()
     }
@@ -731,14 +1181,20 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     /// 천장 **위**에 남은 칩을 상자 안으로 끌어들인다.
     ///
     /// 밀폐된 상자 바깥(위)에 놓인 칩은 스스로 못 들어온다 — 위로 기울인 상태면 그대로 떠올라
-    /// 감쇠(`jitterDamp`)에 얼어붙고, 그러면 씬이 안착으로 판정해 잠들어(`forceSettle`) `maintainCeiling`의
+    /// 화면 밖에 머물고, 그러면 씬이 안착으로 판정해 잠들어(`forceSettle`) `maintainCeiling`의
     /// 타임아웃이 **영영 돌지 않는다**(재료가 화면 밖에서 사라진 것처럼 보였다).
     /// 그래서 `maintainCeiling`의 지연 회수와 별개로, 천장이 내려오는 순간에도 즉시 회수한다.
+    /// 회수된 칩은 **상자 안쪽으로 밀어 넣는다** — 속도를 0으로 두면 천장 아래에 얼어붙은 채
+    /// 나타나 실기기 피드백 "아이템이 갑자기 순간이동"처럼 읽혔다. 방향은 **항상 (0, −220)**,
+    /// 즉 천장에서 바닥을 향하는 고정 벡터다. 그 시점 중력 방향을 쓰면(v1.0 (4)) 기기를 뒤집어
+    /// 중력이 위를 향할 때 회수한 칩을 방금 빠져나온 천장으로 되쏘아, 법선이 중력과 나란한
+    /// 착지 접촉이 되어 회수분 전체가 동시에 스쿼시 + 달그락을 냈다.
     private func tuckStraysUnderCeiling() {
         let ceiling = sealedCeiling
+        let drop = CGVector(dx: 0, dy: -220)   // 상자 안쪽 고정 — 중력 방향과 무관
         for node in chips.values where node.position.y > ceiling {
             node.position.y = ceiling - chipSide * 0.5
-            node.physicsBody?.velocity = .zero
+            node.physicsBody?.velocity = drop
             node.physicsBody?.angularVelocity = 0
         }
     }
@@ -817,7 +1273,7 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         chips[id] = nil
         node.name = nil          // 사라지는 중엔 히트 대상에서 제외
         node.physicsBody = nil   // 물리 정지(충돌에서 제외)
-        node.zPosition = 50
+        node.zPosition = Self.zPopOut
         if node === dragged { dragged = nil; dragTouch = nil }
 
         if reduceMotion {
@@ -846,8 +1302,11 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         node.physicsBody = body
         node.name = "chip:\(ing.id.uuidString)"
         // glyph는 충돌 시 촉감(sharpness·세기)을 되찾기 위해 — 물리 바디에서 노드로 거슬러 읽는다.
+        // z는 드래그 승격에서 되돌릴 **원래 고정값**의 보관처다(nextChipZ 주석).
+        let z = nextChipZ()
+        node.zPosition = z
         node.userData = ["name": ing.name, "glyph": ing.glyph.rawValue,
-                         "wilt": WiltStyle.for(ing.freshness).token]
+                         "wilt": WiltStyle.for(ing.freshness).token, "z": z]
         // 물성은 글리프 클래스별 차등(위 ChipMaterial) — 계란은 굴러가고 두부는 눌러앉는다.
         // **낙하 축은 차등하지 않는다**: linearDamping 0.2와 중력 42는 §13.4의 "쿵" 감각이다.
         let mat = Self.material(for: ing.glyph)
@@ -871,13 +1330,20 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         let x = size.width / 2 + (frac - 0.5) * band
         node.zRotation = (order % 2 == 0) ? 0.16 : -0.18
         if reduceMotion {
-            node.position = CGPoint(x: x, y: floorY + s * (0.45 + CGFloat(order % 3) * 0.5))
+            // 낙하 없이 바로 놓는다 — 자리는 사다리와 같은 declump 불변식을 지키는 격자(`staticSlot`).
+            // 천장 아래로 클램프하는 것은 상자 밖 스폰을 막기 위한 것이다(밖에 놓이면 6초 뒤
+            // `tuckStraysUnderCeiling`이 전부 같은 y로 끌어내려 오히려 한 줄로 뭉친다).
+            let slot = Self.staticSlot(order: order, count: n, side: s, band: band)
+            let top = max(floorY, sealedCeiling - s * 0.5)
+            node.position = CGPoint(x: size.width / 2 + slot.dx,
+                                    y: min(floorY + slot.dy, top))
         } else {
-            // 위에서 스태거 낙하 → 더미. 스폰은 항상 **스폰 천장** 아래로 클램프하고, 밀폐돼 있으면
-            // 먼저 연다 — 밀폐된 채로 화면 위에 놓으면 칩이 천장 **위**에 얹혀 영영 안 보인다.
-            openCeiling()
-            let y = min(size.height + s * (0.4 + CGFloat(order) * 0.85), spawnCeiling - s * 0.6)
+            // 위에서 스태거 낙하 → 더미. **클램프하지 않는다** — 사다리를 접으면 order가 큰 칩들이
+            // 같은 y에 겹쳐 태어나고(실측 43.1% 관통), 그 깊은 관통이 벽 관통·고착·상시 움찔의
+            // 공통 뿌리가 된다. 대신 천장을 사다리 위로 **올려서** 상자 안에 담는다.
+            let y = size.height + Self.spawnHeight(order: order, side: s)
             node.position = CGPoint(x: x, y: y)
+            raiseSpawnCeiling(to: y + s * Self.spawnHeadroom)
         }
         addChild(node)
         chips[ing.id] = node
@@ -907,29 +1373,70 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         return Self.ovalBody(s * m.w, s * m.h, dy: s * m.dy)
     }
 
-    /// 실측 바디 파라미터 (폭비, 높이비, y오프셋[+위]) — `-glyphMetrics` 계측값(알파 bbox×0.9 + bbox중심 정렬).
+    /// 칩 물리 바디(볼록 타원 폴리곤)의 **회전 반영 AABB**(씬 좌표).
+    /// 진단 계측(`-physLab`)과 관통 해소가 **같은 식**을 써야 "측정한 겹침"과 "푸는 겹침"이 어긋나지 않는다.
+    /// 회전한 타원의 AABB 반폭 = √((a·cosθ)² + (b·sinθ)²) — 폴리곤 근사분의 오차는 1% 미만이다.
+    /// dy 오프셋은 바디 로컬 좌표라 노드 회전을 함께 먹인다.
+    private func bodyAABB(_ node: SKSpriteNode) -> CGRect {
+        let s = node.size.width
+        let glyph = (node.userData?["glyph"] as? String).flatMap(FoodGlyph.init(rawValue:))
+        let m = glyph.flatMap { Self.bodyMetrics[$0] } ?? (w: 0.62, h: 0.60, dy: 0)
+        let a = s * m.w * 0.5, b = s * m.h * 0.5
+        let c = cos(node.zRotation), si = sin(node.zRotation)
+        let hw = ((a * c) * (a * c) + (b * si) * (b * si)).squareRoot()
+        let hh = ((a * si) * (a * si) + (b * c) * (b * c)).squareRoot()
+        let off = s * m.dy
+        return CGRect(x: node.position.x - si * off - hw, y: node.position.y + c * off - hh,
+                      width: hw * 2, height: hh * 2)
+    }
+
+    /// 실측 바디 파라미터 (폭비, 높이비, y오프셋[+위]) — `-glyphMetrics` 계측값 그대로 붙여 넣는다:
+    /// (w, h) = 알파 bbox × 0.9, dy = **알파 bbox 중심의 상향 오프셋**(`bboxCtrUp`).
+    ///
+    /// **dy 부호·기준 정정(실기기 3차 ②)**: 여기 있던 값들은 두 가지가 동시에 틀려 있었다 —
+    /// v1 34종은 `bboxCtrUp`의 **부호가 뒤집힌** 채였고(그림이 프레임 위쪽에 그려진 글리프의 바디를
+    /// 아래로 내려, 오차가 두 배가 됐다), v2 17종은 `dump()`가 세 번째 칸에 찍던 **질량중심**
+    /// (`massUp`)을 그대로 옮겨 기준 자체가 달랐다. `-physLab` 콜라이더 오버레이에서 버섯의 바디가
+    /// 갓만 덮고 자루를 비우는 식으로 눈에 보인다(어긋남 최대 0.12s ≈ 20pt @ s=169).
+    /// 정본은 **bbox 중심**이다 — 볼록 근사 바디는 그려진 영역을 고르게 덮어야 하고, 질량중심은
+    /// 짙은 쪽으로 쏠려 옅은 끝을 비운다. `dump()`도 이 칸을 찍도록 함께 고쳤다(재측정 = 재현).
     private static let bodyMetrics: [FoodGlyph: (w: CGFloat, h: CGFloat, dy: CGFloat)] = [
-        .leaf: (0.52, 0.68, 0.00),  .root: (0.27, 0.67, -0.01), .squash: (0.35, 0.59, 0.03),
-        .onion: (0.52, 0.65, -0.05), .tomato: (0.56, 0.60, 0.00), .pepper: (0.55, 0.64, -0.01),
-        .mushroom: (0.59, 0.54, 0.02), .broccoli: (0.56, 0.62, 0.01), .potato: (0.59, 0.46, 0.00),
-        .garlic: (0.46, 0.58, -0.03), .cucumber: (0.60, 0.59, 0.01), .pea: (0.59, 0.36, 0.06),
-        .cabbage: (0.62, 0.59, -0.02), .chili: (0.30, 0.70, 0.00), .pumpkin: (0.60, 0.54, -0.02),
-        .apple: (0.61, 0.67, 0.02),  .citrus: (0.60, 0.45, 0.00), .berry: (0.46, 0.61, -0.01),
-        .avocado: (0.44, 0.62, 0.00), .banana: (0.61, 0.35, 0.05), .egg: (0.54, 0.59, 0.01),
-        .tofu: (0.68, 0.42, -0.02),  .meat: (0.62, 0.47, 0.01),  .poultry: (0.42, 0.59, 0.01),
-        .fish: (0.67, 0.40, 0.00),   .shrimp: (0.48, 0.57, -0.01), .milk: (0.41, 0.62, 0.00),
-        .cheese: (0.62, 0.45, -0.04), .bread: (0.56, 0.54, -0.03), .rice: (0.54, 0.49, -0.03),
-        .noodles: (0.56, 0.48, -0.06), .corn: (0.46, 0.59, 0.01), .sauceBottle: (0.30, 0.65, -0.01),
+        .leaf: (0.52, 0.68, 0.00),  .root: (0.27, 0.67, 0.01), .squash: (0.35, 0.59, -0.03),
+        .onion: (0.52, 0.65, 0.05), .tomato: (0.56, 0.60, 0.00), .pepper: (0.55, 0.64, 0.01),
+        .mushroom: (0.59, 0.54, -0.02), .broccoli: (0.56, 0.62, -0.01), .potato: (0.59, 0.46, 0.00),
+        .garlic: (0.46, 0.58, 0.03), .cucumber: (0.60, 0.59, -0.01), .pea: (0.59, 0.36, -0.06),
+        .cabbage: (0.62, 0.59, 0.02), .chili: (0.30, 0.70, 0.00), .pumpkin: (0.60, 0.54, 0.02),
+        .apple: (0.61, 0.67, -0.02),  .citrus: (0.60, 0.45, 0.00), .berry: (0.46, 0.61, 0.01),
+        .avocado: (0.44, 0.62, 0.00), .banana: (0.61, 0.35, -0.05), .egg: (0.54, 0.59, -0.01),
+        .tofu: (0.68, 0.42, 0.02),  .meat: (0.62, 0.47, -0.01),  .poultry: (0.42, 0.59, -0.01),
+        .fish: (0.67, 0.40, 0.00),   .shrimp: (0.48, 0.57, 0.01), .milk: (0.41, 0.62, 0.00),
+        .cheese: (0.62, 0.45, 0.04), .bread: (0.56, 0.54, 0.03), .rice: (0.54, 0.49, 0.03),
+        .noodles: (0.56, 0.48, 0.06), .corn: (0.46, 0.59, -0.01), .sauceBottle: (0.30, 0.65, 0.01),
         .can: (0.45, 0.47, 0.00),
         // v2 신규 17종 — `-glyphMetrics` 실측(알파 bbox×0.9 + 질량중심 정렬).
-        .eggplant: (0.35, 0.63, 0.03), .sweetPotato: (0.55, 0.28, 0.01), .ginger: (0.49, 0.40, 0.03),
-        .seaweed: (0.51, 0.58, 0.00), .grape: (0.42, 0.54, 0.01), .watermelon: (0.63, 0.51, -0.02),
-        .pineapple: (0.38, 0.65, 0.04), .mango: (0.52, 0.48, 0.00), .sausage: (0.57, 0.52, -0.02),
-        .bacon: (0.67, 0.36, 0.00), .crab: (0.61, 0.54, 0.06), .squid: (0.29, 0.61, 0.03),
-        .clam: (0.56, 0.43, 0.09), .yogurt: (0.44, 0.61, 0.01), .butter: (0.64, 0.33, 0.07),
-        .honey: (0.43, 0.61, 0.07), .dumpling: (0.54, 0.32, 0.06),
-        .generic: (0.60, 0.56, 0.01),
+        .eggplant: (0.35, 0.63, 0.00), .sweetPotato: (0.55, 0.28, 0.01), .ginger: (0.49, 0.40, 0.02),
+        .seaweed: (0.51, 0.58, 0.00), .grape: (0.42, 0.54, -0.02), .watermelon: (0.63, 0.51, 0.02),
+        .pineapple: (0.38, 0.65, -0.02), .mango: (0.52, 0.48, -0.02), .sausage: (0.57, 0.52, -0.03),
+        .bacon: (0.67, 0.36, -0.02), .crab: (0.61, 0.54, 0.04), .squid: (0.29, 0.61, 0.01),
+        .clam: (0.56, 0.43, 0.12), .yogurt: (0.44, 0.61, 0.02), .butter: (0.64, 0.33, 0.07),
+        .honey: (0.43, 0.61, 0.02), .dumpling: (0.54, 0.32, 0.04),
+        .gimbap: (0.72, 0.71, -0.01),
+        .generic: (0.60, 0.56, -0.01),
     ]
+
+    /// 표에서 가장 높은 바디의 높이비 — **스폰 간격(`spawnStep`)이 이 값을 넘어야** 이웃 order가
+    /// 겹쳐 태어나지 않는다. `internal`이라 SpawnLadderTests가 리터럴을 다시 적지 않고 불변식을 건다.
+    static let maxBodyHeightRatio: CGFloat = bodyMetrics.values.map(\.h).max() ?? 0.7
+
+    /// 표에서 가장 넓은 바디의 폭비 — **정적 배치(`staticSlot`)의 열 간격이 이 값을 넘어야**
+    /// 같은 행의 두 칩이 겹쳐 태어나지 않는다. 세로 축의 `maxBodyHeightRatio`와 짝이다.
+    static let maxBodyWidthRatio: CGFloat = bodyMetrics.values.map(\.w).max() ?? 0.72
+
+    /// 표 조회구 — 빠진 글리프는 nil. `internal`: 전수 커버(53종)를 테스트가 고정한다.
+    /// 실제로 `.gimbap`이 표에서 누락돼 폴백 바디(0.62×0.60)를 쓰고 있었다(실루엣과 어긋남).
+    static func bodyMetric(for glyph: FoodGlyph) -> (w: CGFloat, h: CGFloat, dy: CGFloat)? {
+        bodyMetrics[glyph]
+    }
 
     /// 바디 면적(폭비×높이비)의 전체 평균 — 질량비의 기준. 타원 면적의 π/4는 비율에서 약분된다.
     private static let meanFootprint: CGFloat = {
@@ -1046,7 +1553,7 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
 
     /// 접촉 시작 — **두 가지 일을 한 번에** 한다. 축이 일부러 다르다.
     /// ① 스쿼시: 임펄스를 질량으로 나눠 **근사 속도변화(pt/s)**로 환산한다. 나눈 값은
-    ///    calmSpeed·settleBand와 같은 축이라 "쌓이는 더미의 잔접촉"과 "실제 착지"를 기존 튜닝과
+    ///    calmSpeed와 같은 축이라 "쌓이는 더미의 잔접촉"과 "실제 착지"를 기존 튜닝과
     ///    같은 기준으로 가른다.
     /// ② 달그락: **생 임펄스** 그대로 세 관문(임펄스·전역간격·쌍 쿨다운)에 태운다. 운동량 전달이
     ///    곧 체감 크기라, 질량으로 나누면 소고기와 잎사귀가 같은 세기로 느껴진다.
@@ -1054,18 +1561,45 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         guard !idle, !externallyPaused else { return }
         let impulse = contact.collisionImpulse
         guard impulse > 0 else { return }
-        for body in [contact.bodyA, contact.bodyB] where body.categoryBitMask & Category.chip != 0 {
-            let dv = impulse / max(0.2, body.mass)
-            guard dv >= squashImpact, let node = body.node as? SKSpriteNode else { continue }
-            squash(node, strength: min(1, (dv - squashImpact) / (squashImpactMax - squashImpact)))
+        #if DEBUG
+        if Self.physLab { physLabContacts += 1 }
+        #endif
+        // 착지 게이트 — 접촉 법선이 현재 중력과 나란한 접촉만 스쿼시한다(굴림 옆접촉 제외).
+        // 중력이 0인 극단에선 방향이 정의되지 않으니 게이트를 열어 둔다.
+        if isLandingContact(contact) {
+            for body in [contact.bodyA, contact.bodyB] where body.categoryBitMask & Category.chip != 0 {
+                let dv = impulse / max(0.2, body.mass)
+                #if DEBUG
+                if Self.physLab { physLabDvMax = max(physLabDvMax, dv); physLabDvSum += dv; physLabDvCount += 1 }
+                #endif
+                guard dv >= squashImpact, let node = body.node as? SKSpriteNode else { continue }
+                squash(node, strength: min(1, (dv - squashImpact) / (squashImpactMax - squashImpact)))
+            }
         }
         // 햅틱은 Reduce Motion과 무관하게 살아 있다 — 시각 배려지 촉각 배려가 아니다(§7.4).
         let pair = ClatterPair(ObjectIdentifier(contact.bodyA).hashValue,
                                ObjectIdentifier(contact.bodyB).hashValue)
         guard clatterThrottle.allow(impulse: impulse, pair: pair, now: lastUpdateTime) else { return }
         let mat = clatterMaterial(contact.bodyA, contact.bodyB)
-        clatter.play(intensity: clatterIntensity(impulse) * mat.hapticScale, sharpness: mat.sharpness)
+        // 변주 시드는 **발화 순번**이다(allow가 방금 올렸다) — 같은 충돌 시퀀스면 같은 촉감이라
+        // 튜닝 비교와 계측 QA가 실행마다 흔들리지 않는다.
+        clatter.play(clatterRule.feel(impulse: impulse,
+                                      material: ClatterMaterial(sharpness: mat.sharpness,
+                                                                scale: mat.hapticScale),
+                                      sequence: clatterThrottle.fireCount))
         onClatter?()
+    }
+
+    /// 이 접촉이 '착지'인가 — 접촉 법선이 **그 시점 중력**과 얼마나 나란한지로 판정한다.
+    /// 굴림·더미 옆비빔은 법선이 중력에 수직(dot≈0)이라 걸러지고, 바닥·더미 위 착지는
+    /// 기울인 중력에서도 법선이 중력축과 나란해(|dot|≈1) 통과한다. 햅틱 축은 건드리지 않는다 —
+    /// 굴러 부딪히는 달그락은 **들려야** 맞고, 다만 눌려 보이면 안 될 뿐이다.
+    private func isLandingContact(_ contact: SKPhysicsContact) -> Bool {
+        let g = physicsWorld.gravity
+        let len = (g.dx * g.dx + g.dy * g.dy).squareRoot()
+        guard len > 0 else { return true }
+        let n = contact.contactNormal   // SpriteKit이 단위벡터로 준다
+        return abs((n.dx * g.dx + n.dy * g.dy) / len) > squashNormalAlign
     }
 
     /// 두 바디 중 촉감을 대표할 물성 — 칩-벽이면 그 칩, 칩-칩이면 **무거운 쪽**이 소리를 주도한다.
@@ -1078,19 +1612,20 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         return mats.max(by: { $0.mass < $1.mass }) ?? .standard
     }
 
-    /// 임펄스 → 세기. 임계값에서 0.18로 시작해 상한에서 1.0으로 포화한다.
-    /// 바닥을 0이 아니라 0.18로 둔 이유 — 통과한 충돌은 '느껴져야' 의미가 있다. 0 근처면 헛발질이다.
-    private func clatterIntensity(_ impulse: CGFloat) -> Float {
-        let span = clatterImpulseCeiling - clatterThrottle.minImpulse
-        let t = span > 0 ? (impulse - clatterThrottle.minImpulse) / span : 1
-        return Float(min(1, max(0, t))) * 0.82 + 0.18
-    }
-
     /// 착지 눌림 — 가로로 퍼지고 세로로 눌렸다가 복귀(최대 6%). 배율은 **정확히 1로** 되돌린다.
     /// 드래그 중인 칩과 Reduce Motion·휴면은 제외(손끝 추종이 흔들리지 않게, §7.4).
     private func squash(_ node: SKSpriteNode, strength: CGFloat) {
         guard !reduceMotion, !idle, node !== dragged else { return }
         guard node.action(forKey: "squash") == nil else { return }   // 연쇄 접촉으로 겹쳐 실행 금지
+        // 칩당 쿨다운 — 위 재진입 가드는 애니메이션이 도는 동안(~180ms)만 유효해서, 끝나는 즉시
+        // 다음 접촉이 또 눌렀다. 실기기 "움찔거림" 피드백의 나머지 절반이 이 연타였다.
+        let now = CACurrentMediaTime()
+        if let last = node.userData?["squashAt"] as? TimeInterval, now - last < squashCooldown { return }
+        if node.userData == nil { node.userData = [:] }
+        node.userData?["squashAt"] = now
+        #if DEBUG
+        if Self.physLab { physLabSquashes += 1 }
+        #endif
         let amt = 0.03 + 0.03 * min(1, max(0, strength))
         let d = ReffiMotion.dur2
         let press = SKAction.scaleX(to: 1 + amt, y: 1 - amt, duration: d * 0.35)
@@ -1102,6 +1637,19 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     }
 
     // MARK: - Drag / throw / tap (단일 터치 추적)
+
+    /// 드래그 승격 해제 — 스폰 때 정한 고정 z로 되돌린다. 보관값이 없으면(옛 노드) 새로 뽑아
+    /// 어떤 경우에도 다른 칩과 z가 겹치지 않게 한다(동률 = 그리기 순서 비결정 = 깜빡임).
+    private func restoreChipZ(_ node: SKSpriteNode?) {
+        guard let node, node.physicsBody != nil else { return }   // popOut 중인 노드는 z=50 유지
+        if let z = node.userData?["z"] as? CGFloat {
+            node.zPosition = z
+        } else {
+            let z = nextChipZ()
+            node.zPosition = z
+            node.userData?["z"] = z
+        }
+    }
 
     /// 터치 지점의 재료 칩.
     private func chip(at p: CGPoint) -> SKSpriteNode? {
@@ -1128,6 +1676,7 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         setZones(visible: true)
         node.removeAction(forKey: "squash")   // 잡는 순간 눌림 연출은 끊고 배율 원복
         node.setScale(1)
+        node.zPosition = Self.zDragged   // 잡은 칩은 더미 위로 — 복귀값은 userData["z"]에 그대로 있다
         if let body = node.physicsBody {
             body.affectedByGravity = false   // 잡는 동안 중력 off → 손가락 추종(동적 유지)
             body.angularVelocity = 0
@@ -1159,7 +1708,10 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         // 반대로 "다른 손가락이 떨어진 경우"는 그대로 무시한다(진행 중인 드래그의 예고를 지우면 안 된다).
         guard let t = dragTouch else { setZones(visible: false); return }
         guard touches.contains(t) else { return }
-        defer { dragTouch = nil; dragged = nil; setZones(visible: false) }
+        defer {
+            restoreChipZ(dragged)   // 승격 해제 — 스폰 때 정한 고정값으로 되돌린다(결정적)
+            dragTouch = nil; dragged = nil; setZones(visible: false)
+        }
         guard let node = dragged, let body = node.physicsBody else { return }
         body.affectedByGravity = true   // 놓으면 중력 복귀 — 현재 속도 그대로 자연스럽게 던져짐
         let cap: CGFloat = 1000
@@ -1188,6 +1740,7 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         guard let t = dragTouch else { setZones(visible: false); return }   // touchesEnded와 같은 이유
         guard touches.contains(t) else { return }
         dragged?.physicsBody?.affectedByGravity = true
+        restoreChipZ(dragged)
         dragTouch = nil
         dragged = nil
         setZones(visible: false)

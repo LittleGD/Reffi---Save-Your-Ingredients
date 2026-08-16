@@ -436,6 +436,47 @@ struct FridgeStoreTests {
         #expect(store.toBuy.isEmpty)
     }
 
+    // MARK: 티켓 Short 행 → To buy 원탭 (addMissingToBuy)
+
+    @Test func addMissingResolvesRecipeNamesToCanonicalKeys() throws {
+        // 넘어오는 이름은 레시피 항목의 표시명이라 캐논이 아니다 — 여기서 해석해 담지 않으면
+        // 같은 품목이 표기별로 여러 줄 쌓이고, 재입고가 그 메모를 못 내린다.
+        let store = FridgeStore(ingredients: [], recipes: [], history: [])
+        #expect(store.addMissingToBuy(["Green onion", "양파"]) == 2)
+        #expect(Set(store.toBuy.map(\.key)) == ["green-onion", "onion"])
+        // '대파'로 재입고 = 샀다 — 같은 캐논(green-onion)이라 표기가 달라도 그 줄이 내려간다.
+        store.add(ingredient("대파", glyph: .onion))
+        #expect(store.toBuy.map(\.key) == ["onion"])
+    }
+
+    @Test func addMissingFallsBackToLowercasedKeyOutsideTheLexicon() throws {
+        // 사전 밖 표기(커스텀 레시피의 자유 항목)도 담긴다 — 키는 소문자 원문, 글리프는 매칭 결과.
+        let store = FridgeStore(ingredients: [], recipes: [], history: [])
+        #expect(store.addMissingToBuy(["Qqzz"]) == 1)
+        let row = try #require(store.toBuy.first)
+        #expect(row.key == "qqzz")
+        #expect(row.name == "Qqzz")            // 사용자(레시피) 표기 그대로
+        #expect(row.glyph == FoodGlyph.match("Qqzz"))
+        #expect(row.glyph == .generic)                     // 매칭 실패 = generic 폴백
+        #expect(store.manualToBuy.first?.canonicalID == nil)
+    }
+
+    @Test func addMissingCountsOnlyNewRows() {
+        // 반환값은 **새로 담긴 수**다 — 호출부(티켓 알약)가 0이면 성공 햅틱을 울리지 않는다.
+        let store = FridgeStore(ingredients: [], recipes: [], history: [])
+        #expect(store.addMissingToBuy(["양파", "당근"]) == 2)
+        #expect(store.addMissingToBuy(["onion", "carrot"]) == 0)   // 표기만 다른 같은 캐논 — 중복 no-op
+        #expect(store.addMissingToBuy(["onion", "감자"]) == 1)      // 섞이면 새것만 센다
+        #expect(store.toBuy.count == 3)
+    }
+
+    @Test func addMissingIgnoresBlankNames() {
+        // 빈 문자열·공백은 담지 않는다(레시피 데이터가 지저분해도 빈 줄을 만들지 않는다).
+        let store = FridgeStore(ingredients: [], recipes: [], history: [])
+        #expect(store.addMissingToBuy(["", "   ", "양파"]) == 1)
+        #expect(store.toBuy.count == 1)
+    }
+
     @Test func skipRemovesManualItemWithoutDismissing() {
         // 수동 항목의 Skip은 메모만 지운다 — 영구 제외 목록(dismissedToBuy)까지 오염시키지 않는다.
         let store = FridgeStore(ingredients: [], recipes: [], history: [])

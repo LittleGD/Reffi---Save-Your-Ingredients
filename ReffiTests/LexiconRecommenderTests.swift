@@ -195,6 +195,43 @@ struct RecommenderTests {
         #expect(ranked.first?.id == "uses-urgent")   // urgent(3) > fresh(1)
     }
 
+    // MARK: 커버리지 점검 — 덱이 못 다룬 오늘 만료 재료(영상 브리지의 판별 근거)
+
+    @Test func uncoveredUrgentSkipsIngredientsSomeTicketUses() {
+        // 티켓이 실제로 쓰는 urgent 재료는 미커버가 아니다 — 덱이 이미 답을 주고 있다.
+        let r = recipe(id: "beef-dish", refs: ["beef"], en: ["beef"])
+        let stock = [ing("소고기", daysLeft: 0)]
+        let results = RecipeRecommender.rank(for: stock, from: [r])
+        #expect(results.count == 1)
+        #expect(RecipeRecommender.uncoveredUrgent(ingredients: stock, results: results).isEmpty)
+    }
+
+    @Test func uncoveredUrgentReportsIngredientNoTicketUses() {
+        // 덱은 살아 있는데(소고기 티켓) 오늘 만료 두부는 어느 티켓에도 없다 — 배너만 압박하고
+        // 티켓은 침묵하는 그 상태가 정확히 브리지 행이 말해야 하는 것이다.
+        let r = recipe(id: "beef-dish", refs: ["beef"], en: ["beef"])
+        let beef = ing("소고기", daysLeft: 0)
+        let tofu = ing("두부", daysLeft: 0)
+        let results = RecipeRecommender.rank(for: [beef, tofu], from: [r])
+        let uncovered = RecipeRecommender.uncoveredUrgent(ingredients: [beef, tofu], results: results)
+        #expect(uncovered.map(\.name) == ["두부"])
+    }
+
+    @Test func uncoveredUrgentExcludesFreshAndSoon() {
+        // urgent만 호명한다 — soon·fresh까지 세면 브리지 행이 상시 표시돼 경고가 배경이 된다.
+        let r = recipe(id: "beef-dish", refs: ["beef"], en: ["beef"])
+        let stock = [ing("소고기", daysLeft: 0), ing("당근", daysLeft: 2), ing("감자", daysLeft: 9)]
+        let results = RecipeRecommender.rank(for: stock, from: [r])
+        #expect(RecipeRecommender.uncoveredUrgent(ingredients: stock, results: results).isEmpty)
+    }
+
+    @Test func uncoveredUrgentReportsEverythingWhenDeckIsEmpty() {
+        // 극단(덱 0장) — 모든 urgent가 미커버다. 순서는 입력(마감 임박순) 그대로 유지된다.
+        let stock = [ing("두부", daysLeft: 0), ing("계란", daysLeft: -1), ing("당근", daysLeft: 5)]
+        let uncovered = RecipeRecommender.uncoveredUrgent(ingredients: stock, results: [])
+        #expect(uncovered.map(\.name) == ["두부", "계란"])
+    }
+
     @Test func staplesExcludedFromMissing() {
         let r = recipe(id: "soup", refs: ["beef", "salt"], en: ["beef", "salt"])
         let result = RecipeRecommender.result(for: r, ingredients: [ing("소고기", daysLeft: 1)])

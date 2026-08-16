@@ -20,25 +20,47 @@ struct ClatterPair: Hashable {
 ///   ③ 같은 쌍 쿨다운 — 두 재료가 비빌 때의 연타 방지
 /// 순수 로직이라 씬 없이 테스트된다(`ClatterThrottleTests`).
 struct ClatterThrottle {
-    /// 이 미만은 무시. 안착 직전의 잔여 접촉 임펄스가 대략 이 아래에 깔린다.
-    var minImpulse: CGFloat = 6
-    /// 전역 최소 간격(초). 22Hz 상한 — 이보다 촘촘하면 개별 '달그락'이 뭉개져 연속 진동으로 들린다.
-    var minInterval: TimeInterval = 0.045
-    /// 같은 쌍이 다시 울릴 수 있기까지의 시간(초).
-    var pairCooldown: TimeInterval = 0.14
+    /// 이 미만은 무시. 실기기 검증(v1.0 (2)): 6으로는 구르는 중의 잔접촉 대부분이 통과해
+    /// "움직이기 시작하면 그냥 일정한 진동"이 됐다 — 촉감은 **또렷한 부딪힘**에만 실려야 하므로
+    /// 하한을 확실한 노크 수준으로 올린다. 세기 곡선(`ClatterFeelRule.minImpulse`)도 이 값에서 시작한다.
+    var minImpulse: CGFloat = 20
+    /// 전역 최소 간격의 **중심값**(초). 11Hz 근처 — 22Hz는 개별 '달그락'이 뭉개져 캐리어 진동처럼
+    /// 들렸다(실기기). 달그락은 리듬이 들려야 달그락이다.
+    var minInterval: TimeInterval = 0.09
+    /// 간격 지터 폭(초, ±). 실기기 3차 피드백 "햅틱이 고정된 느낌"의 절반은 여기 있었다 —
+    /// 간격이 **정확히** 90ms면 격렬하게 흔드는 동안 발화가 11Hz 격자에 딱 맞아 떨어져,
+    /// 손은 개별 충돌이 아니라 **기계적 클럭**을 읽는다(닌텐도 HD 진동의 반대). 발화 순번에서
+    /// 뽑은 결정적 지터로 70~110ms를 오가게 해 격자를 깬다 — 난수가 아니므로 같은 충돌
+    /// 시퀀스는 실행마다 같은 리듬이다(QA 재현성 유지).
+    var intervalJitter: TimeInterval = 0.02
+    /// 같은 쌍이 다시 울릴 수 있기까지의 시간(초) — 두 재료가 비빌 때의 연타 방지.
+    var pairCooldown: TimeInterval = 0.26
     /// 쿨다운 테이블 상한 — 오래된 항목을 걷어내 무한 성장 방지.
     var maxPairs = 64
+
+    /// 지금까지 통과시킨 발화 수. 지터 시드이자 **촉감 변주 시드**다 — 씬은 이 값을
+    /// `ClatterFeelRule`에 넘겨 충돌마다 미세하게 다른 촉감을 만든다. 같은 충돌 시퀀스면
+    /// 같은 순번이 나오므로 실행 간 재현성이 유지된다.
+    private(set) var fireCount: UInt64 = 0
 
     private var lastFire: TimeInterval?
     private var pairLast: [ClatterPair: TimeInterval] = [:]
 
+    /// n번째 발화가 요구하는 전역 간격 — 중심 ± 지터. 순수 함수라 경계를 테스트로 못박는다.
+    static func gateInterval(center: TimeInterval, jitter: TimeInterval, sequence: UInt64) -> TimeInterval {
+        guard jitter > 0 else { return center }
+        return center + ReffiHash.signed("clatter-gap-\(sequence)") * jitter
+    }
+
     /// 이 충돌이 햅틱을 낼 자격이 있나. 통과하면 내부 상태를 갱신한다(같은 now로 두 번 통과 못 함).
     mutating func allow(impulse: CGFloat, pair: ClatterPair, now: TimeInterval) -> Bool {
         guard impulse >= minImpulse else { return false }
-        if let last = lastFire, now - last < minInterval { return false }
+        let gate = Self.gateInterval(center: minInterval, jitter: intervalJitter, sequence: fireCount)
+        if let last = lastFire, now - last < gate { return false }
         if let last = pairLast[pair], now - last < pairCooldown { return false }
         lastFire = now
         pairLast[pair] = now
+        fireCount &+= 1
         if pairLast.count > maxPairs {
             pairLast = pairLast.filter { now - $0.value < pairCooldown }
         }
@@ -46,13 +68,107 @@ struct ClatterThrottle {
     }
 
     /// 재료가 갈렸거나 씬이 다시 살아날 때 — 묵은 쿨다운을 버린다.
+    /// `fireCount`는 **리셋하지 않는다**: 리듬·촉감 변주의 순번일 뿐이고, 0으로 되돌리면
+    /// 탭을 오갈 때마다 같은 지터 패턴이 처음부터 반복돼 규칙성이 되살아난다.
     mutating func reset() {
         lastFire = nil
         pairLast.removeAll()
     }
 }
 
-/// 달그락 햅틱 재생기 — **충돌 이벤트마다** transient 햅틱을 하나씩 친다.
+/// 충돌 하나가 손끝에 만들 촉감 — CoreHaptics 이벤트로 굳기 **직전**의 순수 값.
+/// 엔진과 분리해 둬야 변조 규칙을 시뮬레이터에서도 단위 테스트할 수 있다(햅틱은 실기기 전용).
+struct ClatterFeel: Equatable {
+    /// transient 세기 0...1 — '툭'의 크기.
+    var intensity: Float
+    /// transient 날카로움 0...1 — 1이면 쨍한 '클링', 0이면 뭉툭한 '퍽'.
+    var sharpness: Float
+    /// 감쇠 꼬리 — **큰 충돌에만** 붙는다. nil이면 transient 한 방으로 끝.
+    var tail: Tail?
+
+    /// '툭' 뒤에 남는 짧은 잔향. intensity는 시작값이고 파라미터 커브가 0까지 끌어내린다.
+    struct Tail: Equatable {
+        var duration: TimeInterval
+        var intensity: Float
+        var sharpness: Float
+    }
+}
+
+/// 촉감 계산이 재료에서 필요로 하는 두 축만 뽑은 입력 — 씬의 물성 클래스(`ChipMaterial`)에서 넘어온다.
+/// 물성 전체를 넘기지 않는 건 물리 축(마찰·각감쇠·반발)이 촉감 규칙에 새어 들지 않게 하기 위해서다.
+struct ClatterMaterial: Equatable {
+    /// 재료 기준 날카로움 — 임펄스 변조의 **중심**이 된다.
+    var sharpness: Float
+    /// 세기 배율 — 여린 재료(잎·두부)는 같은 임펄스라도 약하게 친다.
+    var scale: Float
+
+    static let neutral = ClatterMaterial(sharpness: 0.5, scale: 0.8)
+}
+
+/// 임펄스 + 재료 → 촉감. **순수 계산기**다(`GravityMapper`·셰이크 킥과 같은 규율).
+///
+/// v1.0 (5)까지는 모든 충돌이 *같은 파형의* transient 단발이었다 — 세기만 변하고 날카로움은
+/// 재료별 상수, 리듬은 11Hz 격자. 손은 그걸 "잘 만든 진동 하나를 반복 재생하는 것"으로 읽고,
+/// 실기기 3차 피드백이 "딱딱하고 인위적·고정된 느낌"이라고 불렀다. HD 진동의 자연스러움은 세 겹이다:
+///   ① **연속 변조** — 세기뿐 아니라 날카로움도 충돌 세기를 따라 움직인다(세게 치면 더 쨍하다).
+///   ② **감쇠 꼬리** — 큰 충돌엔 '툭' 뒤에 40~70ms 잔향이 남았다가 0으로 죽는다.
+///   ③ **비반복성** — 같은 세기의 두 충돌도 완전히 같지는 않다(±8% 미세 변주).
+/// ③은 `Double.random`이 아니라 발화 순번 해시로 만든다 — 같은 충돌 시퀀스는 같은 촉감이어야
+/// 튜닝을 비교할 수 있고, 스크린샷·계측 QA가 실행마다 흔들리지 않는다.
+struct ClatterFeelRule {
+    /// 세기 곡선의 시작점 — 스로틀의 임펄스 관문과 **같은 값이어야** 한다(테스트로 못박음).
+    var minImpulse: CGFloat = 20
+    /// 이 임펄스면 최대 세기 — 위는 전부 포화.
+    var ceilingImpulse: CGFloat = 90
+    /// 최소 세기. 0.18 → 0.10으로 낮췄다 — 바닥이 높으면 약한 충돌과 강한 충돌의 차이가
+    /// 손에 5:1이 아니라 2:1로 도착해 "전부 같은 세기"로 뭉개진다. 다이내믹 레인지가
+    /// 자연스러움의 8할이다. 0으로 두지 않는 건 통과한 충돌은 느껴져야 하기 때문(헛발질 금지).
+    var intensityFloor: Float = 0.10
+    /// 날카로움의 임펄스 변조 폭(±). 재료 기준값에서 약한 충돌은 −0.12, 최대 충돌은 +0.12.
+    /// 재료 성격(두부는 뭉툭·캔은 쨍)은 유지한 채 "세게 부딪히면 더 쨍하다"만 얹는다.
+    var sharpnessSwing: Float = 0.12
+    /// 결정적 미세 변주 폭(±, 비율). 세기·날카로움에 각각 독립으로 걸어 두 축이 나란히 움직이지 않게 한다.
+    var variation: Float = 0.08
+    /// 꼬리가 붙기 시작하는 정규화 세기 — 상위 1/3만. 모든 충돌에 꼬리를 붙이면
+    /// 잔향이 겹쳐 결국 '웅웅'으로 되돌아간다(이 기능이 처음 고치려던 실패 모드).
+    var tailOnset: Float = 0.67
+    /// 꼬리 길이 범위(초) — 임계에서 40ms, 최대 충돌에서 70ms.
+    var tailShortest: TimeInterval = 0.040
+    var tailLongest: TimeInterval = 0.070
+    /// 꼬리 시작 세기 = 본 타격의 이 비율. 꼬리가 타격만큼 세면 두 번 친 것으로 들린다.
+    var tailLevel: Float = 0.42
+    /// 꼬리는 본 타격보다 이만큼 뭉툭하다 — 잔향은 고주파가 먼저 죽는다.
+    var tailDull: Float = 0.28
+
+    /// 임펄스 → 0...1. 관문 아래는 0, 상한 위는 1.
+    func normalized(_ impulse: CGFloat) -> Float {
+        let span = ceilingImpulse - minImpulse
+        guard span > 0 else { return 1 }
+        return Float(min(1, max(0, (impulse - minImpulse) / span)))
+    }
+
+    /// 충돌 하나의 촉감. `sequence`는 스로틀의 발화 순번(`ClatterThrottle.fireCount`).
+    func feel(impulse: CGFloat, material: ClatterMaterial, sequence: UInt64) -> ClatterFeel {
+        let t = normalized(impulse)
+        let vi = 1 + Float(ReffiHash.signed("clatter-i-\(sequence)")) * variation
+        let vs = 1 + Float(ReffiHash.signed("clatter-s-\(sequence)")) * variation
+        let intensity = Self.clamp01((intensityFloor + t * (1 - intensityFloor)) * material.scale * vi)
+        let sharpness = Self.clamp01((material.sharpness + sharpnessSwing * (2 * t - 1)) * vs)
+        var tail: ClatterFeel.Tail?
+        if t >= tailOnset {
+            let u = tailOnset < 1 ? TimeInterval((t - tailOnset) / (1 - tailOnset)) : 1
+            tail = ClatterFeel.Tail(duration: tailShortest + u * (tailLongest - tailShortest),
+                                    intensity: Self.clamp01(intensity * tailLevel),
+                                    sharpness: Self.clamp01(sharpness - tailDull))
+        }
+        return ClatterFeel(intensity: intensity, sharpness: sharpness, tail: tail)
+    }
+
+    private static func clamp01(_ v: Float) -> Float { min(1, max(0, v)) }
+}
+
+/// 달그락 햅틱 재생기 — 충돌 이벤트 하나를 `ClatterFeel`이 시킨 대로 친다
+/// (transient 한 방, 큰 충돌이면 그 뒤에 감쇠 꼬리 하나를 **같은 패턴**에 붙여서).
 ///
 /// 이 앱의 기존 햅틱은 전부 SwiftUI `.sensoryFeedback`(§7.6 의미별 매핑)인데, 여기선 쓸 수 없다.
 ///   ① 세기·날카로움 파라미터가 없어 **재료별 촉감**을 만들 수 없다.
@@ -105,9 +221,12 @@ final class IngredientClatterHaptics {
         engine?.stop()
     }
 
-    /// 충돌 하나의 촉감을 친다. `intensity`·`sharpness`는 0...1.
-    /// sharpness가 클수록 쨍한 '클링', 작을수록 둔탁한 '툭'.
-    func play(intensity: Float, sharpness: Float) {
+    /// 꼬리가 transient보다 이만큼(초) 늦게 시작한다. 0으로 붙이면 두 이벤트가 겹쳐 타격이
+    /// 뭉툭해진다 — 한 프레임 남짓 띄워야 '툭 → 잔향' 순서로 읽힌다.
+    private static let tailLead: TimeInterval = 0.012
+
+    /// 충돌 하나의 촉감을 친다. 세기·날카로움·꼬리는 전부 순수 계산기(`ClatterFeelRule`)가 정한다.
+    func play(_ feel: ClatterFeel) {
         guard supportsHaptics, !failed, let engine else { return }
         // 유휴 자동 종료(.idleTimeout) 뒤엔 stoppedHandler가 running을 내린다. 여기서 재기동하지
         // 않으면 첫 정적 이후 세션 내내 무음이 된다 — stop()으로 내려간 경우엔 didBegin 자체가
@@ -115,17 +234,35 @@ final class IngredientClatterHaptics {
         if !running {
             do { try engine.start(); running = true } catch { return }
         }
-        let event = CHHapticEvent(eventType: .hapticTransient, parameters: [
-            CHHapticEventParameter(parameterID: .hapticIntensity, value: max(0, min(1, intensity))),
-            CHHapticEventParameter(parameterID: .hapticSharpness, value: max(0, min(1, sharpness))),
-        ], relativeTime: 0)
+        var events = [CHHapticEvent(eventType: .hapticTransient, parameters: [
+            CHHapticEventParameter(parameterID: .hapticIntensity, value: Self.clamp01(feel.intensity)),
+            CHHapticEventParameter(parameterID: .hapticSharpness, value: Self.clamp01(feel.sharpness)),
+        ], relativeTime: 0)]
+        var curves: [CHHapticParameterCurve] = []
+        if let tail = feel.tail, tail.duration > 0 {
+            let start = Self.tailLead
+            events.append(CHHapticEvent(eventType: .hapticContinuous, parameters: [
+                CHHapticEventParameter(parameterID: .hapticIntensity, value: Self.clamp01(tail.intensity)),
+                CHHapticEventParameter(parameterID: .hapticSharpness, value: Self.clamp01(tail.sharpness)),
+            ], relativeTime: start, duration: tail.duration))
+            // 이벤트 세기는 커브의 **기준값**이고 커브가 1 → 0을 곱한다. 커브가 없으면 꼬리가
+            // 끝에서 뚝 잘려 두 번째 타격처럼 들린다 — 잔향은 사라져야 잔향이다.
+            curves.append(CHHapticParameterCurve(parameterID: .hapticIntensityControl, controlPoints: [
+                CHHapticParameterCurve.ControlPoint(relativeTime: start, value: 1),
+                CHHapticParameterCurve.ControlPoint(relativeTime: start + tail.duration, value: 0),
+            ], relativeTime: 0))
+        }
         do {
-            let pattern = try CHHapticPattern(events: [event], parameters: [])
+            // 두 이벤트를 **한 패턴**으로 낸다 — 따로 재생하면 플레이어 두 개의 시작 시각이
+            // 프레임 지터만큼 어긋나 꼬리가 타격보다 먼저 도착하는 경우가 생긴다.
+            let pattern = try CHHapticPattern(events: events, parameterCurves: curves)
             try engine.makePlayer(with: pattern).start(atTime: CHHapticTimeImmediate)
         } catch {
             // 개별 재생 실패는 무시 — 여기서 로그를 찍으면 충돌마다 콘솔이 폭주한다.
         }
     }
+
+    private static func clamp01(_ v: Float) -> Float { min(1, max(0, v)) }
 
     deinit { engine?.stop() }
 }

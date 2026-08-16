@@ -11,6 +11,9 @@ xcuserdata/
 
 # XcodeGen이 project.yml에서 생성 — 정본은 project.yml이라 커밋 제외
 Reffi.xcodeproj/
+# Finder/Xcode가 만드는 사본("Reffi 2.xcodeproj" 등)도 같은 생성물이다 — 한 번 새어 들어오면
+# `git add -A`가 1000줄짜리 pbxproj를 통째로 커밋한다(실제로 이 브랜치에서 한 번 그랬다).
+*.xcodeproj/
 
 # Swift Package Manager
 .swiftpm/

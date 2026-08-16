@@ -1,6 +1,16 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "%@ won't last long. Find a video and cook it today.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@, 오래 두기 어려워요. 영상을 찾아 오늘 요리해 보세요."
+          }
+        }
+      }
+    },
     "%@ · eaten": {
       "localizations": {
         "ko": {
@@ -409,6 +419,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "산 것을 추가하면, 소비기한을 세어드려요."
+          }
+        }
+      }
+    },
+    "Add your own recipe": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "나만의 레시피 추가"
+          }
+        }
+      }
+    },
+    "Added": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "담김"
           }
         }
       }
@@ -1757,6 +1787,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "기록 없이 예약된 재료가 냉장고로 돌아가요."
+          }
+        }
+      }
+    },
+    "Nothing on these tickets uses %@.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 티켓들이 쓰지 않는 재료: %@"
           }
         }
       }
