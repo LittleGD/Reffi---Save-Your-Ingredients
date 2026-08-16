@@ -148,7 +148,7 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     // 손가락이 근처에 오면 재료가 자석처럼 끌려 들어간다(마그네틱 캡처).
     private var tossZone: SKSpriteNode?
     private var ateZone: SKSpriteNode?
-    private let zoneSide: CGFloat = 86
+    private let zoneSide: CGFloat = ReffiJudgeZone.side
     private let magnetRadius: CGFloat = 88
 
     #if DEBUG
@@ -1064,13 +1064,14 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         ateZone?.position = CGPoint(x: size.width - zoneSide * 0.5 - 14, y: y)
         #if DEBUG
         // `-zoneLab`은 재생성(다크 전환 리틴트) 뒤에도 계속 보여야 하므로 여기서 알파를 되돌린다.
-        if zoneLab { tossZone?.alpha = 0.96; ateZone?.alpha = 0.96 }
+        if zoneLab { tossZone?.alpha = ReffiJudgeZone.alpha; ateZone?.alpha = ReffiJudgeZone.alpha }
         #endif
     }
 
     /// 드래그 시작/끝에만 보인다 — 평소엔 물리 필드를 어지럽히지 않는다.
     private func setZones(visible: Bool) {
-        let fade = SKAction.fadeAlpha(to: visible ? 0.96 : 0, duration: 0.15)
+        let fade = SKAction.fadeAlpha(to: visible ? ReffiJudgeZone.alpha : 0,
+                                      duration: ReffiJudgeZone.fade)
         tossZone?.run(fade)
         ateZone?.run(fade)
         if !visible {
@@ -1081,8 +1082,10 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
 
     private func highlight(_ zone: SKSpriteNode?, hovering: Bool) {
         guard let z = zone else { return }
-        let target: CGFloat = hovering ? 1.14 : 1.0
-        if abs(z.xScale - target) > 0.01 { z.run(.scale(to: target, duration: 0.1)) }
+        let target: CGFloat = hovering ? ReffiJudgeZone.hotScale : 1.0
+        if abs(z.xScale - target) > 0.01 {
+            z.run(.scale(to: target, duration: ReffiJudgeZone.hotDuration))
+        }
     }
 
     /// 바닥(요리시작 버튼 마진) + 좌·우 벽 + 천장으로 **완전히 닫힌 상자**.
@@ -1701,7 +1704,7 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         // 드래그 상태가 **밖에서 지워진** 경우에도 존은 내린다. `popOut`은 sync 도중 잡고 있던 칩이
         // 사라지면 `dragTouch`를 nil로 만드는데, 그 뒤 손을 떼면 옛 가드가 먼저 return하고
         // 아래 `defer`는 설치조차 되지 않아(Swift defer는 실행이 그 줄에 닿아야 등록된다) 판정
-        // 블롭이 alpha 0.96으로 화면에 남았다 — 다음 드래그가 정상 종료될 때까지 지워지지 않는다.
+        // 블롭이 판정 존 알파로 화면에 남았다 — 다음 드래그가 정상 종료될 때까지 지워지지 않는다.
         // 반대로 "다른 손가락이 떨어진 경우"는 그대로 무시한다(진행 중인 드래그의 예고를 지우면 안 된다).
         guard let t = dragTouch else { setZones(visible: false); return }
         guard touches.contains(t) else { return }

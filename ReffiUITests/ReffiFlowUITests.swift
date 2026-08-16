@@ -90,6 +90,16 @@ final class ReffiFlowUITests: XCTestCase {
         XCTAssertTrue(report.waitForExistence(timeout: 4), "스와이프하면 리포트 카드")
         report.tap()
         XCTAssertTrue(app.staticTexts["History"].waitForExistence(timeout: 4), "리포트 카드 → History 시트")
+        // 정산서 = 도넛이 아니라 영수증(§13.9) — 두 행·낭비율 도장·자주 버린 재료가 한 장에 선다.
+        XCTAssertTrue(app.staticTexts["Tally · past 30 days"].waitForExistence(timeout: 4),
+                      "리포트 첫 카드는 30일 정산서다")
+        app.buttons["Close"].firstMatch.tap()
+
+        // 헤더 리포트 버튼 — 페이저를 스와이프하지 않아도 같은 화면으로 가는 상시 진입점(C8)
+        let headerReport = app.buttons["No-waste report"]
+        XCTAssertTrue(headerReport.waitForExistence(timeout: 4), "냉장고 헤더에 리포트 진입 버튼")
+        headerReport.tap()
+        XCTAssertTrue(app.staticTexts["History"].waitForExistence(timeout: 4), "헤더 버튼 → History 시트")
         app.buttons["Close"].firstMatch.tap()
 
         // 보기 토글(원탭 버튼) — 간편보기 전환(수량 텍스트가 노출되는 행으로 바뀜)
@@ -97,7 +107,8 @@ final class ReffiFlowUITests: XCTestCase {
         XCTAssertTrue(toCompact.waitForExistence(timeout: 4), "보기 토글 버튼")
         toCompact.tap()
         let compactRow = app.descendants(matching: .any)
-            .matching(NSPredicate(format: "label CONTAINS %@", "300 g")).firstMatch
+            // 수량은 숫자와 단위를 줄바꿈 없는 공백으로 묶는다(Quantity.text) — 일반 공백으로 찾으면 안 걸린다.
+            .matching(NSPredicate(format: "label CONTAINS %@", "300\u{00A0}g")).firstMatch
         XCTAssertTrue(compactRow.waitForExistence(timeout: 4), "간편보기 행(수량 노출)로 전환")
 
         // 정렬 메뉴(정렬 전용) — 전환이 라벨에 반영
@@ -110,7 +121,7 @@ final class ReffiFlowUITests: XCTestCase {
 
         // 상태 원복(스택 보기·임박한 순) — 테스트가 기기 저장 상태를 오염시키지 않게.
         app.buttons["Switch to stack view"].tap()
-        XCTAssertTrue(app.staticTexts["Meat · Beef"].waitForExistence(timeout: 4), "스택 카드 복귀")
+        XCTAssertTrue(app.staticTexts["Beef"].waitForExistence(timeout: 4), "스택 카드 복귀")
         app.buttons["Sort: Recently added"].tap()
         app.buttons["Expiring first"].tap()
         XCTAssertTrue(app.buttons["Sort: Expiring first"].waitForExistence(timeout: 4), "기본 정렬 복귀")

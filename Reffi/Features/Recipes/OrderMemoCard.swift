@@ -11,12 +11,18 @@ import PhosphorSwift
 struct OrderMemoCard: View {
     let result: RecipeRecommender.Result
     let number: Int
-    /// 덱 가장 깊은 티켓 경량화 — true면 머리(ORDER/#·TABLE 줄)까지만 그리고 본문·CTA를 생략한다.
+    /// 덱 가장 깊은 티켓 경량화 — true면 머리(크롬 크라운 줄)까지만 그리고 본문·CTA를 생략한다.
     /// 가장 깊은 티켓은 어차피 상단 슬리버만 보이므로 전환 프레임드롭을 줄이려 본문 렌더를 건너뛴다(§13.6).
     /// 주의: 컨테이너(VStack·배경·compositingGroup·그림자)는 headerOnly와 무관하게 **단일 뷰 정체성**을
     /// 유지하고 내부 콘텐츠만 분기한다 — body 수준 if/else(ConditionalContent)면 덱 회전 시
     /// 카드가 제거+삽입(기본 opacity 트랜지션)되어 번쩍인다.
     var headerOnly: Bool = false
+    /// 덱 뒤 티켓(depth ≥ 1) — 크롬 텍스트를 렌더하지 않고 **빈 종이 밴드**만 내민다.
+    /// 앞 티켓의 절취 톱니는 골이 파인 지그재그라, 그 골 사이로 뒤 카드의 ORDER 행이
+    /// 가로로 잘린 반쪽 글리프로 새어 나왔다(라이트·다크 동일 재현). 노출 띠는 "다음 종이가 있다"만
+    /// 말하면 되므로 글자를 지운다. 레이아웃은 그대로 두고 불투명도만 0으로 — 승격(1→0) 시
+    /// 헤더가 튀어나오지 않고 덱 회전 애니메이션을 타고 부드럽게 살아난다.
+    var peek: Bool = false
     var onFire: () -> Void = {}
     /// 오른쪽 플릭(Cook) 발주 트리거 — 덱이 값을 올리면 "Cook this" 버튼과 **같은** `fire()`를 태운다.
     /// 발주 상태(슬램·줄긋기·이중 발주 가드)를 카드가 소유하므로 부모가 `fired`를 직접 켜지 않는다.
@@ -63,8 +69,8 @@ struct OrderMemoCard: View {
         .padding(.top, ReffiSpace.s5 + 2)
         .padding(.bottom, ReffiSpace.s5)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(ReceiptShape(tooth: 9).fill(ReffiColor.paper))
-        .overlay { if !headerOnly { ReceiptShape(tooth: 9).stroke(ReffiColor.ink.opacity(0.07), lineWidth: 1) } }
+        .background(ReceiptShape(tooth: ReffiTooth.ticket).fill(ReffiColor.paper))
+        .overlay { if !headerOnly { ReceiptShape(tooth: ReffiTooth.ticket).stroke(ReffiColor.ink.opacity(0.07), lineWidth: 1) } }
         .overlay { if fired { slamStamp } }
         .compositingGroup()   // 그림자 재합성을 1패스로 — PaperGrain(.overlay)도 이 경계에 갇힌다.
         // 그림자는 값만 분기, 체인(2패스)은 고정 — 뷰 정체성 유지.
@@ -86,11 +92,13 @@ struct OrderMemoCard: View {
         // 콘텐츠가 프레임보다 작으면 스크롤이 비활성이라 시각 무변화, 극단 Dynamic Type에서만 발동.
         return ScrollView(.vertical, showsIndicators: false) {
             VStack(alignment: .leading, spacing: ReffiSpace.s3) {
-                DashedRule()
+                ReffiRule(.ticket)
 
                 // 판정문 키커 — 이 티켓이 비우는 임박 재료(미션 페이로드).
+                // role은 metaText 축으로 흡수한다: 신선도 색(verdictColor)이 이미 강조를 맡고 있어
+                // 13pt에서 SemiBold/Medium 한 단을 더 두면 계층이 아니라 잡음으로 읽혔다.
                 verdictKicker
-                    .reffiType(.pillLabel).foregroundStyle(verdictColor)
+                    .reffiType(.metaText).foregroundStyle(verdictColor)
 
                 // 메뉴명 + 시간 + 요리 아이콘. 아이콘은 **오른쪽 여백에 얹힌 그림**이고 글이 주인공이다 —
                 // 이름 위에 한 줄로 올리면 티켓 상단이 그림에 밀려 "주문서"가 아니라 메뉴판이 된다.
@@ -120,12 +128,13 @@ struct OrderMemoCard: View {
                         .frame(width: ReffiDishIcon.ticket, height: ReffiDishIcon.ticket)
                 }
 
-                DashedRule()
+                ReffiRule(.ticket)
 
-                // 모노 올캡 티켓 크롬은 형제 라벨(ORDER · FIRED · TABLE · REFFI KITCHEN)과 같이 verbatim —
-                // 주방 티켓의 인쇄 문자열이라 번역하지 않는다.
+                // 티켓 위 인쇄 크롬은 크라운 행과 **같은 모노 role**이다 — 색(ink vs ink2)으로만 갈린다.
+                // 형제 라벨(ORDER · REFFI KITCHEN · ORDER · FIRED)과 같이 verbatim: 주방 티켓의
+                // 인쇄 문자열이라 번역하지 않는다.
                 Text(verbatim: "ON THE TICKET")
-                    .reffiType(.sectionLabel).foregroundStyle(ReffiColor.ink2)   // §2.6 — 소형 텍스트는 불투명 토큰으로
+                    .reffiType(.monoTicketLabel).foregroundStyle(ReffiColor.ink2)   // §2.6 — 소형 텍스트는 불투명 토큰으로
 
                 // 이름 블록은 최대 5줄 미리보기(+N more) — 소비는 result.used 전체를 쓰므로 표시만 축약.
                 VStack(alignment: .leading, spacing: ReffiSpace.s1 + 2) {
@@ -217,19 +226,23 @@ struct OrderMemoCard: View {
         .accessibilityValue(Text(verbatim: result.missing.joined(separator: ", ")))
     }
 
+    /// 티켓 크롬 한 줄(§13.5) — 옛 2행("ORDER"/"#NN" + "TABLE · REFFI KITCHEN" 에보로우)을 한 줄로 합쳤다.
+    /// 메뉴명까지 닿기 전에 크롬만 3계층(모노13 + 숫자14 + 에보로우10)을 지나야 했고, 그게 티켓 한 장의
+    /// 텍스트 계층을 10종까지 밀어 올린 주범이었다. 지금은 **한 모노 role·한 크기**로 좌 발주처·우 번호다.
     private var header: some View {
-        VStack(alignment: .leading, spacing: ReffiSpace.s2) {
-            HStack(alignment: .firstTextBaseline) {
-                // 모노 티켓 크롬은 번역하지 않는다(§13.5) — "ON THE TICKET"·"TABLE · REFFI KITCHEN"과
-                // 같은 규칙. verbatim으로 카탈로그 조회 자체를 끊어, 누가 키를 등록해도 흔들리지 않게 한다.
-                Text(verbatim: "ORDER").reffiType(.monoTicketLabel).foregroundStyle(ReffiColor.ink)
-                Spacer()
-                Text(String(format: "#%02d", number))
-                    .font(.reffiNum(14, relativeTo: .caption)).foregroundStyle(ReffiColor.ink2)
-            }
-            Text(verbatim: "TABLE · REFFI KITCHEN")
-                .reffiType(.monoEyebrow).foregroundStyle(ReffiColor.ink2)   // §2.6 — 소형 텍스트 대비
+        HStack(alignment: .firstTextBaseline, spacing: ReffiSpace.s2) {
+            // 모노 티켓 크롬은 번역하지 않는다(§13.5) — "ON THE TICKET"·"ORDER · FIRED"와 같은 규칙.
+            // verbatim으로 카탈로그 조회 자체를 끊어, 누가 키를 등록해도 흔들리지 않게 한다.
+            Text(verbatim: "ORDER · REFFI KITCHEN")
+                .reffiType(.monoTicketLabel).foregroundStyle(ReffiColor.ink)
+                .lineLimit(1).minimumScaleFactor(0.7)
+            Spacer(minLength: ReffiSpace.s2)
+            // 번호도 같은 모노 role·크기 — 옛 GSF 14는 크롬 안에서 홀로 다른 서체였다.
+            Text(verbatim: String(format: "#%02d", number))
+                .reffiType(.monoTicketLabel).foregroundStyle(ReffiColor.ink2)   // §2.6 — 소형 텍스트 대비
+                .lineLimit(1)
         }
+        .opacity(peek ? 0 : 1)   // 뒤 티켓 노출 띠는 빈 종이 — 톱니 골에 반쪽 글리프가 새지 않게
     }
 
     /// 발주 밴드 — 미발주: "이걸로 요리" CTA / 발주 후: 비우기 판정문.
@@ -286,11 +299,12 @@ struct OrderMemoCard: View {
     /// 티켓 한 줄 — 이름 + (임박할 때만) D-day 칩. 체크박스는 없다: 티켓은 체크하며 따라가는 목록이 아니라
     /// "무엇이 들어가나"를 한눈에 읽는 단서 블록이다. 발주하면 줄이 그어져 비웠음이 남는다(payoff).
     ///
+    /// D-day 칩의 면은 §13.1 종이컷 8각형(`PaperCutRect`)이다 — 행동 표면에 완벽한 캡슐을 두지 않는다.
     /// D-day는 `.soon`·`.urgent`에만 붙인다 — 신선도는 앱의 본체지만, 아직 여유 있는 재료의 카운트다운은
     /// 노이즈일 뿐이라 "지금 급한 것"만 눈에 띄게 남긴다(색+텍스트 동반, §1).
     private func ticketLine(_ ing: Ingredient, done: Bool) -> some View {
         HStack(spacing: ReffiSpace.s2) {
-            Text(verbatim: ing.name)
+            Text(verbatim: ing.displayName)
                 .reffiType(.checklistItem)
                 .foregroundStyle(done ? ReffiColor.muted : ReffiColor.ink)
                 .strikethrough(done, color: ReffiColor.muted)
@@ -298,56 +312,13 @@ struct OrderMemoCard: View {
             Spacer(minLength: ReffiSpace.s2)
             if ing.freshness != .fresh {
                 Text(verbatim: ing.dDayText)
-                    .font(.reffiNum(12, relativeTo: .caption))
+                    .font(.reffiNum(.meta))
                     .foregroundStyle(ing.freshness.dark)
                     .padding(.horizontal, ReffiSpace.s2)
                     .padding(.vertical, 1)
-                    .background(ing.freshness.light, in: Capsule())
+                    .background(ing.freshness.light, in: PaperCutRect(seed: 2))   // §13.1 종이컷 8각형(캡슐 금지)
             }
         }
     }
 }
 
-/// 점선 룰 — 오더 티켓의 절취선 느낌.
-struct DashedRule: View {
-    var body: some View {
-        GeometryReader { g in
-            Path { p in
-                p.move(to: CGPoint(x: 0, y: 0.5))
-                p.addLine(to: CGPoint(x: g.size.width, y: 0.5))
-            }
-            .stroke(ReffiColor.ink.opacity(0.22), style: StrokeStyle(lineWidth: 1, dash: [4, 4]))
-        }
-        .frame(height: 1)
-    }
-}
-
-/// 영수증/티켓 셰이프 — 상·하 톱니(절취) 엣지. 좌우는 곧다.
-struct ReceiptShape: Shape {
-    var tooth: CGFloat = 9
-
-    func path(in rect: CGRect) -> Path {
-        var p = Path()
-        let t = max(4, tooth)
-        p.move(to: CGPoint(x: rect.minX, y: rect.minY + t))
-        // 상단 톱니 (좌→우)
-        var x = rect.minX
-        var up = true
-        while x < rect.maxX {
-            let nx = min(x + t, rect.maxX)
-            p.addLine(to: CGPoint(x: nx, y: rect.minY + (up ? 0 : t)))
-            x = nx; up.toggle()
-        }
-        p.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - t))
-        // 하단 톱니 (우→좌)
-        up = true
-        x = rect.maxX
-        while x > rect.minX {
-            let nx = max(x - t, rect.minX)
-            p.addLine(to: CGPoint(x: nx, y: rect.maxY - (up ? 0 : t)))
-            x = nx; up.toggle()
-        }
-        p.closeSubpath()
-        return p
-    }
-}

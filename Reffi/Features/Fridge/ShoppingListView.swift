@@ -11,6 +11,9 @@ struct ShoppingListView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var restockHaptic = 0
+    /// Skip은 §7.6의 **판정·확정**이다(Ate/Tossed와 같은 결의 "이번엔 안 사기") — `.impact(.light)`.
+    /// 목록에 담기는 Add 쪽이 성공 완료(`.success`)이므로 같은 행의 두 알약이 다른 의미로 갈린다.
+    @State private var skipHaptic = 0
     @State private var showSearch = false
 
     private typealias Row = (name: String, glyph: FoodGlyph, manual: Bool, key: String)
@@ -29,14 +32,17 @@ struct ShoppingListView: View {
                         } else {
                             listCard
                         }
-                        addItemButton
                     }
                     .padding(.horizontal, ReffiGrid.margin)
                     .padding(.bottom, ReffiSpace.s6)
                 }
             }
         }
+        // 직접 담기 진입은 목록 꼬리가 아니라 화면 하단에 도킹한다(§13.5) — 목록이 짧든 길든 같은
+        // 자리에 있고, 커버·시트·메인이 공유하는 하단 CTA 관례와 어긋나지 않는다.
+        .dockedCTA(over: ReffiColor.canvas) { addItemButton }
         .sensoryFeedback(.success, trigger: restockHaptic)
+        .sensoryFeedback(.impact(weight: .light), trigger: skipHaptic)
         .sheet(isPresented: $showSearch) { ToBuySearchSheet() }
         #if DEBUG
         // `-toBuy.search` — 검색 시트 자동 오픈(스크린샷·QA용). 커버 자체는 `FridgeView`가 연다.
@@ -79,7 +85,6 @@ struct ShoppingListView: View {
     /// 직접 담은 구역(맨 위) / 이력 제안 구역 — 두 구역은 캡션이 다르다(제안 캡션이 수동 항목까지
     /// 설명하면 거짓말이 된다). 목록은 한 번만 읽어 나눈다(파생 계산이 이력 전체를 훑는다).
     private var listCard: some View {
-        let shape = ReceiptShape(tooth: 7)
         let rows = items
         let manual = rows.filter(\.manual)
         let suggested = rows.filter { !$0.manual }
@@ -91,24 +96,20 @@ struct ShoppingListView: View {
             }
             if !suggested.isEmpty {
                 // 두 구역 구분은 절취선 어휘로(보더 금지 §6).
-                if !manual.isEmpty { DashedRule() }
+                if !manual.isEmpty { ReffiRule(.ticket) }
                 Text("Ran out, based on what you use often")
                     .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
                 ForEach(suggested, id: \.key) { row($0) }
             }
         }
-        .padding(.horizontal, ReffiSpace.s5)
-        .padding(.vertical, ReffiSpace.s5 + 7)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(ReffiColor.receipt, in: shape)
-        .paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
-        .shadow(color: ReffiColor.shadowTint.opacity(0.06), radius: 5, x: 0, y: 2)
+        .receiptSurface()
     }
 
     /// 목록 한 줄 — 두 구역이 같은 문법을 쓴다(직접 담은 것도 제안과 똑같이 Add/Skip으로 처리한다).
     private func row(_ item: Row) -> some View {
         HStack(spacing: ReffiSpace.s3) {
-            PaperSilhouette(glyph: item.glyph, fresh: .fresh).frame(width: 36, height: 36)
+            PaperSilhouette(glyph: item.glyph, fresh: .fresh)
+                .frame(width: ReffiFoodIcon.row, height: ReffiFoodIcon.row)
             Text(verbatim: item.name).reffiType(.body).foregroundStyle(ReffiColor.ink)
             Spacer()
             Button {
@@ -134,6 +135,7 @@ struct ShoppingListView: View {
                 withAnimation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion)) {
                     store.skipBuy(key: item.key)
                 }
+                skipHaptic += 1   // §7.6 판정·확정 = .impact (Add의 .success와 짝)
             } label: {
                 Text("Skip")
                     .reffiType(.pillLabel)
@@ -152,24 +154,19 @@ struct ShoppingListView: View {
         }
     }
 
-    /// 목록 아래 직접 담기 진입 — 하단 CTA 관례대로 `PaperButton`을 쓰되 `secondary`다: 이 화면의 1차
+    /// 직접 담기 진입 — 하단 도킹 CTA(`dockedCTA`)로 `PaperButton`을 쓰되 `secondary`다: 이 화면의 1차
     /// 행동은 행마다의 파란 Add(재입고)라, 파란 와이드 버튼이 그 위계를 뒤집으면 안 된다.
     private var addItemButton: some View {
         PaperButton(title: "Add item", kind: .secondary, seed: 3) { showSearch = true }
     }
 
     private var emptyCard: some View {
-        let shape = ReceiptShape(tooth: 7)
-        return VStack(alignment: .leading, spacing: ReffiSpace.s2) {
+        VStack(alignment: .leading, spacing: ReffiSpace.s2) {
             Text("All stocked up").reffiType(.subhead).foregroundStyle(ReffiColor.ink)
             Text("Nothing you regularly use has run out.")
                 .reffiType(.body).foregroundStyle(ReffiColor.ink2)
         }
-        .padding(.horizontal, ReffiSpace.s5)
-        .padding(.vertical, ReffiSpace.s5 + 7)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(ReffiColor.receipt, in: shape)
-        .paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
+        .receiptSurface(elevated: .flat)
     }
 }
 
@@ -212,7 +209,7 @@ private struct ToBuySearchSheet: View {
         }
         .background(ReffiColor.canvas)
         // 검색 필드 + 목록/그리드 = 중간 목록·폼 버킷(§14.5): .medium은 진입 높이일 뿐이고, 카테고리
-        // 섹션까지 쌓이는 재료 배열은 스크롤·.large 승격을 전제한다(FREQUENT가 늘 첫 화면에 온다).
+        // 섹션까지 쌓이는 재료 배열은 스크롤·.large 승격을 전제한다(Frequent가 늘 첫 화면에 온다).
         .presentationDetents([.medium, .large], selection: $detent)
         .presentationDragIndicator(.visible)
         .presentationBackground(ReffiColor.canvas)
@@ -265,7 +262,12 @@ private struct ToBuySearchSheet: View {
             // receipt — 원본 픽커 검색 필드의 인라인 값 oklch(0.985, 0.004, 90)이 곧 이 토큰이고,
             // 시트 안의 다른 종이 면(타일·listCard·emptyCard·noMatchCard)도 전부 receipt다.
             // paper(0.99, 0.006, 90)는 다른 토큰이라 여기만 남으면 시트 안 종이결이 갈라진다.
-            s.fill(ReffiColor.receipt).paperEdge(s, tint: ReffiColor.ink.opacity(0.1))
+            // 그레인도 타일과 같은 대역으로 얹는다 — 바로 아래 타일이 전부 종이결을 갖는데 필드만
+            // 매끈하면 같은 시트 안에서 인풋만 다른 재질(플라스틱)로 읽힌다.
+            s.fill(ReffiColor.receipt)
+                .overlay(PaperGrain(seed: 6, strength: 0.5).clipShape(s))
+                .paperEdge(s, tint: ReffiColor.ink.opacity(0.1))
+                .compositingGroup()
         }
     }
 
@@ -297,7 +299,7 @@ private struct ToBuySearchSheet: View {
     /// 삭제된 재료 픽커 시트의 **재료 배열 UI**를 그대로 되살린 자리 — 검색어가 비어 있는 동안 이
     /// 그리드가 시트를 채운다. 치수·구조는 원본 그대로다: 적응형 74~96pt 열 + 56pt 실루엣 타일,
     /// 섹션 간 s5 / 타일 간 s2, 모노 올캡 섹션 헤더. 순서도 원본과 같다 —
-    /// FREQUENT(빨리 담기 단축키) → 사전 전체를 카테고리로 묶은 섹션(`FoodGlyph.categoryOrder` — 냉장고 필터 칩과 같은 순서 상수).
+    /// Frequent(빨리 담기 단축키) → 사전 전체를 카테고리로 묶은 섹션(`FoodGlyph.categoryOrder` — 냉장고 필터 칩과 같은 순서 상수).
     /// **의미만 To buy 문맥이다**: 탭은 냉장고 반입이 아니라 `addToBuy`(장보기 메모)고, 시트는 닫히지
     /// 않으며, 이미 담긴 타일에는 결과 행과 같은 체크가 남는다.
     private var pickerGrid: some View {
@@ -306,7 +308,7 @@ private struct ToBuySearchSheet: View {
             GridTile(id: "freq-\($0.key)", name: $0.name, glyph: $0.glyph, key: $0.key)
         }
         return LazyVStack(alignment: .leading, spacing: ReffiSpace.s5) {
-            if !frequent.isEmpty { gridSection("FREQUENT", tiles: frequent, listed: listed) }
+            if !frequent.isEmpty { gridSection("Frequent", tiles: frequent, listed: listed) }
             ForEach(IngredientLexicon.shared.categorySections, id: \.category) { section in
                 gridSection(LocalizedStringKey(section.category),
                             tiles: section.entries.map {
@@ -322,12 +324,11 @@ private struct ToBuySearchSheet: View {
     private func gridSection(_ label: LocalizedStringKey, tiles: [GridTile],
                              listed: Set<String>) -> some View {
         VStack(alignment: .leading, spacing: ReffiSpace.s2) {
+            // 카테고리·Frequent는 **번역되는** 라벨이라 올캡 모노 role을 쓰지 않는다(§3.5) —
+            // 한국어에선 `.textCase(.uppercase)`가 무동작이라 올캡이라는 시각 문법이 사라지고
+            // 11pt에 자간 1.4만 남는다. 번역되는 섹션 라벨은 caption으로 내린다.
             Text(label)
-                .reffiType(.sectionLabel)
-                // 카테고리 헤더는 §13.5 패스 라벨 언어의 **예외로 로컬라이즈한다**(FREQUENT도 같은 규칙).
-                // `.textCase(.uppercase)`가 한국어에서 무동작인 것이지 라벨이 영문으로 남는 게 아니다 —
-                // 이 시점의 라벨은 이미 번역된 한국어다(ko: 채소/과일/…). 서체·색만 패스 라벨을 따른다.
-                .textCase(.uppercase)
+                .reffiType(.caption)
                 .foregroundStyle(ReffiColor.ink2)
             LazyVGrid(columns: Self.gridColumns, spacing: ReffiSpace.s2) {
                 ForEach(tiles) { tile($0, listed: listed.contains($0.key)) }
@@ -348,7 +349,7 @@ private struct ToBuySearchSheet: View {
         } label: {
             VStack(spacing: ReffiSpace.s1) {
                 PaperSilhouette(glyph: item.glyph, fresh: .fresh)
-                    .frame(width: 56, height: 56)
+                    .frame(width: ReffiFoodIcon.tile, height: ReffiFoodIcon.tile)
                 Text(verbatim: item.name)
                     .reffiType(.metaText)
                     .foregroundStyle(ReffiColor.ink)
@@ -361,15 +362,23 @@ private struct ToBuySearchSheet: View {
             .background {
                 // 종이 시드는 `ReffiHash.stable` — `String.hashValue`는 런치마다 시드가 바뀌어 같은 타일이
                 // 매번 다른 종이결로 뜨고 스크린샷 회귀가 불가능해진다(요리 아이콘 색과 같은 유틸을 공유한다).
-                let s = PaperRect(cornerRadius: ReffiRadius.md,
-                                  seed: Int(ReffiHash.stable(item.key) % 4))
+                // 셰입 시드는 `% 4`(PaperRect의 지터 표가 4행)이고 **그레인 시드는 해시 전체**다 —
+                // 셰입이 4종으로 겹쳐도 반점·섬유결이 칸마다 달라 12칸이 서로 다른 종이 조각으로 읽힌다.
+                let h = ReffiHash.stable(item.key)
+                let s = PaperRect(cornerRadius: ReffiRadius.md, seed: Int(h % 4))
                 // 면색은 `receipt` — 원본 타일의 인라인 값 oklch(0.985, 0.004, 90)이 곧 이 토큰이고,
                 // 같은 시트의 noMatchCard도 receipt라 시트 안 흰 종이가 한 토큰으로 통일된다.
-                s.fill(ReffiColor.receipt).paperEdge(s, tint: ReffiColor.ink.opacity(0.06))
+                s.fill(ReffiColor.receipt)
+                    // 반복되는 소형 면이라 옅게(§13.5 — 드롭다운 0.6·냉장고 카드 0.7과 같은 대역).
+                    .overlay(PaperGrain(seed: h, strength: 0.6).clipShape(s))
+                    .paperEdge(s, tint: ReffiColor.ink.opacity(0.06))
+                    .compositingGroup()   // overlay 블렌드 그레인을 타일 경계에 가둔다
             }
             .overlay(alignment: .topTrailing) {
-                ReffiIcon.check.reffi(11, .bold)
-                    .foregroundStyle(ReffiColor.blueDark)
+                // 담김 = **도장 각인**(§13.5). 체크 글리프만 있으면 어느 앱에나 있는 픽커 체크로 읽혀
+                // 이 시트에서 브랜드가 사라진다 — D-day 도장과 같은 문법(기울어진 외곽선 + 잉크)으로
+                // 찍어, 담긴 칸이 "도장 찍힌 종이"가 되게 한다.
+                GlyphStamp(icon: ReffiIcon.check, color: ReffiColor.blueDark, size: 13)
                     .padding(ReffiSpace.s1)
                     .opacity(listed ? 1 : 0)
                     .scaleEffect(listed ? 1 : 0.6)
@@ -411,15 +420,10 @@ private struct ToBuySearchSheet: View {
     }
 
     private var noMatchCard: some View {
-        let shape = ReceiptShape(tooth: 7)
-        return VStack(alignment: .leading, spacing: ReffiSpace.s2) {
+        VStack(alignment: .leading, spacing: ReffiSpace.s2) {
             Text("No match").reffiType(.subhead).foregroundStyle(ReffiColor.ink)
             Text("Try another name.").reffiType(.body).foregroundStyle(ReffiColor.ink2)
         }
-        .padding(.horizontal, ReffiSpace.s5)
-        .padding(.vertical, ReffiSpace.s5)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(ReffiColor.receipt, in: shape)
-        .paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
+        .receiptSurface(elevated: .flat)
     }
 }

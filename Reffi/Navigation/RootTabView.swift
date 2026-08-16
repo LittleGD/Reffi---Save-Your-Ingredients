@@ -92,10 +92,10 @@ private struct CapsuleNav: View {
             navItem(.profile, ReffiIcon.profile, "Profile")
         }
         .padding(.horizontal, ReffiSpace.s5)
-        .frame(height: 58)
+        .frame(height: ReffiChrome.navHeight)
         .navGlass()
         .shadow(color: ReffiColor.shadowTint.opacity(0.06), radius: 6, x: 0, y: 2)   // 약한 드롭섀도
-        .padding(.bottom, 2)   // 더 아래로 — 홈 인디케이터 근처
+        .padding(.bottom, ReffiChrome.navBottom)   // 더 아래로 — 홈 인디케이터 근처
     }
 
     /// 탭(홈·냉장고·프로필) — 활성 Blue+fill / 비활성 muted+regular.

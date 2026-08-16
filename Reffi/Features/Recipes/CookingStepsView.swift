@@ -47,7 +47,7 @@ struct CookingStepsView: View {
 
     private func shareCardKey(for cook: FridgeStore.CookSession) -> ShareCardKey {
         ShareCardKey(recipeName: cook.recipeName,
-                     ingredientNames: reservedIngredients.map(\.name),
+                     ingredientNames: reservedIngredients.map(\.displayName),
                      minutes: cook.minutes,
                      count: cook.count,
                      icon: heroIcon(for: cook))
@@ -82,6 +82,9 @@ struct CookingStepsView: View {
             }
             topBar
         }
+        // 확정 액션은 티켓 안이 아니라 화면 하단에 도킹한다(§13.6) — 티켓이 짧아도 CTA가 화면 중턱에
+        // 뜨지 않고, 메인·시트의 하단 CTA 관례와 같은 자리에서 엄지로 닿는다. 본문(티켓)만 스크롤한다.
+        .dockedCTA(over: ReffiColor.paperPass) { bottomBar }
         .sensoryFeedback(.success, trigger: finishHaptic)
         // 완료·취소(또는 발주 undo)로 세션이 사라지면 자동으로 닫힌다.
         .onChange(of: store.activeCook == nil) { _, gone in
@@ -103,6 +106,40 @@ struct CookingStepsView: View {
             Button("Keep cooking", role: .cancel) {}
         } message: {
             Text("Nothing is logged. Reserved ingredients return to the fridge.")
+        }
+    }
+
+    // MARK: - 하단 도킹 CTA
+
+    /// 확정 액션 한 쌍 — 파랑 "Finish cooking"(완료) + 조용한 "조리 취소" 텍스트 버튼.
+    /// 티켓에서 떼어 왔지만 **순서·문법은 그대로**다: 확정이 위, 되돌리는 길이 아래.
+    /// 세션이 없으면(닫히는 프레임) 아무것도 그리지 않아 빈 바가 남지 않는다.
+    @ViewBuilder private var bottomBar: some View {
+        if store.activeCook != nil {
+            VStack(spacing: 0) {
+                PaperButton(title: "Finish cooking") {
+                    // 예약 재료가 있으면 확인 시트에서 확정(남은 재료 원탭), 없으면(구버전 세션) 바로 종료.
+                    if reservedIngredients.isEmpty {
+                        finishHaptic += 1
+                        withAnimation(ReffiMotion.gated(ReffiMotion.pop, reduce: reduceMotion)) {
+                            store.finishCooking()
+                        }
+                    } else {
+                        leftovers = []
+                        showFinishSheet = true
+                    }
+                }
+
+                // 조리 포기 — 예약을 해제하고 재료를 되돌린다(기록 없음). fire의 안전한 반대 방향.
+                Button { showCancelConfirm = true } label: {
+                    Text("Cancel cooking, put ingredients back")
+                        .reffiType(.caption)
+                        .foregroundStyle(ReffiColor.ink2)
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.reffiPress)
+            }
         }
     }
 
@@ -142,8 +179,8 @@ struct CookingStepsView: View {
         } label: {
             HStack(spacing: ReffiSpace.s3) {
                 PaperSilhouette(glyph: ing.glyph, fresh: ing.freshness)
-                    .frame(width: 32, height: 32)
-                Text(verbatim: ing.name)
+                    .frame(width: ReffiFoodIcon.rowMini, height: ReffiFoodIcon.rowMini)
+                Text(verbatim: ing.displayName)
                     .reffiType(.body).foregroundStyle(ReffiColor.ink).lineLimit(1)
                 Spacer(minLength: ReffiSpace.s2)
                 Text(left ? "Some left" : "Used it all")
@@ -151,7 +188,8 @@ struct CookingStepsView: View {
                     .foregroundStyle(left ? ReffiColor.soonDark : ReffiColor.freshDark)
                     .padding(.horizontal, ReffiSpace.s3)
                     .padding(.vertical, ReffiSpace.s1 + 1)
-                    .background((left ? ReffiColor.soonLight : ReffiColor.freshLight), in: Capsule())
+                    // §13.1 종이컷 8각형(캡슐 금지) — 행동 표면의 상태 칩도 종이 문법을 따른다.
+                    .background((left ? ReffiColor.soonLight : ReffiColor.freshLight), in: PaperCutRect(seed: 5))
             }
             .padding(.horizontal, ReffiSpace.s3)
             .padding(.vertical, ReffiSpace.s2)
@@ -159,7 +197,7 @@ struct CookingStepsView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.reffiPress)
-        .accessibilityLabel(Text("\(ing.name)"))
+        .accessibilityLabel(Text("\(ing.displayName)"))
         .accessibilityValue(left ? Text("Some left") : Text("Used it all"))
         .accessibilityHint(Text("Toggles whether some is left over"))
     }
@@ -171,13 +209,14 @@ struct CookingStepsView: View {
                     closeHint: "Keeps cooking in progress",   // 닫아도 세션은 남는다는 결과 예고
                     onClose: onClose) {
             if let cook = store.activeCook {
+                // 한 구(句)를 두 role로 쪼개지 않는다 — "Started"가 caption(14/자간 +0.14),
+                // 바로 옆 경과 시간이 metaText(13/자간 0)라 같은 문장 안에서 1pt·자간만 어긋나
+                // 위계가 아니라 어색한 이격으로만 보였다. 데이터형 메타 하나로 묶는다(§3.5).
                 HStack(spacing: 4) {
                     Text("Started")
-                        .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
                     Text(cook.startedAt, style: .relative)
-                        .reffiType(.metaText)
-                        .foregroundStyle(ReffiColor.ink2)
                 }
+                .reffiType(.metaText).foregroundStyle(ReffiColor.ink2)
             }
         }
     }
@@ -210,7 +249,7 @@ struct CookingStepsView: View {
                     .frame(width: ReffiDishIcon.ticket, height: ReffiDishIcon.ticket)
             }
 
-            DashedRule()
+            ReffiRule(.ticket)
 
             // 조리법의 1차 경로 — 레시피명으로 유튜브 검색을 연다. 아이콘+라벨 와이드 CTA(아이콘 단독 아님).
             // 공유는 그 옆의 보조 행동이라 조용한 종이컷 아이콘(§13.5)으로 남긴다.
@@ -239,37 +278,11 @@ struct CookingStepsView: View {
                 .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
                 .fixedSize(horizontal: false, vertical: true)
 
-            DashedRule()
-                .padding(.top, ReffiSpace.s2)
-
-            PaperButton(title: "Finish cooking") {
-                // 예약 재료가 있으면 확인 시트에서 확정(남은 재료 원탭), 없으면(구버전 세션) 바로 종료.
-                if reservedIngredients.isEmpty {
-                    finishHaptic += 1
-                    withAnimation(ReffiMotion.gated(ReffiMotion.pop, reduce: reduceMotion)) {
-                        store.finishCooking()
-                    }
-                } else {
-                    leftovers = []
-                    showFinishSheet = true
-                }
-            }
-            .padding(.top, ReffiSpace.s2)
-
-            // 조리 포기 — 예약을 해제하고 재료를 되돌린다(기록 없음). fire의 안전한 반대 방향.
-            Button { showCancelConfirm = true } label: {
-                Text("Cancel cooking, put ingredients back")
-                    .reffiType(.caption)
-                    .foregroundStyle(ReffiColor.ink2)
-                    .frame(maxWidth: .infinity, minHeight: 44)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.reffiPress)
         }
         .padding(.horizontal, ReffiSpace.s5)
         .padding(.vertical, ReffiSpace.s5 + 2)
-        .background(ReceiptShape(tooth: 9).fill(ReffiColor.paper))
-        .overlay(ReceiptShape(tooth: 9).stroke(ReffiColor.ink.opacity(0.07), lineWidth: 1))
+        .background(ReceiptShape(tooth: ReffiTooth.ticket).fill(ReffiColor.paper))
+        .overlay(ReceiptShape(tooth: ReffiTooth.ticket).stroke(ReffiColor.ink.opacity(0.07), lineWidth: 1))
         .reffiShadow1()
     }
 
@@ -314,7 +327,7 @@ struct CookingStepsView: View {
         // 공유 이미지는 물리 산출물(인쇄된 영수증)이라 기기 다크모드와 무관하게 항상 라이트 종이로 렌더한다.
         // ImageRenderer는 환경을 명시하지 않으면 항상 라이트로 해석하지만, 명시적으로 고정해 의도를 문서화한다.
         let card = RecipeShareCard(recipeName: cook.recipeName,
-                                   ingredientNames: reservedIngredients.map(\.name),
+                                   ingredientNames: reservedIngredients.map(\.displayName),
                                    minutes: cook.minutes,
                                    count: cook.count,
                                    icon: icon)

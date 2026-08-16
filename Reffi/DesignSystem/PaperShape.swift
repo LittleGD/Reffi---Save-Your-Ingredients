@@ -25,32 +25,52 @@ struct PaperRect: Shape {
 
     private func pick<T>(_ a: [[T]]) -> [T] { a[((seed % a.count) + a.count) % a.count] }
 
+    /// 네 코너가 전부 `min(w,h)/2`로 클램프되는가 = 이 크기에서 캡슐로 퇴화하는가(§13.1).
+    /// 반지름 지터의 최솟값까지 클램프될 때만 참이라, 일부만 클램프되는 비대칭 손맛은 그대로 둔다.
+    static func degeneratesToCapsule(cornerRadius: CGFloat, in rect: CGRect, seed: Int) -> Bool {
+        let cj = cornerJit[((seed % cornerJit.count) + cornerJit.count) % cornerJit.count]
+        let maxR = min(rect.width, rect.height) / 2
+        guard maxR > 0, let lowest = cj.min() else { return false }
+        return cornerRadius * lowest >= maxR
+    }
+
     func path(in rect: CGRect) -> Path {
+        // §13.1 "완벽한 캡슐 금지" — pill 스케일 반지름이 들어오면 좌우가 정확한 반원인 캡슐이 된다.
+        // 그 크기의 정본은 모서리를 잘라낸 8각(`PaperCutRect`)이므로 셰입 자체를 그쪽으로 라우팅한다.
+        if Self.degeneratesToCapsule(cornerRadius: cornerRadius, in: rect, seed: seed) {
+            return PaperCutRect(seed: seed).path(in: rect)
+        }
         let cj = pick(Self.cornerJit)
         let eb = pick(Self.edgeBow)
         let maxR = min(rect.width, rect.height) / 2
         func r(_ i: Int) -> CGFloat { min(maxR, max(0, cornerRadius * cj[i])) }
         let (r0, r1, r2, r3) = (r(0), r(1), r(2), r(3))
-        let bow = max(1.5, min(rect.width, rect.height) * 0.02)   // 변 휘는 최대 픽셀
+        // 변 휨은 **그 변의 직선 구간 길이**에 비례한다 — 가위질이 길수록 선이 더 흔들린다.
+        // 반환값은 컨트롤 오프셋이라 목표 편차의 2배다(2차 베지어는 컨트롤 오프셋의 절반만 부푼다).
+        // 예전 값(하한 1.5를 오프셋에 그대로 적용)은 44pt 컨트롤에서 편차 0.5pt라 3x 렌더에서도
+        // 지각되지 않았다. 지금은 하한 1.4·상한 4 = 편차 1.4~4pt로, 45pt 컨트롤에서도 손맛이 보인다.
+        func ctl(_ span: CGFloat) -> CGFloat { min(4, max(1.4, span * 0.05)) * 2 }
+        let (ctlTop, ctlRight) = (ctl(rect.width - r0 - r1), ctl(rect.height - r1 - r2))
+        let (ctlBottom, ctlLeft) = (ctl(rect.width - r3 - r2), ctl(rect.height - r0 - r3))
         let (minX, maxX, minY, maxY) = (rect.minX, rect.maxX, rect.minY, rect.maxY)
 
         var p = Path()
         p.move(to: CGPoint(x: minX + r0, y: minY))
         // top edge → TR corner
         p.addQuadCurve(to: CGPoint(x: maxX - r1, y: minY),
-                       control: CGPoint(x: rect.midX, y: minY + eb[0] * bow))
+                       control: CGPoint(x: rect.midX, y: minY + eb[0] * ctlTop))
         p.addQuadCurve(to: CGPoint(x: maxX, y: minY + r1), control: CGPoint(x: maxX, y: minY))
         // right edge → BR corner
         p.addQuadCurve(to: CGPoint(x: maxX, y: maxY - r2),
-                       control: CGPoint(x: maxX - eb[1] * bow, y: rect.midY))
+                       control: CGPoint(x: maxX - eb[1] * ctlRight, y: rect.midY))
         p.addQuadCurve(to: CGPoint(x: maxX - r2, y: maxY), control: CGPoint(x: maxX, y: maxY))
         // bottom edge → BL corner
         p.addQuadCurve(to: CGPoint(x: minX + r3, y: maxY),
-                       control: CGPoint(x: rect.midX, y: maxY - eb[2] * bow))
+                       control: CGPoint(x: rect.midX, y: maxY - eb[2] * ctlBottom))
         p.addQuadCurve(to: CGPoint(x: minX, y: maxY - r3), control: CGPoint(x: minX, y: maxY))
         // left edge → TL corner
         p.addQuadCurve(to: CGPoint(x: minX, y: minY + r0),
-                       control: CGPoint(x: minX + eb[3] * bow, y: rect.midY))
+                       control: CGPoint(x: minX + eb[3] * ctlLeft, y: rect.midY))
         p.addQuadCurve(to: CGPoint(x: minX + r0, y: minY), control: CGPoint(x: minX, y: minY))
         p.closeSubpath()
         return p

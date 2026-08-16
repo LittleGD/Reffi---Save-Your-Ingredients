@@ -33,6 +33,11 @@ struct RemovalLog: Identifiable, Codable {
     /// 재료 동일성 키 — 표기 무관(Ingredient.matchKey와 같은 규칙). 쇼핑리스트 그룹핑·재입고 조회의 기준.
     var matchKey: String { canonicalID ?? name.lowercased() }
 
+    /// 화면에 그릴 이름 — `Ingredient.displayName`과 같은 규칙(캐논 ID가 있으면 사전에서 재해석).
+    var displayName: String {
+        canonicalID.flatMap { IngredientLexicon.shared.entry(id: $0)?.displayName } ?? name
+    }
+
     /// 처리 후 경과 일수(자정 기준).
     var daysAgo: Int {
         let cal = Calendar.current

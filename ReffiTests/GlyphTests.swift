@@ -24,7 +24,7 @@ struct GlyphTests {
         #expect(FoodGlyph.rice.categoryLabel == "Grain")
         #expect(FoodGlyph.noodles.categoryLabel == "Grain")
         #expect(FoodGlyph.corn.categoryLabel == "Grain")
-        // 김밥은 요리지만 정체는 밥 — History 도넛에서 Other가 아니라 Grain으로 읽힌다.
+        // 김밥은 요리지만 정체는 밥 — 카테고리 축에서 Other가 아니라 Grain으로 읽힌다.
         #expect(FoodGlyph.gimbap.categoryLabel == "Grain")
         #expect(FoodGlyph.sauceBottle.categoryLabel == "Pantry")
         #expect(FoodGlyph.can.categoryLabel == "Pantry")

@@ -56,7 +56,7 @@ struct WiltStyle: Equatable {
     // MARK: - 재질 축 (rigidity)
 
     /// 시들 때 **형태가 얼마나 무너지는가**로 글리프를 가르는 축. 분류 라벨(`categoryLabel`)을
-    /// 재사용하지 않는다 — 그 축의 주인은 History 도넛·분석 taxonomy라, 통계 목적의 재분류가
+    /// 재사용하지 않는다 — 그 축의 주인은 카테고리 필터·분석 taxonomy라, 통계 목적의 재분류가
     /// 일러스트를 조용히 다시 튜닝해 버린다(달걀을 Dairy→Protein으로 옮기면 달걀이 처지기 시작한다).
     /// 또 라벨은 `String`이라 면(面)마다 읽으면 문자열 비교 비용이 붙는다.
     enum Rigidity {

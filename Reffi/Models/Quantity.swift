@@ -66,13 +66,17 @@ struct Quantity: Codable, Equatable {
     var halved: Quantity { Quantity(value: max(0.25, value / 2), unit: unit) }
 
     /// 표시 문자열 — 정수는 소수점 없이, 0.5는 ½로.
+    ///
+    /// 수치는 `String(format:)`이 아니라 `FormatStyle`로 만든다 — 포맷 문자열은 로케일을 타지 않아
+    /// 어디서나 마침표를 찍고 그룹 구분자도 빼먹는다(독일어·프랑스어는 "1,5", 천 단위 구분도 다르다).
+    /// 소수는 최대 한 자리까지만 남긴다(기존 "%.1f"와 같은 자릿수, 정수는 소수점 없이).
+    /// 숫자와 단위 사이는 줄바꿈 없는 공백 — "300"과 "g"가 행 끝에서 갈라지지 않게 한다.
     var text: String {
         let v: String
         if value == 0.5 { v = "½" }
         else if value == 0.25 { v = "¼" }
-        else if value.truncatingRemainder(dividingBy: 1) == 0 { v = String(Int(value)) }
-        else { v = String(format: "%.1f", value) }
-        return "\(v) \(unit.label)"
+        else { v = value.formatted(.number.precision(.fractionLength(0...1))) }
+        return "\(v)\u{00A0}\(unit.label)"
     }
 
     /// 레거시 자유 문자열("300 g", "2 ea", "½모 남음", "1 L") 최선 파싱 — v1 → v2 마이그레이션.

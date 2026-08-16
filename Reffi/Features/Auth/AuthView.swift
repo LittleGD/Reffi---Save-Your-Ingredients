@@ -43,6 +43,10 @@ struct AuthView: View {
         // 프로필에서 시트로 띄운 경우의 닫기 신호(룰④) — 핸들 노출. 루트 게이트로 쓰일 땐
         // 시트가 아니라 이 modifier가 무시되므로 무해하다.
         .presentationDragIndicator(.visible)
+        // 시트 높이도 같은 이유로 여기서 선언한다(룰⑪ / §14.5 "미설정=무조건 풀높이" 금지).
+        // 로그인 화면은 워드마크·소셜 버튼·게스트 진입이 한 화면에 다 서야 해서 `.large` 한 단이다 —
+        // `.medium`을 함께 주면 절반 높이에서 CTA가 잘린다. 호출부(ProfileView)엔 중복 선언하지 않는다.
+        .presentationDetents([.large])
         .onOpenURL { auth.handleOpenURL($0) }
         // 프로필에서 시트로 띄운 경우 — 정식(비익명) 세션이 생기면 자동 닫힘.
         // 게이트(루트)에서는 dismiss가 no-op이라 무해하다.
@@ -70,8 +74,7 @@ struct AuthView: View {
     // MARK: 영수증 카드 — 폼 + 소셜
 
     private var receiptCard: some View {
-        let shape = ReceiptShape(tooth: 7)
-        return VStack(alignment: .leading, spacing: ReffiSpace.s4) {
+        VStack(alignment: .leading, spacing: ReffiSpace.s4) {
             HStack(alignment: .firstTextBaseline) {
                 Text(isSignIn ? "Log in" : "Sign up")
                     .reffiType(.heading).foregroundStyle(ReffiColor.ink)
@@ -113,12 +116,7 @@ struct AuthView: View {
 
             footer
         }
-        .padding(.horizontal, ReffiSpace.s5)
-        .padding(.vertical, ReffiSpace.s5 + 7)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(ReffiColor.receipt, in: shape)
-        .paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
-        .reffiShadow1()
+        .receiptSurface(elevated: .floating)
     }
 
     private var primaryTitle: String {
@@ -199,16 +197,14 @@ struct AuthView: View {
     private var dashRule: some View {
         HStack(spacing: ReffiSpace.s3) {
             line
+            // 번역되는 라벨(ko "또는")이라 올캡 모노 크롬이 아니라 caption(§3.5).
             Text("OR")
-                .reffiType(.monoEyebrow)
+                .reffiType(.caption)
                 .foregroundStyle(ReffiColor.muted)
             line
         }
     }
-    private var line: some View {
-        HLine().stroke(ReffiColor.ink.opacity(0.16), style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
-            .frame(height: 1)
-    }
+    private var line: some View { ReffiRule(.receipt) }
 
     // MARK: 소셜 버튼 — PaperCutRect(와이드 CTA 문법) + 로고 글리프
 

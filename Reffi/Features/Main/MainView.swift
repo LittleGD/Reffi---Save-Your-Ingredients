@@ -92,7 +92,8 @@ struct MainView: View {
             }
 
             physicsField
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .frame(maxWidth: .infinity, maxHeight: fieldRestHeight)
+                .frame(maxHeight: .infinity)   // 남는 공백을 위아래로 갈라 더미가 광학 중앙에 앉는다
 
             if !counter.isEmpty {
                 badgeScroll
@@ -327,7 +328,7 @@ struct MainView: View {
                 // 날짜는 분 단위 타임라인으로 갱신 — 자정이 지나도 어제 날짜가 남지 않는다.
                 TimelineView(.everyMinute) { ctx in
                     Text(ctx.date.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))
-                        .font(.reffiNum(13, relativeTo: .caption)).foregroundStyle(ReffiColor.ink2)
+                        .font(.reffiNum(.meta)).foregroundStyle(ReffiColor.ink2)
                 }
             }
             // 미션 헤더(D) — 오늘의 상태를 한 문장으로. 누계(Ate/Tossed)는 MyPage가 맡는다.
@@ -366,10 +367,17 @@ struct MainView: View {
             Button { enableAlerts() } label: {
                 Text("Turn on")
                     .reffiType(.pillLabel)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(ReffiColor.blueDark)
                     .padding(.horizontal, ReffiSpace.s3 + 2)
                     .padding(.vertical, ReffiSpace.s1 + 2)
-                    .background(ReffiColor.blue, in: Capsule())
+                    // §13.1 종이컷 8각형(캡슐 금지) — 바로 아래 Start cooking(PaperButton)과 같은 재질 언어.
+                    // 다만 면은 채우지 않는다: blue 솔리드 면은 한 화면에 하나(Start cooking)뿐이어야
+                    // 부차 액션이 F패턴 #1을 가져가지 않는다(§2.4 5% 강조 배분, 감사 R3-1).
+                    .background {
+                        let s = PaperCutRect(seed: 3)
+                        s.fill(ReffiColor.sub)
+                            .paperEdge(s, tint: ReffiColor.blueDark.opacity(0.38), width: 1.2)
+                    }
                     .frame(minHeight: 44)
                     .contentShape(Rectangle())
             }
@@ -387,7 +395,7 @@ struct MainView: View {
         .padding(.vertical, ReffiSpace.s1)
         .frame(minHeight: 44)
         .background {
-            let shape = ReceiptShape(tooth: 6)
+            let shape = ReceiptShape(tooth: ReffiTooth.chip)
             shape.fill(ReffiColor.paper).paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
         }
         .reffiShadow1()
@@ -409,7 +417,10 @@ struct MainView: View {
 
     // MARK: - Cooking now (발주 진행 카드)
 
-    /// 발주 후 "지금 요리 중" — 미니 영수증 스트립. 탭하면 단계별 레시피로 복귀(완료는 그 화면에서).
+    /// 발주 후 "지금 요리 중" — 탭하면 단계별 레시피로 복귀(완료는 그 화면에서).
+    /// 셰입은 CTA급(§13.5 `PaperCutRect` + 그레인 + `shadow-1`)이다 — 룰 ⑩이 규정한
+    /// "몰입 커버 진입 = 눈에 띄는 CTA"에 맞춘다(감사 R3-3). 색은 종이 면을 유지해
+    /// 바로 아래 Start cooking(blue 솔리드)과 경쟁하지 않는다.
     private func cookingNowCard(_ cook: FridgeStore.CookSession) -> some View {
         Button { showSteps = true } label: {
             HStack(spacing: ReffiSpace.s3) {
@@ -428,14 +439,17 @@ struct MainView: View {
                 Spacer(minLength: ReffiSpace.s2)
                 ReffiIcon.chevron.reffi(15, .bold).foregroundStyle(ReffiColor.blueDark)
             }
-            .padding(.horizontal, ReffiSpace.s4)
-            .padding(.vertical, ReffiSpace.s2 + 2)
-            .frame(minHeight: 44)
+            .padding(.horizontal, ReffiSpace.s5)
+            .padding(.vertical, ReffiSpace.s3)
+            .frame(minHeight: 56)
             .background {
-                let shape = ReceiptShape(tooth: 6)
-                shape.fill(ReffiColor.paper).paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
+                let s = PaperCutRect(seed: 5)                      // 메인 CTA(PaperButton)와 같은 8각형
+                s.fill(ReffiColor.paper)
+                    .overlay(PaperGrain(seed: 27, strength: 0.7).clipShape(s))   // 옅은 질감
+                    .paperEdge(s, tint: ReffiColor.ink.opacity(0.06), width: 1)
+                    .compositingGroup()
+                    .reffiShadow1()
             }
-            .reffiShadow1()
             .contentShape(Rectangle())
         }
         .buttonStyle(.paperPress)
@@ -443,6 +457,16 @@ struct MainView: View {
     }
 
     // MARK: - Physics field (real engine, persistent pile)
+
+    /// 정지 상태 필드 높이의 상한 — "쉬고 있는 더미"에 필요한 만큼만 자리를 잡는다.
+    /// 필드가 화면 끝까지 늘어나면 중력에 눕는 더미는 바닥에 붙고 위쪽 여유가 통째로
+    /// 빈 띠로 남아, 배너와 더미 사이가 뷰포트의 4분의 1이 됐다(감사 R3-4).
+    /// 낙하 스폰은 씬 바깥 절대 좌표(`size.height + 700`)라 드라마는 이 캡과 무관하다.
+    /// 칩은 화면 폭에서 3열로 눕으므로 행 수 = ⌈n/3⌉, 행 피치·바닥 여유는 실측값이다.
+    private var fieldRestHeight: CGFloat {
+        guard !counter.isEmpty else { return .infinity }   // 빈 작업대(카피·CTA)는 캡 대상이 아니다
+        return 96 * ceil(CGFloat(counter.count) / 3) + 28
+    }
 
     private var physicsField: some View {
         GeometryReader { geo in
@@ -656,7 +680,7 @@ private struct DecisionCover: View {
     private var card: some View {
         VStack(spacing: ReffiSpace.s5) {
             VStack(spacing: 2) {
-                Text(verbatim: ingredient.name).reffiType(.heading).foregroundStyle(ReffiColor.ink)
+                Text(verbatim: ingredient.displayName).reffiType(.heading).foregroundStyle(ReffiColor.ink)
                 Text("Did you eat it, or toss it?")
                     .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
             }

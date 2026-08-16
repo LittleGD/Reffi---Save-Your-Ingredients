@@ -21,6 +21,16 @@
         }
       }
     },
+    "%@ · removed": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · 지웠어요"
+          }
+        }
+      }
+    },
     "%@ · tossed": {
       "localizations": {
         "ko": {
@@ -71,60 +81,12 @@
         }
       }
     },
-    "%lld ate · %lld tossed": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "먹음 %1$lld · 버림 %2$lld"
-          }
-        }
-      }
-    },
-    "%lld handled": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld개 처리"
-          }
-        }
-      }
-    },
     "%lld in stock": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
             "value": "재고 %lld개"
-          }
-        }
-      }
-    },
-    "%lld ingredients to use soon": {
-      "localizations": {
-        "en": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "1 ingredient to use soon"
-                }
-              },
-              "other": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "%lld ingredients to use soon"
-                }
-              }
-            }
-          }
-        },
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "임박 재료 %lld개"
           }
         }
       }
@@ -201,6 +163,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "레시피 %lld개"
+          }
+        }
+      }
+    },
+    "%lld times": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld회"
+          }
+        },
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld time"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld times"
+                }
+              }
+            }
           }
         }
       }
@@ -503,16 +493,6 @@
         }
       }
     },
-    "All set": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "다 있어요"
-          }
-        }
-      }
-    },
     "All stocked up": {
       "localizations": {
         "ko": {
@@ -593,32 +573,12 @@
         }
       }
     },
-    "Ate · all time": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "먹음 · 전체"
-          }
-        }
-      }
-    },
     "Bakery": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
             "value": "베이커리"
-          }
-        }
-      }
-    },
-    "Barcode or photo": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "바코드/사진 인식"
           }
         }
       }
@@ -730,6 +690,24 @@
             "state": "translated",
             "value": "상하기 전 %lld개 소진"
           }
+        },
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Clears 1 before it spoils"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Clears %lld before they spoil"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -739,16 +717,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "닫기"
-          }
-        }
-      }
-    },
-    "Coming soon": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "준비 중"
           }
         }
       }
@@ -993,16 +961,6 @@
         }
       }
     },
-    "Details (optional)": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "상세 (선택)"
-          }
-        }
-      }
-    },
     "Did you eat it, or toss it?": {
       "localizations": {
         "ko": {
@@ -1193,16 +1151,6 @@
         }
       }
     },
-    "FREQUENT": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "자주 쓰는 재료"
-          }
-        }
-      }
-    },
     "FROZEN": {
       "localizations": {
         "ko": {
@@ -1299,6 +1247,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "냉동 유예 만료"
+          }
+        }
+      }
+    },
+    "Frequent": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "자주 쓰는 재료"
           }
         }
       }
@@ -1409,16 +1367,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "인도식"
-          }
-        }
-      }
-    },
-    "Ingredients (comma separated)": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "재료 (쉼표로 구분)"
           }
         }
       }
@@ -1693,16 +1641,6 @@
         }
       }
     },
-    "Morning reminder": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "아침 리마인더"
-          }
-        }
-      }
-    },
     "Most tossed": {
       "localizations": {
         "ko": {
@@ -1869,6 +1807,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "인식된 항목이 없어요"
+          }
+        }
+      }
+    },
+    "Nothing tallied yet. What you eat and toss lands here.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "아직 정산할 기록이 없어요. 먹거나 버린 재료가 여기에 쌓여요."
           }
         }
       }
@@ -2173,16 +2121,6 @@
         }
       }
     },
-    "Quantity · e.g. 300 g, 2 ea": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "수량 · 예: 300 g, 2개"
-          }
-        }
-      }
-    },
     "Ran out, based on what you use often": {
       "localizations": {
         "ko": {
@@ -2269,6 +2207,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "내 레시피에서만 지워져요. 기본 레시피는 그대로예요."
+          }
+        }
+      }
+    },
+    "Removes it from your recipes. This can't be undone. Built-in recipes stay.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "내 레시피에서만 지워져요. 되돌릴 수 없어요. 기본 레시피는 그대로예요."
           }
         }
       }
@@ -2369,16 +2317,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "저장"
-          }
-        }
-      }
-    },
-    "Save & add another": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "저장하고 계속 추가"
           }
         }
       }
@@ -2493,6 +2431,17 @@
         }
       }
     },
+    "Setup %lld of %lld": {
+      "comment": "Accessibility label for the onboarding setup page indicator",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "설정 %2$lld단계 중 %1$lld단계"
+          }
+        }
+      }
+    },
     "Share": {
       "localizations": {
         "ko": {
@@ -2509,6 +2458,24 @@
           "stringUnit": {
             "state": "translated",
             "value": "쇼핑리스트, %lld개"
+          }
+        },
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Shopping list, 1 item"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Shopping list, %lld items"
+                }
+              }
+            }
           }
         }
       }
@@ -2663,16 +2630,6 @@
         }
       }
     },
-    "Steps (one per line)": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "조리 단계 (한 줄에 하나)"
-          }
-        }
-      }
-    },
     "Storage": {
       "localizations": {
         "ko": {
@@ -2719,6 +2676,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "1분이면 충분해요"
+          }
+        }
+      }
+    },
+    "Tally · past 30 days": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "정산 · 최근 30일"
           }
         }
       }
@@ -2833,16 +2800,6 @@
         }
       }
     },
-    "Today's recipe · Tomato frittata": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "오늘의 레시피 · 토마토 프리타타"
-          }
-        }
-      }
-    },
     "Today's recipes,\nfrom what expires first": {
       "localizations": {
         "ko": {
@@ -2899,16 +2856,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "버림 %lld"
-          }
-        }
-      }
-    },
-    "Tossed · all time": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "버림 · 전체"
           }
         }
       }
@@ -3083,22 +3030,12 @@
         }
       }
     },
-    "Wasted": {
+    "Waste rate": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "버림"
-          }
-        }
-      }
-    },
-    "Wasted · 30d": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "버림 · 30일"
+            "value": "낭비율"
           }
         }
       }
@@ -3309,16 +3246,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "개"
-          }
-        }
-      }
-    },
-    "once": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "1회"
           }
         }
       }

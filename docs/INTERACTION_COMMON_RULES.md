@@ -50,6 +50,7 @@
   - **풀스크린 커버 = 우상단/좌상단 `PaperCloseButton`(X)**로 닫는다.
   - 시트는 dragIndicator **필수**(핸들 없는 시트 금지).
 - **적용**: `AuthView`·`CookingStepsView` finishSheet에 dragIndicator 추가. 시스템 Cancel 텍스트로 닫던 화면은 룰 ⑤/⑥에서 종이화되며 해소.
+- **프로필 시트 6종 정렬(2026-08-13)**: 닉네임·Cuisines·Favorites·Disliked·Allergies·Alert time은 `presentationDragIndicator`가 한 곳도 없어 §14.3 필수 조항을 어기고 있었다(특히 `.height(260)`·`.height(300)` 단일 detent는 automatic으로도 그래버가 뜨지 않아 확정적으로 핸들이 없다). 호출부마다 붙이면 같은 드리프트가 재발하므로 **공용 셸 `SheetShell`(`ProfilePreferenceSheets.swift`)에서 한 번 선언**해 6종을 일괄 정렬했다. 이로써 `SheetHeader`가 전제하는 "헤더 + 핸들" 계약을 셸이 함께 보증한다.
 
 ---
 
@@ -66,6 +67,7 @@
   - **편집·생성 시트**(재료·레시피·커스텀·후보): 하단 도킹 `PaperButton`(Save/Add)으로 **명시적 커밋**. 취소는 스와이프/닫기(룰 ⑨의 미저장 보호 적용).
   - **설정·선택 시트**(취향·알림시간 등 단일 선택): **자동저장** — 선택 즉시 반영, 저장 버튼 없이 닫기만.
 - **적용**: `RecipeEditorView`·`CustomItemSheet`·`CandidateEditSheet`·`IngredientEditView`는 도킹 Save. `CuisinePickerSheet`·`TagEditorSheet`·`NotifyTimeSheet`는 자동저장(현행 유지, 규칙으로 명문화).
+- **`NicknameEditSheet` 분류(2026-08-13)**: 어느 목록에도 이름이 없어 문서상 미분류였다. Save(`PaperButton`)로 명시 커밋하므로 **편집·생성 버킷**이고, 따라서 룰⑨ 미저장 보호가 적용된다(`IngredientEditView.requestClose()` 패턴 이식).
 
 ---
 
@@ -88,6 +90,9 @@
   - **국소·되돌리기 가능**(재료삭제·조리취소) = `.confirmationDialog` (트리거 근처). `FridgeStore.pendingUndo` 기반 undo 토스트가 떠서 dialog로 충분.
   - **데이터를 지우지 않는 상태 전환**(**로그아웃**) = `.confirmationDialog`. 세션만 해지하고 냉장고·이력·프로필은 이 기기에 남는다. 소유자 키(`data.ownerUserID`)가 직전 계정 id로 유지되고 뒤이어 붙는 익명 게스트 세션은 소유자 대조 대상이 아니라(`AuthStore.accountUserID`가 nil), 콜드 런치를 거쳐 같은 계정으로 재로그인해도 와이프가 없다(`ReffiApp.reconcileDataOwner` 보장 ①). 룰 ⑦ 파괴 햅틱도 해당 없음.
   - 순수 알림성(알림 꺼짐 안내)은 `.alert` 유지.
+- **삭제 2종 정정(2026-08-13)**: 두 삭제가 dialog로 분류된 근거("`FridgeStore.pendingUndo` 기반 undo 토스트가 떠서 dialog로 충분")가 실제로는 비어 있었다 — `FridgeStore.remove(_:)`·`deleteUserRecipe(id:)` 어느 쪽도 `beginUndo`를 부르지 않았다. 판정 축("확정 후 되돌릴 수 있느냐")대로 각각 다르게 해소한다.
+  - **재료삭제 = 전제를 채운다(확인 강도 유지)**: `remove(_:)`가 `beginUndo(.removed(name:))`를 호출해 6초 undo 토스트를 실제로 띄운다. 이 함수는 **이력 없는 삭제**라 `logIDs` 경로를 쓸 수 없다(로그를 만들면 낭비율·쇼핑리스트가 오염돼 함수의 정의가 깨진다) → `PendingUndo.restoreSnapshots`로 원본을 직접 들고 있다가 복원한다. dialog 유지.
+  - **커스텀 레시피 삭제 = `.alert`로 승급**: undo 모델은 재료·이력 스냅샷 전용이라 사용자가 직접 쓴 레시피를 되살릴 장부가 없다. 억지로 얹으면 `PendingUndo`가 재료와 무관한 페이로드를 하나 더 짊어지고 토스트 카피·아이콘까지 갈라지므로, 사실대로 **복구 불가능**으로 재분류해 계정삭제·전체초기화·샘플로드와 같은 강도(`.alert` + 명시 Cancel + "This can't be undone" 카피)로 옮긴다. 호출부 2곳(`MyRecipesView` 목록 롱프레스·`RecipeEditorView` 삭제) 모두 이관.
 - **샘플로드 정정(2026-07-26)**: 최초 초안은 샘플로드를 "되돌리기 가능(undo 토스트 있음)"으로 분류했으나 사실이 아니다. `FridgeStore.loadSampleData()`는 `ingredients`·`history`를 샘플로 통째 대체하기 전에 `pendingUndo = nil`로 **undo를 먼저 지운다**(`FridgeStore.swift:717`) → 확정 후 복구 불가. 따라서 `.alert`로 분류를 옮긴다.
 - **적용**: 위 기준으로 각 호출부 재분류.
   - 반영 완료(2026-07-26): `ProfileView`의 샘플로드 호출부를 `.alert` + 명시 Cancel + 룰 ⑦ `.warning` 햅틱으로 이관했다(결과 명시 메시지는 유지).
@@ -96,6 +101,7 @@
 - **현행 편차**: `interactiveDismissDisabled`가 앱 전체 0건. 편집 시트가 스와이프 실수로 닫히면 입력 유실.
 - **확정 룰**: **편집·생성 시트**에서 미저장 변경이 있을 때만, 스와이프/닫기 시 "변경을 취소할까요?" `confirmationDialog`(Discard Changes 패턴). 변경 없으면 자유 닫힘. 설정·선택 시트(자동저장)는 해당 없음.
 - **적용**: 편집·생성 시트에 `@State private var isDirty` 추적 + `interactiveDismissDisabled(isDirty)` + Discard 다이얼로그.
+  - 반영 완료(2026-08-13): `NicknameEditSheet`가 마지막 누락이었다 — 타이핑 후 스와이프로 닫으면 경고 없이 사라졌다(감사 R4-4). 초안 비교는 **트림 후** 값으로 한다(앞뒤 공백만 다르면 커밋 결과가 같아 dirty가 아니다).
 
 ---
 
@@ -108,9 +114,10 @@
   - **시트 진입** = 조용한 `chevron` 행.
   - `chevron` 자체는 양쪽에 허용하되, 위계 차이로 무게를 구분.
 - **적용**: 커버를 여는 진입점은 CTA 스타일로, 시트를 여는 진입점은 chevron 행으로 정렬. (감사 대상: `FridgeView` 요약카드, `MainView` cookingNow, `ProfileView` SettingsRow, `AddIngredientSheet` scanCard.)
+  - 반영 완료(2026-08-13): `MainView` **Cooking now**가 마지막 편차였다 — 풀스크린 조리 커버를 열면서 조용한 톱니 영수증 행이라, 진행 중 세션 복귀가 과소 표현됐다(감사 R3-3). `FridgeView` 요약카드와 같은 **CTA 셰입**(`PaperCutRect` + `PaperGrain` + `shadow-1`, minHeight 56)으로 올렸다. **색은 종이 면 그대로** — 셰입만 CTA급이고 blue 솔리드 면은 `Start cooking` 하나다(§2.4). 같은 슬롯의 **알림 배너는 커버를 열지 않으므로 영수증 스트립을 유지**해, 한 자리에 번갈아 뜨는 두 카드가 셰입만으로 전환 결과를 예고한다.
 
 ### 룰 ⑪ — 시트 높이(detent) = 콘텐츠 양별 3단
-- **현행 편차**: `.medium` / 고정높이(`.height(260/300)`) / 미설정(풀높이)이 기준 없이 혼재. `AuthView`·`RecipeEditor` 등은 detent 없이 무조건 풀높이.
+- **현행 편차**: `.medium` / 고정높이(`.height(260/300)`) / 미설정(풀높이)이 기준 없이 혼재. `AuthView`·`RecipeEditor` 등은 detent 없이 무조건 풀높이. — **해소(2026-08-13)**: `RecipeEditorView`는 `.medium/.large`로, `AuthView`는 `.large` 단일 단으로 이관해 미설정 시트가 0이 됐다(선언 위치는 "시트 설정은 시트 안에서" 관례대로 각 뷰 내부).
 - **확정 룰**:
   - **짧은 단일 입력**(닉네임·시간) = `.height(...)` 고정.
   - **중간 목록·폼**(추가·편집) = `.medium` 진입, 키보드/긴 내용 시 `.large` 승격.
@@ -145,12 +152,20 @@ PaperCloseButton(seed: Int = 4, action: () -> Void)
 - 시각 40 · 히트 44 · `ReffiColor.paper` 면 · `paperEdge` · `.paperPress` · `accessibilityLabel("Close")`.
 - 커버 헤더·시트 헤더·doneBar 등 모든 종이 X를 이 컴포넌트로 대체.
 
+### `PaperButtonLabel` (2026-08-13 추가)
+```
+PaperButtonLabel(title: LocalizedStringKey, kind: .primary | .secondary, fullWidth: Bool = true, seed: Int = 0)
+```
+- `PaperButton`의 **표면만** 떼어낸 조각. `PaperButton`은 이걸 `Button` 안에 넣어 만든다(규격이 한 곳에서 나온다).
+- `Button`이 아닌 컨트롤(`PhotosPicker`·`ShareLink` 등)에 CTA 재질을 씌울 때 쓰고, 호출부가 `.buttonStyle(.paperPress)`를 함께 건다(선례: `CookingStepsView`의 ShareLink + `PaperIconLabel`).
+- **금지**: 종이 CTA 면을 호출부에서 손으로 재조립하는 것 — fill 토큰·`PaperGrain`·`--shadow-1`·프레스가 갈려 secondary CTA가 두 종류로 보인다(`ReceiptScanView`의 "Choose photos"가 그 사례였다).
+
 ### `SheetHeader`
 ```
 SheetHeader(title: LocalizedStringKey, showsClose: Bool = false, onClose: (() -> Void)? = nil)
 ```
-- 좌측 타이틀(`.heading`) + (선택)`PaperCloseButton`. dragIndicator는 시트 프레젠테이션 측에서 `.visible`.
-- 하단 시트 헤더의 유일한 공급원.
+- 좌측 타이틀(`.heading`, **한 줄·말줄임**) + (선택)`PaperCloseButton`. dragIndicator는 시트 프레젠테이션 측에서 `.visible`(`SheetShell`을 쓰면 셸이 보증한다).
+- 하단 시트 헤더의 유일한 공급원. **예외 0(2026-08-13)** — 마지막 인라인 헤더였던 `IngredientEditView`가 "동적 타이틀 truncation 보호" 때문에 커스텀 HStack을 유지했는데, 그 보호를 컴포넌트가 흡수하며(모든 시트가 함께 안전해진다) 예외 사유가 사라졌다. 인라인으로 두면 패딩이 달라(위 s4/아래 s2 vs s5/s3) 시트 간 타이틀 기준선이 어긋난다.
 
 ### `CoverHeader` (기존, 재사용 강제)
 - 중앙 타이틀(`.heading`) + `PaperCloseButton`(X). 풀스크린 커버의 유일한 공급원.
@@ -173,7 +188,9 @@ SheetHeader(title: LocalizedStringKey, showsClose: Bool = false, onClose: (() ->
 - 다크 모드 토큰(현재 라이트 고정 — `design_system.md` §2.1).
 - 시스템 push 스택(`NavigationLink`) 도입 — 앱은 의도적으로 모달+상태스위칭 아키텍처. 유지.
 - 큰 플로우 전환 애니메이션(온보딩→메인, 로그아웃) — 낮음 심각도, 별도 과제.
-- ~~`Menu`(sortMenu)의 눌림 피드백 — SwiftUI 플랫폼 제약, 손대지 않음.~~ **철회(2026-07-26)**: 같은 작업에서 스톡 `Menu`를 앱 커스텀 `PaperDropdown`(`Reffi/Components/PaperDropdown.swift`)으로 전면 교체해, 눌림 피드백이 종이 문법(`.paperPress`)으로 들어왔다. 플랫폼 제약은 컴포넌트 교체로 해소됐고 이 항목은 더 이상 범위 밖이 아니다.
+- ~~`Menu`(sortMenu)의 눌림 피드백 — SwiftUI 플랫폼 제약, 손대지 않음.~~ **철회(2026-07-26)**: 같은 작업에서 스톡 `Menu`를 앱 커스텀 `PaperDropdown`(`Reffi/Components/PaperDropdown.swift`)으로 교체해, 눌림 피드백이 종이 문법(`.paperPress`)으로 들어왔다. 플랫폼 제약은 컴포넌트 교체로 해소됐고 이 항목은 더 이상 범위 밖이 아니다.
+  - **범위 정정 + 완료(2026-08-13)**: 위 문장은 "전면 교체"라고 적었지만 실제 교체율은 1/5였다 — 냉장고 정렬 1곳만 `PaperDropdown`이고 편집 시트의 단위·보관 선택 4곳은 스톡 `.pickerStyle(.menu)`로 남아, "탭 → 옵션 목록"이 두 문법으로 갈려 있었다(감사 R4-6). 이번에 네 곳을 모두 이관해 `.pickerStyle(.menu)`가 **0**이 됐다(남은 스톡 픽커는 `NotifyTimeSheet`의 `.wheel` 하나 — 시각 선택은 목록이 아니라 다이얼이라 다른 문법이다).
+  - 시트 안 앵커링은 정렬 칩과 조건이 다르다 — 시스템 팝오버와 달리 오버레이는 시트 밖으로 나갈 수 없다. 그래서 `paperDropdownOverlay(...)` 모디파이어가 **아래/위 여유를 재 뒤집고 팝업 높이를 캡**하며, 넘치면 `PaperDropdown(maxHeight:)`이 내부 스크롤한다(단위 10종). 한 화면에 트리거가 둘이므로 **열린 트리거만 앵커를 발행**해 `DropdownAnchorKey`의 "화면당 한 개" 전제를 지킨다.
 
 ---
 

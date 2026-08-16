@@ -222,7 +222,7 @@ struct FridgeView: View {
             }
             .padding(.horizontal, ReffiGrid.margin)
             .padding(.top, ReffiSpace.s5)
-            .padding(.bottom, 120)   // 끝까지 스크롤해도 마지막 카드가 네비 위로 올라오게
+            .padding(.bottom, ReffiChrome.navClearance)   // 끝까지 스크롤해도 마지막 카드가 네비 위로 올라오게
         }
     }
 
@@ -246,7 +246,7 @@ struct FridgeView: View {
             doneBar
             // 영수증만 스크롤하고 판정 버튼(Ate/Tossed)은 스크롤 **밖**에 둔다 — 이 화면의 유일한 1차 액션이라
             // 어떤 글자 크기·재고 수에서도 잘리면 안 된다(§7.3). 버튼을 스크롤 콘텐츠 안에 넣으면 하단 스택(≤132)과
-            // 네비 클리어런스(96)가 먹은 만큼 뷰포트가 좁아져 기본 글자 크기에서도 라벨이 잘렸다.
+            // 네비 자리 예약(`ReffiChrome.navReserve`)이 먹은 만큼 뷰포트가 좁아져 기본 글자 크기에서도 라벨이 잘렸다.
             //
             // "영수증 끝에서 20 아래 부착"이라는 의도는 그대로 유지한다:
             //   ① 스크롤 밖 하단 s3(12) + ② 버튼 상단 s2(8) = 20 — 간격을 스크롤 밖에 둬서
@@ -272,9 +272,9 @@ struct FridgeView: View {
             if !others.isEmpty {
                 bottomStack(others)
             } else {
-                // 마지막 재료 — 하단 스택이 없으면 그 몫의 네비 클리어런스(96)도 사라져
+                // 마지막 재료 — 하단 스택이 없으면 그 몫의 네비 자리 예약도 사라져
                 // Ate/Tossed 버튼이 떠 있는 네비 밑에 깔린다. 스택 자리만큼 바닥을 비워둔다.
-                Color.clear.frame(height: 96)
+                Color.clear.frame(height: ReffiChrome.navReserve)
             }
         }
     }
@@ -324,7 +324,7 @@ struct FridgeView: View {
         .clipShape(Rectangle())
         .contentShape(Rectangle())
         .padding(.horizontal, ReffiGrid.margin + cardInset)
-        .padding(.bottom, 96)
+        .padding(.bottom, ReffiChrome.navReserve)
         // 위로 스와이프(또는 탭) → 냉장고 스택으로 촤라락 복귀.
         .gesture(
             DragGesture(minimumDistance: 16)
@@ -341,11 +341,26 @@ struct FridgeView: View {
                 Text("\(sortedItems.count) in stock")
                     .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
                 Spacer(minLength: ReffiSpace.s2)
+                reportButton
                 sortMenu
                 viewToggle
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// 리포트 진입 — 헤더에 상시 노출하는 종이컷 아이콘 버튼(`PaperIconButton`, §13.5).
+    /// 요약 페이저 2장째(무낭비 리포트)는 **스와이프해야 보이는** 경로라, 이력을 보러 온 사람이
+    /// 첫 화면에서 진입점을 찾지 못했다. 페이저는 그대로 두고(발견은 그쪽이, 재방문은 이쪽이 맡는다)
+    /// 헤더에 항상 같은 자리의 버튼을 둔다. 44pt 블롭이라 §7.3 터치 타깃을 그대로 만족한다.
+    private var reportButton: some View {
+        // 인텐트가 `primary`(Blue)인 이유: 헤더의 다른 두 컨트롤(정렬·보기)은 목록을 다루는 크롬이고
+        // 이건 **다른 화면으로 가는 액션**이다 — §2.4의 5% 액션 색이 정확히 이 구분을 맡는다.
+        // `neutral`(sub 면)은 크림 캔버스와 대비가 1.1:1 수준이라 44pt에서 그레인만 보이는 회색 얼룩이 됐다.
+        PaperIconButton(icon: ReffiIcon.report, intent: .primary, size: 44, seed: 4) {
+            showHistory = true
+        }
+        .accessibilityLabel("No-waste report")
     }
 
     /// 정렬 칩 — 현재 정렬 라벨을 상시 노출하는 종이컷 칩(§13.5). 비주얼은 그대로, 탭하면 스톡 Menu 대신
@@ -374,7 +389,8 @@ struct FridgeView: View {
     }
 
     // MARK: 카테고리 필터 칩 행 — 정렬(순서)과 직교하는 "좁혀 보기". 정렬 칩과 같은 종이 문법이되,
-    // 선택 상태는 면 반전(ink 면 + onInk 글자)으로 한눈에 구분한다(드롭다운의 체크 문법은 팝업 전용).
+    // 선택 상태는 굵은 잉크 단면(sub 면 + ink 2pt)으로 구분한다 — 면 반전은 필터 상태가
+    // 콘텐츠보다 무거워져 폐기(드롭다운의 체크 문법은 팝업 전용).
     private var categoryFilterRow: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: ReffiSpace.s2) {
@@ -397,7 +413,7 @@ struct FridgeView: View {
         .padding(.vertical, -3)
     }
 
-    /// 필터 칩 한 개 — 라벨 + 개수. 히트 44(§7.3), 선택은 면 반전 + `.isSelected` 트레잇.
+    /// 필터 칩 한 개 — 라벨 + 개수. 히트 44(§7.3), 선택은 굵은 잉크 테두리 + `.isSelected` 트레잇.
     private func categoryChip(name: String, count: Int, on: Bool, seed: Int,
                               action: @escaping () -> Void) -> some View {
         Button(action: action) {
@@ -405,10 +421,10 @@ struct FridgeView: View {
                 Text(name)
                     .font(ReffiTextRole.caption.font)
                     .tracking(ReffiTextRole.caption.tracking)
-                    .foregroundStyle(on ? ReffiColor.onInk : ReffiColor.ink)
+                    .foregroundStyle(ReffiColor.ink)
                 Text(count.formatted())
-                    .font(.reffiNum(12, relativeTo: .caption))
-                    .foregroundStyle(on ? ReffiColor.onInk.opacity(0.72) : ReffiColor.ink2)
+                    .font(.reffiNum(.meta))
+                    .foregroundStyle(ReffiColor.ink2)
             }
             .lineLimit(1)
             .padding(.horizontal, ReffiSpace.s3)
@@ -416,7 +432,9 @@ struct FridgeView: View {
             .background {
                 let s = PaperRect(cornerRadius: ReffiRadius.xs, seed: seed)
                 if on {
-                    s.fill(ReffiColor.ink)   // 선택 = 면 반전(윤곽선 칩들 사이에서 유일한 채워진 면)
+                    // 선택 = sub 면 + 굵은 잉크 단면. 옛 ink 솔리드 반전은 화면 최고 대비를
+                    // 필터 '상태'가 가져가 콘텐츠(영수증 스택)를 눌렀다(감사 미검출 ①).
+                    s.fill(ReffiColor.sub).paperEdge(s, tint: ReffiColor.ink.opacity(0.55), width: 2)
                 } else {
                     s.fill(ReffiColor.paper).paperEdge(s)
                 }
@@ -506,7 +524,7 @@ struct FridgeView: View {
                 .lineLimit(1).fixedSize()   // 제목은 절대 말줄임하지 않는다
             Spacer(minLength: ReffiSpace.s1)
             Text(value)
-                .font(.reffiNum(17, relativeTo: .body)).foregroundStyle(tint)
+                .font(.reffiNum(.body)).foregroundStyle(tint)
                 .lineLimit(1)
             ReffiIcon.chevron.reffi(11, .bold).foregroundStyle(ReffiColor.ink2)
         }
@@ -572,7 +590,7 @@ struct FridgeView: View {
 /// 그룹 키는 저장된 `ingredient.category`가 아니라 **글리프 파생 라벨**(`FoodGlyph.categoryLabel`)이다.
 /// 저장 카테고리는 레거시·스캔 경로에서 "Meat · Beef" 같은 자유 문자열이 섞여 들어와 칩이 파편화되고
 /// 로컬라이즈 키도 없다. 글리프 라벨은 항상 캐논 10종이라 칩 집합이 안정적이고 전부 번역돼 있다
-/// (History 도넛 그룹핑도 같은 키를 쓴다 — 한 화면 두 기준을 만들지 않는다).
+/// (History 정산서 그룹핑도 같은 키를 쓴다 — 한 화면 두 기준을 만들지 않는다).
 enum FridgeCategoryFilter {
     /// 칩 고정 순서 — 사용 빈도(신선식품 → 저장식품 → 기타). 재고에 있는 것만 이 순서로 노출된다.
     /// 정본은 `FoodGlyph.categoryOrder` 하나 — To buy 검색 시트의 픽커 섹션도 같은 상수를 본다.
@@ -630,7 +648,7 @@ enum FridgeCategoryFilter {
     /// 칩 종이 셰이프 시드 — **카테고리 키**에서 유도한다(재고 개수가 아니라). 개수를 쓰면 먹거나
     /// 추가할 때마다 손으로 오린 윤곽이 다시 랜덤해지고(§13.1: 시드가 같으면 항상 같은 모양),
     /// 개수가 같은 칩끼리는 똑같이 생긴다. 20 오프셋은 같은 화면의 다른 종이 면
-    /// (빈 상태 3 · 정렬 칩 5 · 보기 토글 6 · 요약 카드 7/8 · All 칩 9)과 겹치지 않기 위한 것.
+    /// (빈 상태 3 · 리포트 버튼 4 · 정렬 칩 5 · 보기 토글 6 · 요약 카드 7/8 · All 칩 9)과 겹치지 않기 위한 것.
     static func chipSeed(_ category: String) -> Int {
         20 + (order.firstIndex(of: category) ?? order.count)
     }
@@ -666,9 +684,9 @@ struct FridgeCompactRow: View {
         let f = ingredient.freshness
         return HStack(spacing: ReffiSpace.s3) {
             PaperSilhouette(glyph: ingredient.glyph, fresh: f)
-                .frame(width: 34, height: 34)
+                .frame(width: ReffiFoodIcon.row, height: ReffiFoodIcon.row)
             VStack(alignment: .leading, spacing: 1) {
-                Text(ingredient.name)
+                Text(verbatim: ingredient.displayName)
                     .reffiType(.checklistItem)
                     .foregroundStyle(ReffiColor.ink).lineLimit(1)
                 Text(verbatim: ingredient.quantityText)
@@ -679,7 +697,7 @@ struct FridgeCompactRow: View {
                 DDayStamp(text: String(localized: "FROZEN"), color: ReffiColor.blueDark, size: 10)
             }
             Text(ingredient.dDayText)
-                .font(.reffiNum(15, relativeTo: .subheadline))
+                .font(.reffiNum(.body))
                 .foregroundStyle(f.dark)   // §2.6 캔버스/종이 위 색-텍스트는 dark
         }
         .padding(.horizontal, ReffiSpace.s4)
@@ -689,30 +707,8 @@ struct FridgeCompactRow: View {
             let s = PaperRect(cornerRadius: ReffiRadius.md, seed: ingredient.daysLeft &+ 3)
             s.fill(ReffiColor.receipt).paperEdge(s, tint: ReffiColor.ink.opacity(0.06))
         }
-        .shadow(color: ReffiColor.shadowTint.opacity(0.05), radius: 3, x: 0, y: 1)
+        .reffiShadowCardCompact()   // 한 화면에 여러 장 반복되는 납작한 행
         .accessibilityElement(children: .combine)
-    }
-}
-
-/// D-day 도장 — 기울어진 둥근 사각 외곽선 + 글자(영수증 "START" 스탬프 느낌, §13). 색은 신선도색.
-struct DDayStamp: View {
-    let text: String
-    let color: Color
-    var size: CGFloat = 13
-
-    var body: some View {
-        Text(text.uppercased())
-            .font(.reffiStamp(size))
-            .tracking(size * 0.06)
-            .foregroundStyle(color)
-            .padding(.horizontal, size * 0.7)
-            .padding(.vertical, size * 0.32)
-            .overlay {
-                RoundedRectangle(cornerRadius: size * 0.46, style: .continuous)
-                    .stroke(color, lineWidth: max(1.6, size * 0.12))
-            }
-            .rotationEffect(.degrees(-7))
-            .accessibilityLabel(text)
     }
 }
 
@@ -723,7 +719,7 @@ struct FridgeCard: View {
     var seed: Int = 0
     var height: CGFloat = 128
 
-    private let toothH: CGFloat = 7
+    private let toothH: CGFloat = ReffiTooth.card
 
     var body: some View {
         let f = ingredient.freshness
@@ -744,8 +740,8 @@ struct FridgeCard: View {
             }
             HStack(spacing: ReffiSpace.s3) {
                 PaperSilhouette(glyph: ingredient.glyph, fresh: f)
-                    .frame(width: 46, height: 46)
-                Text(ingredient.name)
+                    .frame(width: ReffiFoodIcon.card, height: ReffiFoodIcon.card)
+                Text(verbatim: ingredient.displayName)
                     .reffiType(.subhead).foregroundStyle(ReffiColor.ink).lineLimit(1)
                 Spacer(minLength: 0)
             }
@@ -757,7 +753,7 @@ struct FridgeCard: View {
         .frame(height: height)
         .background(paper, in: shape)
         .paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
-        .shadow(color: ReffiColor.shadowTint.opacity(0.06), radius: 4, x: 0, y: 2)   // 약한 드롭섀도
+        .reffiShadowCardCompact()   // 겹쳐 쌓이는 카드라 얕은 단
     }
 }
 
@@ -765,7 +761,7 @@ struct FridgeCard: View {
 struct ExpandedFridgeCard: View {
     let ingredient: Ingredient
     var onEdit: () -> Void = {}
-    private let toothH: CGFloat = 7
+    private let toothH: CGFloat = ReffiTooth.card
 
     /// 영수증 번호 — 이름에서 유도(장식, 안정적).
     private var receiptNo: String {
@@ -782,7 +778,7 @@ struct ExpandedFridgeCard: View {
             // 헤더 — 큰 일러스트 + (카테고리·편집) / (이름·Due date)
             HStack(spacing: ReffiSpace.s4) {
                 PaperSilhouette(glyph: ingredient.glyph, fresh: f)
-                    .frame(width: 64, height: 64)
+                    .frame(width: ReffiFoodIcon.hero, height: ReffiFoodIcon.hero)
                 VStack(alignment: .leading, spacing: 2) {
                     HStack {
                         Text(LocalizedStringKey(ingredient.category))
@@ -798,7 +794,7 @@ struct ExpandedFridgeCard: View {
                         .accessibilityLabel("Edit")
                     }
                     HStack(alignment: .center, spacing: ReffiSpace.s2) {
-                        Text(ingredient.name).reffiType(.heading).foregroundStyle(ReffiColor.ink)
+                        Text(verbatim: ingredient.displayName).reffiType(.heading).foregroundStyle(ReffiColor.ink)
                         Spacer()
                         if ingredient.isFrozen {
                             DDayStamp(text: String(localized: "FROZEN"), color: ReffiColor.blueDark, size: 11)
@@ -829,7 +825,7 @@ struct ExpandedFridgeCard: View {
                     .foregroundStyle(ReffiColor.muted)
                 Spacer()
                 Text(receiptNo)
-                    .font(.reffiNum(11, relativeTo: .caption2)).foregroundStyle(ReffiColor.muted)
+                    .font(.reffiNum(.meta)).foregroundStyle(ReffiColor.muted)
             }
             .padding(.horizontal, ReffiSpace.s5)
             .padding(.top, ReffiSpace.s3)
@@ -839,7 +835,7 @@ struct ExpandedFridgeCard: View {
         .padding(.bottom, toothH)
         .background(paper, in: shape)
         .paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
-        .shadow(color: ReffiColor.shadowTint.opacity(0.06), radius: 5, x: 0, y: 2)
+        .reffiShadowCard()
     }
 
     private func row(_ label: LocalizedStringKey, _ value: String, valueColor: Color = ReffiColor.ink) -> some View {
@@ -848,7 +844,7 @@ struct ExpandedFridgeCard: View {
                 Text(label).reffiType(.caption).foregroundStyle(ReffiColor.ink2)
                 Spacer(minLength: ReffiSpace.s4)
                 Text(value)
-                    .font(.reffiNum(15, relativeTo: .subheadline))
+                    .font(.reffiNum(.body))
                     .foregroundStyle(valueColor)
                     .multilineTextAlignment(.trailing)
             }
@@ -857,18 +853,7 @@ struct ExpandedFridgeCard: View {
     }
 
     private var dashRule: some View {
-        HLine().stroke(ReffiColor.ink.opacity(0.16), style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
-            .frame(height: 1)
-            .padding(.horizontal, ReffiSpace.s5)
+        ReffiRule(.receipt).padding(.horizontal, ReffiSpace.s5)
     }
 }
 
-/// 가로 점선/구분선용 1px 라인.
-struct HLine: Shape {
-    func path(in rect: CGRect) -> Path {
-        var p = Path()
-        p.move(to: CGPoint(x: rect.minX, y: rect.midY))
-        p.addLine(to: CGPoint(x: rect.maxX, y: rect.midY))
-        return p
-    }
-}

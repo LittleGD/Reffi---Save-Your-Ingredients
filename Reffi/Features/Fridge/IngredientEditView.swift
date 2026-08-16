@@ -7,15 +7,21 @@ import SwiftUI
 ///
 /// 표면은 §13 행동표면 언어(`CandidateEditSheet`와 같은 문법):
 /// 크림 캔버스(`--color-canvas`) + 흰 영수증 카드(`ReceiptShape`) + 모노 섹션 라벨(`ITEM`·`DETAILS`) +
-/// `DashedRule` + 종이 X 닫기 헤더 + 도킹된 `PaperButton`. 시스템 폼·글래스 툴바를 쓰지 않는다(조용한 종이).
+/// `ReffiRule` + 종이 X 닫기 헤더 + 도킹된 `PaperButton`. 시스템 폼·글래스 툴바를 쓰지 않는다(조용한 종이).
 struct IngredientEditView: View {
     @Environment(FridgeStore.self) private var store
     @Environment(\.dismiss) private var dismiss
+
+    /// 이 시트에서 열릴 수 있는 종이 드롭다운 — 한 번에 하나만 연다(`DropdownAnchorKey` 전제).
+    private enum OpenDropdown { case unit, storage }
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var draft: Ingredient
     @State private var showDeleteConfirm = false
     @State private var showDiscardConfirm = false
     @State private var deleteHaptic = 0
+    @State private var openDropdown: OpenDropdown?
 
     private let original: Ingredient
 
@@ -46,6 +52,19 @@ struct IngredientEditView: View {
             actionBar
         }
         .background(ReffiColor.canvas)
+        // 종이 드롭다운 오버레이 2종 — 열린 트리거만 앵커를 올리므로 동시에 하나만 뜬다.
+        .paperDropdownOverlay(isPresented: openDropdown == .unit,
+                              options: IngredientUnit.allCases,
+                              selected: draft.quantity.unit,
+                              label: { $0.label }, seed: 5,
+                              onDismiss: { closeDropdown() },
+                              onSelect: { draft.quantity.unit = $0 })
+        .paperDropdownOverlay(isPresented: openDropdown == .storage,
+                              options: storageOptions,
+                              selected: draft.storage,
+                              label: { $0.label }, seed: 3,
+                              onDismiss: { closeDropdown() },
+                              onSelect: { draft.storage = $0 })
         .presentationDetents([.large])
         .presentationDragIndicator(.visible)
         .presentationBackground(ReffiColor.canvas)
@@ -69,20 +88,34 @@ struct IngredientEditView: View {
         }
     }
 
-    // MARK: - 헤더 (좌측 타이틀 + PaperCloseButton, 룰①. 동적 타이틀 truncation 보호를 유지하려 커스텀 HStack은 유지)
+    // MARK: - 헤더 (§14.2 단일 공급원 `SheetHeader` — 룰②③)
 
+    /// 커스텀 HStack을 남겼던 사유("동적 타이틀 truncation 보호")는 `SheetHeader`가 한 줄·말줄임을
+    /// 컴포넌트로 흡수하며 사라졌다. 인라인으로 두면 패딩이 달라(위 s4/아래 s2 vs 컴포넌트 s5/s3)
+    /// 이 시트와 `CandidateEditSheet`를 연달아 열 때 타이틀 기준선이 서로 다른 높이에 앉는다.
     private var header: some View {
-        HStack(alignment: .firstTextBaseline) {
-            // 이름이 길어도 헤더가 깨지지 않게 한 줄·말줄임(X 버튼은 항상 자리 유지).
-            Text("Edit \(draft.name)")
-                .reffiType(.heading).foregroundStyle(ReffiColor.ink)
-                .lineLimit(1).truncationMode(.tail)
-            Spacer(minLength: ReffiSpace.s3)
-            PaperCloseButton { requestClose() }
+        SheetHeader(title: "Edit \(draft.name)", showsClose: true) { requestClose() }
+    }
+
+    // MARK: - 종이 드롭다운 (단위·보관)
+
+    /// 재냉동 금지 — 이미 한 번 얼렸던 재료는 Freezer를 다시 고를 수 없다(§13.6 유예 1회 제한).
+    private var storageOptions: [StorageLocation] {
+        StorageLocation.allCases.filter {
+            $0 != .freezer || draft.storage == .freezer || draft.frozenAt == nil
         }
-        .padding(.horizontal, ReffiGrid.margin)
-        .padding(.top, ReffiSpace.s4)
-        .padding(.bottom, ReffiSpace.s2)
+    }
+
+    private func toggle(_ which: OpenDropdown) {
+        let opening = openDropdown != which
+        withAnimation(ReffiMotion.gated(opening ? ReffiMotion.pop : ReffiMotion.exit,
+                                        reduce: reduceMotion)) {
+            openDropdown = opening ? which : nil
+        }
+    }
+
+    private func closeDropdown() {
+        withAnimation(ReffiMotion.gated(ReffiMotion.exit, reduce: reduceMotion)) { openDropdown = nil }
     }
 
     /// 미저장 변경이 있으면 즉시 닫지 않고 Discard 확인을 띄운다(룰⑨).
@@ -118,21 +151,19 @@ struct IngredientEditView: View {
                 TextField("1", value: $draft.quantity.value, format: .number)
                     .keyboardType(.decimalPad)
                     .multilineTextAlignment(.trailing)
-                    .font(.reffiNum(16, relativeTo: .body))
+                    .font(.reffiNum(.body))
                     .foregroundStyle(ReffiColor.ink)
                     .frame(width: 64)
-                Picker("Unit", selection: $draft.quantity.unit) {
-                    ForEach(IngredientUnit.allCases) { u in
-                        Text(verbatim: u.label).tag(u)
-                    }
-                }
-                .labelsHidden()
-                .pickerStyle(.menu)
-                .tint(ReffiColor.blue)
+                // 스톡 `.pickerStyle(.menu)`(흰 시스템 팝업) 대신 앱 커스텀 종이 드롭다운 —
+                // "탭 → 옵션 목록"이 앱 전체에서 한 문법이어야 한다(커먼 룰 H).
+                PaperDropdownTrigger(label: draft.quantity.unit.label,
+                                     isOpen: openDropdown == .unit, seed: 5) { toggle(.unit) }
+                    .accessibilityLabel(Text("Unit"))
+                    .accessibilityValue(Text(verbatim: draft.quantity.unit.label))
             }
             .frame(minHeight: 40)
 
-            DashedRule()
+            ReffiRule(.ticket)
 
             HStack {
                 Text("Where").reffiType(.body).foregroundStyle(ReffiColor.ink)
@@ -144,27 +175,20 @@ struct IngredientEditView: View {
             }
             .frame(minHeight: 40)
 
-            DashedRule()
+            ReffiRule(.ticket)
 
             HStack {
                 Text("Storage").reffiType(.body).foregroundStyle(ReffiColor.ink)
                 Spacer()
-                Picker("Storage", selection: $draft.storage) {
-                    // 저장값은 영문 식별자 그대로, 표시만 로컬라이즈.
-                    // 재냉동 금지: 이미 한 번 얼렸던 재료는 Freezer 재선택 불가.
-                    ForEach(StorageLocation.allCases) { s in
-                        if s != .freezer || draft.storage == .freezer || draft.frozenAt == nil {
-                            Text(LocalizedStringKey(s.rawValue)).tag(s)
-                        }
-                    }
-                }
-                .labelsHidden()
-                .pickerStyle(.menu)
-                .tint(ReffiColor.blue)
+                // 저장값은 영문 식별자 그대로, 표시만 로컬라이즈(`StorageLocation.label`).
+                PaperDropdownTrigger(label: draft.storage.label,
+                                     isOpen: openDropdown == .storage, seed: 3) { toggle(.storage) }
+                    .accessibilityLabel(Text("Storage"))
+                    .accessibilityValue(Text(verbatim: draft.storage.label))
             }
             .frame(minHeight: 40)
 
-            DashedRule()
+            ReffiRule(.ticket)
 
             HStack {
                 Text("Use by").reffiType(.body).foregroundStyle(ReffiColor.ink)
@@ -178,7 +202,7 @@ struct IngredientEditView: View {
             }
             .frame(minHeight: 40)
 
-            DashedRule()
+            ReffiRule(.ticket)
 
             HStack {
                 Text("Purchased").reffiType(.body).foregroundStyle(ReffiColor.ink)
@@ -246,14 +270,8 @@ struct IngredientEditView: View {
 
     /// 흰 영수증 카드 — `CandidateEditSheet`와 같은 면(오린 톱니 + 헤어라인 + 옅은 그림자).
     private func receiptCard<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
-        let shape = ReceiptShape(tooth: 7)
-        return VStack(alignment: .leading, spacing: ReffiSpace.s3) { content() }
-            .padding(.horizontal, ReffiSpace.s5)
-            .padding(.vertical, ReffiSpace.s5 + 3)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(ReffiColor.receipt, in: shape)
-            .paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
-            .shadow(color: ReffiColor.shadowTint.opacity(0.06), radius: 5, x: 0, y: 2)
+        VStack(alignment: .leading, spacing: ReffiSpace.s3) { content() }
+            .receiptSurface()
     }
 
     /// 모노 올캡 섹션 라벨 — 오더 티켓 언어(§13.5). `ReceiptScanView` 쪽 카드와 동일 문법.

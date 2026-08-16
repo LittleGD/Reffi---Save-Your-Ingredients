@@ -42,8 +42,8 @@ struct RecipeMemoCarousel: View {
 
     /// 수평 플릭 커밋 임계(예측 변위 width) — 넘기면 부호가 곧 의미다(+ Cook / − Pass).
     private let flickCommit: CGFloat = 160
-    /// 예고 블롭 크기 — 홈 판정 바스켓과 같은 86pt(`IngredientDropScene.zoneSide`).
-    private let zoneSide: CGFloat = 86
+    /// 예고 블롭 크기 — 홈 판정 바스켓과 같은 규격을 `ReffiJudgeZone`에서 함께 읽는다(§13.4).
+    private let zoneSide: CGFloat = ReffiJudgeZone.side
 
     /// 덱 입력은 호출부가 넘긴 스냅샷 고정 — 열려 있는 동안 늘거나 재랭크되지 않는다(단일 정체성).
     private var deck: [Int] { order.isEmpty ? Array(results.indices) : order }
@@ -93,6 +93,9 @@ struct RecipeMemoCarousel: View {
         OrderMemoCard(result: results[idx],
                       number: idx + 1,
                       headerOnly: depth >= 2,
+                      // 앞 티켓 톱니 사이로 뒤 카드 ORDER 행이 반쪽 글리프로 새던 결함 —
+                      // 노출 띠(14pt)는 글자 없는 종이로 고정한다.
+                      peek: depth >= 1,
                       onFire: { fire(results[idx]) },
                       // 플릭 발주는 **앞 티켓만** — 뒤 티켓엔 0을 고정해 트리거가 전파되지 않게 한다.
                       fireTrigger: isFront ? fireTrigger : 0,
@@ -150,9 +153,10 @@ struct RecipeMemoCarousel: View {
         .padding(.horizontal, ReffiSpace.s3)
         .frame(height: cardHeight)   // 카드와 같은 세로 박스 → 블롭이 카드 세로 중앙에 선다
         .padding(.top, topInset)
-        .opacity(live ? 0.96 : 0)    // 완전 불투명이 아닌 0.96 — 홈 존과 같은 값
-        // 등장·소멸 0.15초(홈 `SKAction.fadeAlpha` 대응). 놓는 순간 축이 풀려 커밋 여부와 무관하게 사라진다.
-        .animation(ReffiMotion.gated(.easeOut(duration: 0.15), reduce: reduceMotion), value: live)
+        .opacity(live ? ReffiJudgeZone.alpha : 0)   // 완전 불투명이 아닌 0.96 — 홈 존과 같은 토큰
+        // 등장·소멸(홈 `SKAction.fadeAlpha` 대응). 놓는 순간 축이 풀려 커밋 여부와 무관하게 사라진다.
+        .animation(ReffiMotion.gated(.easeOut(duration: ReffiJudgeZone.fade), reduce: reduceMotion),
+                   value: live)
         .allowsHitTesting(false)
         .accessibilityHidden(true)
     }
@@ -167,8 +171,9 @@ struct RecipeMemoCarousel: View {
             icon.reffi(30, .fill).foregroundStyle(tint)
         }
         .frame(width: zoneSide, height: zoneSide)
-        .scaleEffect(hot ? 1.14 : 1)
-        .animation(ReffiMotion.gated(.easeOut(duration: 0.1), reduce: reduceMotion), value: hot)
+        .scaleEffect(hot ? ReffiJudgeZone.hotScale : 1)
+        .animation(ReffiMotion.gated(.easeOut(duration: ReffiJudgeZone.hotDuration), reduce: reduceMotion),
+                   value: hot)
     }
 
     /// 앞 티켓 드래그 — 카드 위 드래그를 중재하는 **유일한 지점**이다(카드는 탭만 받는다).

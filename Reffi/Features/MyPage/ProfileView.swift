@@ -56,7 +56,7 @@ struct ProfileView: View {
             }
             .padding(.horizontal, ReffiGrid.margin + receiptInset)
             .padding(.top, ReffiSpace.s5)
-            .padding(.bottom, 120)   // 떠 있는 캡슐 네비 위로 스크롤 여유
+            .padding(.bottom, ReffiChrome.navClearance)   // 떠 있는 캡슐 네비 위로 스크롤 여유
         }
         #if DEBUG
         // 스크린샷·QA용 — 하단 섹션(Data·Account)까지 스크롤(-fridgeTab 선례).
@@ -402,14 +402,15 @@ struct ProfileView: View {
 // MARK: - 재사용 컴포넌트
 
 /// 흰 영수증 카드 — Fridge 영수증(FridgeCard·ExpandedFridgeCard)과 같은 문법.
-/// 톱니(절취) 엣지 + 대문자 트래킹 헤더 + 점선 룰, 면은 그레인 없는 깨끗한 흰 종이.
+/// 톱니(절취) 엣지 + 헤더 + 점선 룰, 면은 그레인 없는 깨끗한 흰 종이.
+/// 헤더 라벨은 번역되는 문자열이라 올캡 모노 크롬이 아니라 `caption`을 쓴다(§3.5).
 struct ReceiptCard<Content: View>: View {
     let title: String
     var stamp: String? = nil        // 제목 옆 고무 도장(DDayStamp) — 스트릭 등
     var trailing: String? = nil     // 헤더 우측 보조(날짜 등)
     @ViewBuilder var content: Content
 
-    private let toothH: CGFloat = 7
+    private let toothH: CGFloat = ReffiTooth.card
 
     var body: some View {
         let shape = ReceiptShape(tooth: toothH)
@@ -417,8 +418,11 @@ struct ReceiptCard<Content: View>: View {
 
         return VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .center) {
-                Text(title.uppercased())
-                    .reffiType(.monoEyebrow)
+                // 섹션 제목은 **번역되는** 문자열(취향·가구 인원·알림·내 레시피)이라 올캡 모노 크롬을
+                // 쓰지 않는다(§3.5) — 한글엔 대문자가 없어 `.uppercased()`가 no-op이 되고 10pt에
+                // 자간 1.6만 남는다. 문장형 라벨은 caption.
+                Text(title)
+                    .reffiType(.caption)
                     .foregroundStyle(ReffiColor.ink2)
                 if let stamp {
                     DDayStamp(text: stamp, color: ReffiColor.freshDark, size: 10)
@@ -427,7 +431,7 @@ struct ReceiptCard<Content: View>: View {
                 Spacer()
                 if let trailing {
                     Text(trailing)
-                        .font(.reffiNum(11, relativeTo: .caption2)).foregroundStyle(ReffiColor.muted)
+                        .font(.reffiNum(.meta)).foregroundStyle(ReffiColor.muted)
                 }
             }
             .padding(.horizontal, ReffiSpace.s5)
@@ -441,16 +445,15 @@ struct ReceiptCard<Content: View>: View {
         .padding(.bottom, ReffiSpace.s2 + toothH)
         .background(paper, in: shape)
         .paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
-        .shadow(color: ReffiColor.shadowTint.opacity(0.06), radius: 4, x: 0, y: 2)   // 약한 드롭섀도(Fridge와 동일)
+        .reffiShadowCardCompact()   // 스택 카드와 같은 얕은 단(Fridge와 동일)
     }
 }
 
-/// 영수증 점선 룰 — Fridge 상세의 dashRule과 동일.
+/// 영수증 카드 헤더 아래 절취선 — Fridge 상세의 dashRule과 같은 `ReffiRule(.receipt)`에 카드 거터만 더한다.
+/// (예전엔 "동일"이라 적어 두고 잉크만 0.14로 갈려 있었다.)
 struct ReceiptRule: View {
     var body: some View {
-        HLine().stroke(ReffiColor.ink.opacity(0.14), style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
-            .frame(height: 1)
-            .padding(.horizontal, ReffiSpace.s5)
+        ReffiRule(.receipt).padding(.horizontal, ReffiSpace.s5)
     }
 }
 
@@ -470,7 +473,7 @@ struct SettingsRow: View {
                 Spacer(minLength: ReffiSpace.s4)
                 if let value {
                     Text(value)
-                        .font(numeric ? .reffiNum(14, relativeTo: .caption) : ReffiTextRole.caption.font)
+                        .font(numeric ? .reffiNum(.body) : ReffiTextRole.caption.font)
                         .tracking(numeric ? 0 : ReffiTextRole.caption.tracking)
                         .foregroundStyle(valueColor)
                         .lineLimit(1)

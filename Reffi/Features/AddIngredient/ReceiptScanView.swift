@@ -85,16 +85,13 @@ struct ReceiptScanView: View {
             if cameraAvailable {
                 PaperButton(title: "Scan with camera") { showCamera = true }
             }
+            // Button이 아닌 컨트롤에도 CTA 표면을 공용 킷에서 가져온다(`PaperButtonLabel` + `.paperPress`).
+            // 손으로 재조립하던 예전 면은 fill이 `blueLight`(킷 secondary 정본은 `sub`)에 질감·그림자·
+            // 눌림이 모두 빠져 있어, 바로 위 "Scan with camera"와 나란히 두면 재질이 어긋났다(감사 R4-2).
             PhotosPicker(selection: $photoItems, maxSelectionCount: 3, matching: .images) {
-                Text("Choose photos")
-                    .font(ReffiTextRole.subhead.font).tracking(ReffiTextRole.subhead.tracking)
-                    .foregroundStyle(ReffiColor.blueDark)
-                    .frame(maxWidth: .infinity, minHeight: 48)
-                    .background {
-                        let s = PaperCutRect(seed: 3)
-                        s.fill(ReffiColor.blueLight).paperEdge(s, tint: ReffiColor.ink.opacity(0.06))
-                    }
+                PaperButtonLabel(title: "Choose photos", kind: .secondary, seed: 3)
             }
+            .buttonStyle(.paperPress)
             Text("Everything is read on this device. Nothing is uploaded.")
                 .reffiType(.caption).foregroundStyle(ReffiColor.muted)
         }
@@ -158,12 +155,21 @@ struct ReceiptScanView: View {
             Button {
                 toggleSelection(c.id)
             } label: {
-                Image(systemName: isOn ? "checkmark.circle.fill" : "circle")
-                    .foregroundStyle(isOn ? ReffiColor.blue : ReffiColor.muted)
+                // 앱 유일하던 SF Symbol(checkmark.circle)을 걷어내고 Phosphor 체크 글리프 + 종이 상자로.
+                // "선택 = 체크 글리프"는 PaperDropdown·To buy 타일과 같은 문법이다.
+                let box = PaperRect(cornerRadius: ReffiRadius.sm, seed: 6)
+                ReffiIcon.check.reffi(12, .bold)
+                    .foregroundStyle(isOn ? Color.white : .clear)
+                    .frame(width: 22, height: 22)
+                    .background {
+                        box.fill(isOn ? ReffiColor.blue : ReffiColor.paper)
+                            .paperEdge(box, tint: isOn ? ReffiColor.paperEdgeOnFill
+                                                       : ReffiColor.ink.opacity(0.18))
+                    }
                     .frame(width: 44, height: 44)
                     .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.paperPress)
             .accessibilityLabel(Text(verbatim: c.name))
             .accessibilityValue(isOn ? Text("Selected") : Text(verbatim: ""))
 
@@ -196,20 +202,20 @@ struct ReceiptScanView: View {
                     .frame(minWidth: 44, minHeight: 44)   // §7.3 터치 타깃
                     .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.paperPress)   // §7.5 — 종이 면에는 종이 프레스(.plain은 눌림이 없다)
             .accessibilityLabel(Text("Edit \(c.name)"))
         }
     }
 
     /// 추정 기한 배지 — 사전 미매칭(D+3 폴백) 또는 매칭돼도 해당 보관 shelfLife 데이터가 없는 항목.
-    /// soonDark 톤 캡슐(§2.6 신선도 팔레트 재사용) — 새 컴포넌트가 아니라 기존 언어의 조합.
+    /// soonDark 톤 종이 칩(§2.6 신선도 팔레트 재사용 + §13.1 종이컷 8각형) — 새 컴포넌트가 아니라 기존 언어의 조합.
     private var estimateBadge: some View {
         Text("Est. date: check")
             .reffiType(.pillLabel)
             .foregroundStyle(ReffiColor.soonDark)
             .padding(.horizontal, ReffiSpace.s2)
             .padding(.vertical, 2)
-            .background(ReffiColor.soonLight, in: Capsule())
+            .background(ReffiColor.soonLight, in: PaperCutRect(seed: 6))
             .lineLimit(1)
             .fixedSize()
     }
@@ -312,12 +318,17 @@ private struct EditableCandidate: Identifiable {
     }
 }
 
-/// 후보 한 건만 고치는 컴팩트 편집 시트 — 종이 언어 재사용(크림 캔버스 + 흰 영수증 카드 + DashedRule +
+/// 후보 한 건만 고치는 컴팩트 편집 시트 — 종이 언어 재사용(크림 캔버스 + 흰 영수증 카드 + ReffiRule +
 /// 모노 라벨 없이 라벨 좌/컨트롤 우 행). 새 컴포넌트가 아니라 `AddIngredientSheet`와 같은 문법.
 private struct CandidateEditSheet: View {
+    /// 이 시트에서 열릴 수 있는 종이 드롭다운 — 한 번에 하나만 연다(`DropdownAnchorKey` 전제).
+    private enum OpenDropdown { case unit, storage }
+
     @State var candidate: EditableCandidate
     var onSave: (EditableCandidate) -> Void
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var openDropdown: OpenDropdown?
 
     /// applySmartExpiry와 같은 결정론 가드 — 대입 전 기록한 값과 다르면만 사용자 터치로 인정.
     @State private var lastProgrammaticExpiry: Date?
@@ -338,6 +349,20 @@ private struct CandidateEditSheet: View {
             actionBar
         }
         .background(ReffiColor.canvas)
+        // 종이 드롭다운 오버레이 2종 — 열린 트리거만 앵커를 올리므로 동시에 하나만 뜬다.
+        // `.medium` 시트라 세로 여유가 좁다: 모디파이어가 아래/위 공간을 재 뒤집고 높이를 캡한다.
+        .paperDropdownOverlay(isPresented: openDropdown == .unit,
+                              options: IngredientUnit.allCases,
+                              selected: candidate.quantity.unit,
+                              label: { $0.label }, seed: 5,
+                              onDismiss: { closeDropdown() },
+                              onSelect: { candidate.quantity.unit = $0 })
+        .paperDropdownOverlay(isPresented: openDropdown == .storage,
+                              options: StorageLocation.allCases,
+                              selected: candidate.storage,
+                              label: { $0.label }, seed: 3,
+                              onDismiss: { closeDropdown() },
+                              onSelect: { candidate.storage = $0 })
         .presentationDetents([.medium])
         .presentationDragIndicator(.visible)
         .presentationBackground(ReffiColor.canvas)
@@ -372,6 +397,18 @@ private struct CandidateEditSheet: View {
         SheetHeader(title: "Edit item", showsClose: true) { requestClose() }
     }
 
+    private func toggle(_ which: OpenDropdown) {
+        let opening = openDropdown != which
+        withAnimation(ReffiMotion.gated(opening ? ReffiMotion.pop : ReffiMotion.exit,
+                                        reduce: reduceMotion)) {
+            openDropdown = opening ? which : nil
+        }
+    }
+
+    private func closeDropdown() {
+        withAnimation(ReffiMotion.gated(ReffiMotion.exit, reduce: reduceMotion)) { openDropdown = nil }
+    }
+
     /// 미저장 변경이 있으면 즉시 닫지 않고 Discard 확인을 띄운다(룰⑨).
     private func requestClose() {
         if isDirty {
@@ -382,14 +419,13 @@ private struct CandidateEditSheet: View {
     }
 
     private var fieldsCard: some View {
-        let shape = ReceiptShape(tooth: 7)
-        return VStack(alignment: .leading, spacing: ReffiSpace.s3) {
+        VStack(alignment: .leading, spacing: ReffiSpace.s3) {
             TextField("Name", text: $candidate.name,
                       prompt: Text("Name").foregroundStyle(ReffiColor.ink2))
                 .reffiType(.body).foregroundStyle(ReffiColor.ink)
                 .frame(minHeight: 44)
 
-            DashedRule()
+            ReffiRule(.ticket)
 
             HStack {
                 Text("Quantity").reffiType(.body).foregroundStyle(ReffiColor.ink)
@@ -397,36 +433,32 @@ private struct CandidateEditSheet: View {
                 TextField("1", value: $candidate.quantity.value, format: .number)
                     .keyboardType(.decimalPad)
                     .multilineTextAlignment(.trailing)
-                    .reffiType(.body).foregroundStyle(ReffiColor.ink)
+                    // §3.4 숫자는 tabular·lining — 같은 역할의 `IngredientEditView` 수량 필드와 같은 롤.
+                    .font(.reffiNum(.body))
+                    .foregroundStyle(ReffiColor.ink)
                     .frame(width: 64)
-                Picker("Unit", selection: $candidate.quantity.unit) {
-                    ForEach(IngredientUnit.allCases) { u in
-                        Text(verbatim: u.label).tag(u)
-                    }
-                }
-                .labelsHidden()
-                .pickerStyle(.menu)
-                .tint(ReffiColor.blue)
+                // 스톡 시스템 팝업 대신 앱 커스텀 종이 드롭다운(커먼 룰 H) — IngredientEditView와 같은 문법.
+                PaperDropdownTrigger(label: candidate.quantity.unit.label,
+                                     isOpen: openDropdown == .unit, seed: 5) { toggle(.unit) }
+                    .accessibilityLabel(Text("Unit"))
+                    .accessibilityValue(Text(verbatim: candidate.quantity.unit.label))
             }
             .frame(minHeight: 44)
 
-            DashedRule()
+            ReffiRule(.ticket)
 
             HStack {
                 Text("Storage").reffiType(.body).foregroundStyle(ReffiColor.ink)
                 Spacer()
-                Picker("Storage", selection: $candidate.storage) {
-                    ForEach(StorageLocation.allCases) { s in
-                        Text(LocalizedStringKey(s.rawValue)).tag(s)
-                    }
-                }
-                .labelsHidden()
-                .pickerStyle(.menu)
-                .tint(ReffiColor.blue)
+                // 저장값은 영문 식별자 그대로, 표시만 로컬라이즈(`StorageLocation.label`).
+                PaperDropdownTrigger(label: candidate.storage.label,
+                                     isOpen: openDropdown == .storage, seed: 3) { toggle(.storage) }
+                    .accessibilityLabel(Text("Storage"))
+                    .accessibilityValue(Text(verbatim: candidate.storage.label))
             }
             .frame(minHeight: 44)
 
-            DashedRule()
+            ReffiRule(.ticket)
 
             HStack {
                 Text("Use by").reffiType(.body).foregroundStyle(ReffiColor.ink)
@@ -440,19 +472,14 @@ private struct CandidateEditSheet: View {
             }
             .frame(minHeight: 44)
 
-            DashedRule()
+            ReffiRule(.ticket)
 
             TextField("Where you bought it", text: $candidate.place,
                       prompt: Text("Where you bought it").foregroundStyle(ReffiColor.ink2))
                 .reffiType(.body).foregroundStyle(ReffiColor.ink)
                 .frame(minHeight: 44)
         }
-        .padding(.horizontal, ReffiSpace.s5)
-        .padding(.vertical, ReffiSpace.s5 + 3)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(ReffiColor.receipt, in: shape)
-        .paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
-        .shadow(color: ReffiColor.shadowTint.opacity(0.06), radius: 5, x: 0, y: 2)
+        .receiptSurface()
     }
 
     private var actionBar: some View {

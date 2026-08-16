@@ -163,10 +163,14 @@ struct OnboardingView: View {
             let extra = lex.entries.filter { e in !entries.contains { $0.id == e.id } }
             entries.append(contentsOf: extra.prefix(Self.receiptEntryIDs.count - entries.count))
         }
-        let dDays = ["D-2", "D-1", "D-5"]                                             // 장식 — 재료 순서 기반 고정값
-        let colors = [ReffiColor.soonDark, ReffiColor.soonDark, ReffiColor.freshDark]
-        return zip(entries, zip(dDays, colors)).map { entry, meta in
-            (glyph: FoodGlyph(rawValue: entry.glyph) ?? .generic, name: entry.displayName, dDay: meta.0, color: meta.1)
+        // 남은 일수는 장식(재료 순서 기반 고정값)이지만, **표기와 색은 본 앱과 같은 정본**을 탄다 —
+        // 온보딩이 가르친 표기를 앱이 안 쓰면 첫 화면부터 약속이 어긋난다.
+        let daysLeft = [2, 1, 5]
+        return zip(entries, daysLeft).map { entry, days in
+            (glyph: FoodGlyph(rawValue: entry.glyph) ?? .generic,
+             name: entry.displayName,
+             dDay: Ingredient.dDayText(daysLeft: days),
+             color: Freshness(daysLeft: days).dark)
         }
     }
 
@@ -181,7 +185,7 @@ struct OnboardingView: View {
         .padding(.horizontal, ReffiSpace.s4)
         .padding(.vertical, ReffiSpace.s3 + 2)
         .frame(width: 170)
-        .background(ReffiColor.paper, in: ReceiptShape(tooth: 6))
+        .background(ReffiColor.paper, in: ReceiptShape(tooth: ReffiTooth.chip))
         .reffiShadow1()
         // 카메라 뷰파인더 — 종이 바깥으로 코너 브래킷.
         .overlay(ViewfinderBrackets()
@@ -230,22 +234,23 @@ struct OnboardingView: View {
     /// 실제 카드는 풀스크린 덱·발주 부작용이 있어 그대로 못 넣으므로, 폰트·색·종이 문법만 재사용해 재연.
     /// 레시피명·재료명·조리 시간은 heroTicket()(RecipeCatalog 시드 우선, 폴백은 사전)에서 온다 — 리터럴 금지.
     private var orderTicketMini: some View {
-        let shape = ReceiptShape(tooth: 8)
+        let shape = ReceiptShape(tooth: ReffiTooth.card)
         let ticket = Self.heroTicket()
         return VStack(alignment: .leading, spacing: ReffiSpace.s2) {
             // 헤더 — 주방 오더 티켓
-            HStack(alignment: .firstTextBaseline) {
+            HStack(alignment: .firstTextBaseline, spacing: ReffiSpace.s2) {
                 // 모노 티켓 크롬은 verbatim 영문 고정 — 실제 OrderMemoCard와 같은 규칙(§13.5).
-                Text(verbatim: "ORDER").reffiType(.monoTicketLabel).foregroundStyle(ReffiColor.ink)
-                Spacer(minLength: 0)
-                Text(verbatim: "#01").font(.reffiNum(13, relativeTo: .caption)).foregroundStyle(ReffiColor.ink2)
+                // 크라운은 한 줄·한 role: 온보딩이 가르친 크롬을 본 앱이 그대로 쓴다.
+                Text(verbatim: "ORDER · REFFI KITCHEN")
+                    .reffiType(.monoTicketLabel).foregroundStyle(ReffiColor.ink)
+                    .lineLimit(1).minimumScaleFactor(0.7)
+                Spacer(minLength: ReffiSpace.s2)
+                Text(verbatim: "#01").reffiType(.monoTicketLabel).foregroundStyle(ReffiColor.ink2)
             }
-            Text(verbatim: "TABLE · REFFI KITCHEN")
-                .reffiType(.monoEyebrow).foregroundStyle(ReffiColor.ink2)
-            DashedRule()
+            ReffiRule(.ticket)
             // 판정문(임박 소진) + 메뉴 + 시간 — "1"은 아래 D-day 중 "Today" 1건과 짝지어진 장식 표기.
             Text("Saves \(1) expiring today")   // 기존 포맷 키 재사용 — ko 번역이 이미 존재
-                .reffiType(.pillLabel).foregroundStyle(ReffiColor.urgentDark)
+                .reffiType(.metaText).foregroundStyle(ReffiColor.urgentDark)
             HStack(alignment: .firstTextBaseline, spacing: ReffiSpace.s2) {
                 Text(verbatim: ticket.name)                // 시드 레시피명 — 데이터 verbatim(§i18n)
                     .reffiType(.menuName).foregroundStyle(ReffiColor.ink)
@@ -262,9 +267,9 @@ struct OnboardingView: View {
                     }
                 }
             }
-            DashedRule()
-            Text(verbatim: "ON THE TICKET")   // 위 "ORDER"와 같은 모노 크롬 규칙
-                .reffiType(.sectionLabel).foregroundStyle(ReffiColor.ink2)
+            ReffiRule(.ticket)
+            Text(verbatim: "ON THE TICKET")   // 위 크라운과 같은 모노 크롬 role
+                .reffiType(.monoTicketLabel).foregroundStyle(ReffiColor.ink2)
             ForEach(Array(ticket.rows.enumerated()), id: \.offset) { _, row in
                 ticketMiniRow(row.name, row.dDay, row.color)
             }
@@ -304,7 +309,7 @@ struct OnboardingView: View {
                 .minimumScaleFactor(0.75)
             Spacer(minLength: ReffiSpace.s2)
             Text(verbatim: dDay)
-                .font(.reffiNum(12, relativeTo: .caption))
+                .font(.reffiNum(.meta))
                 .foregroundStyle(color)
         }
     }
@@ -354,11 +359,15 @@ struct OnboardingView: View {
     }
 
     /// 미니 영수증 셸 — Fridge 카드와 같은 흰 영수증(톱니), 살짝 틸트로 종이 무드.
+    ///
+    /// `receiptSurface`를 타지 않는 유일한 영수증 면이다 — 272pt 고정폭 소품이라 세로 여백 기준이
+    /// 카드(s5)가 아니라 한 단 아래(s4)이고, 폭도 컨테이너를 채우지 않는다. 다만 **톱니 보정은 같은
+    /// 공식**(base + tooth)을 쓴다 — 톱니를 바꿨을 때 이 소품만 어긋나지 않게.
     private func miniReceipt<C: View>(seed: Int, @ViewBuilder _ content: () -> C) -> some View {
-        let shape = ReceiptShape(tooth: 6)
+        let shape = ReceiptShape(tooth: ReffiTooth.chip)
         return content()
             .padding(.horizontal, ReffiSpace.s5)
-            .padding(.vertical, ReffiSpace.s4 + 6)
+            .padding(.vertical, ReffiSpace.s4 + ReffiTooth.chip)
             .frame(width: 272)
             .background(ReffiColor.receipt, in: shape)
             .paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
@@ -375,15 +384,12 @@ struct OnboardingView: View {
         }
     }
 
-    private var heroDash: some View {
-        HLine().stroke(ReffiColor.ink.opacity(0.16), style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
-            .frame(height: 1)
-    }
+    private var heroDash: some View { ReffiRule(.receipt) }
 
     private func heroRow(_ glyph: FoodGlyph, _ name: String, _ dDay: String, _ color: Color) -> some View {
         HStack(spacing: ReffiSpace.s3) {
             PaperSilhouette(glyph: glyph, fresh: .fresh)
-                .frame(width: 28, height: 28)
+                .frame(width: ReffiFoodIcon.rowMini, height: ReffiFoodIcon.rowMini)
             Text(verbatim: name)                           // 사전 표시명 — 데이터 verbatim(§i18n)
                 .reffiType(.badgeLabel)
                 .foregroundStyle(ReffiColor.ink)
@@ -391,7 +397,7 @@ struct OnboardingView: View {
                 .minimumScaleFactor(0.8)
             Spacer(minLength: 0)
             Text(dDay)
-                .font(.reffiNum(14, relativeTo: .subheadline))
+                .font(.reffiNum(.body))
                 .foregroundStyle(color)
         }
     }
@@ -464,8 +470,7 @@ struct OnboardingView: View {
     /// 질문 페이지 공통 — 흰 영수증 카드에 질문 + 컨트롤. 셋업 3장은 전부 중앙정렬(§UX).
     private func questionPage<C: View>(title: LocalizedStringKey, body copy: LocalizedStringKey,
                                        @ViewBuilder control: () -> C) -> some View {
-        let shape = ReceiptShape(tooth: 7)
-        return VStack(spacing: 0) {
+        VStack(spacing: 0) {
             Spacer(minLength: 0)
             VStack(alignment: .center, spacing: ReffiSpace.s4) {
                 Text(title)
@@ -477,12 +482,7 @@ struct OnboardingView: View {
                 control()
                     .padding(.top, ReffiSpace.s2)
             }
-            .padding(.horizontal, ReffiSpace.s5)
-            .padding(.vertical, ReffiSpace.s5 + 7)
-            .frame(maxWidth: .infinity, alignment: .center)
-            .background(ReffiColor.receipt, in: shape)
-            .paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
-            .reffiShadow1()
+            .receiptSurface(alignment: .center, elevated: .floating)
             .padding(.horizontal, ReffiGrid.margin)
             Spacer(minLength: 0)
         }
@@ -505,7 +505,12 @@ struct OnboardingView: View {
         .accessibilityLabel("Intro \(page + 1) of \(introLast + 1)")
     }
 
-    /// 인트로 하단 — 마지막 장에서만 "Let's Start"(셋업 시트 오픈). 그 전엔 스와이프로 이동.
+    /// 인트로 하단 — 마지막 장에서만 "Let's Start"(셋업 시트 오픈), 그 전엔 조용한 "Next".
+    ///
+    /// 1~2장에 전진 액션이 하나도 없던 시절엔 앱의 첫 화면에서 **유일하게 보이는 버튼이 이탈 경로(Skip)**라
+    /// 위계상 탈출구가 #1이었다(감사 R3-2). 슬롯 높이(52)는 원래 예약돼 있어 레이아웃 점프 없이 들어간다.
+    /// 스와이프가 여전히 주 이동 수단이므로 전진은 **조용한** 버튼이다 — 다만 tint가 `blueDark`라
+    /// 중립 회색(`ink2`)인 Skip보다 먼저 읽힌다. 셋업 단계의 "Next"와 라벨도 맞춘다(한 플로우, 한 문법).
     @ViewBuilder private var bottomButton: some View {
         VStack(spacing: ReffiSpace.s1) {
             if page == introLast {
@@ -513,8 +518,14 @@ struct OnboardingView: View {
                     showSetup = true
                 }
                 .transition(.opacity.combined(with: .move(edge: .bottom)))
+            } else {
+                // 아이콘은 붙이지 않는다 — `QuietButton`은 아이콘이 라벨 **앞**이라 전진 화살표가
+                // 뒤가 아닌 앞에 서서 방향 기표가 거꾸로 읽힌다(같은 파일 Skip도 아이콘 없는 호출이다).
+                QuietButton(title: "Next", tint: ReffiColor.blueDark) {
+                    withAnimation(motion) { page += 1 }
+                }
+                .transition(.opacity)
             }
-            // page < introLast: 하단 버튼 없음 — 스와이프로 이동, 인디케이터만 노출.
         }
         .frame(maxWidth: .infinity, minHeight: 52)   // 버튼 유무와 무관하게 높이 예약 → 인트로 스와이프 시 점 위치 고정
         .padding(.horizontal, ReffiGrid.margin + ReffiSpace.s2)
@@ -579,7 +590,9 @@ struct OnboardingView: View {
                 // 그림자는 shadowTint로 일관화(다크에서 ink가 크림으로 뒤집혀 밝아지는 문제 방지).
                 .shadow(color: ReffiColor.shadowTint.opacity(0.18), radius: 14, y: 8)
         }
-        .sensoryFeedback(.impact(weight: .heavy), trigger: stamping)
+        // §7.6 — 이 순간의 의미는 "셋업 저장 완료"라 성공 완료(`.success`)다. 앱에서 유일했던
+        // `.impact(.heavy)`는 매핑 표에도 예외(SpriteKit 물리 텍스처)에도 근거가 없는 오프맵이었다.
+        .sensoryFeedback(.success, trigger: stamping)
         .onAppear {
             let anim: Animation = reduceMotion
                 ? .easeOut(duration: 0.2)

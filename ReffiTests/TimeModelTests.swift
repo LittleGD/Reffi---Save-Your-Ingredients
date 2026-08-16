@@ -61,6 +61,18 @@ struct TimeModelTests {
 /// 수량 — 레거시 파싱·단위 환산·절반.
 struct QuantityTests {
 
+    /// 표시 문자열은 로케일 포맷터가 만든다 — 포맷 문자열(%.1f)이 찍던 고정 마침표·무그룹 회귀 방지.
+    @Test func textUsesLocaleFormatter() {
+        let nbsp = "\u{00A0}"
+        #expect(Quantity(value: 3, unit: .gram).text == "3\(nbsp)g")
+        #expect(Quantity(value: 0.5, unit: .block).text.hasPrefix("½\(nbsp)"))
+        let fractional = 2.5.formatted(.number.precision(.fractionLength(0...1)))
+        #expect(Quantity(value: 2.5, unit: .gram).text == "\(fractional)\(nbsp)g")
+        // 천 단위는 로케일 그룹 구분자를 따른다(예전엔 항상 "1500").
+        #expect(Quantity(value: 1500, unit: .gram).text
+                == "\(1500.formatted(.number.precision(.fractionLength(0...1))))\(nbsp)g")
+    }
+
     @Test func parsesLegacyStrings() {
         #expect(Quantity.parseLegacy("300 g") == Quantity(value: 300, unit: .gram))
         #expect(Quantity.parseLegacy("2 ea") == Quantity(value: 2, unit: .piece))

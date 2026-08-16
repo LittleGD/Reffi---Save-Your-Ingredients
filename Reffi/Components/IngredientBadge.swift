@@ -19,10 +19,10 @@ struct IngredientBadge: View {
                         .fill(f.dark)
                         .frame(width: 4, height: 14)
                     Text(verbatim: ingredient.dDayText)
-                        .font(.reffiNum(12, relativeTo: .caption2))
+                        .font(.reffiNum(.meta))
                         .foregroundStyle(f.dark)
                 }
-                Text(verbatim: ingredient.name)
+                Text(verbatim: ingredient.displayName)
                     .reffiType(.badgeLabel)
                     .foregroundStyle(ReffiColor.ink)
                     .lineLimit(1)
@@ -35,7 +35,7 @@ struct IngredientBadge: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.paperPress)
-        .accessibilityLabel(Text("\(ingredient.name), \(ingredient.dDayText)"))
+        .accessibilityLabel(Text("\(ingredient.displayName), \(ingredient.dDayText)"))
         .accessibilityHint(Text("Decide: eaten or tossed?"))
     }
 

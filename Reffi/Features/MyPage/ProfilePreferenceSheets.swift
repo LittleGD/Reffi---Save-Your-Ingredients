@@ -1,34 +1,12 @@
 import SwiftUI
 
-/// 선택 가능한 캡슐 칩 — 선택 시 Blue 면+화이트, 미선택은 sub 면+ink(§2.6). 칩 패턴은 Chips.swift 계열.
-/// 캡슐 비주얼은 작게 유지하되 히트 영역은 44pt 확보(§7.3).
-struct SelectableChip: View {
-    let text: String
-    let selected: Bool
-    var fullWidth: Bool = true   // 행 균등 분배(D-N 행)용. 그리드/플로우에선 false로 자연 폭.
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Text(text)
-                .font(ReffiTextRole.caption.font)
-                .tracking(ReffiTextRole.caption.tracking)
-                .foregroundStyle(selected ? .white : ReffiColor.ink)
-                .lineLimit(1)
-                .padding(.horizontal, ReffiSpace.s3)
-                .padding(.vertical, ReffiSpace.s2)
-                .frame(maxWidth: fullWidth ? .infinity : nil)
-                .background(selected ? ReffiColor.blue : ReffiColor.sub, in: Capsule())
-                .frame(minHeight: 44)          // §7.3 터치 타깃 — 비주얼은 캡슐, 히트는 44
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.reffiPress)
-        .accessibilityAddTraits(selected ? [.isSelected] : [])
-    }
-}
-
 /// 시트 공통 셸 — 크림 캔버스 + `SheetHeader`(좌측 타이틀 + 종이 X) + 콘텐츠. 편집 시트를 통일한다.
 /// 헤더는 인터랙션 커먼 룰 ②③의 단일 공급원 `SheetHeader`에 위임 — 인라인 종이 X 조립을 제거했다.
+///
+/// **핸들도 셸이 보증한다(§14.3 / 룰④)** — `SheetHeader`는 "프레젠테이션 측에서 dragIndicator를 켠다"를
+/// 전제하는데, 호출부(ProfileView)마다 붙이면 같은 누락이 재발한다. 여기서 한 번 선언해 이 셸을 쓰는
+/// 프로필 시트 6종이 함께 정렬되게 한다. 단일 고정 detent(.height) 시트는 automatic으로 그래버가
+/// 뜨지 않으므로 이 선언이 곧 핸들 유무를 가른다.
 private struct SheetShell<Content: View>: View {
     let title: LocalizedStringKey
     let onClose: () -> Void
@@ -44,17 +22,28 @@ private struct SheetShell<Content: View>: View {
         .padding(.bottom, ReffiSpace.s5)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(ReffiColor.canvas.ignoresSafeArea())
+        .presentationDragIndicator(.visible)   // §14.3 — 핸들 없는 시트를 두지 않는다(룰④)
     }
 }
 
 /// 닉네임 편집(§5.1.1).
+///
+/// **미저장 보호(§14.6 / 룰⑨)** — 명시적 Save를 가진 편집 시트라 §14.4의 "편집·생성 = 도킹 커밋"
+/// 버킷에 속한다. 타이핑한 뒤 스와이프로 닫으면 경고 없이 사라지던 구멍을 `IngredientEditView`의
+/// `requestClose()` 패턴 그대로 막는다(자동저장 버킷인 Cuisines·태그·알림시간 시트는 해당 없음).
 struct NicknameEditSheet: View {
     @Environment(ProfileStore.self) private var profile
     @Environment(\.dismiss) private var dismiss
     @State private var draft: String = ""
+    @State private var showDiscardConfirm = false
+
+    /// 초안이 저장값과 다르면 미저장 변경이다. 앞뒤 공백만 다른 경우는 커밋 결과가 같아 dirty로 보지 않는다.
+    private var isDirty: Bool {
+        draft.trimmingCharacters(in: .whitespacesAndNewlines) != profile.nickname
+    }
 
     var body: some View {
-        SheetShell(title: "Nickname", onClose: { dismiss() }) {
+        SheetShell(title: "Nickname", onClose: { requestClose() }) {
             VStack(alignment: .leading, spacing: ReffiSpace.s4) {
                 TextField("Nickname", text: $draft)
                     .reffiType(.body)
@@ -72,6 +61,18 @@ struct NicknameEditSheet: View {
             }
         }
         .onAppear { draft = profile.nickname }
+        .interactiveDismissDisabled(isDirty)   // 룰⑨ — 변경 있으면 스와이프 실수로 닫히지 않는다
+        .confirmationDialog(Text("Discard changes?"), isPresented: $showDiscardConfirm,
+                            titleVisibility: .visible) {
+            Button("Discard", role: .destructive) { dismiss() }
+        } message: {
+            Text("Your changes won't be saved.")
+        }
+    }
+
+    /// 미저장 변경이 있으면 즉시 닫지 않고 Discard 확인을 띄운다(룰⑨).
+    private func requestClose() {
+        if isDirty { showDiscardConfirm = true } else { dismiss() }
     }
 
     private func commit() {
@@ -151,7 +152,7 @@ struct TagEditorSheet: View {
                                 }
                                 .padding(.horizontal, ReffiSpace.s3)
                                 .padding(.vertical, ReffiSpace.s2)
-                                .background(ReffiColor.sub, in: Capsule())
+                                .background(ReffiColor.sub, in: PaperCutRect(seed: 4))   // §13.1 종이컷 8각형(캡슐 금지)
                                 .frame(minHeight: 44)          // §7.3 터치 타깃
                                 .contentShape(Rectangle())
                             }
