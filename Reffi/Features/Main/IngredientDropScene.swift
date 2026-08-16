@@ -115,8 +115,8 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     // 생기고, SwiftUI `.sensoryFeedback`은 파라미터가 없어 쓸 수 없다(§7.6 의미별 매핑은 그대로).
     private let clatter = IngredientClatterHaptics()
     private var clatterThrottle = ClatterThrottle()
-    /// 임펄스가 이 값이면 최대 세기 — 이 위는 전부 1.0으로 포화(클램프 곡선의 상한).
-    private let clatterImpulseCeiling: CGFloat = 90
+    /// 임펄스·재료 → 촉감(세기·날카로움·감쇠 꼬리) 변환 규칙. 순수 계산기라 씬 없이 테스트된다.
+    private let clatterRule = ClatterFeelRule()
     /// 스로틀 판정용 현재 시각 — `didBegin`엔 시간 인자가 없어 update에서 받아 둔다.
     private var lastUpdateTime: TimeInterval = 0
     /// QA 계측용 — 햅틱이 실제로 발화할 때마다 호출된다(TILT LAB 카운터).
@@ -1475,7 +1475,12 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
                                ObjectIdentifier(contact.bodyB).hashValue)
         guard clatterThrottle.allow(impulse: impulse, pair: pair, now: lastUpdateTime) else { return }
         let mat = clatterMaterial(contact.bodyA, contact.bodyB)
-        clatter.play(intensity: clatterIntensity(impulse) * mat.hapticScale, sharpness: mat.sharpness)
+        // 변주 시드는 **발화 순번**이다(allow가 방금 올렸다) — 같은 충돌 시퀀스면 같은 촉감이라
+        // 튜닝 비교와 계측 QA가 실행마다 흔들리지 않는다.
+        clatter.play(clatterRule.feel(impulse: impulse,
+                                      material: ClatterMaterial(sharpness: mat.sharpness,
+                                                                scale: mat.hapticScale),
+                                      sequence: clatterThrottle.fireCount))
         onClatter?()
     }
 
@@ -1499,14 +1504,6 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
             return Self.material(for: glyph)
         }
         return mats.max(by: { $0.mass < $1.mass }) ?? .standard
-    }
-
-    /// 임펄스 → 세기. 임계값에서 0.18로 시작해 상한에서 1.0으로 포화한다.
-    /// 바닥을 0이 아니라 0.18로 둔 이유 — 통과한 충돌은 '느껴져야' 의미가 있다. 0 근처면 헛발질이다.
-    private func clatterIntensity(_ impulse: CGFloat) -> Float {
-        let span = clatterImpulseCeiling - clatterThrottle.minImpulse
-        let t = span > 0 ? (impulse - clatterThrottle.minImpulse) / span : 1
-        return Float(min(1, max(0, t))) * 0.82 + 0.18
     }
 
     /// 착지 눌림 — 가로로 퍼지고 세로로 눌렸다가 복귀(최대 6%). 배율은 **정확히 1로** 되돌린다.

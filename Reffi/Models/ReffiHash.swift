@@ -13,4 +13,27 @@ enum ReffiHash {
         for b in s.utf8 { h = (h ^ UInt64(b)) &* 0x0000_0100_0000_01b3 }
         return h
     }
+
+    /// `stable`을 0..<1 균등 시드로 편 것 — "결정적이되 규칙적으로 보이지 않는" 변주가 필요한 곳
+    /// (햅틱 세기 미세 변주·리듬 비양자화)에서 쓴다.
+    ///
+    /// **믹싱 한 단이 필수다.** FNV-1a는 상위 비트의 애벌런치가 약해서, `"…-0"`, `"…-1"`처럼
+    /// 순번만 다른 짧은 문자열에서는 상위 비트가 거의 안 움직인다(실측: 64개 순번이 14개 값으로
+    /// 뭉쳤다 — 변주가 사실상 없는 셈). murmur3 fmix64 finalizer를 한 번 통과시켜 편다.
+    /// `stable` 자체는 건드리지 않는다 — 이미 종이결 시드·요리 색이 그 값에 고정돼 있다.
+    static func unit(_ s: String) -> Double {
+        var h = stable(s)
+        h ^= h >> 33
+        h &*= 0xff51_afd7_ed55_8ccd
+        h ^= h >> 33
+        h &*= 0xc4ce_b9fe_1a85_ec53
+        h ^= h >> 33
+        // Double 가수 폭(53bit)에 맞춰 상위 53비트만 쓴다 — 그래야 균등성이 정확하다.
+        return Double(h >> 11) / Double(1 << 53)
+    }
+
+    /// 0..<1 시드를 -1...1 로 편 것 — 중심 대비 ± 변조에 바로 쓴다.
+    static func signed(_ s: String) -> Double {
+        unit(s) * 2 - 1
+    }
 }
