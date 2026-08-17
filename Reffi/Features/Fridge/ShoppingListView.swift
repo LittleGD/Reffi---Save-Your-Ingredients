@@ -159,6 +159,7 @@ struct ShoppingListContent: View {
                 } label: {
                     Text("Bought")
                         .reffiType(.pillLabel)
+                        .fixedSize()   // 이름 열이 길어도 라벨은 꺾이지 않는다 — 폭 경합에선 이름이 접힌다
                         .foregroundStyle(ReffiColor.blueDark)
                         .padding(.horizontal, ReffiSpace.s3 + 2)
                         .padding(.vertical, ReffiSpace.s1 + 1)
