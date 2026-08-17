@@ -403,16 +403,6 @@
         }
       }
     },
-    "Add to To buy": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "살 것에 담기"
-          }
-        }
-      }
-    },
     "Add to list": {
       "localizations": {
         "ko": {
@@ -469,26 +459,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "직접 담은 것"
-          }
-        }
-      }
-    },
-    "Added to To buy": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "살 것에 담았어요"
-          }
-        }
-      }
-    },
-    "Adds the missing ingredients to your To buy list": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "부족한 재료를 살 것 목록에 담습니다"
           }
         }
       }
@@ -559,16 +529,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "이미 계정이 있으신가요?"
-          }
-        }
-      }
-    },
-    "Already on your To buy list": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "이미 살 것 목록에 있어요"
           }
         }
       }
@@ -1761,6 +1721,17 @@
         }
       }
     },
+    "No tickets from what's in your fridge yet.\nCheck the ingredient names, restock, or add your own recipe in Profile.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "지금 냉장고에 있는 재료로 만들 티켓이 아직 없어요.\n재료 이름을 확인하거나, 장을 보거나, 프로필에서 내 레시피를 추가해 보세요."
+          }
+        }
+      }
+    },
     "No tickets yet": {
       "localizations": {
         "ko": {
@@ -2207,16 +2178,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "레시피 이름"
-          }
-        }
-      }
-    },
-    "Recipes need a few more ingredients than you have.\nRestock, or add your own recipe in Profile.": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "지금 있는 재료로는 만들 수 있는 레시피가 없어요.\n장을 보거나 프로필에서 나만의 레시피를 추가해 보세요."
           }
         }
       }
@@ -3070,26 +3031,6 @@
         }
       }
     },
-    "View": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "보기"
-          }
-        }
-      }
-    },
-    "View your To buy list?": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "살 것 목록을 볼까요?"
-          }
-        }
-      }
-    },
     "Waste rate": {
       "localizations": {
         "ko": {
@@ -3186,16 +3127,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "구매처"
-          }
-        }
-      }
-    },
-    "You can open it later from the Fridge tab.": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "나중에 냉장고 탭에서도 열 수 있어요."
           }
         }
       }

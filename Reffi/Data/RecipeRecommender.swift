@@ -40,28 +40,49 @@ enum RecipeRecommender {
     /// 먼저 걸린다(시드 실측: pork→beef, honey→corn-syrup, "water (or anchovy stock)"→anchovy).
     /// 그러면 장보기 메모가 엉뚱한 품목 키를 달고, 그 재료를 재입고할 때 이 줄이 안 지워진다.
     ///
-    /// 그래서 해석을 **여기서 끝내** store에 넘긴다:
-    /// ① `canonicalID(of:)`(ref 우선, no-ref는 정확 일치만 — 이 파일의 매칭 규약 그대로)로 잡히면
-    ///    사전 표제어 표기·글리프까지 확정한다. 장보기 목록은 "소고기 (얇게 썬 것)"이 아니라 "소고기"를 원한다.
-    /// ② 못 잡는 서술형 라인은 **괄호 주석만 떼고** 표기 그대로 담는다 — 괄호는 조리 지시("얇게 썬 것")나
-    ///    대체재("또는 멸치 육수")지 재료명이 아니라, 떼는 편이 목록에서도 역조회에서도 더 정확하다.
+    /// 그래서 해석을 **여기서 끝내** store에 넘긴다. 세 단계이고, 뒤로 갈수록 약하다:
+    /// ① `canonicalID(of:)`(ref 우선, no-ref는 정확 일치만 — 이 파일의 매칭 규약 그대로).
+    ///    장보기 목록은 "소고기 (얇게 썬 것)"이 아니라 "소고기"를 원하므로 사전 표제어·글리프까지 확정한다.
+    /// ② 괄호 주석을 떼고 **머리말 일치**(`headNounCanonicalID`)를 한 번 더. 괄호는 조리 지시("얇게 썬 것")나
+    ///    대체재("또는 멸치 육수")지 재료명이 아니라 떼는 편이 정확하고, 남은 표기의 **끝**에 표제어가 오면
+    ///    그건 수식어가 아니라 진짜 재료다(`minced garlic` → garlic, `감자 전분` → starch).
+    ///    포함 매칭을 쓰지 않는 이유가 여기 있다 — 앞에 걸리는 키워드는 대개 딴 재료다
+    ///    (`paprika powder` → bell-pepper, `chicken or vegetable stock` → chicken).
+    /// ③ 그래도 못 잡으면 캐논 없이 **표기 그대로** 담는다.
     ///
-    /// **경계(알고 남기는 것).** ②가 돌려주는 `canonicalID`는 nil이고, `FridgeStore.addToBuy`는 nil을
-    /// 받으면 그 이름으로 **자기 역조회를 한 번 더 한다**(포함 매칭 — 이 함수가 피하려던 그 기전이다).
-    /// 지금 데이터에선 안전하다: 시드의 함정은 전부 괄호 안에 있고 위에서 제거된다. 다만 커스텀
-    /// 레시피처럼 **괄호 없이** 다른 재료명을 품은 자유 표기("bean paste for soup" 등)는 여전히
-    /// store 쪽 포함 매칭에 걸릴 수 있다 — 이 함수는 위험을 **좁히지 완전히 닫지는 않는다**.
-    /// 완전히 닫으려면 `addToBuy`에 "해석 완료" 신호를 넣어야 하는데, 그건 To buy 검색 시트까지
-    /// 함께 쓰는 공유 API의 계약 변경이라 이 변경 범위 밖으로 둔다(호출부 두 곳의 규약이 갈리는 쪽이
-    /// 더 큰 비용이다). 커스텀 레시피에서 오귀속이 실제로 관측되면 그때 신호를 추가한다.
+    /// **③은 store가 다시 추측하게 두지 않는다** — `FridgeStore.addToBuy(canonicalIsFinal:)`로 "해석
+    /// 끝났다"를 알린다. 안 그러면 store가 그 이름으로 포함 매칭을 한 번 더 돌려, 이 함수가 방금
+    /// 거부한 바로 그 오귀속을 되살린다. 그 결과는 단순한 오분류가 아니다: 잘못 붙은 캐논이 이미
+    /// 목록에 있으면 그 품목은 **중복으로 취급돼 목록에 들어가지도 않는다**(시드 실측: 파프리카 가루가
+    /// 파프리카 줄에 흡수돼 사라진다).
+    ///
+    /// **남는 한계**: ③으로 담긴 줄은 캐논이 없어 재입고가 자동으로 내려 주지 못한다(사용자가 직접
+    /// 지운다). 잘못된 캐논으로 조용히 사라지는 것보다 눈에 보이는 실패라 이쪽을 택한다.
     static func toBuyEntry(for item: Recipe.Item) -> (name: String, canonicalID: String?, glyph: FoodGlyph) {
         let lex = IngredientLexicon.shared
-        if let id = canonicalID(of: item), let entry = lex.entry(id: id) {
+        if let id = shoppingCanonicalID(of: item), let entry = lex.entry(id: id) {
             return (entry.displayName, id, FoodGlyph(rawValue: entry.glyph) ?? .generic)
         }
         let plain = withoutParentheticals(item.displayName)
         let name = plain.isEmpty ? item.displayName : plain
         return (name, nil, FoodGlyph.match(name))
+    }
+
+    /// 위 ①+②를 한 함수로 — `isStaple`도 **같은 눈**으로 읽게 하려고 뽑았다.
+    ///
+    /// 두 해석기가 갈리면 사전상 `staple: true`인 품목이 `missing`에 남았다가 장보기 메모로 넘어간다:
+    /// `isStaple`이 정확 일치만 보던 시절 `water (or anchovy stock)`·`cold water`는 비-상비로 분류돼
+    /// Short 줄에 뜨고, 담기에서는 `toBuyEntry`가 머리말로 `water`(상비재)를 찾아내 **목록에 "물"을 적었다**.
+    /// `sweet soy sauce (kecap manis)`는 더 나빠서 케찹 마니스 자리에 `soy-sauce`가 적혔다.
+    ///
+    /// **머리말 일치는 `en`으로만 본다.** `displayName`으로 보면 기기 언어에 따라 다른 문자열이 들어가
+    /// 같은 재료가 로케일마다 다른 캐논에 붙는다(실측: 시드 8줄이 갈렸고, `미소 된장`은 머리말이 `된장`이라
+    /// 한국어 기기에서만 **미소 대신 된장**이 담겼다). 데이터는 영문 캐논으로 정규화하고 표시만
+    /// 로컬라이즈한다는 규칙(CLAUDE.md)이 여기에도 그대로 적용된다 — 표기는 아래에서 사전 표제어로 푼다.
+    static func shoppingCanonicalID(of item: Recipe.Item) -> String? {
+        if let id = canonicalID(of: item) { return id }
+        let plain = withoutParentheticals(item.en)
+        return IngredientLexicon.shared.headNounCanonicalID(for: plain.isEmpty ? item.en : plain)
     }
 
     /// 괄호 주석 제거 + 공백 정리. 여는 괄호를 만나면 닫힐 때까지 버린다(중첩 없음 전제 — 시드 표기 실측).
@@ -83,8 +104,11 @@ enum RecipeRecommender {
     }
 
     /// 상비재 판별 — 사전의 staple 플래그가 정본.
+    /// 해석은 `shoppingCanonicalID`와 **같은 눈**을 쓴다(ref → 정확 일치 → 영문 머리말).
+    /// 담기 쪽만 머리말까지 보고 여기서 안 보면, `cold water`가 비-상비로 분류돼 Short 줄에 뜬 뒤
+    /// 담을 때만 `water`(상비재)로 풀려 장보기 목록에 "물"이 적힌다.
     static func isStaple(_ item: Recipe.Item) -> Bool {
-        if let id = canonicalID(of: item) { return IngredientLexicon.shared.isStaple(id) }
+        if let id = shoppingCanonicalID(of: item) { return IngredientLexicon.shared.isStaple(id) }
         return false
     }
 
@@ -129,8 +153,65 @@ enum RecipeRecommender {
     /// 추천 제외 기준 — 부족 재료가 이 수 **이상**이면 덱에 올리지 않는다(2개는 통과, 3개는 탈락).
     /// 재료를 셋씩 사와야 하는 티켓은 "지금 냉장고를 비우는 요리"가 아니라 장보기 계획이다 —
     /// 이 앱의 덱은 **오늘 상해가는 재료를 쓰는 순서**이므로 그런 레시피는 애초에 후보가 아니다.
-    /// 0~2개는 그대로 추천한다: 그 정도는 Short 줄이 알려 주고 "Add to To buy" 칩이 처리한다(§13.5 ⑩).
+    /// 0~2개는 그대로 추천한다: 그 정도는 Short 줄이 알려 주고 To buy 원탭 알약이 처리한다(§13.5 ⑨).
     static let maxMissingForRecommendation = 3
+
+    /// 위 기준의 **예외** — 부족이 많아도, 임박(urgent·soon) 재료를 이 덱에서 **혼자만** 다루는
+    /// 티켓은 남긴다.
+    ///
+    /// 기준을 순위 계산 앞에 무조건 걸면 점수와 무관하게 후보가 지워진다. 앱 샘플 냉장고에서 실제로
+    /// 최고점 두 장(비빔밥 8점·소고기 타코 7점)이 그렇게 빠졌는데, 둘 다 **재고를 4종씩 소진**하는
+    /// 티켓이라 "장보기 계획"이라는 제외 근거가 성립하지 않았다. 더 나쁜 건 그때 D-1 시금치가 남는
+    /// 어느 티켓에도 들어가지 않았다는 것이다 — 커버리지 브리지(`uncoveredUrgent`)는 urgent만
+    /// 호명하므로 soon 재료는 어디에서도 이름이 불리지 않고, 메인 배너만 "위험"이라고 압박한 채
+    /// 화면 어디에도 행동 경로가 없다.
+    ///
+    /// 그래서 정렬 **뒤에** 위에서부터 훑으며 거른다. 부족이 적으면 그냥 통과. 많으면 **두 조건을
+    /// 모두** 만족할 때만 살린다:
+    /// ① **채우는 것이 사는 것보다 적지 않다**(`clearedCount >= missing.count`) — 이게 "장보기 계획"과
+    ///    "냉장고를 비우는 요리"를 가르는 선이다. 재고 4종을 소진하며 3종을 사는 티켓은 전자가 아니고,
+    ///    재고 1종에 5종을 사야 하는 티켓은 임박 재료를 하나 건드린다는 이유만으로 덱에 오를 수 없다.
+    ///    세는 것은 `used`의 **줄 수가 아니라 서로 다른 재료 수**다 — 같은 양파를 두 줄로 등록해 둔
+    ///    사용자에게 이 문턱이 공짜로 낮아지면 안 된다.
+    /// ② 앞선 티켓이 **아직 안 덮은** 임박 재료를 쓴다. "이 티켓만 그 재료를 다룬다"는 뜻은 아니다 —
+    ///    자기보다 점수가 높은 티켓 중엔 없다는 뜻이고, 그거면 충분하다(덱은 위에서부터 채워진다).
+    ///
+    /// **임박한 재고가 애초에 하나도 없으면** ②는 성립할 수 없다. 그때는 ①만 본다 — 냉장고가 전부
+    /// 신선하면 "오늘 비우는 순서"라는 기준 자체가 안 서는데, ②를 그대로 요구하면 잘 채워진 냉장고가
+    /// 빈 덱을 받는다(빈 상태 문안은 "재료 이름 확인·장보기"를 권하는데 그 사용자에겐 둘 다 틀린 말이다).
+    ///
+    /// **후보가 있는데 덱이 비지는 않는다(바닥).** ①의 문턱은 재고 종수가 상한이라, 재료가 1~3종뿐인
+    /// 냉장고에서는 부족 3개 이상인 후보가 통째로 탈락한다 — 시드+사전 실측으로 3종 조합의 45%,
+    /// 2종이면 56%가 덱 0장이 됐다(`onion+tofu+chicken`: 후보 41장 → 0장). 그런데 전부 신선한 냉장고는
+    /// 빈 상태의 atRisk 분기를 못 타서 **버튼 하나 없는 정적 문구**만 보고, 그 문구의 조언("재료 이름을
+    /// 확인하라")은 이 사용자에게 틀린 말이다(이름이 맞았으니 후보가 41장이었다).
+    /// 그래서 남은 게 덱 장수(`deckSize`)에 못 미치면 **점수 순으로 채운다**. 제외 규칙은 "더 나은 티켓에
+    /// 자리를 내주라"는 것이지 "보여 줄 게 없어도 비우라"는 것이 아니다.
+    static let deckSize = 3
+
+    private static func prune(_ ranked: [Result]) -> [Result] {
+        // 재고 전체에 임박한 게 하나도 없는가 — 후보들이 쓰는 재료에서 본다(재고 원본은 여기 없다).
+        let nothingAtRisk = !ranked.contains { $0.used.contains { $0.freshness != .fresh } }
+        var coveredAtRisk = Set<UUID>()
+        var out: [Result] = []
+        var dropped: [Result] = []
+        for r in ranked {
+            let atRisk = r.used.filter { $0.freshness != .fresh }
+            // 동일성 축은 **표시명이 아니라 `matchKey`**(캐논) — 같은 양파를 "양파"·"적양파" 두 줄로
+            // 등록해 둔 사용자에게 이 문턱이 공짜로 낮아지면 안 된다(같은 파일 `preferenceScore`와 같은 축).
+            let clearedCount = Set(r.used.map(\.matchKey)).count
+            let pullsItsWeight = clearedCount >= r.missing.count
+            let rescuesSomethingNew = nothingAtRisk || atRisk.contains { !coveredAtRisk.contains($0.id) }
+            let earnsItsPlace = pullsItsWeight && rescuesSomethingNew
+            guard r.missing.count < maxMissingForRecommendation || earnsItsPlace else {
+                dropped.append(r); continue
+            }
+            out.append(r)
+            coveredAtRisk.formUnion(atRisk.map(\.id))
+        }
+        guard out.count < deckSize else { return out }
+        return out + dropped.prefix(deckSize - out.count)
+    }
 
     /// 점수순 정렬된 추천 덱(보유 재료를 하나라도 쓰는 레시피만).
     /// `preferences`(프로필 취향, §5.2)가 주어지면 알레르기 하드 필터 + 선호/기피/요리스타일 보정을
@@ -138,16 +219,13 @@ enum RecipeRecommender {
     static func rank(for ingredients: [Ingredient], inventory: [Ingredient]? = nil,
                      from recipes: [Recipe],
                      preferences: RecipePreferences = .none) -> [Result] {
-        recipes
+        let ranked = recipes
             .filter { recipe in
                 !containsAllergen(recipe, preferences.allergenIDs)   // 알레르기 하드 필터(안전 P0)
                     && !(preferences.vegetarian && containsAnimalProtein(recipe))   // 채식 하드 필터
             }
             .map { result(for: $0, ingredients: ingredients, inventory: inventory) }
             .filter { !$0.used.isEmpty }
-            // 부족 재료가 너무 많은 레시피는 덱에서 뺀다(`maxMissingForRecommendation`).
-            // `result(for:)`의 missing 계산 자체는 건드리지 않는다 — 남는 티켓의 Short 줄이 그 값을 쓴다.
-            .filter { $0.missing.count < maxMissingForRecommendation }
             .sorted { a, b in
                 let sa = score(a, preferences: preferences)
                 let sb = score(b, preferences: preferences)
@@ -155,6 +233,9 @@ enum RecipeRecommender {
                 if a.urgentUsedCount != b.urgentUsedCount { return a.urgentUsedCount > b.urgentUsedCount }
                 return a.missing.count < b.missing.count
             }
+        // 부족 재료가 너무 많은 레시피를 덱에서 뺀다 — **정렬 뒤에** 임박 커버리지를 보며 거른다.
+        // `result(for:)`의 missing 계산 자체는 건드리지 않는다 — 남는 티켓의 Short 줄이 그 값을 쓴다.
+        return prune(ranked)
     }
 
     // MARK: - 커버리지 점검(덱이 임박 재료를 실제로 다루는가)

@@ -284,11 +284,17 @@ struct CookingStepsView: View {
                 // 요리 소개 — 무엇이고 어느 나라 음식인가. 시드 레시피에만 있고, 없으면
                 // **아무것도 그리지 않는다**(빈 자리표시는 티켓을 늘리기만 한다).
                 if let intro = intro(for: cook) {
+                    // **2줄로 자르지 않는다.** 시드 80종을 번들 폰트로 실측하면 기본 크기·SE에서
+                    // 1종, xxLarge에서 43종, xxxLarge에서 70종이 2줄을 넘긴다(한국어는 0종 —
+                    // 영문만 깨진다). 잘린 소개는 "무엇이고 어느 나라 음식인가"라는 이 줄의 유일한
+                    // 일을 못 한다. 3줄까지 흐르게 두고 그 뒤로만 축소한다 — 히어로 아래 캡션이라
+                    // 세로로 조금 자라도 아래 CTA를 밀어내지 않는다.
                     Text(verbatim: intro)
                         .reffiType(.caption)
                         .foregroundStyle(ReffiColor.ink2)
                         .multilineTextAlignment(.center)
-                        .lineLimit(2)
+                        .lineLimit(3)
+                        .minimumScaleFactor(0.85)
                         .fixedSize(horizontal: false, vertical: true)
                         // UI 테스트 훅 — 소개 문구를 테스트에 하드코딩하지 않고 집는다
                         // (`ticket.menuName` 선례). 라벨은 그대로라 VoiceOver는 문장을 읽는다.

@@ -18,19 +18,11 @@ struct RecipeMemoCarousel: View {
     var uncoveredNames: [String] = []
     var onClose: () -> Void
     var onFire: (RecipeRecommender.Result) -> Void = { _ in }
-    /// 덱이 자기 위에 띄운 **To buy 흐름 전체**(결과 팝업 → 이동 질문 → To buy 커버)의 표시 상태를
-    /// 부모에게 알린다 — 부모(`MainView`)의 발주 지연 닫기가 **이 흐름이 떠 있는 동안에는 부모를 닫지
-    /// 않도록**. 커버·팝업 계층을 아는 건 덱뿐이라 덱이 말한다.
-    ///
-    /// **팝업까지 신호에 포함하는 이유**: 지연 닫기가 팝업이 떠 있는 사이에 부모를 닫으면 팝업이 부모와
-    /// 함께 걷혀(중첩 커버가 그랬던 것과 같은 캐스케이드) 사용자가 방금 띄운 질문이 손에서 사라지고,
-    /// 나쁘면 팝업 해체 전환과 겹쳐 부모 닫기 요청 자체가 삼켜져 덱이 영영 안 닫힌다(`82cc116` 참고).
-    /// true는 팝업①이 뜰 때 한 번, false는 흐름이 **끝날 때**(이동 취소 / To buy 닫힘) 한 번 —
-    /// 팝업①→②→커버 사이에는 내려가지 않는다. 중간에 false가 새면 그 틈으로 지연 닫기가 빠져나간다.
-    /// false를 **언제** 보내는지도 계약이다: 커버는 `onDismiss`(해체 완료 훅), 다이얼로그는 버튼을
-    /// 누른 그 자리에서 곧바로 — 다이얼로그는 UIKit 프레젠테이션이 아니라 오버레이라 부모의 닫기 요청과
-    /// 겹칠 전환이 없다(`endToBuyFlow()`에 근거).
-    var onToBuyPresentationChange: (Bool) -> Void = { _ in }
+    /// Short 행의 To buy 원탭 — 부족 재료 **전부**를 담고 새로 담긴 수를 돌려준다(§13.5).
+    /// 덱은 그대로 앞 티켓에 전달만 한다. 이 탭은 화면을 옮기지 않는다 — 담기가 끝이고, 목록은
+    /// 냉장고 탭의 To buy 카드로 연다. 그래서 덱 위에 뜨는 중첩 프레젠테이션이 하나도 없고,
+    /// 발주 지연 닫기와 경쟁할 상대도 없다.
+    var onAddMissing: (([Recipe.Item]) -> Int)?
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.openURL) private var openURL
@@ -50,22 +42,6 @@ struct RecipeMemoCarousel: View {
     /// `CoverHeader`는 s4(16) + 44 + s3(12) = 72이라 초기값도 72지만, 큰 글씨에서 타이틀·부제가
     /// 2줄로 접히면 그만큼 자란다 — 고정 72로 두면 헤더가 브리지 행을 통째로 덮는다.
     @State private var headerHeight: CGFloat = 72
-    /// 부족 재료를 담은 뒤 여는 To buy 커버. **덱 위에** 띄운다 — 덱 자체가 이미 풀스크린 커버라
-    /// 메인(`MainView`)에서 열면 커버 2장을 동시에 요구하게 되고, 닫았을 때 티켓으로 못 돌아온다.
-    /// 이제 칩 탭이 곧장 켜지 않는다 — 아래 두 팝업을 거쳐 사용자가 "보기"를 고를 때만 켜진다.
-    @State private var showToBuy = false
-    /// 팝업①(알림) — 담기 결과를 알린다. 두 상태를 **분리**해 두는 이유는 순차 표시 때문이다:
-    /// 하나의 상태로 문안만 갈아끼우면 표시 중 내용 교체가 되어(같은 뷰가 정체를 유지한 채 글자만
-    /// 바뀌어) 두 장이 한 장처럼 읽힌다. 상태가 갈라져 있으면 첫 장이 사라지고 둘째 장이 들어온다.
-    @State private var showAddedPrompt = false
-    /// 팝업①의 문안 갈래 — 새로 담긴 게 있었나. 팝업을 켜는 것과 **같은 업데이트**에서 정해지므로
-    /// 표시 시점엔 이미 올바른 값이다.
-    @State private var addedSomething = false
-    /// 팝업②(질문) — 목록으로 갈지 묻는다. 팝업①의 확인 액션에서만 켜진다.
-    ///
-    /// 오버레이라 교대에 트릭이 필요 없다 — 첫 장을 내리는 것과 둘째 장을 올리는 것이 **같은 업데이트**에서
-    /// 처리된다(시스템 알림 시절엔 프레젠테이션 큐를 믿어야 했다).
-    @State private var showOpenToBuyPrompt = false
 
     /// 수평 플릭 커밋 임계(예측 변위 width) — 넘기면 부호가 곧 의미다(+ Cook / − Pass).
     private let flickCommit: CGFloat = 160
@@ -97,67 +73,6 @@ struct RecipeMemoCarousel: View {
             }
         }
         .onAppear { order = Array(results.indices) }
-        // History·To buy는 앱 전역에서 하단에서 올라오는 풀스크린 커버다(`FridgeView`와 같은 진입).
-        //
-        // **닫힘은 `onDismiss`로 알린다(`onChange`가 아니라).** `onChange(of: showToBuy)`는 바인딩이
-        // false가 되는 순간 — 즉 해체 **애니메이션이 시작되는** 시점 — 에 울린다. 그때 부모가 곧바로
-        // 자기 커버를 닫으려 하면 전환 두 개가 겹쳐 UIKit이 그 요청을 삼키고, 바인딩(`showCarousel`)은
-        // 이미 false라 다시 울릴 일이 없어 **덱이 영영 닫히지 않는다**(미뤄 둔 조리 화면 전환도 유실).
-        // 실측 근거: 플레이크 실패 런의 UI 트리에 To buy는 사라졌는데 덱("Today's tickets" + 카드들)만
-        // 남아 있었고, 조리 화면은 15초를 폴링해도 오지 않았다.
-        // `onDismiss`는 해체가 **끝난 뒤** 울리므로 그 시점엔 겹칠 전환이 없다.
-        .fullScreenCover(isPresented: $showToBuy,
-                         onDismiss: { onToBuyPresentationChange(false) }) {
-            ShoppingListView()
-        }
-        // 팝업① 알림 — **사실만** 말한다. 담긴 게 하나도 없었으면 담았다고 하지 않는다.
-        // 룰⑧ 분류상 파괴가 아니라 순수 알림성이라 확인 버튼 하나짜리 중앙 다이얼로그다.
-        // **바깥 탭은 무시**한다(`backdropDismisses` 기본값) — 여기서 조용히 끝나면 이어질 질문을
-        // 못 받고, 방금 담긴 사실도 못 본 채 티켓으로 돌아간다. 나가는 길은 확인 하나뿐이다.
-        .paperDialog(isPresented: $showAddedPrompt,
-                     title: addedSomething ? "Added to To buy" : "Already on your To buy list",
-                     seed: number(for: 3),
-                     primary: PaperDialogAction("OK") { showOpenToBuyPrompt = true })
-        // 팝업② 질문 — 이동은 **사용자가 고른다**(칩 탭이 곧 화면 이동이던 예전 동작을 대체한다).
-        // 이쪽은 **바깥 탭 = 취소**다. 되돌릴 게 없는 질문이라 실수로 닫아도 잃는 게 없고,
-        // 취소와 다른 결과를 내면 실수로 닫은 사용자가 의도하지 않은 이동을 하게 된다.
-        .paperDialog(isPresented: $showOpenToBuyPrompt,
-                     title: "View your To buy list?",
-                     // 취소를 안전한 선택으로 만드는 한 줄 — 목록은 냉장고 탭의 To buy 카드로 다시 열린다.
-                     message: "You can open it later from the Fridge tab.",
-                     seed: number(for: 6),
-                     backdropDismisses: true,
-                     primary: PaperDialogAction("View") { showToBuy = true },
-                     // 취소로 흐름이 끝난다 — 신호를 내려야 부모의 미뤄 둔 발주 전환이 이어진다
-                     // (취소는 이동만 안 하는 것이지 발주 취소가 아니다).
-                     secondary: PaperDialogAction("Cancel") { endToBuyFlow() })
-    }
-
-    /// 종이 삐뚤빼뚤함 시드 — 두 다이얼로그가 서로 다른 종이로 보이도록 앞 티켓 번호에 섞는다.
-    private func number(for salt: Int) -> Int { (deck.first ?? 0) &+ salt }
-
-    /// 칩이 담기를 마쳤다 — 결과 팝업을 띄우고, **이 순간부터** 덱 위에 무언가 떠 있다고 부모에게 알린다.
-    /// 신호를 팝업 시작점에 두는 게 핵심이다: 담기 직후~팝업 표시 사이에 지연 닫기가 끼어들면
-    /// 팝업이 부모와 함께 걷힌다. 이후 false는 "취소" 또는 "To buy 커버 닫힘" 한 곳에서만 나간다.
-    private func didAddToBuy(_ addedAny: Bool) {
-        addedSomething = addedAny
-        onToBuyPresentationChange(true)
-        showAddedPrompt = true
-    }
-
-    /// 흐름이 끝났음을 곧바로 알린다 — 부모의 미뤄 둔 발주 전환이 여기서 이어진다.
-    ///
-    /// **10차에는 여기에 0.6초 지연이 있었고, 11차에서 걷어냈다.** 지연의 이유는 순전히 시스템 알림
-    /// 때문이었다: `.alert`은 UIKit 프레젠테이션이라 해체 전환이 진행 중일 때 부모 커버 닫기 요청이
-    /// 들어오면 UIKit이 그 요청을 삼켰고(10차 UITest ⑨에서 3회 중 1회 재현), `.alert`에는
-    /// 커버의 `onDismiss` 같은 완료 훅이 없어 지연으로 때울 수밖에 없었다.
-    ///
-    /// 이제 다이얼로그는 **같은 뷰 트리 안의 오버레이**(`PaperDialog`)다. 프레젠테이션 큐도, 겹칠
-    /// 전환도 없다 — 오버레이가 사라지는 것과 부모 커버가 닫히는 것은 서로를 삼킬 수 없다.
-    /// 지연을 걷어낸 뒤 취소 경로 UITest를 **10회 연속** 돌려 전부 통과하는 것으로 확인했다
-    /// (10차에 이 결함이 있었을 때는 3회 중 1회 실패했다).
-    private func endToBuyFlow() {
-        onToBuyPresentationChange(false)
     }
 
     // MARK: - 티켓 덱 (뒤 종이 = 실제 다음 티켓)
@@ -185,9 +100,9 @@ struct RecipeMemoCarousel: View {
                       // 노출 띠(14pt)는 글자 없는 종이로 고정한다.
                       peek: depth >= 1,
                       onFire: { fire(results[idx]) },
-                      onAddedToBuy: didAddToBuy,
                       // 플릭 발주는 **앞 티켓만** — 뒤 티켓엔 0을 고정해 트리거가 전파되지 않게 한다.
-                      fireTrigger: isFront ? fireTrigger : 0)
+                      fireTrigger: isFront ? fireTrigger : 0,
+                      onAddMissing: onAddMissing)
             .frame(height: cardHeight)   // 카드가 컨테이너를 넘지 못하게 캡(headerOnly도 동일 캡)
             .padding(.horizontal, ReffiGrid.margin + 8)
             .padding(.top, topInset)
@@ -435,10 +350,12 @@ struct RecipeMemoCarousel: View {
                 }
                 .accessibilityHint(Text("Opens YouTube in your browser"))
             } else if hasIngredients {
-                // 재고는 있는데 덱이 빈 경우. 예전엔 원인이 '이름이 사전과 안 맞음' 하나였지만,
-                // 부족 재료 3개 이상을 걸러내면서(`maxMissingForRecommendation`) **재료가 모자라서**
-                // 비는 쪽이 더 흔해졌다. 두 원인과 각각의 행동(장보기 / 내 레시피 추가)을 함께 말한다.
-                Text("Recipes need a few more ingredients than you have.\nRestock, or add your own recipe in Profile.")
+                // 재고는 있는데 덱이 빈 경우. 원인이 **둘**이라 문안도 둘을 함께 말한다:
+                // ① 재료가 모자람(부족 3개 이상은 `maxMissingForRecommendation`이 거른다)
+                // ② 재료 이름이 사전과 안 맞아 `used`가 비어 후보에서 빠짐(`rank`의 `!$0.used.isEmpty`).
+                // ②는 여전히 살아 있는 경로라 원인을 ①로 단정하면, 오타로 등록한 사용자는 장을 봐도
+                // 덱이 계속 비고 진짜 해법(이름 확인)은 화면 어디에도 없게 된다.
+                Text("No tickets from what's in your fridge yet.\nCheck the ingredient names, restock, or add your own recipe in Profile.")
                     .reffiType(.body).foregroundStyle(ReffiColor.ink2).multilineTextAlignment(.center)
             } else {
                 Text("Keep a few ingredients on, then start cooking.")

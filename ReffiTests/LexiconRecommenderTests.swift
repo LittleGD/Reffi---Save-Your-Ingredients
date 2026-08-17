@@ -281,13 +281,50 @@ struct RecommenderTests {
         #expect(ranked.first(where: { $0.id == "miss2" })?.missing.count == 2)
     }
 
-    @Test func rankCanReturnEmptyWhenEverythingNeedsTooMuch() {
-        // 재고가 빈약하면 덱이 통째로 빌 수 있다 — 크래시가 아니라 빈 배열이어야 하고,
-        // 화면은 `RecipeMemoCarousel`의 빈 상태가 받는다.
+    /// **후보가 있으면 덱은 비지 않는다.** 제외 규칙은 더 나은 티켓에 자리를 내주라는 것이지,
+    /// 보여 줄 게 없어도 빈 화면을 내라는 것이 아니다. 재료가 1~3종뿐인 냉장고(신규 사용자)에서는
+    /// 문턱 ①(`clearedCount >= missing.count`)이 구조적으로 못 넘겨져 후보가 전부 탈락한다.
+    @Test func rankNeverReturnsEmptyWhileCandidatesExist() {
         let stock = [resolvedIng("소고기", daysLeft: 0)]
         let heavy = recipe(id: "heavy", refs: ["beef", "carrot", "onion", "egg"],
                            en: ["beef", "carrot", "onion", "egg"])
-        #expect(RecipeRecommender.rank(for: stock, from: [heavy]).isEmpty)
+        #expect(RecipeRecommender.rank(for: stock, from: [heavy]).map(\.id) == ["heavy"],
+                "제외 규칙에 다 걸려도 덱 장수만큼은 점수 순으로 채워야 한다")
+    }
+
+    /// 바닥은 **덱 장수까지만** 채운다 — 통과한 티켓이 이미 충분하면 탈락분이 따라 들어오지 않는다.
+    @Test func rankFloorDoesNotResurrectDropsOnceTheDeckIsFull() {
+        let stock = [resolvedIng("소고기", daysLeft: 0), resolvedIng("당근", daysLeft: 1),
+                     resolvedIng("양파", daysLeft: 2), resolvedIng("감자", daysLeft: 3)]
+        let light = (1...3).map { i in
+            recipe(id: "light\(i)", refs: ["beef", "carrot"], en: ["beef", "carrot"])
+        }
+        let heavy = recipe(id: "heavy", refs: ["beef", "bean-sprouts", "zucchini", "garlic"],
+                           en: ["beef", "bean sprouts", "zucchini", "minced garlic"])
+        let ids = RecipeRecommender.rank(for: stock, from: light + [heavy]).map(\.id)
+        #expect(!ids.contains("heavy"), "통과한 티켓이 덱 장수를 채우면 탈락분은 살아나지 않는다")
+    }
+
+    /// 덱 바닥(`deckSize`)이 탈락분을 되살리지 않도록 **통과 티켓으로 덱을 채우는 들러리**.
+    /// 제외 규칙만 따로 보려면 통과분이 덱 장수를 채워야 한다 — 안 그러면 바닥이 탈락분을 끌어올려
+    /// "빠져야 할 티켓이 보인다"가 되고, 그건 규칙이 아니라 바닥을 보는 것이다.
+    private func fillers(_ refs: [String], count: Int = 3) -> [Recipe] {
+        (0..<count).map { recipe(id: "filler\($0)", refs: refs, en: refs) }
+    }
+
+    /// 같은 캐논을 다른 표기 두 줄로 등록해 둔 사용자에게 문턱이 공짜로 낮아지면 안 된다.
+    /// (`양파`·`적양파`는 사전상 둘 다 `onion` — 이름 편집만으로 한 로케일에서도 만들어진다.)
+    @Test func rankCountsCanonicalIdentityNotWrittenName() {
+        let stock = [resolvedIng("양파", daysLeft: 1), resolvedIng("적양파", daysLeft: 1),
+                     resolvedIng("감자", daysLeft: 1)]
+        // 재고 3줄이지만 실제 소진 재료는 2종(onion·potato) → 부족 3개를 못 넘긴다.
+        let plan = recipe(id: "plan", refs: ["onion", "potato", "beef", "carrot", "spinach"],
+                          en: ["onion", "potato", "beef", "carrot", "spinach"])
+        let easy = recipe(id: "easy", refs: ["onion", "potato"], en: ["onion", "potato"])
+        let ids = RecipeRecommender.rank(for: stock, from: [plan, easy] + fillers(["onion"], count: 2)).map(\.id)
+        #expect(ids.contains("easy"))
+        #expect(!ids.contains("plan"),
+                "표기만 다른 같은 캐논 두 줄이 '서로 다른 재료 2종'으로 세어지면 안 된다")
     }
 
     @Test func missingCountStillComputedForExcludedRecipes() {
@@ -296,6 +333,136 @@ struct RecommenderTests {
         let heavy = recipe(id: "heavy", refs: ["beef", "carrot", "onion", "egg"],
                            en: ["beef", "carrot", "onion", "egg"])
         #expect(RecipeRecommender.result(for: heavy, ingredients: stock).missing.count == 3)
+    }
+
+    /// 제외 기준의 **예외** — 임박 재료를 혼자 다루면서 채우는 게 사는 것보다 적지 않으면 남는다.
+    ///
+    /// 이 예외가 없으면 재고를 4종 소진하는 티켓이 부족 3개라는 이유만으로 사라지고, 그 티켓만
+    /// 쓰던 임박 재료는 어느 티켓에도·어느 브리지에도 남지 않는다(커버리지 브리지는 urgent만
+    /// 호명하므로 soon 재료는 이름조차 불리지 않는다). 배너는 "위험"이라 압박하는데 화면 어디에도
+    /// 행동 경로가 없는 상태가 된다.
+    @Test func rankKeepsHeavyTicketThatAloneRescuesAtRiskStock() {
+        // 재고 4종(전부 임박) 중 시금치는 `clearsSpinach`만 쓴다.
+        let stock = [resolvedIng("시금치", daysLeft: 1), resolvedIng("소고기", daysLeft: 0),
+                     resolvedIng("당근", daysLeft: 2), resolvedIng("계란", daysLeft: 2)]
+        // 부족 3개지만 재고를 4종 소진한다 — 채우는 게 사는 것보다 많다.
+        let clearsSpinach = recipe(id: "clears", refs: ["spinach", "beef", "carrot", "egg",
+                                                        "bean-sprouts", "zucchini", "garlic"],
+                                   en: ["spinach", "beef", "carrot", "egg",
+                                        "bean sprouts", "zucchini", "minced garlic"])
+        // 재고는 소고기 하나만 쓰면서 3종을 사야 한다 — 장보기 계획이라 예외를 못 받는다.
+        let shoppingPlan = recipe(id: "plan", refs: ["beef", "bean-sprouts", "zucchini", "garlic"],
+                                  en: ["beef", "bean sprouts", "zucchini", "minced garlic"])
+        // 들러리 둘은 시금치를 건드리지 않는다 — clears의 "혼자 구해 낸다"가 흐려지지 않게.
+        let deck = [clearsSpinach, shoppingPlan] + [recipe(id: "filler0", refs: ["beef"], en: ["beef"]),
+                                                    recipe(id: "filler1", refs: ["egg"], en: ["egg"])]
+        let ids = RecipeRecommender.rank(for: stock, from: deck).map(\.id)
+        #expect(ids.contains("clears"), "재고 4종을 소진하며 시금치를 혼자 다루는 티켓은 남아야 한다")
+        #expect(!ids.contains("plan"), "재고 1종에 3종을 사야 하는 티켓은 덱에 오를 자격이 없다")
+    }
+
+    /// 같은 임박 재료를 이미 덮은 뒤라면 무거운 티켓은 더 남을 이유가 없다 — 예외는 **한 번만** 쓴다.
+    ///
+    /// 무게 조건(`used >= missing`)은 **통과시켜 놓고** 커버리지 조건만으로 탈락시킨다 — 그래야
+    /// `rescuesSomethingNew`를 지웠을 때 이 테스트가 실제로 깨진다(무게 조건만 남으면 통과해 버린다).
+    @Test func rankDropsHeavyTicketOnceItsAtRiskStockIsAlreadyCovered() {
+        let stock = [resolvedIng("소고기", daysLeft: 0), resolvedIng("당근", daysLeft: 1),
+                     resolvedIng("양파", daysLeft: 9), resolvedIng("감자", daysLeft: 9)]
+        // light는 같은 4종을 쓰면서 살 게 없다 — 점수가 같고 부족이 적어 **먼저** 선다(tie-break).
+        let light = recipe(id: "light", refs: ["beef", "carrot", "onion", "potato"],
+                           en: ["beef", "carrot", "onion", "potato"])
+        // 재고 4종을 쓰고 3종을 사므로 무게 조건은 통과한다. 그런데 임박(소고기·당근)은 light가
+        // 이미 덮었고 나머지(양파·감자)는 fresh라 새로 구해 내는 것이 없다 → 탈락해야 한다.
+        let heavy = recipe(id: "heavy",
+                           refs: ["beef", "carrot", "onion", "potato", "egg", "spinach", "tofu"],
+                           en: ["beef", "carrot", "onion", "potato", "egg", "spinach", "tofu"])
+        let deck = [light, heavy] + [recipe(id: "filler0", refs: ["beef"], en: ["beef"]),
+                                     recipe(id: "filler1", refs: ["carrot"], en: ["carrot"])]
+        let ids = RecipeRecommender.rank(for: stock, from: deck).map(\.id)
+        #expect(ids.contains("light"))
+        #expect(!ids.contains("heavy"), "임박 재료를 앞 티켓이 이미 덮었으면 무거운 티켓은 빠진다")
+    }
+
+    /// 무게 조건도 단독으로 검증한다 — 임박 재료를 혼자 구해 내도 사는 게 더 많으면 못 남는다.
+    @Test func rankDropsHeavyTicketThatBuysMoreThanItClears() {
+        let stock = [resolvedIng("시금치", daysLeft: 1)]
+        let plan = recipe(id: "plan", refs: ["spinach", "beef", "carrot", "onion"],
+                          en: ["spinach", "beef", "carrot", "onion"])
+        // 부족 1~2개짜리 들러리로 덱을 채워 바닥이 안 돌게 한다.
+        let deck = [plan, recipe(id: "f0", refs: ["spinach", "beef"], en: ["spinach", "beef"]),
+                    recipe(id: "f1", refs: ["spinach", "carrot"], en: ["spinach", "carrot"]),
+                    recipe(id: "f2", refs: ["spinach", "onion"], en: ["spinach", "onion"])]
+        #expect(!RecipeRecommender.rank(for: stock, from: deck).map(\.id).contains("plan"),
+                "재고 1종에 3종을 사야 하는 티켓은 임박 재료를 혼자 다뤄도 덱에 오를 자격이 없다")
+    }
+
+    /// 같은 재료를 여러 줄로 등록해 둔 사용자에게 무게 문턱이 공짜로 낮아지면 안 된다 —
+    /// `used`의 줄 수가 아니라 **서로 다른 재료 수**를 센다.
+    @Test func rankCountsDistinctIngredientsNotDuplicateRows() {
+        // 시금치를 세 줄로 등록(장 볼 때마다 새 줄) → used는 3줄이지만 실제로 비우는 재료는 1종.
+        let stock = [resolvedIng("시금치", daysLeft: 1), resolvedIng("시금치", daysLeft: 1),
+                     resolvedIng("시금치", daysLeft: 1)]
+        let plan = recipe(id: "plan", refs: ["spinach", "beef", "carrot", "onion"],
+                          en: ["spinach", "beef", "carrot", "onion"])
+        let deck = [plan, recipe(id: "f0", refs: ["spinach", "beef"], en: ["spinach", "beef"]),
+                    recipe(id: "f1", refs: ["spinach", "carrot"], en: ["spinach", "carrot"]),
+                    recipe(id: "f2", refs: ["spinach", "onion"], en: ["spinach", "onion"])]
+        #expect(!RecipeRecommender.rank(for: stock, from: deck).map(\.id).contains("plan"),
+                "중복 등록으로 used 줄 수가 늘어도 비우는 재료는 1종이라 문턱을 못 넘는다")
+    }
+
+    /// 냉장고가 전부 신선하면 "오늘 비우는 순서"라는 기준이 안 선다 — 그때는 커버리지 조건을
+    /// 요구하지 않는다. 안 그러면 잘 채워진 냉장고가 빈 덱을 받고, 빈 상태 문안("재료 이름 확인·장보기")이
+    /// 그 사용자에겐 둘 다 틀린 말이 된다.
+    @Test func rankKeepsSubstantialTicketsWhenNothingIsAtRisk() {
+        let stock = [resolvedIng("소고기", daysLeft: 9), resolvedIng("당근", daysLeft: 9),
+                     resolvedIng("양파", daysLeft: 9), resolvedIng("감자", daysLeft: 9)]
+        let heavy = recipe(id: "heavy",
+                           refs: ["beef", "carrot", "onion", "potato", "egg", "spinach", "tofu"],
+                           en: ["beef", "carrot", "onion", "potato", "egg", "spinach", "tofu"])
+        #expect(RecipeRecommender.rank(for: stock, from: [heavy]).map(\.id) == ["heavy"],
+                "임박한 게 없으면 재고를 많이 쓰는 티켓은 부족이 3개여도 남아야 한다")
+    }
+
+    // MARK: - 번들 시드로 도는 랭킹 (합성 픽스처가 못 보는 것)
+
+    /// 덱 구성 규칙은 **실제 시드 80종**으로도 돌려 본다 — 합성 4개짜리 픽스처는 상수를 함께 고치면
+    /// 그대로 통과하므로, "이 규칙이 진짜 덱을 얼마나 깎는가"를 못 잡는다.
+    ///
+    /// 여기서 잠그는 것은 숫자가 아니라 **성립 조건**이다: 앱이 온보딩에서 실제로 주는 샘플 냉장고로
+    /// ① 덱이 비지 않고 ② 임박 재료가 덱 어딘가에 실제로 남는다. 둘 중 하나라도 깨지면 사용자는
+    /// 첫 화면에서 빈 덱이나 "행동 경로 없는 위험 배너"를 본다.
+    @Test func rankOverBundledSeedKeepsSampleFridgeActionable() throws {
+        let recipes = RecipeCatalog.loadSeed()
+        #expect(recipes.count >= 50, "번들 시드를 못 읽었다")
+        let stock: [Ingredient] = SampleData.ingredients
+        let ranked = RecipeRecommender.rank(for: stock, from: recipes)
+        #expect(!ranked.isEmpty, "샘플 냉장고로 덱이 통째로 비면 첫 화면이 빈 상태가 된다")
+
+        // 임박(urgent·soon) 재고가 덱에서 실제로 다뤄지는가 — 배너가 세는 것과 덱이 다루는 것이 갈리면
+        // 사용자는 "위험하다"는 말만 듣고 할 일을 못 받는다.
+        let atRisk = stock.filter { $0.freshness != Freshness.fresh }
+        #expect(!atRisk.isEmpty, "샘플 냉장고에는 임박 재료가 있어야 한다(시드 전제)")
+        let coveredIDs = Set(ranked.prefix(3).flatMap { $0.used.map(\.id) })
+        let uncovered = atRisk.filter { !coveredIDs.contains($0.id) }
+        #expect(uncovered.count < atRisk.count,
+                "상위 3장이 임박 재료를 하나도 안 다루면 덱이 오늘의 할 일을 말하지 못한다")
+    }
+
+    /// **신규 사용자의 작은 냉장고**(재료 2~3종, 전부 신선) — 여기가 첫 화면이다.
+    ///
+    /// 제외 문턱 ①(`clearedCount >= missing.count`)은 재고 종수가 곧 상한이라, 이 구간에서는
+    /// 부족 3개 이상인 후보가 통째로 탈락한다(실측: 3종 조합의 45%, 2종이면 56%가 덱 0장이었다).
+    /// 게다가 전부 신선하면 빈 상태의 atRisk 분기를 못 타서 **버튼 하나 없는 정적 문구**만 남고,
+    /// 그 문구의 조언("재료 이름을 확인하라")은 이 사용자에게 틀린 말이다 — 이름이 맞았으니 후보가
+    /// 수십 장이었기 때문이다. 덱 바닥(`deckSize`)이 그 구간을 메운다.
+    @Test func rankOverBundledSeedFillsSmallFreshFridges() {
+        let recipes = RecipeCatalog.loadSeed()
+        for names in [["양파", "두부", "닭고기"], ["양파", "양배추", "돼지고기"], ["계란", "우유"]] {
+            let stock = names.map { resolvedIng($0, daysLeft: 7) }   // 전부 신선
+            let ranked = RecipeRecommender.rank(for: stock, from: recipes)
+            #expect(!ranked.isEmpty, "\(names): 후보가 있는데 신규 사용자에게 빈 덱을 준다")
+        }
     }
 
     // MARK: - 부족 재료 → 장보기 메모 매핑 (표시명 역조회 금지)
@@ -324,8 +491,69 @@ struct RecommenderTests {
         #expect(RecipeRecommender.canonicalID(of: water) == nil)
         #expect(IngredientLexicon.shared.canonicalID(for: water.en) == "anchovy")   // 함정 고정
         let entry = RecipeRecommender.toBuyEntry(for: water)
-        #expect(entry.name == "water")
-        #expect(entry.canonicalID == nil)   // 해석은 store가 정리된 이름으로 다시 한다
+        // 괄호를 뗀 "water"는 그 자체로 사전 표제어라 캐논까지 확정된다(표기는 표제어로 정리된다).
+        #expect(entry.canonicalID == "water")
+        #expect(entry.name.lowercased() == "water")
+    }
+
+    /// **머리말 일치** — 사전 표제어가 이름의 *끝*에 올 때만 캐논으로 채택한다.
+    ///
+    /// 포함 매칭을 그대로 쓰면 앞에 걸리는 키워드가 대개 딴 재료라(시드 실측 4건) 그 품목이 남의
+    /// 줄에 흡수돼 **목록에 들어가지도 않는다**. 여기서 두 방향을 다 고정한다: 진짜 머리말은 살리고,
+    /// 수식어 자리에 걸린 이름은 캐논 없이 표기 그대로 남긴다.
+    @Test func toBuyEntryUsesHeadNounNotSubstringMatch() {
+        let lex = IngredientLexicon.shared
+        // ① 수식어 자리에 걸린 이름 — 포함 매칭의 함정. 캐논을 붙이면 안 된다.
+        for (en, trap) in [("paprika powder (or mild chili powder)", "bell-pepper"),
+                           ("chicken or vegetable stock (kept warm)", "chicken")] {
+            let item = Recipe.Item(ref: nil, en: en, ko: nil)
+            #expect(lex.canonicalID(for: en) == trap, "\(en): 포함 매칭 함정이 그대로여야 한다(회귀 고정)")
+            let entry = RecipeRecommender.toBuyEntry(for: item)
+            #expect(entry.canonicalID != trap, "\(en): 수식어에 걸린 캐논이 붙으면 안 된다")
+        }
+        // "chicken or vegetable stock"은 머리말이 stock이라 그쪽으로 붙는다 — 이건 정답이다.
+        #expect(RecipeRecommender.toBuyEntry(
+            for: Recipe.Item(ref: nil, en: "chicken or vegetable stock (kept warm)", ko: nil)
+        ).canonicalID == "stock")
+        // "paprika powder"의 머리말(powder)은 사전에 없다 → 캐논 없이 표기 그대로(안전한 실패).
+        #expect(RecipeRecommender.toBuyEntry(
+            for: Recipe.Item(ref: nil, en: "paprika powder (or mild chili powder)", ko: nil)
+        ).canonicalID == nil)
+
+        // ② 진짜 머리말은 살린다 — 수식이 붙어도 끝에 오는 표제어가 재료다.
+        #expect(RecipeRecommender.toBuyEntry(
+            for: Recipe.Item(ref: nil, en: "minced garlic", ko: nil)).canonicalID == "garlic")
+        #expect(RecipeRecommender.toBuyEntry(
+            for: Recipe.Item(ref: nil, en: "cold water", ko: nil)).canonicalID == "water")
+    }
+
+    /// **머리말 일치는 `en`으로만 본다** — 기기 언어가 장보기 키를 바꾸면 안 된다(CLAUDE.md: 데이터는
+    /// 영문 캐논으로 저장하고 표시만 로컬라이즈).
+    ///
+    /// `미소 된장`은 머리말이 `된장`이라 ko로 읽으면 사전의 `doenjang`에 붙는다 — 미소와 된장은 다른
+    /// 제품이라 한국어 기기에서만 **미소 대신 된장**이 담기고, 목록에 이미 된장이 있으면 그 재료는
+    /// 중복으로 취급돼 아예 들어가지도 않는다. en(`miso paste`)의 머리말 `paste`는 사전에 없으므로
+    /// 두 로케일 모두 표기 그대로 담긴다.
+    @Test func toBuyEntryResolvesTheSameWayInEveryLocale() {
+        let miso = Recipe.Item(ref: nil, en: "miso paste", ko: "미소 된장")
+        #expect(IngredientLexicon.shared.headNounCanonicalID(for: "미소 된장") == "doenjang")  // 함정 고정
+        #expect(RecipeRecommender.toBuyEntry(for: miso).canonicalID == nil,
+                "한국어 표기의 머리말로 엉뚱한 캐논이 붙으면 안 된다")
+
+        // 반대 방향도 같다 — ko가 못 잡는 표기라도 en이 잡으면 두 로케일 모두 캐논이 붙는다.
+        let basil = Recipe.Item(ref: nil, en: "fresh basil", ko: "바질 잎")
+        #expect(IngredientLexicon.shared.headNounCanonicalID(for: "바질 잎") == nil)
+        #expect(RecipeRecommender.toBuyEntry(for: basil).canonicalID == "basil")
+    }
+
+    /// 상비재는 Short 줄에도, 장보기 목록에도 나오면 안 된다 — `isStaple`과 담기가 **같은 눈**으로 읽는다.
+    /// 정확 일치만 보던 시절 `cold water`는 비-상비로 분류돼 Short에 뜬 뒤 담을 때만 `water`로 풀려
+    /// 장보기 목록에 "물"이 적혔다.
+    @Test func stapleDetectionUsesTheSameResolutionAsShopping() {
+        for en in ["cold water", "water (or anchovy stock)", "sweet soy sauce (kecap manis)"] {
+            let item = Recipe.Item(ref: nil, en: en, ko: nil)
+            #expect(RecipeRecommender.isStaple(item), "\(en): 상비재로 잡혀 Short 줄에서 빠져야 한다")
+        }
     }
 
     @Test func toBuyEntryKeepsTextWhenParenthesesAreUnbalanced() {

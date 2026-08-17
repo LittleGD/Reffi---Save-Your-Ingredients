@@ -866,8 +866,19 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     // MARK: - 관통 해소 (§13.4)
 
     /// AABB 관통률(교집합 면적 / 작은 쪽 AABB 면적) 문턱 — 이 위는 "겹쳐 보인다".
-    /// 볼록 타원 바디는 모서리에서 AABB보다 안쪽이라, 15%는 실제 바디 관통으로 치면 한 자릿수다.
+    /// 볼록 바디는 모서리에서 AABB보다 안쪽이라, 15%는 실제 바디 관통으로 치면 한 자릿수다.
     /// 세 상수 모두 `static` — 테스트가 리터럴을 다시 적지 않고 실제 예산에 불변식을 건다.
+    ///
+    /// **실측(53종 × 회전 12각 × 접근 5방향, 문턱에 걸리는 순간의 폴리곤 교집합/바디 면적):**
+    /// | 바디 · AABB | 중앙값 | 평균 | 최대 |
+    /// |---|---|---|---|
+    /// | 타원 14각 · 타원 닫힌 식 (v1.0 기준선) | 5.4% | 5.2% | 21.5% |
+    /// | 수퍼타원 16각 · 타원 닫힌 식 (모양만 바꾼 상태) | 10.4% | 10.0% | 28.7% |
+    /// | 수퍼타원 16각 · **폴리곤 실제 AABB**(현재) | 4.8% | **5.3%** | 20.5% |
+    ///
+    /// 가운데 줄이 이 상수를 건드리지 않고도 예산이 두 배로 벌어지던 상태다. `bodyAABB`를 꼭짓점
+    /// 기반으로 되돌리자 예산이 기준선과 같아져(평균 5.2% → 5.3%) **문턱은 그대로 둔다** —
+    /// 오너가 실기기에서 맞춘 값이라 재측정 없이 옮길 이유가 없다.
     static let separationOverlap: CGFloat = 0.15
     /// 위치 보정 반복 상한 — 한 바퀴(Gauss-Seidel)가 쌍 하나를 완전히 떼어 놓으므로 몇 바퀴면 수렴한다.
     /// **10**은 최악 배치의 실측에서 왔다: 6칩이 한 줄로 완전히 포개진 상태(칩당 20pt 간격,
@@ -1373,21 +1384,21 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         return Self.ovalBody(s * m.w, s * m.h, dy: s * m.dy)
     }
 
-    /// 칩 물리 바디(볼록 타원 폴리곤)의 **회전 반영 AABB**(씬 좌표).
+    /// 칩 물리 바디(볼록 수퍼타원 폴리곤)의 **회전 반영 AABB**(씬 좌표).
     /// 진단 계측(`-physLab`)과 관통 해소가 **같은 식**을 써야 "측정한 겹침"과 "푸는 겹침"이 어긋나지 않는다.
-    /// 회전한 타원의 AABB 반폭 = √((a·cosθ)² + (b·sinθ)²) — 폴리곤 근사분의 오차는 1% 미만이다.
-    /// dy 오프셋은 바디 로컬 좌표라 노드 회전을 함께 먹인다.
+    ///
+    /// **닫힌 식을 쓰지 않는다.** 예전엔 회전한 타원의 지지함수 `√((a·cosθ)²+(b·sinθ)²)`로 반폭을 냈는데,
+    /// 그건 바디가 실제로 타원(n=2)일 때만 맞는 식이다. 바디가 수퍼타원(n=4)이 된 뒤로는 같은 식이
+    /// 53종 전부에서 회전각에 따라 AABB를 **최대 18.9% 과소평가**했다(옛 모양에서는 오차 0%).
+    /// 그러면 `separationOverlap`이 재는 겹침이 실제 바디 겹침보다 훨씬 관대해진다 — 실측으로
+    /// 예산이 5.2% → 10.0%(평균)로 두 배 벌어졌다. 그래서 **꼭짓점에서 직접** 잰다.
+    /// dy 오프셋은 바디 로컬 좌표라 `bodyPolygon`이 이미 먹인 뒤 회전이 걸린다.
     private func bodyAABB(_ node: SKSpriteNode) -> CGRect {
         let s = node.size.width
         let glyph = (node.userData?["glyph"] as? String).flatMap(FoodGlyph.init(rawValue:))
         let m = glyph.flatMap { Self.bodyMetrics[$0] } ?? (w: 0.62, h: 0.60, dy: 0)
-        let a = s * m.w * 0.5, b = s * m.h * 0.5
-        let c = cos(node.zRotation), si = sin(node.zRotation)
-        let hw = ((a * c) * (a * c) + (b * si) * (b * si)).squareRoot()
-        let hh = ((a * si) * (a * si) + (b * c) * (b * c)).squareRoot()
-        let off = s * m.dy
-        return CGRect(x: node.position.x - si * off - hw, y: node.position.y + c * off - hh,
-                      width: hw * 2, height: hh * 2)
+        let local = Self.bodyAABB(w: s * m.w, h: s * m.h, dy: s * m.dy, rotation: node.zRotation)
+        return local.offsetBy(dx: node.position.x, dy: node.position.y)
     }
 
     /// 실측 바디 파라미터 (폭비, 높이비, y오프셋[+위]) — `-glyphMetrics` 계측값 그대로 붙여 넣는다:
@@ -1549,28 +1560,67 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     /// 그러면 평평한 변이 bbox 밖으로 41% 삐져나가 칩 사이에 눈에 띄는 빈틈이 생긴다 —
     /// `e5b2bb2`가 고쳤던 바로 그 버그다. **모양만 바꾸고 0.90 인셋과 실측 테이블은 건드리지 않는다.**
     /// 질량(`mass(for:)`)은 바디 면적이 아니라 테이블을 읽으므로 이 변경으로 1비트도 달라지지 않는다.
-    private static func ovalBody(_ w: CGFloat, _ h: CGFloat, dy: CGFloat = 0,
-                                 sides: Int = 16, n: CGFloat = 4) -> SKPhysicsBody {
+    ///
+    /// **모양을 바꿀 땐 `bodyAABB`도 같이 본다.** 관통 해소·벽 클램프·`-physLab` 계측은 전부
+    /// 이 바디의 AABB로 겹침을 재는데, 그 AABB가 실제 꼭짓점이 아니라 옛 모양의 닫힌 식에서 나오면
+    /// "재는 겹침"과 "푸는 겹침"이 소리 없이 갈린다(`separationOverlap` 주석의 실측표 참고).
+    private static func ovalBody(_ w: CGFloat, _ h: CGFloat, dy: CGFloat = 0) -> SKPhysicsBody {
         let path = CGMutablePath()
-        for (i, p) in bodyPolygon(w: w, h: h, dy: dy, sides: sides, n: n).enumerated() {
+        for (i, p) in bodyPolygon(w: w, h: h, dy: dy).enumerated() {
             if i == 0 { path.move(to: p) } else { path.addLine(to: p) }
         }
         path.closeSubpath()
         return SKPhysicsBody(polygonFrom: path)
     }
 
-    /// 바디 꼭짓점 — `ovalBody`가 **이 점들로** path를 만든다.
-    /// `internal`(비-private): 커버리지 테스트가 실제 바디와 **같은 점**을 검사하게 하려고 공유한다.
+    /// 실제 바디의 각 수·수퍼타원 지수 — **프로덕션 모양의 유일한 정의처**.
+    /// `internal`: 테스트가 리터럴 16·4를 다시 적지 않고 이 값에 불변식을 건다.
+    static let bodySides = 16
+    static let bodyExponent: CGFloat = 4
+
+    /// 바디 꼭짓점 — `ovalBody`가 **이 점들로** path를 만들고 `bodyAABB`가 **이 점들로** AABB를 잰다.
+    /// `internal`(비-private): 커버리지·AABB 테스트가 실제 바디와 **같은 점**을 검사하게 하려고 공유한다.
     /// 테스트가 수식을 복제하면 모양을 바꿔도 테스트만 옛 모양을 검사해 회귀를 놓친다(`textureKey` 선례).
+    ///
+    /// `sides`·`n`은 **비교 실험 전용 기본인자**다(옛 타원과 커버리지를 견주는 테스트). 프로덕션 경로는
+    /// 셋 다 인자를 주지 않아 항상 `bodySides`·`bodyExponent`를 탄다 — 기본값을 되돌리면 커버리지
+    /// 테스트가 곧바로 깨진다.
     static func bodyPolygon(w: CGFloat, h: CGFloat, dy: CGFloat = 0,
-                            sides: Int = 16, n: CGFloat = 4) -> [CGPoint] {
+                            sides: Int = bodySides, n: CGFloat = bodyExponent) -> [CGPoint] {
+        // 프로덕션 모양은 **단위 꼭짓점을 한 번만** 계산해 재사용한다 — `bodyAABB`가 관통 해소
+        // 한 바퀴에 쌍마다 두 번씩 불리므로(36칩 = 10바퀴 × 630쌍 × 2), 매번 `pow`를 32회 돌면
+        // 안착 직전 한 프레임에 40만 회가 몰린다. 모양은 스케일 불변이라 곱셈만 남기면 된다.
+        if sides == bodySides, n == bodyExponent {
+            return unitBodyPolygon.map { CGPoint(x: $0.x * w / 2, y: $0.y * h / 2 + dy) }
+        }
+        return unitPolygon(sides: sides, n: n).map { CGPoint(x: $0.x * w / 2, y: $0.y * h / 2 + dy) }
+    }
+
+    /// 반지름 1 수퍼타원의 꼭짓점(프로덕션 모양) — `bodyPolygon`이 여기에 반폭·반높이를 곱한다.
+    private static let unitBodyPolygon: [CGPoint] = unitPolygon(sides: bodySides, n: bodyExponent)
+
+    private static func unitPolygon(sides: Int, n: CGFloat) -> [CGPoint] {
         (0..<sides).map { i in
             let a = CGFloat(i) / CGFloat(sides) * 2 * .pi
             let c = cos(a), s = sin(a)
-            // 수퍼타원 파라메트릭: x = a·sgn(cos)·|cos|^(2/n), y = b·sgn(sin)·|sin|^(2/n). n=2면 타원.
-            return CGPoint(x: copysign(pow(abs(c), 2 / n), c) * w / 2,
-                           y: copysign(pow(abs(s), 2 / n), s) * h / 2 + dy)
+            // 수퍼타원 파라메트릭: x = sgn(cos)·|cos|^(2/n), y = sgn(sin)·|sin|^(2/n). n=2면 타원.
+            return CGPoint(x: copysign(pow(abs(c), 2 / n), c),
+                           y: copysign(pow(abs(s), 2 / n), s))
         }
+    }
+
+    /// 바디 로컬 AABB(노드 위치 이전, `rotation` 반영) — 꼭짓점에서 **직접** 잰다.
+    /// 순수 함수라 테스트가 씬 없이 "AABB가 실제 폴리곤을 감싸는 최소 사각인가"를 고정한다.
+    static func bodyAABB(w: CGFloat, h: CGFloat, dy: CGFloat, rotation: CGFloat) -> CGRect {
+        let c = cos(rotation), s = sin(rotation)
+        var minX = CGFloat.greatestFiniteMagnitude, minY = CGFloat.greatestFiniteMagnitude
+        var maxX = -CGFloat.greatestFiniteMagnitude, maxY = -CGFloat.greatestFiniteMagnitude
+        for p in bodyPolygon(w: w, h: h, dy: dy) {
+            let x = p.x * c - p.y * s, y = p.x * s + p.y * c
+            minX = min(minX, x); maxX = max(maxX, x)
+            minY = min(minY, y); maxY = max(maxY, y)
+        }
+        return CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
     }
 
     // MARK: - 착지 임팩트 (스쿼시 + 달그락 햅틱)

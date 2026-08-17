@@ -505,6 +505,9 @@ struct FridgeView: View {
             .buttonStyle(.paperPress)
             .accessibilityLabel("Open no-waste report, \(store.wasteRate) percent wasted")
         }
+        // 행 높이를 **가장 높은 카드**에 맞춘다 — 카드 쪽 `maxHeight: .infinity`와 짝이다.
+        // 이게 없으면 무한대 제안이 부모의 남은 높이를 전부 먹어 두 카드가 화면 절반까지 늘어난다.
+        .fixedSize(horizontal: false, vertical: true)
         .padding(.horizontal, cardInset)   // 아래 영수증 스택과 같은 폭으로 정렬
     }
 
@@ -526,14 +529,25 @@ struct FridgeView: View {
                     .font(.reffiNum(.body)).foregroundStyle(tint)
                     .lineLimit(1)
             }
+            // **제목은 말줄임하지 않는다**(전폭 시절부터의 불변식) — 이 카드에서 제목은 유일한
+            // 목적지 이름이라 "No-waste rep…"이 되면 어디로 가는 버튼인지가 사라진다.
+            // 반쪽 폭에서는 한 줄로는 안 들어간다: 번들 폰트 실측으로 영문 "No-waste report"가
+            // 기본 크기에서 이미 가용폭(iPhone SE 119.5pt)을 넘는다. 그래서 **두 줄까지 허용**하고,
+            // 축소는 그 뒤 마지막 수단으로만 쓴다(0.7까지 — 접근성 큰 글씨에서 세 줄로 흐르지 않게).
             Text(title)
                 .reffiType(.checklistItem)
                 .foregroundStyle(ReffiColor.ink)
-                .lineLimit(1).minimumScaleFactor(0.85)   // 반쪽 폭이라 말줄임보다 축소를 먼저
+                .lineLimit(2)
+                .minimumScaleFactor(0.7)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .padding(.horizontal, ReffiSpace.s3 + 2)
         .padding(.vertical, ReffiSpace.s3)
-        .frame(maxWidth: .infinity, minHeight: 60)   // 둘이 같은 폭·같은 높이로 선다
+        // 둘이 같은 폭·같은 높이로 선다. `maxHeight: .infinity`가 **높이를 맞추는 쪽**이다 —
+        // 제목이 두 줄로 접히는 카드가 생기면서 둘의 이상적 높이가 갈렸고, minHeight(하한)만으로는
+        // HStack이 각자 제 높이로 그려 위아래 모서리가 어긋난다. 행 쪽에서 `.fixedSize(vertical:)`로
+        // 가장 높은 카드에 행 높이를 맞추고, 여기서 두 카드가 그 높이를 채운다.
+        .frame(maxWidth: .infinity, minHeight: 60, maxHeight: .infinity)
         .contentShape(Rectangle())
         .background {
             let s = PaperCutRect(seed: seed)                            // 아이콘 버튼(9각)·CTA와 같은 8각형
