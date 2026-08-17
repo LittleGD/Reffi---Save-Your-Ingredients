@@ -8,6 +8,14 @@ final class ReffiFlowUITests: XCTestCase {
         continueAfterFailure = false
     }
 
+    /// 시각 표면은 눈으로 볼 근거를 남긴다 — 탭 패인 셋의 스크린샷을 결과 번들에 붙인다.
+    private func attach(_ app: XCUIApplication, named name: String) {
+        let shot = XCTAttachment(screenshot: app.screenshot())
+        shot.name = name
+        shot.lifetime = .keepAlways
+        add(shot)
+    }
+
     /// 온보딩을 처음부터 시작. `-skipAuth`로 게스트 상태를 로컬에 고정해, 셋업 완료 후
     /// 메인 진입이 실제 익명 로그인 네트워크 호출에 좌우되지 않고 결정론적으로 검증되게 한다
     /// (게이트 로직 자체는 세션 유무와 무관하게 온보딩 완료 시 곧장 메인으로 보낸다).
@@ -73,40 +81,56 @@ final class ReffiFlowUITests: XCTestCase {
                       "건너뛰기 → 게스트로 메인 탭바에 곧장 도달해야 한다")
     }
 
-    // MARK: 냉장고 — 요약 카드(리포트·장보기) · 통합 정렬/보기 메뉴
+    // MARK: 냉장고 — 상단 탭 셋(In stock · To buy · History) · 통합 정렬/보기 메뉴
 
-    func testFridge_ReportBand_SortMenu_CompactToggle() {
+    /// 탭 행이 화면의 IA다: 세 알약이 처음부터 다 보이고, 탭하면 아래 콘텐츠가 갈리며,
+    /// 선택 상태가 알약에 남는다. 옛 요약 두 버튼·헤더 리포트 버튼(커버 진입)은 여기서 사라졌다.
+    func testFridge_ThreeTabs_SwitchPanes_SortMenu_CompactToggle() {
         let app = XCUIApplication()
         // -uiTestSampleFridge: 기기에 남은 사용자 데이터와 무관하게 샘플 냉장고로 고정(결정적 상태).
         app.launchArguments = ["-skipAuth", "-onboarding.done", "YES", "-fridgeTab", "-uiTestSampleFridge"]
         app.launch()
 
-        // 요약 행 = 장보기·무낭비 리포트 **두 버튼이 나란히**(페이저·점 인디케이터 제거).
-        // 스와이프 없이 둘 다 처음부터 보이고 눌린다.
-        let toBuy = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Shopping list")).firstMatch
-        XCTAssertTrue(toBuy.waitForExistence(timeout: 8), "장보기 버튼이 보여야 한다")
+        let stockTab = app.buttons["In stock"]
+        let toBuyTab = app.buttons["To buy"]
+        let historyTab = app.buttons["History"]
 
-        let report = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Open no-waste report")).firstMatch
-        XCTAssertTrue(report.waitForExistence(timeout: 4), "리포트 버튼도 스와이프 없이 함께 보여야 한다")
-        XCTAssertTrue(toBuy.isHittable && report.isHittable, "두 버튼 모두 바로 누를 수 있어야 한다")
-        // 시각 표면이라(반쪽 폭에서 제목이 잘리지 않는지) 눈으로 볼 근거를 남긴다.
-        let shot = XCTAttachment(screenshot: app.screenshot())
-        shot.name = "fridge-summary-two-up"
-        shot.lifetime = .keepAlways
-        add(shot)
-        report.tap()
-        XCTAssertTrue(app.staticTexts["History"].waitForExistence(timeout: 4), "리포트 카드 → History 시트")
-        // 정산서 = 도넛이 아니라 영수증(§13.9) — 두 행·낭비율 도장·자주 버린 재료가 한 장에 선다.
+        // 세 탭 모두 스와이프 없이 처음부터 보이고 눌린다(커버 뒤에 숨는 목적지가 없다).
+        XCTAssertTrue(stockTab.waitForExistence(timeout: 8), "In stock 탭")
+        XCTAssertTrue(toBuyTab.waitForExistence(timeout: 4), "To buy 탭")
+        XCTAssertTrue(historyTab.waitForExistence(timeout: 4), "History 탭")
+        XCTAssertTrue(stockTab.isHittable && toBuyTab.isHittable && historyTab.isHittable,
+                      "세 탭 모두 바로 누를 수 있어야 한다")
+
+        // 기본 탭 = In stock. 선택 상태가 알약에만 남는다(§13.5 — 탭은 내비라 선택이 잉크 솔리드).
+        XCTAssertTrue(stockTab.isSelected, "기본 탭은 In stock이어야 한다")
+        XCTAssertFalse(toBuyTab.isSelected, "선택은 하나뿐")
+        XCTAssertFalse(historyTab.isSelected, "선택은 하나뿐")
+        // In stock 패인의 고유 콘텐츠 — 영수증 스택과 목록 조작 크롬.
+        XCTAssertTrue(app.staticTexts["Beef"].waitForExistence(timeout: 4), "재고 영수증 카드")
+        XCTAssertTrue(app.buttons["Sort: Expiring first"].exists, "재고 패인의 정렬 칩")
+        attach(app, named: "fridge-tab-in-stock")
+
+        // To buy 탭 — 하단 도킹 "Add item"과 행별 Add/Skip이 커버 때 그대로 살아 있다.
+        toBuyTab.tap()
+        XCTAssertTrue(app.buttons["Add item"].waitForExistence(timeout: 4), "To buy 패인의 직접 담기 CTA")
+        XCTAssertFalse(app.buttons["Sort: Expiring first"].exists, "재고 패인 크롬은 함께 사라져야 한다")
+        XCTAssertTrue(toBuyTab.isSelected, "탭하면 선택 상태가 옮겨간다")
+        XCTAssertFalse(stockTab.isSelected, "직전 탭의 선택은 풀린다")
+        attach(app, named: "fridge-tab-to-buy")
+
+        // History 탭 — 정산서는 도넛이 아니라 영수증(§13.9): 두 행·낭비율 도장·자주 버린 재료.
+        historyTab.tap()
         XCTAssertTrue(app.staticTexts["Tally · past 30 days"].waitForExistence(timeout: 4),
-                      "리포트 첫 카드는 30일 정산서다")
-        app.buttons["Close"].firstMatch.tap()
+                      "History 패인의 첫 카드는 30일 정산서다")
+        XCTAssertFalse(app.buttons["Add item"].exists, "To buy 패인의 CTA는 함께 사라져야 한다")
+        XCTAssertTrue(historyTab.isSelected, "History가 선택된다")
+        attach(app, named: "fridge-tab-history")
 
-        // 헤더 리포트 버튼 — 페이저를 스와이프하지 않아도 같은 화면으로 가는 상시 진입점(C8)
-        let headerReport = app.buttons["No-waste report"]
-        XCTAssertTrue(headerReport.waitForExistence(timeout: 4), "냉장고 헤더에 리포트 진입 버튼")
-        headerReport.tap()
-        XCTAssertTrue(app.staticTexts["History"].waitForExistence(timeout: 4), "헤더 버튼 → History 시트")
-        app.buttons["Close"].firstMatch.tap()
+        // 다시 In stock — 패인 왕복 뒤에도 목록 조작 크롬이 그대로 돌아온다.
+        stockTab.tap()
+        XCTAssertTrue(stockTab.isSelected, "In stock으로 복귀")
+        XCTAssertTrue(app.staticTexts["Beef"].waitForExistence(timeout: 4), "재고 영수증 카드 복귀")
 
         // 보기 토글(원탭 버튼) — 간편보기 전환(수량 텍스트가 노출되는 행으로 바뀜)
         let toCompact = app.buttons["Switch to simple view"]

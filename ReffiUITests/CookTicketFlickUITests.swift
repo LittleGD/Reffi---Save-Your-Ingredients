@@ -242,14 +242,13 @@ final class CookTicketFlickUITests: XCTestCase {
         app.buttons["Close"].firstMatch.tap()
         XCTAssertTrue(app.buttons["Fridge"].waitForExistence(timeout: 10), "덱을 닫으면 메인으로 돌아와야 한다")
         app.buttons["Fridge"].tap()
-        // 요약 버튼의 접근성 라벨은 개수를 품는다("Shopping list, N items") — 개수는 시드에 따라
-        // 달라지므로 접두사로만 잡는다.
-        let shoppingButton = app.buttons
-            .matching(NSPredicate(format: "label BEGINSWITH 'Shopping list'")).firstMatch
-        XCTAssertTrue(shoppingButton.waitForExistence(timeout: 10),
-                      "냉장고 탭에 장보기 요약 버튼이 있어야 한다")
-        shoppingButton.tap()
-        XCTAssertTrue(app.staticTexts["To buy"].waitForExistence(timeout: 10), "To buy 목록이 열려야 한다")
+        // 냉장고 페이지는 상단 탭 셋(In stock · To buy · History)으로 갈렸다 — 옛 요약 버튼
+        // ("Shopping list, N items")이 열던 커버 대신 To buy **탭**이 같은 목록을 연다.
+        let toBuyTab = app.buttons["To buy"]
+        XCTAssertTrue(toBuyTab.waitForExistence(timeout: 10), "냉장고 페이지에 To buy 탭이 있어야 한다")
+        toBuyTab.tap()
+        // 탭 패인엔 커버 헤더가 없으므로 목록의 상시 요소(하단 도킹 "Add item")로 도착을 확인한다.
+        XCTAssertTrue(app.buttons["Add item"].waitForExistence(timeout: 10), "To buy 목록이 열려야 한다")
 
         // Short 줄의 재료 하나라도 목록에 있어야 한다(표기는 사전 표제어로 정리되므로 포함 관계로 본다).
         let missing = shortText.dropFirst("Short: ".count)
