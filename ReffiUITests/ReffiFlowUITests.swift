@@ -16,6 +16,15 @@ final class ReffiFlowUITests: XCTestCase {
         add(shot)
     }
 
+    /// 사라짐을 **기다린다** — 목록 전환은 스프링 애니메이션이라 `exists`를 즉시 읽으면 아직 트리에 남은
+    /// 잔상에 걸린다. 등장은 `waitForExistence`가 있지만 소멸은 술어로 기다려야 한다.
+    private func waitForDisappearance(_ element: XCUIElement, timeout: TimeInterval = 5,
+                                      _ message: String) {
+        let gone = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"),
+                                             object: element)
+        XCTAssertEqual(XCTWaiter().wait(for: [gone], timeout: timeout), .completed, message)
+    }
+
     /// 온보딩을 처음부터 시작. `-skipAuth`로 게스트 상태를 로컬에 고정해, 셋업 완료 후
     /// 메인 진입이 실제 익명 로그인 네트워크 호출에 좌우되지 않고 결정론적으로 검증되게 한다
     /// (게이트 로직 자체는 세션 유무와 무관하게 온보딩 완료 시 곧장 메인으로 보낸다).
@@ -131,6 +140,30 @@ final class ReffiFlowUITests: XCTestCase {
         stockTab.tap()
         XCTAssertTrue(stockTab.isSelected, "In stock으로 복귀")
         XCTAssertTrue(app.staticTexts["Beef"].waitForExistence(timeout: 4), "재고 영수증 카드 복귀")
+
+        // 재고 수는 타이틀 옆 캡션으로 올라갔다 — 화면엔 "· 13"이지만 보조기술엔 "13 in stock"으로 읽힌다.
+        let stockCaption = app.staticTexts["13 in stock"]
+        XCTAssertTrue(stockCaption.waitForExistence(timeout: 4), "타이틀 옆 재고 수 캡션")
+
+        // 카테고리 필터 — 가로 스크롤 칩 행이 컨트롤 한 줄의 드롭다운 하나로 접혔다.
+        let categoryPill = app.buttons["Filter: All"]
+        XCTAssertTrue(categoryPill.waitForExistence(timeout: 4), "카테고리 필터 트리거(기본 All)")
+        categoryPill.tap()
+        // 펼친 목록은 칩이 보여 주던 개수를 그대로 싣는다("Veg 6").
+        let vegRow = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Veg ")).firstMatch
+        XCTAssertTrue(vegRow.waitForExistence(timeout: 4), "카테고리 행은 이름 + 개수를 함께 읽는다")
+        vegRow.tap()
+        XCTAssertTrue(app.buttons["Filter: Veg"].waitForExistence(timeout: 4), "선택이 트리거 라벨에 반영")
+        waitForDisappearance(app.staticTexts["Beef"], "Veg로 좁히면 고기 카드는 목록에서 빠진다")
+        // **총량은 필터와 무관하다** — 캡션은 여전히 냉장고 전체 수를 말한다(칩 시절과 같은 규칙).
+        XCTAssertTrue(stockCaption.exists, "필터를 켜도 재고 총량 캡션은 그대로 13이어야 한다")
+        attach(app, named: "fridge-in-stock-filtered")
+
+        // All로 원복 — 드롭다운에서 해제 경로는 목록 맨 위 "All"이다(칩 재탭이 아니다).
+        app.buttons["Filter: Veg"].tap()
+        app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "All ")).firstMatch.tap()
+        XCTAssertTrue(app.buttons["Filter: All"].waitForExistence(timeout: 4), "All로 복귀")
+        XCTAssertTrue(app.staticTexts["Beef"].waitForExistence(timeout: 4), "필터를 풀면 전체 목록 복귀")
 
         // 보기 토글(원탭 버튼) — 간편보기 전환(수량 텍스트가 노출되는 행으로 바뀜)
         let toCompact = app.buttons["Switch to simple view"]

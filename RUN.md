@@ -80,7 +80,7 @@ xcrun simctl io booted screenshot reffi-home.png
 
 **냉장고** — 페이지가 상단 탭 셋(In stock · To buy · History)으로 갈렸다. 아래 셋은 **커버가 아니라 해당 탭으로 착지**한다(매핑 정본은 `FridgeTab.initial(from:)`, 회귀는 `FridgeTabLaunchArgTests`가 잡는다).
 - `-showHistory` History **탭** 직행 · `-fridgeExpand` 첫 재료 펼침 · `-fridgeExpandSolo` 재료 1개만 남기고 펼침(네비 클리어런스 QA)
-- `-fridgeEdit` 첫 재료 편집 시트(+`-loadSample`) · `-fridge.sortOpen` 정렬 드롭다운(`PaperDropdown`) 자동 오픈
+- `-fridgeEdit` 첫 재료 편집 시트(+`-loadSample`) · `-fridge.sortOpen` 정렬 드롭다운(`PaperDropdown`) 자동 오픈 · `-fridge.categoryOpen` 카테고리 필터 드롭다운 자동 오픈(둘 다 주면 정렬이 이긴다 — 화면당 하나만 열린다)
 - `-fridge.compact YES` 간편보기 · `-fridge.sort recent|freshest|expiry` 정렬 (둘 다 `@AppStorage` 키를 덮는 UserDefaults 인자)
 - `-toBuy` To buy **탭** 직행(`-fridgeTab`·`-loadSample`과 함께) · `-toBuy.search` 재료 검색 바텀시트까지 자동 오픈(단독 지정해도 To buy 탭에 착지한다 — 탭 전환과 같은 프레임에 시트를 올리면 씹혀서 전환 뒤로 미루고, 자동 오픈은 런치당 한 번이라 탭을 오가도 다시 튀어나오지 않는다)
 - `-fridgeExpand*`는 In stock 탭 전용이다 — 펼친 영수증은 탭 행까지 덮는 전체 화면이고, 탭을 옮기면 선택이 풀린다
