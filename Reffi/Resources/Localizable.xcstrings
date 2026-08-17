@@ -493,16 +493,6 @@
         }
       }
     },
-    "All stocked up": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "다 채워져 있어요"
-          }
-        }
-      }
-    },
     "Allergies": {
       "localizations": {
         "ko": {
@@ -1792,6 +1782,16 @@
         }
       }
     },
+    "Nothing on the list": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "목록이 비었어요"
+          }
+        }
+      }
+    },
     "Nothing on these tickets uses %@.": {
       "localizations": {
         "ko": {
@@ -1828,16 +1828,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "지금 쓸 재료가 없어요"
-          }
-        }
-      }
-    },
-    "Nothing you regularly use has run out.": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "자주 쓰는 재료 중 떨어진 게 없어요."
           }
         }
       }
@@ -2108,16 +2098,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "수량"
-          }
-        }
-      }
-    },
-    "Ran out, based on what you use often": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "자주 쓰는데 떨어진 것들이에요"
           }
         }
       }
@@ -2649,6 +2629,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "정산 · 최근 30일"
+          }
+        }
+      }
+    },
+    "Tap Add item to jot down what you need.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "아래 직접 담기를 눌러 살 것을 적어 보세요."
           }
         }
       }

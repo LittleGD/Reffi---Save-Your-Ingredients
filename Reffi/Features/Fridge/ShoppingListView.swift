@@ -30,7 +30,15 @@ struct ShoppingListContent: View {
 
     private typealias Row = (name: String, glyph: FoodGlyph, manual: Bool, key: String)
 
-    private var items: [Row] { store.toBuy }
+    /// 화면에 세우는 목록 — **직접 담은 것만**(2026-08 owner decision). 이력에서 파생된 "자주 쓰는데
+    /// 떨어진 것" 제안 구역을 걷어냈다: 장보기 메모는 내가 적은 것이어야 하고, 앱이 추측해 채워 넣은
+    /// 줄이 그 위에 섞이면 목록이 내 것이 아니게 된다.
+    ///
+    /// 걸러 내는 자리를 **여기(뷰)로 잡은 이유**는 `store.toBuy`의 파생 절반이 아직 살아 있어야 하기
+    /// 때문이다 — 흡수 의미론(수동이 같은 키의 제안을 먹는다)·`skipBuy`의 두 갈래·로케일 매칭이 전부
+    /// 그 절반 위에서 검증되고 있고, 덱의 "부족 재료 담기"(`addMissingToBuy`)가 그 규약을 그대로 탄다.
+    /// 모델을 잘라내면 그 계약이 함께 무너지므로 표시 층에서만 좁힌다.
+    private var items: [Row] { store.toBuy.filter(\.manual) }
 
     var body: some View {
         ScrollView {
@@ -86,23 +94,13 @@ struct ShoppingListContent: View {
 
     /// 직접 담은 구역(맨 위) / 이력 제안 구역 — 두 구역은 캡션이 다르다(제안 캡션이 수동 항목까지
     /// 설명하면 거짓말이 된다). 목록은 한 번만 읽어 나눈다(파생 계산이 이력 전체를 훑는다).
+    /// 목록 카드 — 구역이 하나뿐이다. 옛 이력 제안 구역("Ran out, based on what you use often")과
+    /// 두 구역을 가르던 절취선(`ReffiRule(.ticket)`)은 함께 사라졌다.
     private var listCard: some View {
-        let rows = items
-        let manual = rows.filter(\.manual)
-        let suggested = rows.filter { !$0.manual }
-        return VStack(alignment: .leading, spacing: ReffiSpace.s3) {
-            if !manual.isEmpty {
-                Text("Added by you")
-                    .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
-                ForEach(manual, id: \.key) { row($0) }
-            }
-            if !suggested.isEmpty {
-                // 두 구역 구분은 절취선 어휘로(보더 금지 §6).
-                if !manual.isEmpty { ReffiRule(.ticket) }
-                Text("Ran out, based on what you use often")
-                    .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
-                ForEach(suggested, id: \.key) { row($0) }
-            }
+        VStack(alignment: .leading, spacing: ReffiSpace.s3) {
+            Text("Added by you")
+                .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
+            ForEach(items, id: \.key) { row($0) }
         }
         .receiptSurface()
     }
@@ -162,10 +160,16 @@ struct ShoppingListContent: View {
         PaperButton(title: "Add item", kind: .secondary, seed: 3) { showSearch = true }
     }
 
+    /// 빈 상태 — 이제 **직접 담은 것이 없을 때** 뜬다(제안 구역이 사라져 목록의 유일한 소스가 수동이다).
+    ///
+    /// 카피도 함께 바꿨다: 옛 문구("All stocked up" / "Nothing you regularly use has run out.")는
+    /// **이력 제안의 언어**였다 — 앱이 소비 이력을 보고 "떨어진 게 없다"고 단언하는 말인데, 그 계산
+    /// 결과를 더 이상 이 화면에 세우지 않으므로 그대로 두면 거짓말이 된다. 지금 참인 사실은 하나다:
+    /// 아직 아무것도 안 적었다. 그래서 다음 행동(하단 "Add item")을 가리킨다.
     private var emptyCard: some View {
         VStack(alignment: .leading, spacing: ReffiSpace.s2) {
-            Text("All stocked up").reffiType(.subhead).foregroundStyle(ReffiColor.ink)
-            Text("Nothing you regularly use has run out.")
+            Text("Nothing on the list").reffiType(.subhead).foregroundStyle(ReffiColor.ink)
+            Text("Tap Add item to jot down what you need.")
                 .reffiType(.body).foregroundStyle(ReffiColor.ink2)
         }
         .receiptSurface(elevated: .flat)
