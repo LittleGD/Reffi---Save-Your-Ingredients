@@ -325,8 +325,74 @@ private struct ToBuySearchSheet: View {
             // 사전 검색은 키 입력마다 도는 경로다 — 분기와 그리드에서 `results`를 두 번 평가하지 않게
             // 한 번만 계산해 넘긴다(223종 스캔 x2 → x1).
             let hits = results
-            if hits.isEmpty { noMatchCard } else { searchGrid(hits) }
+            VStack(alignment: .leading, spacing: ReffiSpace.s5) {   // 그리드 섹션 간격과 같은 값
+                // 직접 입력 담기는 **결과 위**에 상시 선다 — 결과가 있어도 사용자가 친 표기가 사전
+                // 표제어와 다를 수 있고(브랜드·규격), 결과가 없으면 이 행이 곧 빈 결과의 해법이다.
+                directAddRow(trimmedQuery)
+                if hits.isEmpty { noMatchCard } else { searchGrid(hits) }
+            }
         }
+    }
+
+    /// 직접 입력 담기 — **친 그대로** 메모에 담는다(사전에 없어도). 사전 픽커가 닿지 못하는 칸을
+    /// 사용자가 손으로 채우는 §13.5 To buy 예외의 마지막 조각이다.
+    ///
+    /// **타일이 아니라 전폭 행**인 이유: 타일은 74~96pt라 "Fish sauce brand X" 같은 자유 입력이
+    /// 곧바로 잘린다. 사용자가 무엇을 담게 되는지는 이 행의 유일한 payload라 잘리면 안 된다.
+    ///
+    /// **담김 판정은 하되 탭을 막지 않는다** — 그리드와 같은 규약이다(`add(name:...)` 주석 참고):
+    /// 뷰가 게이팅하면 파생 제안으로만 있던 품목을 수동으로 흡수하는 경로가 UI에서 도달 불가해진다.
+    /// 담긴 상태에서는 타일과 **같은 도장**(`GlyphStamp`)이 찍히고 라벨이 'Added'로 바뀐다.
+    private func directAddRow(_ query: String) -> some View {
+        // 키 유도는 `appendToBuy`와 **같은 식**이다(캐논 우선, 없으면 소문자 이름) — 축이 갈리면
+        // 도장과 실제 담김 판정이 어긋난다.
+        let key = IngredientLexicon.shared.canonicalID(for: query) ?? query.lowercased()
+        let listed = store.toBuyKeys.contains(key)
+        return Button {
+            addTyped(query)
+        } label: {
+            HStack(spacing: ReffiSpace.s3) {
+                ReffiIcon.add.reffi(16, .bold).foregroundStyle(ReffiColor.blueDark)
+                Text("Add \"\(query)\"")
+                    .reffiType(.body)
+                    .foregroundStyle(ReffiColor.ink)
+                    .lineLimit(2)                      // 긴 자유 입력도 잘리지 않게(두 줄까지)
+                    .multilineTextAlignment(.leading)
+                Spacer(minLength: ReffiSpace.s2)
+                GlyphStamp(icon: ReffiIcon.check, color: ReffiColor.blueDark, size: 13)
+                    .opacity(listed ? 1 : 0)
+                    .scaleEffect(listed ? 1 : 0.6)
+            }
+            .padding(.horizontal, ReffiSpace.s4)
+            .padding(.vertical, ReffiSpace.s3)
+            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)   // §7.3 터치 타깃
+            .background {
+                // 그리드 타일과 같은 종이 문법(면 `receipt` + 옅은 그레인 + 헤어라인).
+                let s = PaperRect(cornerRadius: ReffiRadius.md, seed: 7)
+                s.fill(ReffiColor.receipt)
+                    .overlay(PaperGrain(seed: 7, strength: 0.6).clipShape(s))
+                    .paperEdge(s, tint: ReffiColor.ink.opacity(0.06))
+                    .compositingGroup()
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.paperPress)
+        // 라벨 문법은 타일과 같다(담김 여부를 라벨이 직접 말한다 — 트레잇만으론 상태가 어긋나 읽힌다).
+        .accessibilityLabel(listed ? Text("Added \(query)") : Text("Add \(query)"))
+        .accessibilityHint(Text("Adds the name exactly as typed."))
+        .accessibilityAddTraits(listed ? [.isButton, .isSelected] : .isButton)
+    }
+
+    /// 직접 입력 담기 실행 — 캐논 ID·글리프 해석을 **store에 맡긴다**(사전에 있으면 표제어로 묶이고,
+    /// 없으면 이름 매칭 → `.generic`으로 떨어진다). 뷰가 다시 추측하면 규칙이 두 곳으로 갈린다.
+    /// 애니메이션·햅틱 규약은 타일 담기(`add`)와 같다. 담긴 뒤에도 **시트는 닫히지 않고 검색어도
+    /// 그대로 둔다** — 타일과 같은 연속 추가 UX이고, 남은 검색어 덕에 같은 행이 그 자리에서
+    /// '담김' 도장으로 뒤집혀 방금 한 일이 눈에 보인다.
+    private func addTyped(_ name: String) {
+        let added = withAnimation(ReffiMotion.gated(ReffiMotion.pop, reduce: reduceMotion)) {
+            store.addToBuy(name: name)
+        }
+        if added { addHaptic += 1 }
     }
 
     /// 타일 한 칸의 표시 단위 — `key`는 matchKey(캐논 ID 또는 소문자 이름)로, '이미 담김' 판정과
@@ -464,10 +530,14 @@ private struct ToBuySearchSheet: View {
         }
     }
 
+    /// 사전에 결과가 없을 때 — "없다"는 사실만 말하고, 해법은 **위의 직접 입력 행**이 쥔다.
+    /// 옛 문구("Try another name.")는 이제 나쁜 조언이다: 바로 위에 친 그대로 담는 길이 열려 있는데
+    /// 다른 이름을 찾으라고 미는 셈이라, 두 안내가 서로를 부정한다.
     private var noMatchCard: some View {
         VStack(alignment: .leading, spacing: ReffiSpace.s2) {
             Text("No match").reffiType(.subhead).foregroundStyle(ReffiColor.ink)
-            Text("Try another name.").reffiType(.body).foregroundStyle(ReffiColor.ink2)
+            Text("Add it as typed, or try another name.")
+                .reffiType(.body).foregroundStyle(ReffiColor.ink2)
         }
         .receiptSurface(elevated: .flat)
     }

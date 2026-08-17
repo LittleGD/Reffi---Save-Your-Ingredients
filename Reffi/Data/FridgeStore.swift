@@ -672,9 +672,15 @@ final class FridgeStore {
         return entry.displayName
     }
 
-    /// 지금 목록에 떠 있는 품목 키 — 검색 시트의 '이미 담김' 표시·중복 추가 방지용(행마다 재계산 방지).
+    /// 지금 **메모에 떠 있는** 품목 키 — 검색 시트의 '이미 담김' 도장이 읽는다(행마다 재계산 방지).
+    ///
+    /// **수동만 센다.** 파생 제안을 목록에서 걷어낸 뒤(2026-08)로는 파생 키까지 합치면 도장이
+    /// 거짓말을 한다 — 메모에 없는 품목이 시트에서 '담김'으로 보이고, 실제로 누르면 그때 담긴다
+    /// (`appendToBuy`는 `manualToBuy`만 보고 막으므로 그 탭은 no-op이 아니다).
+    /// 이 집합은 **표시 전용**이라 담기를 막지 않는다 — 흡수 경로(파생으로만 있던 품목이 수동이 되는 길)는
+    /// `appendToBuy`가 그대로 쥐고 있다.
     var toBuyKeys: Set<String> {
-        Set(manualToBuy.map(\.matchKey)).union(derivedToBuy.map(\.key))
+        Set(manualToBuy.map(\.matchKey))
     }
 
     /// 첫 사용자 시드 칩 — **재료 지식이 아니라 노출 순서(UX)**라 코드 상수로 둔다.

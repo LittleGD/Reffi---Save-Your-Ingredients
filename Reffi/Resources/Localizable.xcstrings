@@ -305,6 +305,16 @@
         }
       }
     },
+    "Add \"%@\"": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\"%@\" 담기"
+          }
+        }
+      }
+    },
     "Add %@": {
       "localizations": {
         "ko": {
@@ -369,6 +379,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "재료를 추가하면 여기에 쌓여요."
+          }
+        }
+      }
+    },
+    "Add it as typed, or try another name.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "친 그대로 담거나, 다른 이름으로 찾아보세요."
           }
         }
       }
@@ -449,6 +469,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@ 담김"
+          }
+        }
+      }
+    },
+    "Adds the name exactly as typed.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "친 그대로 목록에 담아요."
           }
         }
       }
@@ -2829,16 +2859,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "더 선명한 사진으로 다시 시도해 주세요."
-          }
-        }
-      }
-    },
-    "Try another name.": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "다른 이름으로 찾아보세요."
           }
         }
       }

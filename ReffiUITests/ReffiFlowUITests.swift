@@ -186,6 +186,55 @@ final class ReffiFlowUITests: XCTestCase {
         XCTAssertTrue(app.buttons["Sort: Expiring first"].waitForExistence(timeout: 4), "기본 정렬 복귀")
     }
 
+    // MARK: To buy — 사전 밖 이름 직접 입력 담기
+
+    /// 검색 시트의 **직접 입력 담기**: 사전에 없는 이름을 친 그대로 메모에 담는다.
+    /// 사전 픽커가 원천적으로 닿지 못하는 칸(브랜드·규격명)을 사용자가 채우는 경로라, 유닛 테스트가
+    /// 닿지 못하는 배선(시트 → store → 메모 목록)을 여기서 고정한다.
+    func testToBuy_DirectAdd_TypedNameLandsInGroceryMemo() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-skipAuth", "-onboarding.done", "YES",
+                               "-fridgeTab", "-uiTestSampleFridge", "-toBuy"]
+        app.launch()
+
+        XCTAssertTrue(app.staticTexts["Grocery memo"].waitForExistence(timeout: 8), "To buy 패인")
+        app.buttons["Add item"].tap()
+
+        let field = app.textFields["Search ingredients"]
+        XCTAssertTrue(field.waitForExistence(timeout: 4), "검색 필드")
+        field.tap()
+        // 사전에 없을 것이 확실한 고유 문자열 — 매칭이 생기면 이 테스트의 전제가 깨지므로 일부러 길게.
+        let typed = "Fish sauce brand X"
+        field.typeText(typed)
+
+        // 결과 유무와 무관하게 **결과 위에** 직접 담기 행이 선다.
+        let addRow = app.buttons["Add \(typed)"]
+        XCTAssertTrue(addRow.waitForExistence(timeout: 4), "직접 입력 담기 행")
+        attach(app, named: "to-buy-direct-add-row")
+        addRow.tap()
+
+        // 중복 상태 — 같은 행이 그 자리에서 '담김'으로 뒤집힌다(타일과 같은 도장 문법).
+        // 시트는 닫히지 않고 검색어도 그대로라, 방금 한 일이 눈에 보인다.
+        let addedRow = app.buttons["Added \(typed)"]
+        XCTAssertTrue(addedRow.waitForExistence(timeout: 4),
+                      "담긴 뒤에는 같은 행이 '담김' 상태로 바뀌어야 한다")
+        XCTAssertTrue(addedRow.isSelected, "담김 상태엔 .isSelected 트레잇이 붙는다")
+        XCTAssertTrue(field.exists, "연속 추가 UX — 시트는 닫히지 않는다")
+
+        // 실제로 메모에 들어갔는가.
+        app.buttons["Close"].firstMatch.tap()
+        XCTAssertTrue(app.staticTexts[typed].waitForExistence(timeout: 4),
+                      "친 그대로의 이름이 Grocery memo 목록에 선다")
+        let shot = XCTAttachment(screenshot: app.screenshot())
+        shot.name = "to-buy-direct-add-result"
+        shot.lifetime = .keepAlways
+        add(shot)
+
+        // 상태 원복 — 테스트가 기기 저장 상태를 오염시키지 않게(Skip이 수동 항목을 지운다).
+        app.buttons["Skip \(typed) this time"].firstMatch.tap()
+        waitForDisappearance(app.staticTexts[typed], "원복: 담은 항목 제거")
+    }
+
     // MARK: 로그인 화면 요소
 
     func testAuthView_ShowsAllEntryPoints() {
