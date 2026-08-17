@@ -1361,6 +1361,16 @@
         }
       }
     },
+    "In stock": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "재고"
+          }
+        }
+      }
+    },
     "Indian": {
       "localizations": {
         "ko": {
