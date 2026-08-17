@@ -136,6 +136,41 @@ struct IngredientLexicon {
         exactKeyword[Self.norm(rawName)]
     }
 
+    /// **머리말(head noun) 일치** — 표제어가 이름의 *끝*에 올 때만 채택하는 중간 강도 조회.
+    ///
+    /// `canonicalID`의 포함 매칭은 서술형 레시피 표기에서 절반쯤 틀린다. 한국어도 영어도 복합명사는
+    /// **뒤가 머리**라서, 앞에 걸린 키워드는 대개 재료가 아니라 수식어이기 때문이다(시드 실측):
+    /// | 표기 | 포함 매칭 | 머리말 일치 |
+    /// |---|---|---|
+    /// | `감자 전분` | potato ✗ | **starch** ✓ |
+    /// | `chicken or vegetable stock` | chicken ✗ | **stock** ✓ |
+    /// | `소고기 육수` | beef ✗ | **stock** ✓ |
+    /// | `paprika powder` | bell-pepper ✗ | nil ✓ |
+    /// | `파히타 시즈닝` | green-onion ✗ | nil ✓ |
+    /// | `minced garlic`·`볶은 통깨`·`cold water` | 정답 | 정답 유지 |
+    ///
+    /// 시드 no-ref 라인 전수에서 **오귀속 0건**이고, 놓치는 것은 한국어의 형태 접미사
+    /// (`병아리콩 통조림`·`바질 잎`)뿐이다 — 그건 nil로 떨어져 표기 그대로 담기므로 **안전한 실패**다.
+    /// 잘못된 캐논은 그 품목을 남의 줄에 흡수시켜 목록에서 사라지게 하지만, 캐논 없음은 줄 하나가
+    /// 재입고로 자동으로 안 내려갈 뿐이고 눈에 보인다.
+    ///
+    /// 영문 복수형(`toasted sesame seeds` → `sesame seed`)은 받아 준다. 경계는 공백이거나
+    /// 비-ASCII(한글은 붙여 쓰므로)여야 한다 — 안 그러면 `stock`이 `livestock`에 걸린다.
+    func headNounCanonicalID(for rawName: String) -> String? {
+        let n = Self.norm(rawName)
+        guard !n.isEmpty else { return nil }
+        if let id = exactKeyword[n] { return id }
+        for (keyword, id) in containsKeywords {
+            for suffix in [keyword, keyword + "s", keyword + "es"] where n.hasSuffix(suffix) {
+                let boundary = n.index(n.endIndex, offsetBy: -suffix.count)
+                guard boundary > n.startIndex else { continue }
+                let prev = n[n.index(before: boundary)]
+                if prev == " " || !prev.isASCII { return id }
+            }
+        }
+        return nil
+    }
+
     /// 타이핑 검색 — 이름(en/ko)이 쿼리로 **시작**하는 항목이 먼저, 그 다음 포함하는 항목.
     /// `canonicalID`(단건 정규화)와 목적이 다르다: 여기선 후보 **목록**을 만든다.
     /// - 한 글자 쿼리는 prefix만 본다 — "무"·"배" 같은 한 글자가 아무 이름 안쪽에나 걸리면 목록이 무의미해진다

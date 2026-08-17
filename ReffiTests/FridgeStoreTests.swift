@@ -438,21 +438,50 @@ struct FridgeStoreTests {
 
     // MARK: 티켓 Short 행 → To buy 원탭 (addMissingToBuy)
 
+    /// 레시피 항목 리터럴 — 담기는 **표시명이 아니라 항목**을 받는다(`ref`가 있어야 표기를 풀 수 있다).
+    private func item(_ en: String, ko: String? = nil, ref: String? = nil) -> Recipe.Item {
+        Recipe.Item(ref: ref, en: en, ko: ko)
+    }
+
     @Test func addMissingResolvesRecipeNamesToCanonicalKeys() throws {
-        // 넘어오는 이름은 레시피 항목의 표시명이라 캐논이 아니다 — 여기서 해석해 담지 않으면
-        // 같은 품목이 표기별로 여러 줄 쌓이고, 재입고가 그 메모를 못 내린다.
+        // 항목의 표시명은 캐논이 아니다 — 여기서 해석해 담지 않으면 같은 품목이 표기별로 여러 줄
+        // 쌓이고, 재입고가 그 메모를 못 내린다.
         let store = FridgeStore(ingredients: [], recipes: [], history: [])
-        #expect(store.addMissingToBuy(["Green onion", "양파"]) == 2)
+        #expect(store.addMissingToBuy([item("Green onion"), item("Onion", ko: "양파")]) == 2)
         #expect(Set(store.toBuy.map(\.key)) == ["green-onion", "onion"])
         // '대파'로 재입고 = 샀다 — 같은 캐논(green-onion)이라 표기가 달라도 그 줄이 내려간다.
         store.add(ingredient("대파", glyph: .onion))
         #expect(store.toBuy.map(\.key) == ["onion"])
     }
 
+    @Test func addMissingPrefersTheRefOverTheWrittenName() throws {
+        // `ref`가 있으면 표기를 읽지 않는다 — "pork (or beef)"를 이름으로 풀면 포함 매칭이 괄호
+        // **안**의 beef에 먼저 걸린다(시드 실측). ref는 그 함정을 원천적으로 건너뛴다.
+        let store = FridgeStore(ingredients: [], recipes: [], history: [])
+        #expect(store.addMissingToBuy([item("pork (or beef)", ref: "pork")]) == 1)
+        #expect(store.toBuy.map(\.key) == ["pork"])
+    }
+
+    /// 사전에 없는 서술형 라인은 **자기 줄로** 담겨야 한다.
+    ///
+    /// 이게 이 라운드의 실질 결함이었다: 괄호만 떼고 store에 넘기면 store가 그 이름으로 포함 매칭을
+    /// 한 번 더 해서 "paprika powder"가 `bell-pepper`(파프리카)에 붙는다. 그 키가 이미 담겨 있으면
+    /// 반환이 false가 되어 **파프리카 가루는 목록에 들어가지도 않는데** 호출부는 성공으로 읽는다.
+    /// 시드 전수로 en 8종·ko 12종이 이 경로였다.
+    @Test func addMissingKeepsUnresolvedItemsOffOtherIngredientsKeys() throws {
+        let store = FridgeStore(ingredients: [], recipes: [], history: [])
+        #expect(store.addMissingToBuy([item("bell pepper (diced)", ref: "bell-pepper"),
+                                       item("paprika powder (or mild chili powder)")]) == 2)
+        let keys = store.toBuy.map(\.key)
+        #expect(keys.contains("bell-pepper"))
+        #expect(keys.contains("paprika powder"))   // 남의 키에 흡수되지 않고 자기 줄로 남는다
+        #expect(store.toBuy.count == 2)
+    }
+
     @Test func addMissingFallsBackToLowercasedKeyOutsideTheLexicon() throws {
         // 사전 밖 표기(커스텀 레시피의 자유 항목)도 담긴다 — 키는 소문자 원문, 글리프는 매칭 결과.
         let store = FridgeStore(ingredients: [], recipes: [], history: [])
-        #expect(store.addMissingToBuy(["Qqzz"]) == 1)
+        #expect(store.addMissingToBuy([item("Qqzz")]) == 1)
         let row = try #require(store.toBuy.first)
         #expect(row.key == "qqzz")
         #expect(row.name == "Qqzz")            // 사용자(레시피) 표기 그대로
@@ -464,16 +493,16 @@ struct FridgeStoreTests {
     @Test func addMissingCountsOnlyNewRows() {
         // 반환값은 **새로 담긴 수**다 — 호출부(티켓 알약)가 0이면 성공 햅틱을 울리지 않는다.
         let store = FridgeStore(ingredients: [], recipes: [], history: [])
-        #expect(store.addMissingToBuy(["양파", "당근"]) == 2)
-        #expect(store.addMissingToBuy(["onion", "carrot"]) == 0)   // 표기만 다른 같은 캐논 — 중복 no-op
-        #expect(store.addMissingToBuy(["onion", "감자"]) == 1)      // 섞이면 새것만 센다
+        #expect(store.addMissingToBuy([item("Onion", ko: "양파"), item("Carrot", ko: "당근")]) == 2)
+        #expect(store.addMissingToBuy([item("onion"), item("carrot")]) == 0)   // 같은 캐논 — 중복 no-op
+        #expect(store.addMissingToBuy([item("onion"), item("Potato", ko: "감자")]) == 1)   // 새것만 센다
         #expect(store.toBuy.count == 3)
     }
 
     @Test func addMissingIgnoresBlankNames() {
         // 빈 문자열·공백은 담지 않는다(레시피 데이터가 지저분해도 빈 줄을 만들지 않는다).
         let store = FridgeStore(ingredients: [], recipes: [], history: [])
-        #expect(store.addMissingToBuy(["", "   ", "양파"]) == 1)
+        #expect(store.addMissingToBuy([item(""), item("   "), item("Onion", ko: "양파")]) == 1)
         #expect(store.toBuy.count == 1)
     }
 
@@ -545,6 +574,41 @@ struct FridgeStoreTests {
         store.skipBuy(key: row.key)
         #expect(store.manualToBuy.isEmpty)
         #expect(store.toBuy.isEmpty)
+    }
+
+    // MARK: 티켓의 부족 재료 → 살 것 (OrderMemoCard "Add to To buy")
+
+    @Test func missingTicketItemsLandInToBuyWithCanonicalKeys() throws {
+        // 카드가 하는 일을 그대로 태운다: result.missing → toBuyEntry → addToBuy.
+        // 표시명("gim (seaweed sheets)"·"water (or anchovy stock)")을 store에 그대로 넘기면
+        // 이름 역조회(포함 매칭)가 괄호 **안** 단어에 붙어 엉뚱한 품목 키가 박힌다
+        // (실측: 앞은 우연히 맞고, 뒤는 anchovy로 간다). 뷰 유닛 테스트가 없는 영역이라 여기가 방지선.
+        //
+        // **물은 아예 `missing`에 안 남는다.** `isStaple`이 담기와 같은 3단 해석을 쓰므로
+        // `water (or anchovy stock)`은 괄호를 뗀 뒤 머리말 `water`(사전상 staple)로 잡혀 상비재로
+        // 분류된다. 예전엔 `isStaple`이 정확 일치만 봐서 이 줄이 Short에 뜬 뒤 담을 때만 `water`로
+        // 풀렸고, 그래서 장보기 목록에 "물"이 적혔다 — 이 테스트가 그 동작을 기대값으로 못 박고 있었다.
+        let recipe = Recipe(id: "gimbap-test",
+                            name: Recipe.LocalizedName(en: "Gimbap", ko: nil),
+                            cuisine: nil, minutes: 30,
+                            ingredients: [Recipe.Item(ref: "seaweed", en: "gim (seaweed sheets)", ko: "김밥용 김"),
+                                          Recipe.Item(ref: nil, en: "water (or anchovy stock)", ko: nil)],
+                            steps: Recipe.LocalizedSteps(en: [], ko: nil), isUser: nil)
+        let store = FridgeStore(ingredients: [], recipes: [recipe], history: [])
+        let result = RecipeRecommender.result(for: recipe, ingredients: [])
+        #expect(result.missing.count == 1, "상비재(물)는 부족 재료로 세지 않는다")
+        #expect(result.missing.allSatisfy { !$0.en.contains("water") })
+
+        for item in result.missing {
+            let entry = RecipeRecommender.toBuyEntry(for: item)
+            store.addToBuy(name: entry.name, canonicalID: entry.canonicalID, glyph: entry.glyph)
+        }
+        #expect(Set(store.manualToBuy.map(\.matchKey)) == ["seaweed"],
+                "상비재는 장보기 목록에 들어가지 않는다")
+
+        let gim = try #require(store.manualToBuy.first { $0.matchKey == "seaweed" })
+        #expect(gim.glyph == .seaweed)      // 사전 글리프 — 이름 추측이 아니다
+        #expect(!gim.name.contains("("))    // 목록에 조리 지시가 아니라 재료명이 남는다
     }
 
     // MARK: 자주 쓰는 재료 칩 (검색 시트 빈 쿼리 상태)

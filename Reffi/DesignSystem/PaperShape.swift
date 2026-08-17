@@ -48,8 +48,15 @@ struct PaperRect: Shape {
         // 변 휨은 **그 변의 직선 구간 길이**에 비례한다 — 가위질이 길수록 선이 더 흔들린다.
         // 반환값은 컨트롤 오프셋이라 목표 편차의 2배다(2차 베지어는 컨트롤 오프셋의 절반만 부푼다).
         // 예전 값(하한 1.5를 오프셋에 그대로 적용)은 44pt 컨트롤에서 편차 0.5pt라 3x 렌더에서도
-        // 지각되지 않았다. 지금은 하한 1.4·상한 4 = 편차 1.4~4pt로, 45pt 컨트롤에서도 손맛이 보인다.
-        func ctl(_ span: CGFloat) -> CGFloat { min(4, max(1.4, span * 0.05)) * 2 }
+        // 지각되지 않았다. 하한 1.4·상한 4 = 편차 1.4~4pt로, 45pt 컨트롤에서도 손맛이 보인다.
+        //
+        // **상한은 짧은 변에도 걸린다.** 긴 변 기준만 두면 폭은 넓고 높이는 낮은 면(재료 뱃지 ≈150×40)의
+        // 위·아래 변이 상한 4pt를 그대로 받아, 높이의 10%가 출렁이고 위아래가 반대로 휘면 실루엣이
+        // 20%까지 일그러진다("자연스럽던 왜곡이 과해졌다"는 실사용 피드백이 이 구간이다).
+        // 손으로 자른 종이도 **얇은 조각의 가장자리는 그만큼 크게 흔들리지 않는다** — 흔들림의 폭은
+        // 가위질 길이뿐 아니라 조각의 두께에도 매인다. 큰 카드(짧은 변 ≥ 80pt)는 상한 4pt 그대로다.
+        let bowCap = min(4, min(rect.width, rect.height) * 0.05)
+        func ctl(_ span: CGFloat) -> CGFloat { min(bowCap, max(1.4, span * 0.05)) * 2 }
         let (ctlTop, ctlRight) = (ctl(rect.width - r0 - r1), ctl(rect.height - r1 - r2))
         let (ctlBottom, ctlLeft) = (ctl(rect.width - r3 - r2), ctl(rect.height - r0 - r3))
         let (minX, maxX, minY, maxY) = (rect.minX, rect.maxX, rect.minY, rect.maxY)

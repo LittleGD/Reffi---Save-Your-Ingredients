@@ -169,12 +169,6 @@
     },
     "%lld times": {
       "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld회"
-          }
-        },
         "en": {
           "variations": {
             "plural": {
@@ -191,6 +185,12 @@
                 }
               }
             }
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld회"
           }
         }
       }
@@ -685,12 +685,6 @@
     },
     "Clears %lld before they spoil": {
       "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "상하기 전 %lld개 소진"
-          }
-        },
         "en": {
           "variations": {
             "plural": {
@@ -707,6 +701,12 @@
                 }
               }
             }
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "상하기 전 %lld개 소진"
           }
         }
       }
@@ -1721,12 +1721,13 @@
         }
       }
     },
-    "No recipes match these ingredients yet.\nCheck their names, or add your own recipe in Profile.": {
+    "No tickets from what's in your fridge yet.\nCheck the ingredient names, restock, or add your own recipe in Profile.": {
+      "extractionState": "manual",
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "이 재료로 만들 수 있는 레시피가 아직 없어요.\n재료 이름을 확인하거나 프로필에서 나만의 레시피를 추가해 보세요."
+            "value": "지금 냉장고에 있는 재료로 만들 티켓이 아직 없어요.\n재료 이름을 확인하거나, 장을 보거나, 프로필에서 내 레시피를 추가해 보세요."
           }
         }
       }
@@ -2454,12 +2455,6 @@
     },
     "Shopping list, %lld items": {
       "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "쇼핑리스트, %lld개"
-          }
-        },
         "en": {
           "variations": {
             "plural": {
@@ -2476,6 +2471,12 @@
                 }
               }
             }
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "쇼핑리스트, %lld개"
           }
         }
       }

@@ -7,6 +7,10 @@
         "en": "Kimchi Stew",
         "ko": "김치찌개"
       },
+      "intro": {
+        "en": "Korean stew of well-aged kimchi simmered down with pork and tofu.",
+        "ko": "잘 익은 김치에 돼지고기와 두부를 넣고 끓인 한국의 찌개."
+      },
       "cuisine": "korean",
       "minutes": 25,
       "ingredients": [
@@ -83,6 +87,10 @@
       "name": {
         "en": "Soybean Paste Stew",
         "ko": "된장찌개"
+      },
+      "intro": {
+        "en": "Korean soybean paste stew, thick with tofu and whatever vegetables are in.",
+        "ko": "된장을 풀어 두부와 채소를 넣고 끓인 한국의 찌개."
       },
       "cuisine": "korean",
       "minutes": 20,
@@ -161,6 +169,10 @@
         "en": "Beef Bulgogi",
         "ko": "소불고기"
       },
+      "intro": {
+        "en": "Korean beef sliced thin, marinated in soy and sugar, then grilled.",
+        "ko": "얇게 썬 소고기를 간장 양념에 재워 구워 낸 한국의 불고기."
+      },
       "cuisine": "korean",
       "minutes": 30,
       "ingredients": [
@@ -232,6 +244,10 @@
       "name": {
         "en": "Spicy Stir-Fried Pork",
         "ko": "제육볶음"
+      },
+      "intro": {
+        "en": "Korean pork stir-fried in gochujang and eaten as a spicy lunch staple.",
+        "ko": "돼지고기를 고추장 양념에 볶아 낸 한국의 매운 밥반찬."
       },
       "cuisine": "korean",
       "minutes": 25,
@@ -310,6 +326,10 @@
         "en": "Rolled Omelette",
         "ko": "계란말이"
       },
+      "intro": {
+        "en": "Korean rolled omelette, egg layered around finely minced vegetables.",
+        "ko": "달걀을 채소와 함께 부쳐 돌돌 말아 낸 한국의 반찬."
+      },
       "cuisine": "korean",
       "minutes": 15,
       "ingredients": [
@@ -361,6 +381,10 @@
       "name": {
         "en": "Glass Noodle Stir-Fry",
         "ko": "잡채"
+      },
+      "intro": {
+        "en": "Korean sweet potato glass noodles tossed with beef and vegetables.",
+        "ko": "당면에 소고기와 채소를 넣고 무쳐 볶은 한국의 잔칫상 요리."
       },
       "cuisine": "korean",
       "minutes": 40,
@@ -445,6 +469,10 @@
       "name": {
         "en": "Bibimbap",
         "ko": "비빔밥"
+      },
+      "intro": {
+        "en": "Korean rice bowl under seasoned vegetables, beef and an egg, mixed at the table.",
+        "ko": "밥 위에 나물과 고기, 달걀을 얹어 고추장에 비벼 먹는 한국 요리."
       },
       "cuisine": "korean",
       "minutes": 35,
@@ -535,6 +563,10 @@
         "en": "Kimchi Fried Rice",
         "ko": "김치볶음밥"
       },
+      "intro": {
+        "en": "Korean fried rice built on sour kimchi and day-old rice.",
+        "ko": "신 김치와 찬밥을 함께 볶아 낸 한국의 한 끼 볶음밥."
+      },
       "cuisine": "korean",
       "minutes": 15,
       "ingredients": [
@@ -602,6 +634,10 @@
         "en": "Bean Sprout Soup",
         "ko": "콩나물국"
       },
+      "intro": {
+        "en": "Clear Korean soup of bean sprouts simmered in anchovy stock.",
+        "ko": "멸치 육수에 콩나물을 넣고 맑게 끓인 한국의 국."
+      },
       "cuisine": "korean",
       "minutes": 20,
       "ingredients": [
@@ -664,6 +700,10 @@
         "en": "Seaweed Soup",
         "ko": "미역국"
       },
+      "intro": {
+        "en": "Korean seaweed soup simmered with beef and served on birthday mornings.",
+        "ko": "미역과 소고기를 넣고 끓인 한국의 생일 아침 국."
+      },
       "cuisine": "korean",
       "minutes": 30,
       "ingredients": [
@@ -725,6 +765,10 @@
       "name": {
         "en": "Braised Beef Short Ribs",
         "ko": "갈비찜"
+      },
+      "intro": {
+        "en": "Korean short ribs braised slowly with radish and carrot until they fall apart.",
+        "ko": "소갈비를 무·당근과 함께 간장에 푹 조린 한국의 잔치 음식."
       },
       "cuisine": "korean",
       "minutes": 90,
@@ -810,6 +854,10 @@
         "en": "Spicy Braised Chicken",
         "ko": "닭볶음탕"
       },
+      "intro": {
+        "en": "Korean chicken braised with potato in a red, chili-thick broth.",
+        "ko": "닭과 감자를 고춧가루 양념에 자작하게 졸인 한국의 매운 조림."
+      },
       "cuisine": "korean",
       "minutes": 45,
       "ingredients": [
@@ -892,6 +940,10 @@
         "en": "Spicy Rice Cakes",
         "ko": "떡볶이"
       },
+      "intro": {
+        "en": "Korean rice cakes simmered in sweet-hot gochujang sauce.",
+        "ko": "가래떡을 고추장 양념에 졸여 낸 한국의 대표 분식."
+      },
       "cuisine": "korean",
       "minutes": 20,
       "ingredients": [
@@ -964,6 +1016,10 @@
         "en": "Kimchi Pancake",
         "ko": "김치전"
       },
+      "intro": {
+        "en": "Korean kimchi pancake, thin batter fried crisp at the edges.",
+        "ko": "김치를 밀가루 반죽에 섞어 얇게 부쳐 낸 한국의 전."
+      },
       "cuisine": "korean",
       "minutes": 20,
       "ingredients": [
@@ -1020,6 +1076,10 @@
       "name": {
         "en": "Spicy Cucumber Salad",
         "ko": "오이무침"
+      },
+      "intro": {
+        "en": "Korean cucumber salad dressed sharp with gochugaru and vinegar.",
+        "ko": "오이를 고춧가루와 식초에 새콤하게 무친 한국의 반찬."
       },
       "cuisine": "korean",
       "minutes": 10,
@@ -1086,6 +1146,10 @@
         "en": "Seasoned Spinach",
         "ko": "시금치나물"
       },
+      "intro": {
+        "en": "Korean blanched spinach seasoned with garlic and sesame oil.",
+        "ko": "데친 시금치를 마늘과 참기름에 무친 한국의 나물 반찬."
+      },
       "cuisine": "korean",
       "minutes": 10,
       "ingredients": [
@@ -1145,6 +1209,10 @@
       "name": {
         "en": "Soy-Braised Potatoes",
         "ko": "감자조림"
+      },
+      "intro": {
+        "en": "Korean potatoes braised down in sweet soy until glossy.",
+        "ko": "감자를 간장에 달큰하게 조려 낸 한국의 밑반찬."
       },
       "cuisine": "korean",
       "minutes": 25,
@@ -1207,6 +1275,10 @@
       "name": {
         "en": "Stir-Fried Fish Cakes",
         "ko": "어묵볶음"
+      },
+      "intro": {
+        "en": "Korean fish cakes stir-fried with onion in soy sauce.",
+        "ko": "어묵을 양파와 함께 간장 양념에 볶은 한국의 밑반찬."
       },
       "cuisine": "korean",
       "minutes": 15,
@@ -1279,6 +1351,10 @@
       "name": {
         "en": "Soft Tofu Stew",
         "ko": "순두부찌개"
+      },
+      "intro": {
+        "en": "Korean stew of silken tofu, spiced red and finished with a raw egg.",
+        "ko": "순두부를 얼큰하게 끓여 달걀을 풀어 낸 한국의 찌개."
       },
       "cuisine": "korean",
       "minutes": 25,
@@ -1362,6 +1438,10 @@
         "en": "Gimbap (Seaweed Rice Rolls)",
         "ko": "김밥"
       },
+      "intro": {
+        "en": "Korean rolls of rice and fillings wrapped in gim, then sliced into rounds.",
+        "ko": "밥과 속재료를 김에 말아 썰어 낸 한국의 김밥."
+      },
       "cuisine": "korean",
       "minutes": 40,
       "ingredients": [
@@ -1441,6 +1521,10 @@
         "en": "Grilled Pork Belly with Lettuce Wraps",
         "ko": "삼겹살구이와 쌈"
       },
+      "intro": {
+        "en": "Korean grilled pork belly, eaten wrapped in lettuce and perilla leaves.",
+        "ko": "삼겹살을 구워 상추와 깻잎에 싸 먹는 한국의 구이."
+      },
       "cuisine": "korean",
       "minutes": 25,
       "ingredients": [
@@ -1518,6 +1602,10 @@
         "en": "Chicken Rice Porridge",
         "ko": "닭죽"
       },
+      "intro": {
+        "en": "Korean rice porridge simmered in chicken broth until the grains break down.",
+        "ko": "닭 육수에 쌀을 오래 끓여 부드럽게 쑨 한국의 죽."
+      },
       "cuisine": "korean",
       "minutes": 50,
       "ingredients": [
@@ -1590,6 +1678,10 @@
         "en": "Beef Rice Bowl (Gyudon)",
         "ko": "규동"
       },
+      "intro": {
+        "en": "Japanese rice bowl of beef and onion simmered in sweet soy.",
+        "ko": "소고기와 양파를 간장에 달큰하게 조려 밥에 얹은 일본의 덮밥."
+      },
       "cuisine": "japanese",
       "minutes": 20,
       "ingredients": [
@@ -1656,6 +1748,10 @@
       "name": {
         "en": "Chicken and Egg Rice Bowl",
         "ko": "오야코동"
+      },
+      "intro": {
+        "en": "Japanese rice bowl of chicken and egg cooked together in one pan.",
+        "ko": "닭고기와 달걀을 함께 조려 밥에 얹은 일본의 덮밥."
       },
       "cuisine": "japanese",
       "minutes": 20,
@@ -1729,6 +1825,10 @@
         "en": "Miso Soup",
         "ko": "미소시루"
       },
+      "intro": {
+        "en": "Japanese miso soup with tofu and wakame in dashi.",
+        "ko": "다시 국물에 미소를 풀고 두부와 미역을 넣은 일본의 국."
+      },
       "cuisine": "japanese",
       "minutes": 10,
       "ingredients": [
@@ -1780,6 +1880,10 @@
       "name": {
         "en": "Yakisoba (Stir-Fried Noodles)",
         "ko": "야키소바"
+      },
+      "intro": {
+        "en": "Japanese wheat noodles stir-fried with pork and cabbage in a tangy sauce.",
+        "ko": "중화면을 돼지고기·양배추와 함께 소스에 볶은 일본의 면요리."
       },
       "cuisine": "japanese",
       "minutes": 20,
@@ -1857,6 +1961,10 @@
       "name": {
         "en": "Japanese Curry Rice",
         "ko": "카레라이스"
+      },
+      "intro": {
+        "en": "Mild, thick Japanese curry ladled over rice.",
+        "ko": "감자와 당근을 넣어 걸쭉하게 끓여 밥에 부어 먹는 일본식 카레."
       },
       "cuisine": "japanese",
       "minutes": 40,
@@ -1942,6 +2050,10 @@
         "en": "Japanese Steamed Egg Custard",
         "ko": "일본식 계란찜 (자완무시)"
       },
+      "intro": {
+        "en": "Japanese savory egg custard, steamed soft with shrimp and mushroom.",
+        "ko": "달걀을 육수에 풀어 새우와 버섯을 넣고 부드럽게 찐 일본의 계란찜."
+      },
       "cuisine": "japanese",
       "minutes": 25,
       "ingredients": [
@@ -2004,6 +2116,10 @@
         "en": "Grilled Salmon Set Meal",
         "ko": "연어구이 정식"
       },
+      "intro": {
+        "en": "Japanese set meal built around salted, grilled salmon with rice.",
+        "ko": "소금 간해 구운 연어에 밥을 곁들인 일본의 정식 한 상."
+      },
       "cuisine": "japanese",
       "minutes": 25,
       "ingredients": [
@@ -2065,6 +2181,10 @@
       "name": {
         "en": "Egg Fried Rice",
         "ko": "계란볶음밥"
+      },
+      "intro": {
+        "en": "Chinese fried rice, egg and day-old rice thrown over high heat.",
+        "ko": "찬밥과 달걀을 센 불에 빠르게 볶아 낸 중국식 볶음밥."
       },
       "cuisine": "chinese",
       "minutes": 15,
@@ -2132,6 +2252,10 @@
       "name": {
         "en": "Mapo Tofu",
         "ko": "마파두부"
+      },
+      "intro": {
+        "en": "Sichuan tofu braised with ground pork in a numbing chili sauce.",
+        "ko": "두부를 다진 돼지고기와 매운 소스에 조린 중국 쓰촨의 요리."
       },
       "cuisine": "chinese",
       "minutes": 25,
@@ -2217,6 +2341,10 @@
         "en": "Garlic Bok Choy Stir-Fry",
         "ko": "청경채 마늘볶음"
       },
+      "intro": {
+        "en": "Chinese bok choy flashed in the wok with sliced garlic.",
+        "ko": "청경채를 마늘과 함께 센 불에 재빨리 볶은 중국식 채소 요리."
+      },
       "cuisine": "chinese",
       "minutes": 10,
       "ingredients": [
@@ -2271,6 +2399,10 @@
       "name": {
         "en": "Sweet and Spicy Crispy Chicken (Kkanpunggi Style)",
         "ko": "깐풍기풍 닭요리"
+      },
+      "intro": {
+        "en": "Chinese-style fried chicken tossed in a sweet, garlicky chili glaze.",
+        "ko": "튀긴 닭을 마늘·고추 간장 소스에 버무린 중화풍 닭요리."
       },
       "cuisine": "chinese",
       "minutes": 35,
@@ -2356,6 +2488,10 @@
         "en": "Tomato and Egg Stir-Fry",
         "ko": "토마토 계란볶음"
       },
+      "intro": {
+        "en": "Chinese home cooking that scrambles eggs into stewed tomato.",
+        "ko": "토마토와 달걀을 함께 볶아 낸 중국의 대표 가정식."
+      },
       "cuisine": "chinese",
       "minutes": 15,
       "ingredients": [
@@ -2417,6 +2553,10 @@
       "name": {
         "en": "Chicken Chow Mein",
         "ko": "닭고기 볶음면"
+      },
+      "intro": {
+        "en": "Chinese chow mein, noodles tossed with chicken and shredded vegetables.",
+        "ko": "면을 닭고기·채소와 함께 볶아 낸 중국의 볶음면."
       },
       "cuisine": "chinese",
       "minutes": 25,
@@ -2499,6 +2639,10 @@
       "name": {
         "en": "Pad Thai",
         "ko": "팟타이"
+      },
+      "intro": {
+        "en": "Thai rice noodles stir-fried sweet and sour with tamarind and peanuts.",
+        "ko": "쌀국수를 타마린드 소스에 새콤달콤하게 볶은 태국의 국민 면요리."
       },
       "cuisine": "thai",
       "minutes": 25,
@@ -2594,6 +2738,10 @@
         "en": "Thai Green Curry",
         "ko": "그린커리"
       },
+      "intro": {
+        "en": "Thai curry built on coconut milk loosened with green chili paste.",
+        "ko": "코코넛 밀크에 그린커리 페이스트를 풀어 끓인 태국의 커리."
+      },
       "cuisine": "thai",
       "minutes": 30,
       "ingredients": [
@@ -2670,6 +2818,10 @@
       "name": {
         "en": "Banh Mi Style Sandwich",
         "ko": "반미풍 샌드위치"
+      },
+      "intro": {
+        "en": "Vietnamese baguette sandwich with pork and pickled vegetables.",
+        "ko": "바게트에 고기와 절인 채소를 채운 베트남의 샌드위치."
       },
       "cuisine": "vietnamese",
       "minutes": 20,
@@ -2758,6 +2910,10 @@
         "en": "Nasi Goreng (Indonesian Fried Rice)",
         "ko": "나시고렝"
       },
+      "intro": {
+        "en": "Indonesian fried rice, darkened and sweetened with kecap manis.",
+        "ko": "달콤한 간장에 볶아 진한 색을 낸 인도네시아의 볶음밥."
+      },
       "cuisine": "other",
       "minutes": 20,
       "ingredients": [
@@ -2839,6 +2995,10 @@
       "name": {
         "en": "Quick Beef Pho",
         "ko": "소고기 쌀국수"
+      },
+      "intro": {
+        "en": "Vietnamese rice noodles served in clear beef broth and finished with herbs.",
+        "ko": "맑은 소고기 육수에 쌀국수를 말아 낸 베트남의 국수."
       },
       "cuisine": "vietnamese",
       "minutes": 40,
@@ -2929,6 +3089,10 @@
         "en": "Tomato Pasta",
         "ko": "토마토 파스타"
       },
+      "intro": {
+        "en": "Italian pasta in a tomato sauce cooked down with garlic and olive oil.",
+        "ko": "토마토를 마늘과 함께 졸여 만든 이탈리아의 기본 파스타."
+      },
       "cuisine": "italian",
       "minutes": 25,
       "ingredients": [
@@ -3001,6 +3165,10 @@
         "en": "Carbonara-Style Pasta",
         "ko": "까르보나라풍 파스타"
       },
+      "intro": {
+        "en": "Roman pasta bound with egg and cheese, not cream.",
+        "ko": "달걀과 치즈만으로 소스를 낸 이탈리아 로마식 파스타."
+      },
       "cuisine": "italian",
       "minutes": 20,
       "ingredients": [
@@ -3058,6 +3226,10 @@
         "en": "Aglio e Olio",
         "ko": "알리오 올리오"
       },
+      "intro": {
+        "en": "Italian pasta dressed with nothing but garlic, olive oil and chili.",
+        "ko": "마늘과 올리브유, 고추만으로 낸 이탈리아의 파스타."
+      },
       "cuisine": "italian",
       "minutes": 15,
       "ingredients": [
@@ -3114,6 +3286,10 @@
       "name": {
         "en": "Margherita-Style Toast",
         "ko": "마르게리타풍 토스트"
+      },
+      "intro": {
+        "en": "Tomato, mozzarella and basil on toast, in the Italian margherita style.",
+        "ko": "토마토와 모차렐라를 얹어 구운 이탈리아 마르게리타풍 토스트."
       },
       "cuisine": "italian",
       "minutes": 10,
@@ -3174,6 +3350,10 @@
       "name": {
         "en": "Minestrone",
         "ko": "미네스트로네"
+      },
+      "intro": {
+        "en": "Italian vegetable soup, built from whatever the season gives.",
+        "ko": "제철 채소를 두루 넣고 끓인 이탈리아의 채소 수프."
       },
       "cuisine": "italian",
       "minutes": 35,
@@ -3257,6 +3437,10 @@
         "en": "Mushroom Risotto",
         "ko": "버섯 리조또"
       },
+      "intro": {
+        "en": "Italian risotto stirred slowly with mushrooms until the rice turns creamy.",
+        "ko": "쌀을 육수에 천천히 저어 버섯과 함께 끓인 이탈리아의 리조또."
+      },
       "cuisine": "italian",
       "minutes": 35,
       "ingredients": [
@@ -3336,6 +3520,10 @@
         "en": "Caprese Salad",
         "ko": "카프레제"
       },
+      "intro": {
+        "en": "Italian salad of tomato and mozzarella, dressed with oil alone.",
+        "ko": "토마토와 모차렐라에 올리브유만 곁들인 이탈리아의 샐러드."
+      },
       "cuisine": "italian",
       "minutes": 10,
       "ingredients": [
@@ -3395,6 +3583,10 @@
       "name": {
         "en": "Lasagna-Style Pasta Bake",
         "ko": "라자냐풍 베이크"
+      },
+      "intro": {
+        "en": "Pasta layered with meat sauce and cheese, then baked Italian style.",
+        "ko": "파스타에 미트소스와 치즈를 켜켜이 올려 구운 이탈리아풍 베이크."
       },
       "cuisine": "italian",
       "minutes": 50,
@@ -3490,6 +3682,10 @@
         "en": "Scrambled Eggs",
         "ko": "스크램블에그"
       },
+      "intro": {
+        "en": "Eggs stirred soft in butter for the standard American breakfast plate.",
+        "ko": "달걀을 버터에 부드럽게 저어 익힌 미국식 아침 달걀 요리."
+      },
       "cuisine": "american",
       "minutes": 10,
       "ingredients": [
@@ -3541,6 +3737,10 @@
       "name": {
         "en": "Cheese Omelette",
         "ko": "치즈 오믈렛"
+      },
+      "intro": {
+        "en": "American diner omelette folded around melting cheese.",
+        "ko": "달걀을 부쳐 치즈를 넣고 반으로 접어 낸 미국식 오믈렛."
       },
       "cuisine": "american",
       "minutes": 10,
@@ -3598,6 +3798,10 @@
       "name": {
         "en": "Pancakes",
         "ko": "팬케이크"
+      },
+      "intro": {
+        "en": "Thick, fluffy American pancakes served in a stack with syrup.",
+        "ko": "반죽을 도톰하게 부쳐 시럽을 곁들이는 미국의 팬케이크."
       },
       "cuisine": "american",
       "minutes": 20,
@@ -3668,6 +3872,10 @@
         "en": "French Toast",
         "ko": "프렌치토스트"
       },
+      "intro": {
+        "en": "Bread soaked in egg and milk, then griddled for an American brunch staple.",
+        "ko": "빵을 달걀물에 적셔 노릇하게 구운 미국식 브런치 토스트."
+      },
       "cuisine": "american",
       "minutes": 15,
       "ingredients": [
@@ -3730,6 +3938,10 @@
         "en": "Grilled Cheese Sandwich",
         "ko": "그릴드 치즈 샌드위치"
       },
+      "intro": {
+        "en": "American sandwich of buttered bread griddled until the cheese melts inside.",
+        "ko": "버터 바른 빵 사이에 치즈를 녹여 구운 미국의 샌드위치."
+      },
       "cuisine": "american",
       "minutes": 10,
       "ingredients": [
@@ -3771,6 +3983,10 @@
       "name": {
         "en": "BLT Sandwich",
         "ko": "BLT 샌드위치"
+      },
+      "intro": {
+        "en": "American sandwich of bacon, lettuce and tomato, held together with mayo.",
+        "ko": "베이컨과 상추, 토마토를 넣은 미국의 대표 샌드위치."
       },
       "cuisine": "american",
       "minutes": 15,
@@ -3828,6 +4044,10 @@
       "name": {
         "en": "Chicken Salad",
         "ko": "치킨 샐러드"
+      },
+      "intro": {
+        "en": "Sliced chicken laid over greens with a light dressing, American style.",
+        "ko": "구운 닭가슴살을 채소 위에 올린 미국식 샐러드."
       },
       "cuisine": "american",
       "minutes": 20,
@@ -3906,6 +4126,10 @@
         "en": "Mashed Potatoes",
         "ko": "매쉬드 포테이토"
       },
+      "intro": {
+        "en": "American mashed potatoes, whipped smooth with butter and warm milk.",
+        "ko": "삶은 감자를 버터와 우유에 곱게 으깬 미국의 곁들임 요리."
+      },
       "cuisine": "american",
       "minutes": 25,
       "ingredients": [
@@ -3957,6 +4181,10 @@
       "name": {
         "en": "Homemade Burger Patty",
         "ko": "수제 버거 패티"
+      },
+      "intro": {
+        "en": "Ground beef bound with egg and seared into an American burger patty.",
+        "ko": "다진 소고기를 반죽해 구워 낸 미국식 수제 버거 패티."
       },
       "cuisine": "american",
       "minutes": 25,
@@ -4019,6 +4247,10 @@
       "name": {
         "en": "Mac and Cheese",
         "ko": "맥앤치즈"
+      },
+      "intro": {
+        "en": "American macaroni in a cheese sauce built on a butter roux.",
+        "ko": "마카로니를 치즈 소스에 버무린 미국의 대표 가정식."
       },
       "cuisine": "american",
       "minutes": 25,
@@ -4087,6 +4319,10 @@
         "en": "Quesadilla",
         "ko": "퀘사디아"
       },
+      "intro": {
+        "en": "Mexican tortilla folded over melted cheese and griddled flat.",
+        "ko": "토르티야에 치즈와 채소를 넣고 구워 반으로 접은 멕시코 요리."
+      },
       "cuisine": "mexican",
       "minutes": 15,
       "ingredients": [
@@ -4143,6 +4379,10 @@
       "name": {
         "en": "Beef Tacos",
         "ko": "소고기 타코"
+      },
+      "intro": {
+        "en": "Mexican tacos built from seasoned beef spooned into small tortillas.",
+        "ko": "양념한 소고기를 작은 토르티야에 얹어 먹는 멕시코의 타코."
       },
       "cuisine": "mexican",
       "minutes": 25,
@@ -4221,6 +4461,10 @@
         "en": "Burrito Bowl",
         "ko": "부리토볼"
       },
+      "intro": {
+        "en": "Burrito fillings served over rice instead of wrapped, Mexican style.",
+        "ko": "부리토 속재료를 밥 위에 올려 먹는 멕시코풍 볼."
+      },
       "cuisine": "mexican",
       "minutes": 30,
       "ingredients": [
@@ -4298,6 +4542,10 @@
         "en": "Fresh Salsa with Nachos",
         "ko": "살사와 나초"
       },
+      "intro": {
+        "en": "Mexican raw tomato salsa with tortilla wedges baked crisp.",
+        "ko": "생 토마토 살사에 바삭하게 구운 토르티야를 곁들인 멕시코 요리."
+      },
       "cuisine": "mexican",
       "minutes": 20,
       "ingredients": [
@@ -4364,6 +4612,10 @@
       "name": {
         "en": "Chicken Fajitas",
         "ko": "치킨 파히타"
+      },
+      "intro": {
+        "en": "Chicken and peppers seared hot for Mexican fajitas, wrapped at the table.",
+        "ko": "닭고기와 파프리카를 구워 토르티야에 싸 먹는 멕시코 요리."
       },
       "cuisine": "mexican",
       "minutes": 25,
@@ -4436,6 +4688,10 @@
       "name": {
         "en": "Ratatouille",
         "ko": "라따뚜이"
+      },
+      "intro": {
+        "en": "French Provençal stew of summer vegetables cooked down slowly.",
+        "ko": "여름 채소를 뭉근히 익힌 프랑스 프로방스의 채소 요리."
       },
       "cuisine": "french",
       "minutes": 40,
@@ -4516,6 +4772,10 @@
         "en": "Cream of Mushroom Soup",
         "ko": "버섯 크림수프"
       },
+      "intro": {
+        "en": "French mushroom soup thickened with a butter roux and cream.",
+        "ko": "버섯을 볶아 루와 크림으로 걸쭉하게 끓인 프랑스식 수프."
+      },
       "cuisine": "french",
       "minutes": 30,
       "ingredients": [
@@ -4582,6 +4842,10 @@
       "name": {
         "en": "Potato Gratin",
         "ko": "감자 그라탕"
+      },
+      "intro": {
+        "en": "French gratin of sliced potatoes baked in cream until browned on top.",
+        "ko": "얇게 썬 감자를 크림에 재워 노릇하게 구운 프랑스의 그라탕."
       },
       "cuisine": "french",
       "minutes": 55,
@@ -4652,6 +4916,10 @@
         "en": "Crepes",
         "ko": "크레페"
       },
+      "intro": {
+        "en": "French crepes, thin batter spread wide across the pan.",
+        "ko": "묽은 반죽을 팬에 얇게 펴 부쳐 낸 프랑스의 크레페."
+      },
       "cuisine": "french",
       "minutes": 25,
       "ingredients": [
@@ -4710,6 +4978,10 @@
       "name": {
         "en": "French Onion Soup",
         "ko": "프렌치 어니언 수프"
+      },
+      "intro": {
+        "en": "French soup of onions caramelized long, capped with bread and cheese.",
+        "ko": "양파를 오래 볶아 끓이고 빵과 치즈를 얹은 프랑스의 수프."
       },
       "cuisine": "french",
       "minutes": 50,
@@ -4772,6 +5044,10 @@
       "name": {
         "en": "Nicoise-Style Salad",
         "ko": "니수아즈풍 샐러드"
+      },
+      "intro": {
+        "en": "Salad from Nice with tuna, boiled egg and potato over greens.",
+        "ko": "참치와 달걀, 감자를 채소에 곁들인 프랑스 니스식 샐러드."
       },
       "cuisine": "french",
       "minutes": 25,
@@ -4855,6 +5131,10 @@
         "en": "Schnitzel-Style Pork Cutlet",
         "ko": "슈니첼풍 포크 커틀릿"
       },
+      "intro": {
+        "en": "Pork loin pounded thin, breaded and fried until crisp.",
+        "ko": "돼지 등심을 얇게 두드려 빵가루를 입혀 바삭하게 튀긴 커틀릿."
+      },
       "cuisine": "other",
       "minutes": 30,
       "ingredients": [
@@ -4921,6 +5201,10 @@
       "name": {
         "en": "Butter Chicken-Style Curry",
         "ko": "버터치킨풍 커리"
+      },
+      "intro": {
+        "en": "North Indian curry that simmers chicken in a buttery tomato sauce.",
+        "ko": "닭고기를 버터와 토마토 소스에 끓인 북인도의 커리."
       },
       "cuisine": "indian",
       "minutes": 40,
@@ -5006,6 +5290,10 @@
         "en": "Chickpea Curry",
         "ko": "병아리콩 커리"
       },
+      "intro": {
+        "en": "Indian chana curry, chickpeas simmered in spiced tomato.",
+        "ko": "병아리콩을 향신료와 토마토에 끓인 인도의 커리."
+      },
       "cuisine": "indian",
       "minutes": 30,
       "ingredients": [
@@ -5083,6 +5371,10 @@
         "en": "Hummus with Flatbread",
         "ko": "후무스와 플랫브레드"
       },
+      "intro": {
+        "en": "Middle Eastern chickpea dip whipped smooth with tahini and lemon.",
+        "ko": "병아리콩을 타히니와 레몬에 곱게 간 중동의 딥."
+      },
       "cuisine": "middle-eastern",
       "minutes": 20,
       "ingredients": [
@@ -5144,6 +5436,10 @@
       "name": {
         "en": "Shakshuka",
         "ko": "샥슈카"
+      },
+      "intro": {
+        "en": "Middle Eastern eggs poached in a spiced tomato and pepper stew.",
+        "ko": "매콤한 토마토 소스에 달걀을 익혀 낸 중동의 요리."
       },
       "cuisine": "middle-eastern",
       "minutes": 30,
@@ -5222,6 +5518,10 @@
         "en": "Tandoori-Style Grilled Chicken",
         "ko": "탄두리풍 치킨구이"
       },
+      "intro": {
+        "en": "Indian tandoori chicken marinated in yogurt and roasted until charred.",
+        "ko": "요거트와 향신료에 재운 닭을 붉게 구워 낸 인도의 요리."
+      },
       "cuisine": "indian",
       "minutes": 45,
       "ingredients": [
@@ -5294,6 +5594,10 @@
         "en": "Pan-Seared Salmon Steak",
         "ko": "연어 스테이크"
       },
+      "intro": {
+        "en": "Salmon fillet seared skin-down and basted with lemon butter.",
+        "ko": "연어를 껍질부터 바싹 구워 레몬 버터를 끼얹은 스테이크."
+      },
       "cuisine": "other",
       "minutes": 20,
       "ingredients": [
@@ -5355,6 +5659,10 @@
       "name": {
         "en": "Garlic Butter Shrimp",
         "ko": "갈릭버터새우"
+      },
+      "intro": {
+        "en": "Shrimp cooked fast in garlic and butter, finished with lemon.",
+        "ko": "새우를 마늘 버터에 재빨리 익혀 레몬을 뿌려 낸 요리."
       },
       "cuisine": "other",
       "minutes": 15,
@@ -5418,6 +5726,10 @@
         "en": "Pan-Seared Steak",
         "ko": "팬시어드 스테이크"
       },
+      "intro": {
+        "en": "Steak seared hard in a hot pan, then basted with garlic butter.",
+        "ko": "센 불에 겉을 바싹 구워 마늘 버터를 끼얹은 미국식 스테이크."
+      },
       "cuisine": "american",
       "minutes": 20,
       "ingredients": [
@@ -5474,6 +5786,10 @@
       "name": {
         "en": "Vegetable Soup",
         "ko": "야채수프"
+      },
+      "intro": {
+        "en": "Clear soup of whatever vegetables are on hand, simmered until soft.",
+        "ko": "있는 채소를 두루 넣고 맑게 끓여 낸 채소 수프."
       },
       "cuisine": "other",
       "minutes": 35,
@@ -5546,6 +5862,10 @@
       "name": {
         "en": "Vegetable Frittata",
         "ko": "야채 프리타타"
+      },
+      "intro": {
+        "en": "Italian open-faced omelette, vegetables set in slow-cooked egg.",
+        "ko": "달걀에 채소를 넣어 팬째 천천히 익힌 이탈리아식 오믈렛."
       },
       "cuisine": "italian",
       "minutes": 25,

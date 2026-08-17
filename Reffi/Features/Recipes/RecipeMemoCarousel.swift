@@ -18,8 +18,11 @@ struct RecipeMemoCarousel: View {
     var uncoveredNames: [String] = []
     var onClose: () -> Void
     var onFire: (RecipeRecommender.Result) -> Void = { _ in }
-    /// Short 행의 To buy 원탭 — 부족 재료 이름들을 받아 **새로 담긴 수**를 돌려준다(스토어 배선).
-    var onAddMissing: (([String]) -> Int)?
+    /// Short 행의 To buy 원탭 — 부족 재료 **전부**를 담고 새로 담긴 수를 돌려준다(§13.5).
+    /// 덱은 그대로 앞 티켓에 전달만 한다. 이 탭은 화면을 옮기지 않는다 — 담기가 끝이고, 목록은
+    /// 냉장고 탭의 To buy 카드로 연다. 그래서 덱 위에 뜨는 중첩 프레젠테이션이 하나도 없고,
+    /// 발주 지연 닫기와 경쟁할 상대도 없다.
+    var onAddMissing: (([Recipe.Item]) -> Int)?
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.openURL) private var openURL
@@ -99,9 +102,7 @@ struct RecipeMemoCarousel: View {
                       onFire: { fire(results[idx]) },
                       // 플릭 발주는 **앞 티켓만** — 뒤 티켓엔 0을 고정해 트리거가 전파되지 않게 한다.
                       fireTrigger: isFront ? fireTrigger : 0,
-                      // 담을 이름은 **그 카드의** 부족 재료다 — 카드는 result를 다시 들고 오지 않고
-                      // '몇 개 새로 담겼나'만 돌려받는다(햅틱 판단은 카드가 한다).
-                      onAddMissing: onAddMissing.map { add in { add(results[idx].missing) } })
+                      onAddMissing: onAddMissing)
             .frame(height: cardHeight)   // 카드가 컨테이너를 넘지 못하게 캡(headerOnly도 동일 캡)
             .padding(.horizontal, ReffiGrid.margin + 8)
             .padding(.top, topInset)
@@ -349,7 +350,12 @@ struct RecipeMemoCarousel: View {
                 }
                 .accessibilityHint(Text("Opens YouTube in your browser"))
             } else if hasIngredients {
-                Text("No recipes match these ingredients yet.\nCheck their names, or add your own recipe in Profile.")
+                // 재고는 있는데 덱이 빈 경우. 원인이 **둘**이라 문안도 둘을 함께 말한다:
+                // ① 재료가 모자람(부족 3개 이상은 `maxMissingForRecommendation`이 거른다)
+                // ② 재료 이름이 사전과 안 맞아 `used`가 비어 후보에서 빠짐(`rank`의 `!$0.used.isEmpty`).
+                // ②는 여전히 살아 있는 경로라 원인을 ①로 단정하면, 오타로 등록한 사용자는 장을 봐도
+                // 덱이 계속 비고 진짜 해법(이름 확인)은 화면 어디에도 없게 된다.
+                Text("No tickets from what's in your fridge yet.\nCheck the ingredient names, restock, or add your own recipe in Profile.")
                     .reffiType(.body).foregroundStyle(ReffiColor.ink2).multilineTextAlignment(.center)
             } else {
                 Text("Keep a few ingredients on, then start cooking.")

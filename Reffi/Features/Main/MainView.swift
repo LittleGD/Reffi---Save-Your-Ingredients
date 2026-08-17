@@ -93,7 +93,11 @@ struct MainView: View {
 
             physicsField
                 .frame(maxWidth: .infinity, maxHeight: fieldRestHeight)
-                .frame(maxHeight: .infinity)   // 남는 공백을 위아래로 갈라 더미가 광학 중앙에 앉는다
+                // 남는 공백은 **전부 위로** 몬다 — 더미가 뱃지 바로 위에 내려앉는다.
+                // 가운데 정렬이던 시절엔 필드 상자 자체가 화면 중앙에 떠서, 칩이 상자 바닥에
+                // 정확히 붙어 있는데도 "바닥에 안 붙는다"로 읽혔다(-physLab 오버레이로 확인).
+                // 중력 방향(아래)과 더미가 앉는 자리가 어긋나면 물리가 거짓말하는 것처럼 보인다.
+                .frame(maxHeight: .infinity, alignment: .bottom)
 
             if !counter.isEmpty {
                 badgeScroll
@@ -463,6 +467,12 @@ struct MainView: View {
     /// 빈 띠로 남아, 배너와 더미 사이가 뷰포트의 4분의 1이 됐다(감사 R3-4).
     /// 낙하 스폰은 씬 바깥 절대 좌표(`size.height + 700`)라 드라마는 이 캡과 무관하다.
     /// 칩은 화면 폭에서 3열로 눕으므로 행 수 = ⌈n/3⌉, 행 피치·바닥 여유는 실측값이다.
+    /// **스프라이트 몫을 더 얹지 않는다(2026-08 실측으로 기각).** 칩 스프라이트는 `chipSide` 정사각인데
+    /// 충돌 바디는 그 높이의 0.28~0.71뿐이라 "그림이 캡 위로 잘리는 것 아닌가"를 의심할 만하지만,
+    /// 실제로 그려지는 건 스프라이트가 아니라 **알파 bbox**(바디 = bbox × 0.9)다. `-physLab` 5회 실측에서
+    /// 안착 상태의 그림 최상단은 캡을 **11~13pt 밑돌았다**(잘림 0건). 캡 위로 잘려 보이는 칩은 아직
+    /// **낙하 중인** 칩이고, 그건 스폰 천장이 씬 바깥(`size.height + chipSide`)이라 설계대로다.
+    /// 여유를 얹으면 `sealedCeiling`이 함께 올라가 더미가 40pt 더 쌓인다(실측) — 안 그래야 할 변경이다.
     private var fieldRestHeight: CGFloat {
         guard !counter.isEmpty else { return .infinity }   // 빈 작업대(카피·CTA)는 캡 대상이 아니다
         return 96 * ceil(CGFloat(counter.count) / 3) + 28
@@ -628,6 +638,10 @@ struct MainView: View {
 
     /// 티켓 발주(Fire the Ticket) — used 재료를 이 레시피로 전량 소비 처리 → 슬램 본 뒤 커버 닫기.
     /// 되돌리기 토스트는 store의 통합 undo가 띄운다. 커버당 1회만(더블 파이어 방지).
+    ///
+    /// **이 1.25초 창 안에서 덱 위에 뜰 수 있는 것은 없다.** Short 행의 To buy 담기는 원탭이라
+    /// 화면을 옮기지 않고 알약 라벨만 바꾼다 — 중첩 커버도, 팝업도 없으므로 닫기를 미룰 상대가
+    /// 없다(그 상대를 만들면 부모를 닫을 때 그 위의 것까지 함께 걷히는 캐스케이드가 생긴다).
     private func fire(_ result: RecipeRecommender.Result) {
         guard !firedTicket, !result.used.isEmpty else { return }
         firedTicket = true

@@ -714,9 +714,16 @@ final class FridgeStore {
     /// **재고 추가가 아니라 '살 것' 메모**다(§13.5 To buy 예외 — 실제 반입은 여전히 영수증 스캔·재입고).
     /// 이미 목록에 있으면 아무 것도 하지 않는다(중복 추가 no-op — 시트가 체크 상태로 이미 알린다).
     /// `canonicalID`·`glyph`는 사전에서 고른 호출부가 그대로 넘긴다(이름 역조회로 다른 항목에 붙는 것 방지).
+    ///
+    /// `canonicalIsFinal`은 "**나는 이미 해석을 끝냈다**"는 신호다. nil을 그렇게 넘기면 = 사전에 없는
+    /// 품목이라는 뜻이므로 아래 포함 매칭 폴백을 타지 않는다. 레시피 표기처럼 다른 재료명을 품은
+    /// 자유 문장("paprika powder", "chicken or vegetable stock")이 폴백에 걸려 엉뚱한 캐논에 붙는 것을
+    /// 막는다 — 그러면 그 품목은 **이미 담긴 다른 재료로 취급돼 목록에 들어가지도 않는다**.
     @discardableResult
-    func addToBuy(name: String, canonicalID: String? = nil, glyph: FoodGlyph? = nil) -> Bool {
-        guard appendToBuy(name: name, canonicalID: canonicalID, glyph: glyph) else { return false }
+    func addToBuy(name: String, canonicalID: String? = nil, glyph: FoodGlyph? = nil,
+                  canonicalIsFinal: Bool = false) -> Bool {
+        guard appendToBuy(name: name, canonicalID: canonicalID, glyph: glyph,
+                          canonicalIsFinal: canonicalIsFinal) else { return false }
         persist(reschedulesAlerts: false)   // 재료 불변
         return true
     }
@@ -725,11 +732,12 @@ final class FridgeStore {
     /// 루프로 담는 `addMissingToBuy`가 항목마다 전량 스냅샷을 인코딩(메인 스레드)하지 않게 하려는 분리다.
     /// 단건 호출부는 `addToBuy`를 그대로 쓰므로 동작이 바뀌지 않는다.
     /// - Returns: 실제로 목록에 새 줄이 생겼으면 true(= 저장할 변화가 있다).
-    private func appendToBuy(name: String, canonicalID: String?, glyph: FoodGlyph?) -> Bool {
+    private func appendToBuy(name: String, canonicalID: String?, glyph: FoodGlyph?,
+                             canonicalIsFinal: Bool = false) -> Bool {
         let lex = IngredientLexicon.shared
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return false }
-        let canonical = canonicalID ?? lex.canonicalID(for: trimmed)
+        let canonical = canonicalID ?? (canonicalIsFinal ? nil : lex.canonicalID(for: trimmed))
         let key = canonical ?? trimmed.lowercased()
         // 이미 '수동으로' 담긴 것만 중복으로 막는다 — 파생 제안으로만 잡혀 있는 품목은 여기서
         // 걸러지면 안 된다(그래야 아래 append가 그 파생 제안을 흡수해 한 줄로 만든다, toBuy 참고).
@@ -742,12 +750,10 @@ final class FridgeStore {
 
     /// 티켓의 부족 재료(Short: …)를 한 번에 장보기 메모로 — 오더 카드의 원탭 담기(§13.5).
     ///
-    /// 넘어오는 이름은 레시피 항목의 **표시명**(`Recipe.Item.displayName`)이라 캐논이 아니다.
-    /// 그래서 여기서 해석해 `addToBuy`의 캐논 키 규약을 지킨다: ① 정확 일치(`exactCanonicalID`)를
-    /// 먼저 본다 — "chicken or vegetable stock" 같은 서술형 표기가 포함 매칭으로 엉뚱한 캐논에
-    /// 붙는 것을 막는 `RecipeRecommender.canonicalID(of:)`와 같은 순서다. ② 그래도 없으면 포함
-    /// 매칭(`canonicalID`)으로 한 번 더 — "대파 한 단" 같은 수식 붙은 표기를 살린다. 둘 다 실패하면
-    /// `addToBuy`가 소문자 원문을 키로 쓴다(사전 밖 이름).
+    /// **표시명이 아니라 레시피 항목을 그대로 받는다.** 해석은 `RecipeRecommender.toBuyEntry(for:)`가
+    /// ref 우선으로 끝내 사전 표제어·캐논 ID·글리프를 확정해 준다 — 표시명을 넘기면 "pork (or beef)"의
+    /// 괄호 **안** 단어가 포함 매칭에 먼저 걸려 엉뚱한 품목 키가 붙는다(시드 실측: pork→beef).
+    /// 사전에 없는 서술형 라인은 `canonicalIsFinal`로 넘겨 store 쪽 폴백 역조회까지 끊는다.
     ///
     /// 흡수 의미론은 `addToBuy` 그대로다 — 이미 수동으로 담긴 품목은 세지 않고, 파생 제안으로만
     /// 있던 품목은 수동이 흡수해 한 줄이 된다.
@@ -757,14 +763,12 @@ final class FridgeStore {
     /// 알약의 `pop` 첫 프레임과 겹친다. 새로 담긴 게 0이면 저장 자체를 건너뛴다(변화가 없다).
     /// - Returns: **새로 담긴** 개수. 호출부는 0이면 햅틱을 울리지 않는다(아무 일도 안 일어났으므로).
     @discardableResult
-    func addMissingToBuy(_ names: [String]) -> Int {
-        let lex = IngredientLexicon.shared
+    func addMissingToBuy(_ items: [Recipe.Item]) -> Int {
         var added = 0
-        for raw in names {
-            let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !trimmed.isEmpty else { continue }
-            let canonical = lex.exactCanonicalID(for: trimmed) ?? lex.canonicalID(for: trimmed)
-            if appendToBuy(name: trimmed, canonicalID: canonical, glyph: FoodGlyph.match(trimmed)) {
+        for item in items {
+            let entry = RecipeRecommender.toBuyEntry(for: item)
+            if appendToBuy(name: entry.name, canonicalID: entry.canonicalID,
+                           glyph: entry.glyph, canonicalIsFinal: true) {
                 added += 1
             }
         }
