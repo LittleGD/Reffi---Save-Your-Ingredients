@@ -141,10 +141,6 @@ final class ReffiFlowUITests: XCTestCase {
         XCTAssertTrue(stockTab.isSelected, "In stock으로 복귀")
         XCTAssertTrue(app.staticTexts["Beef"].waitForExistence(timeout: 4), "재고 영수증 카드 복귀")
 
-        // 재고 수는 타이틀 옆 캡션으로 올라갔다 — 화면엔 "· 13"이지만 보조기술엔 "13 in stock"으로 읽힌다.
-        let stockCaption = app.staticTexts["13 in stock"]
-        XCTAssertTrue(stockCaption.waitForExistence(timeout: 4), "타이틀 옆 재고 수 캡션")
-
         // 카테고리 필터 — 가로 스크롤 칩 행이 컨트롤 한 줄의 드롭다운 하나로 접혔다.
         let categoryPill = app.buttons["Filter: All"]
         XCTAssertTrue(categoryPill.waitForExistence(timeout: 4), "카테고리 필터 트리거(기본 All)")
@@ -155,8 +151,6 @@ final class ReffiFlowUITests: XCTestCase {
         vegRow.tap()
         XCTAssertTrue(app.buttons["Filter: Veg"].waitForExistence(timeout: 4), "선택이 트리거 라벨에 반영")
         waitForDisappearance(app.staticTexts["Beef"], "Veg로 좁히면 고기 카드는 목록에서 빠진다")
-        // **총량은 필터와 무관하다** — 캡션은 여전히 냉장고 전체 수를 말한다(칩 시절과 같은 규칙).
-        XCTAssertTrue(stockCaption.exists, "필터를 켜도 재고 총량 캡션은 그대로 13이어야 한다")
         attach(app, named: "fridge-in-stock-filtered")
 
         // All로 원복 — 드롭다운에서 해제 경로는 목록 맨 위 "All"이다(칩 재탭이 아니다).

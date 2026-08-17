@@ -257,7 +257,10 @@ struct FridgeView: View {
         }
         .padding(.horizontal, ReffiGrid.margin)
         .padding(.top, ReffiSpace.s5)
-        .padding(.bottom, ReffiSpace.s4)
+        // **탭 행 ↔ 패인의 유일한 경계**다 — 세 패인 모두 자체 상단 패딩이 없으므로(실측 확인)
+        // 이 한 값이 셋에 그대로 간다. s4(16)에서 s5(24)로 넓혀 탭이 콘텐츠에서 숨을 쉬게 한다:
+        // 탭은 화면의 IA라 아래 목록에 붙어 있으면 목록의 머리처럼 읽힌다.
+        .padding(.bottom, ReffiSpace.s5)
     }
 
     /// 선택된 탭의 본문. To buy·History는 커버에서 쓰던 **같은 콘텐츠 뷰**를 크롬 없이 얹는다 —
@@ -413,22 +416,12 @@ struct FridgeView: View {
 
     // MARK: 헤더 — "여기가 어디인가(Fridge · N) → 무엇을 보는가(탭) → 목록 조작(컨트롤 한 줄)"의 순서.
 
-    /// 타이틀 + 재고 수 캡션. 숫자는 **필터 이전의 전체 재고**다(옛 "N in stock" 라벨과 같은 수) —
-    /// 카테고리를 좁혀 봐도 냉장고에 든 총량은 변하지 않는다.
-    ///
-    /// 캡션은 타이틀에 종속된 메타라 `firstTextBaseline`으로 베이스라인을 맞춘다(§3 리듬 — 크기가
-    /// 다른 두 글자를 상자 중앙으로 맞추면 큰 글자의 시각 기준선에서 뜬다).
-    /// 화면에는 "· 9"만 두고 **보조기술에는 "9 in stock"으로 읽힌다** — 가운뎃점을 그대로 읽으면
-    /// 숫자의 의미가 사라진다(§접근성: 시각 축약은 라벨로 복원한다).
+    /// 타이틀. **재고 총량은 이 화면에 두지 않는다**(2026-08 owner decision) — 옛 "N in stock" 라벨도,
+    /// 그것을 이어받았던 타이틀 옆 "· N" 캡션도 함께 걷었다. 다른 자리로 옮기지 않았다:
+    /// 냉장고에 몇 개가 들었는지는 목록 자체가 보여 주고, 지금 급한 것(D-day)이 이 화면의 payload다.
     private var titleRow: some View {
-        HStack(alignment: .firstTextBaseline, spacing: ReffiSpace.s2) {
-            Text("Fridge").reffiType(.display).foregroundStyle(ReffiColor.ink)
-            Text(verbatim: "· \(sortedItems.count.formatted())")
-                .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
-                .accessibilityLabel(Text("\(sortedItems.count) in stock"))
-            Spacer(minLength: 0)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        Text("Fridge").reffiType(.display).foregroundStyle(ReffiColor.ink)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     /// 목록 조작 한 줄 — 좌: 카테고리 필터 드롭다운 / 우: 정렬 + 보기 토글.
