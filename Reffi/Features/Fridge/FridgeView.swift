@@ -4,14 +4,24 @@ import PhosphorSwift
 /// 냉장고 — 전체 재고를 임박순으로 쌓은 "흰 영수증" 스택(§13).
 /// 영수증 냉장고의 IA(스택 + 탭→상세 + 히스토리)를 그대로, 비주얼은 Main의 종이컷 언어로.
 /// 카드 탭 → Wallet식으로 펼쳐져 상세(구매정보 + Ate/Tossed), 나머지는 하단에 collapse.
+///
+/// **화면은 상단 탭 셋으로 갈린다**(2026-08): In stock(이 스택) · To buy · History.
+/// 옛 요약 두 버튼과 헤더 리포트 버튼이 열던 풀스크린 커버 둘을 탭 패인이 대신한다 — 목적지가
+/// 세 개뿐인데 그중 둘을 커버로 감추면 "지금 뭘 보고 있는가"가 화면에 남지 않는다.
 struct FridgeView: View {
     @Environment(FridgeStore.self) private var store
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @Namespace private var ns
     @State private var selectedID: Ingredient.ID?
-    @State private var showHistory = false
-    @State private var showShopping = false
+    /// 상단 탭 — 기본은 In stock. QA 인자(`-toBuy`·`-toBuy.search`·`-showHistory`)는 그 목적지 탭으로 착지.
+    @State private var tab: FridgeTab = {
+        #if DEBUG
+        return FridgeTab.initial(from: ProcessInfo.processInfo.arguments)
+        #else
+        return .stock
+        #endif
+    }()
     @State private var editing: Ingredient?
     /// 정렬 드롭다운 열림 — 앱 커스텀 `PaperDropdown`(스톡 Menu 대체). 세션 한정.
     @State private var sortMenuOpen = false
@@ -56,7 +66,15 @@ struct FridgeView: View {
     private var categoryCounts: [FridgeCategoryFilter.Bucket] {
         FridgeCategoryFilter.buckets(of: sortedItems)
     }
-    private var accent: Color { items.first?.freshness.main ?? ReffiColor.fresh }
+    /// 배경 accent — 패인마다 다르다. 옛 커버 둘이 각자 갖고 있던 색을 탭에서도 그대로 유지한다
+    /// (To buy = blue · History = 낭비율 색). 표면이 바뀌면 배경도 함께 바뀌어야 탭 전환이 읽힌다.
+    private var accent: Color {
+        switch tab {
+        case .stock:   items.first?.freshness.main ?? ReffiColor.fresh
+        case .toBuy:   ReffiColor.blue.opacity(0.5)
+        case .history: HistoryContent.rateColor(store.wasteRate).opacity(0.6)
+        }
+    }
     private var selected: Ingredient? { items.first { $0.id == selectedID } }
     private var motion: Animation? { ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion) }
 
@@ -73,13 +91,21 @@ struct FridgeView: View {
         ZStack {
             LiquidGlassBackground(accent: accent)
             if let sel = selected {
+                // 펼친 영수증은 **화면을 통째로** 가져간다(탭 행까지 덮는다) — 상세는 이 화면의 유일한
+                // 1차 표면이고, 판정(Ate/Tossed)까지 한 화면에서 끝나야 한다(§7.3 잘림 금지).
                 expanded(sel)
             } else {
-                collapsed
+                VStack(spacing: 0) {
+                    fridgeHeader
+                    pane
+                }
             }
             // 하단 마스크 — 화면 끝(홈 인디케이터 포함)까지 크림으로 덮어, 떠 있는 네비 밑으로
             // 카드가 새지 않게. VStack이 화면을 꽉 채우고 safe area를 무시 → 바닥 정렬이 물리적 끝에 닿음.
-            if selected == nil {
+            // **그냥 스크롤하는 패인(In stock·History)에만** 건다: 실측으로 History 타임라인 행이 캡슐 네비
+            // 유리 뒤에서 반쯤 읽히는 잔상이 그대로 보였다(스크린샷 03-history 최초 캡처). To buy는 도킹
+            // CTA가 이미 같은 자리에 불투명 면을 깔기 때문에, 여기서 또 덮으면 그 버튼이 마스크 밑에 깔린다.
+            if selected == nil, tab != .toBuy {
                 VStack(spacing: 0) {
                     Spacer(minLength: 0)
                     LinearGradient(colors: [ReffiColor.canvas.opacity(0), ReffiColor.canvas],
@@ -143,21 +169,21 @@ struct FridgeView: View {
                 withAnimation(motion) { selectedID = nil }
             }
         }
-        // History·To buy도 Start cooking처럼 하단에서 올라와 전체를 덮는 풀스크린 커버.
-        .fullScreenCover(isPresented: $showHistory) { HistoryView() }
-        .fullScreenCover(isPresented: $showShopping) { ShoppingListView() }
+        // 탭이 갈리면 In stock 전용 상태를 정리한다 — 펼친 영수증이 다른 패인을 보고 온 뒤에도
+        // 남아 있으면 돌아오는 순간 유령 상세가 뜨고, 열린 정렬 드롭다운은 앵커를 잃은 채 상태만 남는다.
+        .onChange(of: tab) { _, _ in
+            selectedID = nil
+            if sortMenuOpen { closeSortMenu() }
+        }
         .sheet(item: $editing) { IngredientEditView(ingredient: $0) }
         // 자정 경과 — 탭을 띄워둔 채 날이 바뀌어도 D-day 도장·정렬이 갱신되게(메인과 동일 패턴).
         .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged)) { _ in
             dayTick += 1
         }
         #if DEBUG
-        // 스크린샷·QA용 — `-showHistory` 런치 인자로 History 시트 바로 열기(-previewCarousel 선례).
+        // 스크린샷·QA용 런치 인자. 탭 착지(`-toBuy`·`-toBuy.search`·`-showHistory`)는 `tab` 상태의
+        // 초기값(`FridgeTab.initial(from:)`)이 이미 정했다 — 여기선 패인 안쪽 상태만 다룬다.
         .onAppear {
-            if ProcessInfo.processInfo.arguments.contains("-showHistory") { showHistory = true }
-            // `-toBuy` To buy 커버 직행. `-toBuy.search`(검색 시트 자동 오픈)는 단독 지정해도 커버가 열린다.
-            if ProcessInfo.processInfo.arguments.contains("-toBuy")
-                || ProcessInfo.processInfo.arguments.contains("-toBuy.search") { showShopping = true }
             // `-fridgeExpand` — 첫 재료를 바로 펼침(Ate/Tossed 버튼 QA용). 샘플 시드가 늦을 수 있어 지연 재시도.
             if ProcessInfo.processInfo.arguments.contains("-fridgeExpand") {
                 selectedID = items.first?.id
@@ -189,19 +215,35 @@ struct FridgeView: View {
 
     @State private var dayTick = 0   // 자정 리렌더 트리거
 
-    // MARK: 접힌 스택
-    private var collapsed: some View {
+    // MARK: 고정 헤더 — 타이틀 + 탭 행. 스크롤 밖이다: 세 패인을 오가는 조작이라 항상 같은 자리에
+    // 있어야 하고, 스크롤과 함께 사라지면 "지금 어느 탭인가"라는 유일한 표시를 잃는다.
+    private var fridgeHeader: some View {
+        VStack(alignment: .leading, spacing: ReffiSpace.s3) {   // s3 = 제목-본문 간격
+            titleRow
+            FridgeTabBar(selection: $tab)
+        }
+        .padding(.horizontal, ReffiGrid.margin)
+        .padding(.top, ReffiSpace.s5)
+        .padding(.bottom, ReffiSpace.s4)
+    }
+
+    /// 선택된 탭의 본문. To buy·History는 커버에서 쓰던 **같은 콘텐츠 뷰**를 크롬 없이 얹는다 —
+    /// 두 표면이 같은 화면을 각자 그리면 규칙이 갈린다. 다른 건 바닥 여백뿐이다(떠 있는 캡슐 네비 몫).
+    @ViewBuilder private var pane: some View {
+        switch tab {
+        case .stock:   stockPane
+        case .toBuy:   ShoppingListContent(ctaBottomInset: ReffiChrome.navReserve)
+        case .history: HistoryContent(bottomPadding: ReffiChrome.navClearance)
+        }
+    }
+
+    // MARK: In stock — 접힌 영수증 스택
+    private var stockPane: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: ReffiSpace.s5) {
                 let _ = dayTick   // 자정 틱 의존 — 날이 바뀌면 이 서브트리를 재계산
-                // 타이틀 + 요약 페이저를 한 블록으로 묶는다 — 화면을 열자마자 "살 것"이 먼저 읽혀야 하고,
-                // 페이저가 타이틀의 첫 콘텐츠로 붙어야 큰 제목이 홀로 떠 보이지 않는다(s3 = 제목-본문 간격).
-                VStack(alignment: .leading, spacing: ReffiSpace.s3) {
-                    titleRow
-                    summaryRow
-                }
                 // 재고 카운트 + 정렬·보기 + 카테고리 칩 — 전부 **아래 목록을 조작하는** 컨트롤이라
-                // 목록 쪽에 붙여 한 블록으로 읽히게 한다(요약 페이저와는 s5로 갈린다).
+                // 목록 쪽에 붙여 한 블록으로 읽히게 한다.
                 VStack(alignment: .leading, spacing: ReffiSpace.s3) {
                     stockRow
                     if categoryCounts.count > 1 { categoryFilterRow }   // 한 종류뿐이면 필터가 무의미 — 행을 아예 뺀다
@@ -228,7 +270,6 @@ struct FridgeView: View {
                 }
             }
             .padding(.horizontal, ReffiGrid.margin)
-            .padding(.top, ReffiSpace.s5)
             .padding(.bottom, ReffiChrome.navClearance)   // 끝까지 스크롤해도 마지막 카드가 네비 위로 올라오게
         }
     }
@@ -339,39 +380,25 @@ struct FridgeView: View {
         )
     }
 
-    // MARK: 헤더 — 타이틀과 재고/정렬 행은 **떨어져 산다**. 사이에 요약 행이 들어와,
-    // 화면 상단이 "여기가 어디인가(Fridge) → 지금 할 일(살 것) → 목록 조작"의 순서로 읽힌다.
+    // MARK: 헤더 — "여기가 어디인가(Fridge) → 무엇을 보는가(탭) → 목록 조작(재고 행)"의 순서.
     private var titleRow: some View {
         Text("Fridge").reffiType(.display).foregroundStyle(ReffiColor.ink)
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// 재고 수 + 리포트·정렬·보기 — 서브라인 오른쪽 끝에 통합(별도 행 제거, 수직 적층 최소화).
+    /// 재고 수 + 정렬·보기 — 서브라인 오른쪽 끝에 통합(별도 행 제거, 수직 적층 최소화).
+    /// **상시 리포트 버튼은 뺐다** — History 탭이 항상 같은 자리에서 그 진입을 맡는다(탭 행 위에
+    /// 같은 목적지로 가는 두 번째 입구를 두면, 지금 어느 탭인지가 흐려진다).
     private var stockRow: some View {
         HStack(spacing: ReffiSpace.s2) {
             // Ate/Tossed 숫자는 리포트와 중복이라 뺐다 — 한 번에 보이는 정보 최소화.
             Text("\(sortedItems.count) in stock")
                 .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
             Spacer(minLength: ReffiSpace.s2)
-            reportButton
             sortMenu
             viewToggle
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    /// 리포트 진입 — 헤더에 상시 노출하는 종이컷 아이콘 버튼(`PaperIconButton`, §13.5).
-    /// 요약 페이저 2장째(무낭비 리포트)는 **스와이프해야 보이는** 경로라, 이력을 보러 온 사람이
-    /// 첫 화면에서 진입점을 찾지 못했다. 페이저는 그대로 두고(발견은 그쪽이, 재방문은 이쪽이 맡는다)
-    /// 헤더에 항상 같은 자리의 버튼을 둔다. 44pt 블롭이라 §7.3 터치 타깃을 그대로 만족한다.
-    private var reportButton: some View {
-        // 인텐트가 `primary`(Blue)인 이유: 헤더의 다른 두 컨트롤(정렬·보기)은 목록을 다루는 크롬이고
-        // 이건 **다른 화면으로 가는 액션**이다 — §2.4의 5% 액션 색이 정확히 이 구분을 맡는다.
-        // `neutral`(sub 면)은 크림 캔버스와 대비가 1.1:1 수준이라 44pt에서 그레인만 보이는 회색 얼룩이 됐다.
-        PaperIconButton(icon: ReffiIcon.report, intent: .primary, size: 44, seed: 4) {
-            showHistory = true
-        }
-        .accessibilityLabel("No-waste report")
     }
 
     /// 정렬 칩 — 현재 정렬 라벨을 상시 노출하는 종이컷 칩(§13.5). 비주얼은 그대로, 탭하면 스톡 Menu 대신
@@ -484,88 +511,6 @@ struct FridgeView: View {
         }
         .buttonStyle(.paperPress)
         .accessibilityLabel(compact ? "Switch to stack view" : "Switch to simple view")
-    }
-
-    // MARK: 요약 행 — 장보기·무낭비 리포트를 **나란히 두 버튼**으로. 페이저(스와이프+점 인디케이터)를
-    // 걷어냈다: 두 장뿐인 걸 한 장씩 감추면 리포트는 스와이프를 아는 사람만 닿고, 그 사실을 알리려고
-    // 둔 점 인디케이터가 화면에서 가장 눈에 거슬리는 요소가 됐다. 둘 다 상시 노출이면 예고할 것도 없다.
-    private var summaryRow: some View {
-        HStack(spacing: ReffiSpace.s3) {
-            Button { showShopping = true } label: {
-                summaryCard(icon: ReffiIcon.receipt, title: "To buy",
-                            value: "\(store.toBuy.count)", tint: ReffiColor.blueDark, seed: 8)
-            }
-            .buttonStyle(.paperPress)
-            .accessibilityLabel("Shopping list, \(store.toBuy.count) items")
-
-            Button { showHistory = true } label: {
-                summaryCard(icon: ReffiIcon.report, title: "No-waste report",
-                            value: "\(store.wasteRate)%", tint: rateColor, seed: 7)
-            }
-            .buttonStyle(.paperPress)
-            .accessibilityLabel("Open no-waste report, \(store.wasteRate) percent wasted")
-        }
-        // 행 높이를 **가장 높은 카드**에 맞춘다 — 카드 쪽 `maxHeight: .infinity`와 짝이다.
-        // 이게 없으면 무한대 제안이 부모의 남은 높이를 전부 먹어 두 카드가 화면 절반까지 늘어난다.
-        .fixedSize(horizontal: false, vertical: true)
-        .padding(.horizontal, cardInset)   // 아래 영수증 스택과 같은 폭으로 정렬
-    }
-
-    /// 요약 카드 = 종이컷 버튼(§13.5) — 메인 CTA(PaperButton)와 같은 8각형 셰입 + 종이 질감 + 그림자.
-    /// 색은 크림 위 sub 면 + ink 글자(§2.6), 아이콘·값만 의미색(To buy=blue, 리포트=낭비율색).
-    ///
-    /// **반쪽 폭이라 세로로 쌓는다** — 한 줄에 아이콘·제목·값·셰브론을 다 넣던 전폭 시절 구성은
-    /// "No-waste report" 하나로도 폭이 모자란다. 위 줄에 아이콘과 **값**(이 카드의 payload)을 양 끝으로
-    /// 벌리고 제목을 아래에 깔면, 좁은 폭에서도 숫자가 먼저 읽힌다.
-    /// 셰브론은 뺐다 — §13.5 룰⑩에서 셰브론은 **시트** 진입 기표인데 이 둘은 풀스크린 커버를 열고,
-    /// 나란한 두 종이 버튼 자체가 이미 누를 것으로 읽힌다(좁은 폭에서 글자와 경합할 이유가 없다).
-    private func summaryCard(icon: Ph, title: LocalizedStringKey, value: String,
-                             tint: Color, seed: Int) -> some View {
-        VStack(alignment: .leading, spacing: ReffiSpace.s1) {
-            HStack(spacing: ReffiSpace.s2) {
-                icon.reffi(17, .bold).foregroundStyle(tint)
-                Spacer(minLength: ReffiSpace.s1)
-                Text(value)
-                    .font(.reffiNum(.body)).foregroundStyle(tint)
-                    .lineLimit(1)
-            }
-            // **제목은 말줄임하지 않는다**(전폭 시절부터의 불변식) — 이 카드에서 제목은 유일한
-            // 목적지 이름이라 "No-waste rep…"이 되면 어디로 가는 버튼인지가 사라진다.
-            // 반쪽 폭에서는 한 줄로는 안 들어간다: 번들 폰트 실측으로 영문 "No-waste report"가
-            // 기본 크기에서 이미 가용폭(iPhone SE 119.5pt)을 넘는다. 그래서 **두 줄까지 허용**하고,
-            // 축소는 그 뒤 마지막 수단으로만 쓴다(0.7까지 — 접근성 큰 글씨에서 세 줄로 흐르지 않게).
-            Text(title)
-                .reffiType(.checklistItem)
-                .foregroundStyle(ReffiColor.ink)
-                .lineLimit(2)
-                .minimumScaleFactor(0.7)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .padding(.horizontal, ReffiSpace.s3 + 2)
-        .padding(.vertical, ReffiSpace.s3)
-        // 둘이 같은 폭·같은 높이로 선다. `maxHeight: .infinity`가 **높이를 맞추는 쪽**이다 —
-        // 제목이 두 줄로 접히는 카드가 생기면서 둘의 이상적 높이가 갈렸고, minHeight(하한)만으로는
-        // HStack이 각자 제 높이로 그려 위아래 모서리가 어긋난다. 행 쪽에서 `.fixedSize(vertical:)`로
-        // 가장 높은 카드에 행 높이를 맞추고, 여기서 두 카드가 그 높이를 채운다.
-        .frame(maxWidth: .infinity, minHeight: 60, maxHeight: .infinity)
-        .contentShape(Rectangle())
-        .background {
-            let s = PaperCutRect(seed: seed)                            // 아이콘 버튼(9각)·CTA와 같은 8각형
-            s.fill(ReffiColor.paper)                                    // 밝은 종이 면(sub는 크림 위에서 칙칙)
-                .overlay(PaperGrain(seed: UInt64(seed) &+ 11, strength: 0.7).clipShape(s))  // 옅은 질감
-                .paperEdge(s, tint: ReffiColor.ink.opacity(0.06), width: 1)
-                .compositingGroup()
-                .reffiShadow1()
-        }
-    }
-
-    /// 낭비율 색 — HistoryView와 동일 임계값(색=정보, §1). 캔버스 위라 dark 변형(§2.6).
-    private var rateColor: Color {
-        switch store.wasteRate {
-        case ...10: ReffiColor.freshDark
-        case ...30: ReffiColor.soonDark
-        default:    ReffiColor.urgentDark
-        }
     }
 
     private var emptyState: some View {

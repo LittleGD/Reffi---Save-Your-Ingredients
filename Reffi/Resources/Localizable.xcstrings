@@ -1762,16 +1762,6 @@
         }
       }
     },
-    "No-waste report": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "무낭비 리포트"
-          }
-        }
-      }
-    },
     "None yet": {
       "localizations": {
         "ko": {
@@ -1918,16 +1908,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "양파, 계란, 밥…"
-          }
-        }
-      }
-    },
-    "Open no-waste report, %lld percent wasted": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "무낭비 리포트 열기, %lld퍼센트 낭비"
           }
         }
       }
@@ -2459,34 +2439,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "공유"
-          }
-        }
-      }
-    },
-    "Shopping list, %lld items": {
-      "localizations": {
-        "en": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "Shopping list, 1 item"
-                }
-              },
-              "other": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "Shopping list, %lld items"
-                }
-              }
-            }
-          }
-        },
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "쇼핑리스트, %lld개"
           }
         }
       }
