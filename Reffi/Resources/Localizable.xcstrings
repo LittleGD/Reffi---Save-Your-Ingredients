@@ -453,16 +453,6 @@
         }
       }
     },
-    "Added by you": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "직접 담은 것"
-          }
-        }
-      }
-    },
     "Alert time": {
       "localizations": {
         "ko": {
@@ -1297,6 +1287,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "곡류"
+          }
+        }
+      }
+    },
+    "Grocery memo": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "장보기 메모"
           }
         }
       }

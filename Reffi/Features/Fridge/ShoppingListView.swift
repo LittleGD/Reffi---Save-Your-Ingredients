@@ -42,7 +42,10 @@ struct ShoppingListContent: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: ReffiSpace.s4) {
+            // 헤드라인 ↔ 카드는 s3(12) — 위의 탭 행과는 s5(24, `FridgeView.fridgeHeader`가 준다)다.
+            // 2:1이라 헤드라인이 **아래 카드에 붙어** 읽힌다(제목은 자기가 이름 붙이는 것 쪽에 살아야 한다).
+            VStack(alignment: .leading, spacing: ReffiSpace.s3) {
+                headline
                 if items.isEmpty {
                     emptyCard
                 } else {
@@ -92,14 +95,31 @@ struct ShoppingListContent: View {
         restockHaptic += 1
     }
 
-    /// 직접 담은 구역(맨 위) / 이력 제안 구역 — 두 구역은 캡션이 다르다(제안 캡션이 수동 항목까지
-    /// 설명하면 거짓말이 된다). 목록은 한 번만 읽어 나눈다(파생 계산이 이력 전체를 훑는다).
-    /// 목록 카드 — 구역이 하나뿐이다. 옛 이력 제안 구역("Ran out, based on what you use often")과
-    /// 두 구역을 가르던 절취선(`ReffiRule(.ticket)`)은 함께 사라졌다.
+    /// 패인 헤드라인 — **영수증 카드 밖**에 선다. 이 화면이 무엇인지는 카드 안의 캡션이 아니라
+    /// 카드를 이름 붙이는 제목이 말해야 한다(카드 안에 있으면 목록의 첫 줄처럼 읽힌다).
+    ///
+    /// role이 `.heading`(24)인 근거는 **구조 층위**다. §3.2의 역할 정의가 그대로 답이다:
+    /// `display`=워드마크(화면 제목 "Fridge") · `heading`=제목 · `subhead`=소제목·**카드 이름**.
+    /// 이건 카드 하나가 아니라 **패인 전체**를 이름 붙이는 제목이라 `heading`이고, History의
+    /// "Tally · past 30 days"가 `subhead`인 것과 어긋나지 않는다 — 그건 카드 **안**에서 그 카드를
+    /// 이름 붙이는 줄이라 한 층 아래다. 즉 둘은 같은 규칙의 다른 층이다(display 34 → heading 24 → subhead 18).
+    ///
+    /// `subhead`(18)를 쓰지 않은 실질적 이유도 있다: 빈 상태 카드의 제목이 이미 `subhead`라,
+    /// 헤드라인까지 18이면 "Grocery memo" 바로 아래 "Nothing on the list"가 같은 굵기로 붙어
+    /// 어느 쪽이 제목인지가 사라진다.
+    private var headline: some View {
+        Text("Grocery memo")
+            .reffiType(.heading)
+            .foregroundStyle(ReffiColor.ink)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityAddTraits(.isHeader)
+    }
+
+    /// 목록 카드 — 구역도 캡션도 하나뿐이다. 옛 이력 제안 구역("Ran out, based on what you use often")과
+    /// 두 구역을 가르던 절취선(`ReffiRule(.ticket)`)은 16차에, 카드 안 `Added by you` 캡션은 17차에
+    /// 사라졌다 — 카드 밖 헤드라인이 그 이름표 역할을 가져갔고, 캡션이 남으면 제목이 두 번 선다.
     private var listCard: some View {
         VStack(alignment: .leading, spacing: ReffiSpace.s3) {
-            Text("Added by you")
-                .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
             ForEach(items, id: \.key) { row($0) }
         }
         .receiptSurface()

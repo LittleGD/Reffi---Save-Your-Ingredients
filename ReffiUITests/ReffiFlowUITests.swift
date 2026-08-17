@@ -120,8 +120,10 @@ final class ReffiFlowUITests: XCTestCase {
         XCTAssertTrue(app.buttons["Sort: Expiring first"].exists, "재고 패인의 정렬 칩")
         attach(app, named: "fridge-tab-in-stock")
 
-        // To buy 탭 — 하단 도킹 "Add item"과 행별 Add/Skip이 커버 때 그대로 살아 있다.
+        // To buy 탭 — 카드 밖 헤드라인이 패인의 이름표고, 하단 도킹 "Add item"은 커버 때 그대로다.
         toBuyTab.tap()
+        XCTAssertTrue(app.staticTexts["Grocery memo"].waitForExistence(timeout: 4),
+                      "To buy 패인의 헤드라인(영수증 카드 밖)")
         XCTAssertTrue(app.buttons["Add item"].waitForExistence(timeout: 4), "To buy 패인의 직접 담기 CTA")
         XCTAssertFalse(app.buttons["Sort: Expiring first"].exists, "재고 패인 크롬은 함께 사라져야 한다")
         XCTAssertTrue(toBuyTab.isSelected, "탭하면 선택 상태가 옮겨간다")
