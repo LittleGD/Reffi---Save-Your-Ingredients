@@ -593,6 +593,26 @@
         }
       }
     },
+    "Bought": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "샀어요"
+          }
+        }
+      }
+    },
+    "Bought %@": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 샀어요"
+          }
+        }
+      }
+    },
     "Browse without an account": {
       "localizations": {
         "ko": {
@@ -2122,6 +2142,16 @@
         }
       }
     },
+    "Puts it back in the fridge and clears it from the memo.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "냉장고에 다시 채우고 메모에서 지워요."
+          }
+        }
+      }
+    },
     "Quantity": {
       "localizations": {
         "ko": {
@@ -2202,6 +2232,16 @@
         }
       }
     },
+    "Remove %@ from the memo": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "메모에서 %@ 빼기"
+          }
+        }
+      }
+    },
     "Removes it from your recipes. Built-in recipes stay.": {
       "localizations": {
         "ko": {
@@ -2268,16 +2308,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "전부 초기화"
-          }
-        }
-      }
-    },
-    "Restock %@": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ 재입고"
           }
         }
       }
@@ -2503,16 +2533,6 @@
         }
       }
     },
-    "Skip %@ this time": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ 이번엔 안 사기"
-          }
-        }
-      }
-    },
     "Snap the receipt. Groceries land in your fridge.": {
       "localizations": {
         "ko": {
@@ -2639,6 +2659,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "쌓기보기로 전환"
+          }
+        }
+      }
+    },
+    "Takes it off the list without buying it.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "사지 않고 목록에서 내려요."
           }
         }
       }

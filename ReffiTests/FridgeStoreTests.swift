@@ -552,7 +552,7 @@ struct FridgeStoreTests {
     }
 
     @Test func toBuyRowKeyDrivesSkipBuyKeyForDerivedSuggestion() throws {
-        // ShoppingListView의 Skip 버튼은 이제 이름을 넘기지 않고 store.toBuy가 실어 나른 `key`로
+        // ShoppingListView의 빼기(✕) 버튼은 이제 이름을 넘기지 않고 store.toBuy가 실어 나른 `key`로
         // skipBuy(key:)를 호출한다 — 그 축이 실제로 맞물리는지 스토어 레벨에서 검증
         // (뷰 유닛 테스트가 없는 영역이라 이 계약이 유일한 회귀 방지선이다).
         let store = FridgeStore(ingredients: [], recipes: [],

@@ -786,7 +786,7 @@ final class FridgeStore {
     /// 직접 넘기도록 설계됐는데(이름 역조회로 다른 항목에 붙는 것 방지) 이 함수만 반대 방향이라 규약이
     /// 비대칭이다 — 표기가 갈라지는 이름이 들어오면 잘못된 품목의 키에 붙을 잠재 위험이 있다.
     /// **Deprecated**: 프로덕션 호출부는 전환 완료됐다 — `toBuy` 튜플이 이제 `key`를 실어 나르므로
-    /// `ShoppingListView`의 Skip 버튼은 `skipBuy(key:)`를 쓴다. 이 오버로드는 `ReffiTests`가 이름 기반
+    /// `ShoppingListView`의 빼기(✕) 버튼은 `skipBuy(key:)`를 쓴다. 이 오버로드는 `ReffiTests`가 이름 기반
     /// 크로스 로케일 시나리오(예: 영문 "Onion"으로 스킵해 한글 "양파" 이력과 같은 캐논에 맞는지)를
     /// 직접 검증하는 데 계속 쓰고 있어 남겨둔다 — 테스트가 이 경로를 그만 쓰게 되면 제거해도 된다.
     func skipBuy(_ name: String) {

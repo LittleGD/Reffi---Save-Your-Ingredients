@@ -230,8 +230,13 @@ final class ReffiFlowUITests: XCTestCase {
         shot.lifetime = .keepAlways
         add(shot)
 
-        // 상태 원복 — 테스트가 기기 저장 상태를 오염시키지 않게(Skip이 수동 항목을 지운다).
-        app.buttons["Skip \(typed) this time"].firstMatch.tap()
+        // 행의 컨트롤 둘(19차) — 라벨 붙은 "Bought"와 조용한 ✕. 접근성 라벨이 곧 이 행의 계약이라
+        // 둘 다 잡아 둔다(✕는 글리프뿐이라 라벨이 없으면 보조기술에선 존재하지 않는 버튼이 된다).
+        XCTAssertTrue(app.buttons["Bought \(typed)"].exists,
+                      "메모 행의 1차 액션은 'Bought <이름>'이다")
+
+        // 상태 원복 — 테스트가 기기 저장 상태를 오염시키지 않게(빼기가 수동 항목을 지운다).
+        app.buttons["Remove \(typed) from the memo"].firstMatch.tap()
         waitForDisappearance(app.staticTexts[typed], "원복: 담은 항목 제거")
     }
 

@@ -120,7 +120,7 @@ enum ReffiActionRole {
     case sectionLabel      // 섹션 라벨(비번역 라틴) — "RECIPE"·"INGREDIENTS"·"ITEM"·"DETAILS"
     case menuName          // 티켓/레시피 메뉴명
     case metaText          // 데이터형 메타 — 시간·개수·타임스탬프·판정 키커(문장형은 caption)
-    case pillLabel         // 필/버튼 라벨 — Undo·Add·Skip·Turn on·Later
+    case pillLabel         // 필/버튼 라벨 — Undo·Add·Bought·Turn on·Later
     case badgeLabel        // 뱃지·아이콘버튼·칩 라벨
     case checklistItem     // 체크리스트·재료 리스트 항목명
     case stampLabel        // START 등 도장 텍스트(고정 34) — 가변 크기는 `Font.reffiStamp` 참고

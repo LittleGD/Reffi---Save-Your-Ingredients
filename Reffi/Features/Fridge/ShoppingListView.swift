@@ -2,11 +2,11 @@ import SwiftUI
 
 /// 사야 할 식재료 — 자주 쓰는데(이력) 지금 냉장고에 없는 항목이 자동으로 채워지고, 습관이 못 잡는 품목은
 /// 하단 "Add item"으로 직접 담는다(§13.5 To buy 예외 — **재고 추가가 아니라 장보기 메모**다).
-/// Add = 시트 없이 **즉시 재입고** — 직전 이력 스냅샷(보관·구매처·수량, 냉동이었다면 냉장으로)과
+/// Bought = 시트 없이 **즉시 재입고** — 직전 이력 스냅샷(보관·구매처·수량, 냉동이었다면 냉장으로)과
 /// 사전 기본 기한으로 바로 store에 채워 넣는다(§13.6 재입고 경로 — AddIngredientSheet 의존 없음).
 ///
 /// **커버 크롬(헤더·닫기)을 갖지 않는 임베더블 본문**이다 — 냉장고 To buy 탭이 이 뷰를 그대로 얹고,
-/// 풀스크린 커버가 필요한 자리는 아래 `ShoppingListView`가 헤더만 씌운다. 목록·재입고·Skip·검색 시트
+/// 풀스크린 커버가 필요한 자리는 아래 `ShoppingListView`가 헤더만 씌운다. 목록·재입고·빼기·검색 시트
 /// 같은 실제 동작은 **여기 한 곳**에 산다(두 표면이 같은 규칙을 각자 적으면 조용히 갈린다).
 struct ShoppingListContent: View {
     /// 하단 도킹 CTA 아래로 남길 여백 — 커버는 기본값(`s3`), 떠 있는 캡슐 네비가 있는 탭 패인은
@@ -18,8 +18,10 @@ struct ShoppingListContent: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var restockHaptic = 0
-    /// Skip은 §7.6의 **판정·확정**이다(Ate/Tossed와 같은 결의 "이번엔 안 사기") — `.impact(.light)`.
-    /// 목록에 담기는 Add 쪽이 성공 완료(`.success`)이므로 같은 행의 두 알약이 다른 의미로 갈린다.
+    /// 메모에서 빼기는 §7.6의 **판정·확정**이다(Ate/Tossed와 같은 결의 "이번엔 안 사기") — `.impact(.light)`.
+    /// 19차에 라벨이 "Skip"에서 조용한 ✕로 바뀌었지만 **햅틱은 그대로다**: §7.6의 매핑 기준은 어포던스가
+    /// 아니라 **의미**이고, 부르는 액션(`store.skipBuy`)이 그대로라 의미도 그대로다.
+    /// 사서 채우는 Bought 쪽이 성공 완료(`.success`)이므로 같은 행의 두 컨트롤이 다른 의미로 갈린다.
     @State private var skipHaptic = 0
     @State private var showSearch = false
     #if DEBUG
@@ -125,57 +127,75 @@ struct ShoppingListContent: View {
         .receiptSurface()
     }
 
-    /// 목록 한 줄 — 두 구역이 같은 문법을 쓴다(직접 담은 것도 제안과 똑같이 Add/Skip으로 처리한다).
+    /// 목록 한 줄 — **라벨 붙은 알약 하나 + 조용한 아이콘 하나**다(19차).
+    ///
+    /// 라벨이 "Add"가 아니라 **"Bought"**인 이유는 이 화면이 장보기 메모이기 때문이다. "Add"는 앱이
+    /// 무엇을 하는지(재고에 넣는다)를 말하고, 사용자가 방금 한 일은 **샀다**는 것이다. 메커니즘이 아니라
+    /// 행위를 라벨에 세운다 — 동작(`restock`)은 그대로고 바뀐 건 이름뿐이다.
+    ///
+    /// 반대쪽이 "Skip" 알약에서 **면 없는 ✕**로 내려온 이유는 위계다. 알약 둘이 나란히 서면 "사기"와
+    /// "안 사기"가 같은 무게로 읽히는데, 이 행에서 사용자가 실제로 누르는 건 압도적으로 앞쪽이다.
+    /// 빼기는 늘 닿을 수 있되 먼저 눈에 들어오면 안 되는 정리 동작이라, `QuietButton`이 정의한
+    /// **면 없는 보조 액션** 문법(§13.5)으로 내리고 종이 면 하나를 행에서 걷어냈다.
+    /// 확인 다이얼로그는 두지 않는다 — §7.6이 확인을 요구하는 파괴는 "삭제·초기화 **확정**"(계정·전체
+    /// 초기화·재료/레시피 삭제)이고, 이건 메모 한 줄을 내리는 것이라 이력도 재고도 건드리지 않으며
+    /// 같은 이름을 다시 담으면 원상 복구된다. 되돌리기 비용이 한 번의 탭인 동작에 다이얼로그를 세우면
+    /// 정리가 결심이 된다.
     private func row(_ item: Row) -> some View {
         HStack(spacing: ReffiSpace.s3) {
             PaperSilhouette(glyph: item.glyph, fresh: .fresh)
                 .frame(width: ReffiFoodIcon.row, height: ReffiFoodIcon.row)
             Text(verbatim: item.name).reffiType(.body).foregroundStyle(ReffiColor.ink)
             Spacer()
-            Button {
-                withAnimation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion)) {
-                    restock(name: item.name, glyph: item.glyph)
-                }
-            } label: {
-                Text("Add")
-                    .reffiType(.pillLabel)
-                    .foregroundStyle(ReffiColor.blueDark)
-                    .padding(.horizontal, ReffiSpace.s3 + 2)
-                    .padding(.vertical, ReffiSpace.s1 + 1)
-                    .background {
-                        let s = PaperRect(cornerRadius: ReffiRadius.pill, seed: 1)
-                        s.fill(ReffiColor.blueLight).paperEdge(s, tint: ReffiColor.ink.opacity(0.06))
+            // 두 컨트롤 사이만 **s2(8)** — §7.3이 정한 인접 탭 타깃의 최소값이다. ✕는 44pt 히트 안에
+            // 14pt 글리프라 좌우로 15pt의 투명 여백을 스스로 갖고 있어, 눈에 보이는 간격은 8+15 ≈ s5(24)로
+            // 앉는다. 바깥 s3(12)를 그대로 물려주면 체감 27이 되어 ✕가 행에서 떨어져 나온 조각으로 읽힌다.
+            // 바깥 s3은 실루엣↔이름 쪽에 그대로 남는다(영수증 행의 읽는 리듬은 안 건드린다).
+            HStack(spacing: ReffiSpace.s2) {
+                Button {
+                    withAnimation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion)) {
+                        restock(name: item.name, glyph: item.glyph)
                     }
-                    .frame(minHeight: 44)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.paperPress)
-            .accessibilityLabel(Text("Restock \(item.name)"))
-            Button {
-                withAnimation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion)) {
-                    store.skipBuy(key: item.key)
+                } label: {
+                    Text("Bought")
+                        .reffiType(.pillLabel)
+                        .foregroundStyle(ReffiColor.blueDark)
+                        .padding(.horizontal, ReffiSpace.s3 + 2)
+                        .padding(.vertical, ReffiSpace.s1 + 1)
+                        .background {
+                            let s = PaperRect(cornerRadius: ReffiRadius.pill, seed: 1)
+                            s.fill(ReffiColor.blueLight).paperEdge(s, tint: ReffiColor.ink.opacity(0.06))
+                        }
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
                 }
-                skipHaptic += 1   // §7.6 판정·확정 = .impact (Add의 .success와 짝)
-            } label: {
-                Text("Skip")
-                    .reffiType(.pillLabel)
-                    .foregroundStyle(ReffiColor.ink2)
-                    .padding(.horizontal, ReffiSpace.s3 + 2)
-                    .padding(.vertical, ReffiSpace.s1 + 1)
-                    .background {
-                        let s = PaperRect(cornerRadius: ReffiRadius.pill, seed: 2)
-                        s.fill(ReffiColor.sub).paperEdge(s, tint: ReffiColor.ink.opacity(0.06))
+                .buttonStyle(.paperPress)
+                .accessibilityLabel(Text("Bought \(item.name)"))
+                .accessibilityHint(Text("Puts it back in the fridge and clears it from the memo."))
+                Button {
+                    withAnimation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion)) {
+                        store.skipBuy(key: item.key)
                     }
-                    .frame(minHeight: 44)
-                    .contentShape(Rectangle())
+                    skipHaptic += 1   // §7.6 판정·확정 = .impact (Bought의 .success와 짝)
+                } label: {
+                    // 글리프는 정본 `ReffiIcon.close`(x) 그대로 — 새 글리프를 만들지 않는다.
+                    // 시각 14pt / 히트 44×44로 갈라 §7.3을 채운다(`PaperCloseButton`이 40/44로 쓰는 그 분리다).
+                    ReffiIcon.close.reffi(14, .bold)
+                        .foregroundStyle(ReffiColor.ink2)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                }
+                // 면이 없는 보조 액션이라 `QuietButton`과 같은 프레스(0.97)를 쓴다 —
+                // `.paperPress`(0.96)는 종이 면이 눌리는 감각이라 면 없는 글리프엔 근거가 없다.
+                .buttonStyle(.reffiPress)
+                .accessibilityLabel(Text("Remove \(item.name) from the memo"))
+                .accessibilityHint(Text("Takes it off the list without buying it."))
             }
-            .buttonStyle(.paperPress)
-            .accessibilityLabel(Text("Skip \(item.name) this time"))
         }
     }
 
     /// 직접 담기 진입 — 하단 도킹 CTA(`dockedCTA`)로 `PaperButton`을 쓰되 `secondary`다: 이 화면의 1차
-    /// 행동은 행마다의 파란 Add(재입고)라, 파란 와이드 버튼이 그 위계를 뒤집으면 안 된다.
+    /// 행동은 행마다의 파란 Bought(재입고)라, 파란 와이드 버튼이 그 위계를 뒤집으면 안 된다.
     private var addItemButton: some View {
         PaperButton(title: "Add item", kind: .secondary, seed: 3) { showSearch = true }
     }
