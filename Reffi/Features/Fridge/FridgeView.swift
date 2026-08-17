@@ -23,8 +23,10 @@ struct FridgeView: View {
         #endif
     }()
     @State private var editing: Ingredient?
-    /// 정렬 드롭다운 열림 — 앱 커스텀 `PaperDropdown`(스톡 Menu 대체). 세션 한정.
-    @State private var sortMenuOpen = false
+    /// 지금 열린 종이 드롭다운 — **불리언 두 개가 아니라 하나의 상태**다. `DropdownAnchorKey`는
+    /// 화면당 한 개 열림을 전제하므로(둘이 동시에 앵커를 올리면 팝업이 엉뚱한 칩 아래에 뜬다),
+    /// "동시에 열림"이라는 표현 불가능한 상태를 타입에서 지운다. 세션 한정.
+    @State private var openMenu: OpenMenu = .none
     /// 판정(Ate/Tossed) 햅틱 카운터 — `MainView.decisionHaptic`과 동일 트리거·weight(룰⑦: 같은 의미는 같은 햅틱).
     @State private var decisionHaptic = 0
     /// 펼친 영수증의 실측 높이 — 스크롤 뷰가 콘텐츠보다 커지지 않게 묶는 캡(0이면 미측정 = 캡 없음).
@@ -62,10 +64,13 @@ struct FridgeView: View {
     private var items: [Ingredient] {
         FridgeCategoryFilter.apply(activeCategory, to: sortedItems)
     }
-    /// 재고에 존재하는 카테고리 + 개수(캐논 순서) — 칩 행의 유일한 데이터 소스.
+    /// 재고에 존재하는 카테고리 + 개수(캐논 순서) — 카테고리 드롭다운의 유일한 데이터 소스.
     private var categoryCounts: [FridgeCategoryFilter.Bucket] {
         FridgeCategoryFilter.buckets(of: sortedItems)
     }
+    /// 드롭다운 옵션 — `nil`(전체) + 재고에 있는 카테고리. `String?`을 그대로 값 타입으로 쓴다:
+    /// 필터 상태(`activeCategory`)가 이미 `String?`이라 별도 래퍼를 만들면 변환이 한 겹 더 생긴다.
+    private var categoryOptions: [String?] { [nil] + categoryCounts.map(\.category) }
     /// 배경 accent — 패인마다 다르다. 옛 커버 둘이 각자 갖고 있던 색을 탭에서도 그대로 유지한다
     /// (To buy = blue · History = 낭비율 색). 표면이 바뀌면 배경도 함께 바뀌어야 탭 전환이 읽힌다.
     private var accent: Color {
@@ -117,30 +122,52 @@ struct FridgeView: View {
                 .allowsHitTesting(false)
             }
         }
-        // 정렬 드롭다운 — 트리거 칩 앵커 아래에 떠서(ScrollView 클리핑 밖, zIndex dropdown) 전체 콘텐츠 위를 덮는다.
-        // 딤 없는 투명 탭 캐처가 바깥 탭을 받아 닫는다(가벼운 드롭다운, 모달 아님 — scrim 금지).
+        // 종이 드롭다운(카테고리·정렬) — 트리거 칩 앵커 아래에 떠서(ScrollView 클리핑 밖, zIndex dropdown)
+        // 전체 콘텐츠 위를 덮는다. 딤 없는 투명 탭 캐처가 바깥 탭을 받아 닫는다(가벼운 드롭다운, 모달 아님 — scrim 금지).
+        // **열린 트리거만 앵커를 올리므로**(각 트리거의 `anchorPreference`가 조건부) 여기 도착하는 앵커는
+        // 항상 지금 열린 그 칩의 것이다 — 두 칩이 상시 발행하면 마지막 것이 이겨 팝업이 엉뚱한 자리에 뜬다.
         .overlayPreferenceValue(DropdownAnchorKey.self) { anchor in
             GeometryReader { proxy in
-                if sortMenuOpen, let anchor {
+                if openMenu != .none, let anchor {
                     let rect = proxy[anchor]
                     let width: CGFloat = 220
-                    let x = min(max(ReffiGrid.margin, rect.maxX - width),
+                    // 정렬 칩은 행 오른쪽 끝, 카테고리 칩은 왼쪽 끝에 산다 — 팝업도 그 변에 맞춰 붙인다
+                    // (반대편에 붙이면 트리거에서 먼 쪽으로 열려 어느 칩이 열었는지가 흐려진다).
+                    let leading = openMenu == .category
+                    let rawX = leading ? rect.minX : rect.maxX - width
+                    let x = min(max(ReffiGrid.margin, rawX),
                                 max(ReffiGrid.margin, proxy.size.width - width - ReffiGrid.margin))
                     ZStack(alignment: .topLeading) {
                         Color.clear
                             .contentShape(Rectangle())
                             .ignoresSafeArea()
-                            .onTapGesture { closeSortMenu() }
-                        PaperDropdown(options: FridgeSort.allCases,
-                                      selected: sort,
-                                      label: { $0.label },
-                                      seed: 5) { newSort in
-                            sortRaw = newSort.rawValue
-                            closeSortMenu()
+                            .onTapGesture { closeMenus() }
+                        Group {
+                            switch openMenu {
+                            case .category:
+                                PaperDropdown(options: categoryOptions,
+                                              selected: activeCategory,
+                                              label: categoryOptionLabel,
+                                              seed: 9) { category in
+                                    selectCategory(category)
+                                    closeMenus()
+                                }
+                            case .sort:
+                                PaperDropdown(options: FridgeSort.allCases,
+                                              selected: sort,
+                                              label: { $0.label },
+                                              seed: 5) { newSort in
+                                    sortRaw = newSort.rawValue
+                                    closeMenus()
+                                }
+                            case .none:
+                                EmptyView()
+                            }
                         }
                         .frame(width: width)
                         .offset(x: x, y: rect.maxY + ReffiSpace.s1)
-                        .transition(.scale(scale: 0.92, anchor: .topTrailing).combined(with: .opacity))
+                        .transition(.scale(scale: 0.92, anchor: leading ? .topLeading : .topTrailing)
+                            .combined(with: .opacity))
                     }
                     .zIndex(ReffiZ.dropdown)
                 }
@@ -173,7 +200,7 @@ struct FridgeView: View {
         // 남아 있으면 돌아오는 순간 유령 상세가 뜨고, 열린 정렬 드롭다운은 앵커를 잃은 채 상태만 남는다.
         .onChange(of: tab) { _, _ in
             selectedID = nil
-            if sortMenuOpen { closeSortMenu() }
+            if openMenu != .none { closeMenus() }
         }
         .sheet(item: $editing) { IngredientEditView(ingredient: $0) }
         // 자정 경과 — 탭을 띄워둔 채 날이 바뀌어도 D-day 도장·정렬이 갱신되게(메인과 동일 패턴).
@@ -200,7 +227,13 @@ struct FridgeView: View {
             }
             // `-fridge.sortOpen` — 정렬 드롭다운 자동 오픈(스크린샷용).
             if ProcessInfo.processInfo.arguments.contains("-fridge.sortOpen") {
-                sortMenuOpen = true
+                openMenu = .sort
+            }
+            // `-fridge.categoryOpen` — 카테고리 드롭다운 자동 오픈(스크린샷용). 둘 다 주면 정렬이 이긴다
+            // (한 번에 하나만 열린다 — 아래 대입이 위를 덮지 않도록 순서가 아니라 조건으로 가른다).
+            if ProcessInfo.processInfo.arguments.contains("-fridge.categoryOpen"),
+               openMenu == .none {
+                openMenu = .category
             }
             // `-fridgeEdit` — 첫 재료의 편집 시트 자동 표시(-loadSample과 함께). 시드가 늦으면 지연 재시도.
             if ProcessInfo.processInfo.arguments.contains("-fridgeEdit") {
@@ -242,12 +275,10 @@ struct FridgeView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: ReffiSpace.s5) {
                 let _ = dayTick   // 자정 틱 의존 — 날이 바뀌면 이 서브트리를 재계산
-                // 재고 카운트 + 정렬·보기 + 카테고리 칩 — 전부 **아래 목록을 조작하는** 컨트롤이라
-                // 목록 쪽에 붙여 한 블록으로 읽히게 한다.
-                VStack(alignment: .leading, spacing: ReffiSpace.s3) {
-                    stockRow
-                    if categoryCounts.count > 1 { categoryFilterRow }   // 한 종류뿐이면 필터가 무의미 — 행을 아예 뺀다
-                }
+                // 목록 조작 컨트롤은 **한 줄**이다(2026-08 declutter): 재고 수는 타이틀 옆 캡션으로 올라갔고
+                // 카테고리 칩 행은 이 줄 왼쪽의 드롭다운 하나로 접혔다. 남은 s5는 "컨트롤 블록 ↔ 콘텐츠"
+                // 경계 값 그대로다 — 블록이 두 줄에서 한 줄로 준 것이지 경계의 성격이 바뀐 건 아니다.
+                controlRow
                 if items.isEmpty {
                     emptyState
                 } else {
@@ -380,20 +411,33 @@ struct FridgeView: View {
         )
     }
 
-    // MARK: 헤더 — "여기가 어디인가(Fridge) → 무엇을 보는가(탭) → 목록 조작(재고 행)"의 순서.
+    // MARK: 헤더 — "여기가 어디인가(Fridge · N) → 무엇을 보는가(탭) → 목록 조작(컨트롤 한 줄)"의 순서.
+
+    /// 타이틀 + 재고 수 캡션. 숫자는 **필터 이전의 전체 재고**다(옛 "N in stock" 라벨과 같은 수) —
+    /// 카테고리를 좁혀 봐도 냉장고에 든 총량은 변하지 않는다.
+    ///
+    /// 캡션은 타이틀에 종속된 메타라 `firstTextBaseline`으로 베이스라인을 맞춘다(§3 리듬 — 크기가
+    /// 다른 두 글자를 상자 중앙으로 맞추면 큰 글자의 시각 기준선에서 뜬다).
+    /// 화면에는 "· 9"만 두고 **보조기술에는 "9 in stock"으로 읽힌다** — 가운뎃점을 그대로 읽으면
+    /// 숫자의 의미가 사라진다(§접근성: 시각 축약은 라벨로 복원한다).
     private var titleRow: some View {
-        Text("Fridge").reffiType(.display).foregroundStyle(ReffiColor.ink)
-            .frame(maxWidth: .infinity, alignment: .leading)
+        HStack(alignment: .firstTextBaseline, spacing: ReffiSpace.s2) {
+            Text("Fridge").reffiType(.display).foregroundStyle(ReffiColor.ink)
+            Text(verbatim: "· \(sortedItems.count.formatted())")
+                .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
+                .accessibilityLabel(Text("\(sortedItems.count) in stock"))
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// 재고 수 + 정렬·보기 — 서브라인 오른쪽 끝에 통합(별도 행 제거, 수직 적층 최소화).
-    /// **상시 리포트 버튼은 뺐다** — History 탭이 항상 같은 자리에서 그 진입을 맡는다(탭 행 위에
-    /// 같은 목적지로 가는 두 번째 입구를 두면, 지금 어느 탭인지가 흐려진다).
-    private var stockRow: some View {
+    /// 목록 조작 한 줄 — 좌: 카테고리 필터 드롭다운 / 우: 정렬 + 보기 토글.
+    /// 좌우로 가르는 이유는 성격이 다르기 때문이다: 왼쪽은 **무엇을 보이는가**(범위를 좁힌다),
+    /// 오른쪽은 **어떻게 보이는가**(순서·밀도). 셋 다 같은 44pt 종이 칩이라 한 줄로 읽힌다.
+    private var controlRow: some View {
         HStack(spacing: ReffiSpace.s2) {
-            // Ate/Tossed 숫자는 리포트와 중복이라 뺐다 — 한 번에 보이는 정보 최소화.
-            Text("\(sortedItems.count) in stock")
-                .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
+            // 카테고리가 한 종류뿐이면 필터가 무의미하다 — 칩 행 시절과 같은 규칙(동작 없는 UI 금지).
+            if categoryCounts.count > 1 { categoryMenu }
             Spacer(minLength: ReffiSpace.s2)
             sortMenu
             viewToggle
@@ -401,10 +445,41 @@ struct FridgeView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    /// 카테고리 필터 칩 — 현재 선택을 상시 노출하는 드롭다운 트리거(§13.5 "탭 → 옵션 목록"의 단일 문법).
+    /// 가로 스크롤 칩 행을 이 하나로 접었다: 칩은 한 줄을 통째로 먹으면서도 오른쪽 칩이 잘려 나가
+    /// "몇 종이 더 있는지"를 스크롤해야만 알 수 있었는데, 드롭다운은 전 카테고리를 개수와 함께 한 번에 편다.
+    /// 접근성 라벨은 칩 시절의 `Filter: <이름>` 문법을 그대로 잇는다(UI 테스트 셀렉터도 같은 축).
+    private var categoryMenu: some View {
+        PaperDropdownTrigger(label: categoryTriggerLabel,
+                             isOpen: openMenu == .category,
+                             seed: 9) { toggleMenu(.category) }
+            .accessibilityLabel(String(localized: "Filter: \(categoryTriggerLabel)"))
+    }
+
+    /// 트리거에 적는 현재 선택 — 개수는 붙이지 않는다(전체 수는 타이틀 캡션이, 카테고리별 수는
+    /// 펼친 목록이 말한다. 칩 시절처럼 트리거에도 수를 달면 같은 숫자가 한 화면에 두 번 선다).
+    private var categoryTriggerLabel: String {
+        activeCategory.map(FridgeCategoryFilter.displayName) ?? String(localized: "All")
+    }
+
+    /// 드롭다운 행 라벨 — 이름 + 개수(칩이 보여 주던 그 수). 이름·개수 모두 이미 로컬라이즈된 조각이라
+    /// 조합에는 새 카탈로그 키가 필요 없다.
+    private func categoryOptionLabel(_ category: String?) -> String {
+        let name = category.map(FridgeCategoryFilter.displayName) ?? String(localized: "All")
+        let count = category.map { c in categoryCounts.first { $0.category == c }?.count ?? 0 }
+            ?? sortedItems.count
+        return "\(name) \(count.formatted())"
+    }
+
     /// 정렬 칩 — 현재 정렬 라벨을 상시 노출하는 종이컷 칩(§13.5). 비주얼은 그대로, 탭하면 스톡 Menu 대신
     /// 앱 커스텀 `PaperDropdown`을 토글한다. 칩 바운드를 앵커로 올려 드롭다운을 바로 아래에 띄운다.
+    ///
+    /// **앵커는 열려 있을 때만 올린다** — 같은 줄에 카테고리 트리거가 생기면서 이 화면의 드롭다운
+    /// 트리거가 둘이 됐다. `DropdownAnchorKey`는 마지막 non-nil이 이기므로, 상시 발행하면 뒤에 오는
+    /// 이 칩이 항상 이겨 **카테고리 팝업이 정렬 칩 아래에 뜬다**(`PaperDropdownTrigger`가 같은 이유로
+    /// 조건부 발행을 한다). 시각·히트 영역은 종전 그대로다.
     private var sortMenu: some View {
-        Button { toggleSortMenu() } label: {
+        Button { toggleMenu(.sort) } label: {
             HStack(spacing: ReffiSpace.s1) {
                 ReffiIcon.sort.reffi(12, .bold)
                 Text(sort.label)
@@ -420,76 +495,21 @@ struct FridgeView: View {
             }
             .frame(minHeight: 44)   // §7.3 터치 타깃
             .contentShape(Rectangle())
-            .anchorPreference(key: DropdownAnchorKey.self, value: .bounds) { $0 }
+            .anchorPreference(key: DropdownAnchorKey.self, value: .bounds) {
+                openMenu == .sort ? $0 : nil
+            }
         }
         .buttonStyle(.paperPress)
         .accessibilityLabel("Sort: \(sort.label)")
     }
 
-    // MARK: 카테고리 필터 칩 행 — 정렬(순서)과 직교하는 "좁혀 보기". 정렬 칩과 같은 종이 문법이되,
-    // 선택 상태는 굵은 잉크 단면(sub 면 + ink 2pt)으로 구분한다 — 면 반전은 필터 상태가
-    // 콘텐츠보다 무거워져 폐기(드롭다운의 체크 문법은 팝업 전용).
-    private var categoryFilterRow: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: ReffiSpace.s2) {
-                categoryChip(name: String(localized: "All"), count: sortedItems.count,
-                             on: activeCategory == nil, seed: 9) { setCategory(nil) }
-                ForEach(categoryCounts, id: \.category) { bucket in
-                    categoryChip(name: FridgeCategoryFilter.displayName(bucket.category),
-                                 count: bucket.count,
-                                 on: activeCategory == bucket.category,
-                                 seed: FridgeCategoryFilter.chipSeed(bucket.category)) { setCategory(bucket.category) }
-                }
-            }
-            // 스크롤 콘텐츠 자체에 마진을 줘 첫/마지막 칩이 화면 끝에 붙지 않게. 세로 패딩은
-            // 종이 프레스(스케일)·헤어라인이 스크롤 클립에 잘리지 않는 여유.
-            .padding(.horizontal, ReffiGrid.margin)
-            .padding(.vertical, 3)
-        }
-        .scrollClipDisabled()
-        .padding(.horizontal, -ReffiGrid.margin)   // 상위 페이지 마진 상쇄 — 행만 가장자리까지 흐른다
-        .padding(.vertical, -3)
-    }
-
-    /// 필터 칩 한 개 — 라벨 + 개수. 히트 44(§7.3), 선택은 굵은 잉크 테두리 + `.isSelected` 트레잇.
-    private func categoryChip(name: String, count: Int, on: Bool, seed: Int,
-                              action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            HStack(spacing: ReffiSpace.s1) {
-                Text(name)
-                    .font(ReffiTextRole.caption.font)
-                    .tracking(ReffiTextRole.caption.tracking)
-                    .foregroundStyle(ReffiColor.ink)
-                Text(count.formatted())
-                    .font(.reffiNum(.meta))
-                    .foregroundStyle(ReffiColor.ink2)
-            }
-            .lineLimit(1)
-            .padding(.horizontal, ReffiSpace.s3)
-            .padding(.vertical, ReffiSpace.s2)
-            .background {
-                let s = PaperRect(cornerRadius: ReffiRadius.xs, seed: seed)
-                if on {
-                    // 선택 = sub 면 + 굵은 잉크 단면. 옛 ink 솔리드 반전은 화면 최고 대비를
-                    // 필터 '상태'가 가져가 콘텐츠(영수증 스택)를 눌렀다(감사 미검출 ①).
-                    s.fill(ReffiColor.sub).paperEdge(s, tint: ReffiColor.ink.opacity(0.55), width: 2)
-                } else {
-                    s.fill(ReffiColor.paper).paperEdge(s)
-                }
-            }
-            .frame(minHeight: 44)   // §7.3 터치 타깃
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.paperPress)
-        .accessibilityLabel(String(localized: "Filter: \(name)"))
-        .accessibilityValue(count.formatted())
-        .accessibilityAddTraits(on ? [.isButton, .isSelected] : .isButton)
-    }
-
-    /// 칩 탭 — 같은 칩 재탭은 해제(= 전체). 목록이 통째로 갈리므로 선택된 상세는 접는다.
-    private func setCategory(_ category: String?) {
+    /// 카테고리 선택 — 고른 값을 **그대로** 넣는다. 칩 시절의 "같은 칩 재탭 = 해제"는 칩 문법이었고,
+    /// 드롭다운에서는 이미 체크가 붙은 행을 다시 눌렀다고 필터가 풀리면 체크 표시와 모순된다.
+    /// 해제 경로는 목록 맨 위의 "All"이 맡는다(칩 행에도 있던 그 경로라 닿을 수 있는 상태는 같다).
+    /// 목록이 통째로 갈리므로 선택된 상세는 접는다.
+    private func selectCategory(_ category: String?) {
         withAnimation(motion) {
-            activeCategory = (category == activeCategory) ? nil : category
+            activeCategory = category
             selectedID = nil
         }
     }
@@ -527,13 +547,23 @@ struct FridgeView: View {
         }
     }
 
-    // MARK: 정렬 드롭다운 — 진입 .pop / 이탈 .exit(§7.5), reduced-motion 존중.
-    private func toggleSortMenu() { sortMenuOpen ? closeSortMenu() : openSortMenu() }
-    private func openSortMenu() {
-        withAnimation(ReffiMotion.gated(ReffiMotion.pop, reduce: reduceMotion)) { sortMenuOpen = true }
+    // MARK: 종이 드롭다운 — 진입 .pop / 이탈 .exit(§7.5), reduced-motion 존중.
+
+    /// 이 화면에서 열릴 수 있는 드롭다운. 값이 하나뿐이라 **둘이 동시에 열리는 상태가 존재하지 않는다**
+    /// (`DropdownAnchorKey`의 "화면당 하나" 전제를 상태 모양으로 강제한다).
+    enum OpenMenu { case none, category, sort }
+
+    /// 트리거 탭 — 열려 있던 그 메뉴면 닫고, 아니면 그쪽으로 **갈아탄다**(다른 메뉴가 열려 있어도
+    /// 한 번의 탭으로 옮겨진다 — 먼저 닫으라고 요구하면 칩 두 개가 서로를 막는다).
+    private func toggleMenu(_ menu: OpenMenu) {
+        if openMenu == menu {
+            closeMenus()
+        } else {
+            withAnimation(ReffiMotion.gated(ReffiMotion.pop, reduce: reduceMotion)) { openMenu = menu }
+        }
     }
-    private func closeSortMenu() {
-        withAnimation(ReffiMotion.gated(ReffiMotion.exit, reduce: reduceMotion)) { sortMenuOpen = false }
+    private func closeMenus() {
+        withAnimation(ReffiMotion.gated(ReffiMotion.exit, reduce: reduceMotion)) { openMenu = .none }
     }
 
     // MARK: 액션
@@ -606,14 +636,6 @@ enum FridgeCategoryFilter {
                 || items.contains(where: { added.contains($0.id) && key(of: $0) == category })
         else { return nil }
         return category
-    }
-
-    /// 칩 종이 셰이프 시드 — **카테고리 키**에서 유도한다(재고 개수가 아니라). 개수를 쓰면 먹거나
-    /// 추가할 때마다 손으로 오린 윤곽이 다시 랜덤해지고(§13.1: 시드가 같으면 항상 같은 모양),
-    /// 개수가 같은 칩끼리는 똑같이 생긴다. 20 오프셋은 같은 화면의 다른 종이 면
-    /// (빈 상태 3 · 리포트 버튼 4 · 정렬 칩 5 · 보기 토글 6 · 요약 카드 7/8 · All 칩 9)과 겹치지 않기 위한 것.
-    static func chipSeed(_ category: String) -> Int {
-        20 + (order.firstIndex(of: category) ?? order.count)
     }
 
     /// 표시명 — 저장·비교는 영문 캐논, 표시만 로컬라이즈(카테고리 키는 이미 카탈로그에 등록돼 있다).

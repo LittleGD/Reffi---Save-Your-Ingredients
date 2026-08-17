@@ -860,16 +860,6 @@ struct FridgeStoreTests {
         #expect(FridgeCategoryFilter.changeKey(of: milk) == FridgeCategoryFilter.changeKey(of: milk))
     }
 
-    @Test func chipSeedIsStablePerCategoryNotPerCount() {
-        // 시드는 카테고리 키에서만 나온다 — 재고가 늘고 줄어도 칩 윤곽이 다시 랜덤해지지 않는다.
-        #expect(FridgeCategoryFilter.chipSeed("Veg") == FridgeCategoryFilter.chipSeed("Veg"))
-        // 카테고리가 다르면 시드도 다르다(개수가 같아도 똑같이 생기지 않는다).
-        let seeds = FridgeCategoryFilter.order.map(FridgeCategoryFilter.chipSeed)
-        #expect(Set(seeds).count == FridgeCategoryFilter.order.count)
-        // 같은 화면의 다른 종이 면 시드(빈 상태 3 · 정렬 칩 5 · 보기 토글 6 · 요약 7/8 · All 9)와 겹치지 않는다.
-        #expect(seeds.allSatisfy { $0 > 9 })
-    }
-
     @Test func promoteUrgentSwapsInMoreUrgentWhenCounterFull() {
         // day 10..15 fresh 6개 — init에서 작업대가 이 6개로 찬다.
         let fresh = (0..<6).map { i in
