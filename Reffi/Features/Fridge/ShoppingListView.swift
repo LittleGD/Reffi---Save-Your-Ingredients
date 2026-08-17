@@ -4,10 +4,17 @@ import SwiftUI
 /// 하단 "Add item"으로 직접 담는다(§13.5 To buy 예외 — **재고 추가가 아니라 장보기 메모**다).
 /// Add = 시트 없이 **즉시 재입고** — 직전 이력 스냅샷(보관·구매처·수량, 냉동이었다면 냉장으로)과
 /// 사전 기본 기한으로 바로 store에 채워 넣는다(§13.6 재입고 경로 — AddIngredientSheet 의존 없음).
-struct ShoppingListView: View {
+///
+/// **커버 크롬(헤더·닫기)을 갖지 않는 임베더블 본문**이다 — 냉장고 To buy 탭이 이 뷰를 그대로 얹고,
+/// 풀스크린 커버가 필요한 자리는 아래 `ShoppingListView`가 헤더만 씌운다. 목록·재입고·Skip·검색 시트
+/// 같은 실제 동작은 **여기 한 곳**에 산다(두 표면이 같은 규칙을 각자 적으면 조용히 갈린다).
+struct ShoppingListContent: View {
+    /// 하단 도킹 CTA 아래로 남길 여백 — 커버는 기본값(`s3`), 떠 있는 캡슐 네비가 있는 탭 패인은
+    /// 그 자리(`ReffiChrome.navReserve`)를 비운다.
+    var ctaBottomInset: CGFloat = ReffiSpace.s3
+
     @Environment(FridgeStore.self) private var store
     @Environment(ProfileStore.self) private var profile
-    @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var restockHaptic = 0
@@ -15,40 +22,41 @@ struct ShoppingListView: View {
     /// 목록에 담기는 Add 쪽이 성공 완료(`.success`)이므로 같은 행의 두 알약이 다른 의미로 갈린다.
     @State private var skipHaptic = 0
     @State private var showSearch = false
+    #if DEBUG
+    /// `-toBuy.search` 자동 오픈을 **런치당 한 번**으로 묶는다 — 탭 패인은 커버와 달리 오갈 때마다
+    /// `onAppear`가 다시 도는데, 그때마다 시트가 튀어나오면 QA 세션에서 다른 탭을 볼 수가 없다.
+    @State private var searchArgHandled = false
+    #endif
 
     private typealias Row = (name: String, glyph: FoodGlyph, manual: Bool, key: String)
 
     private var items: [Row] { store.toBuy }
 
     var body: some View {
-        ZStack {
-            LiquidGlassBackground(accent: ReffiColor.blue.opacity(0.5))
-            VStack(spacing: 0) {
-                header
-                ScrollView {
-                    VStack(spacing: ReffiSpace.s4) {
-                        if items.isEmpty {
-                            emptyCard
-                        } else {
-                            listCard
-                        }
-                    }
-                    .padding(.horizontal, ReffiGrid.margin)
-                    .padding(.bottom, ReffiSpace.s6)
+        ScrollView {
+            VStack(spacing: ReffiSpace.s4) {
+                if items.isEmpty {
+                    emptyCard
+                } else {
+                    listCard
                 }
             }
+            .padding(.horizontal, ReffiGrid.margin)
+            .padding(.bottom, ReffiSpace.s6)
         }
         // 직접 담기 진입은 목록 꼬리가 아니라 화면 하단에 도킹한다(§13.5) — 목록이 짧든 길든 같은
         // 자리에 있고, 커버·시트·메인이 공유하는 하단 CTA 관례와 어긋나지 않는다.
-        .dockedCTA(over: ReffiColor.canvas) { addItemButton }
+        .dockedCTA(over: ReffiColor.canvas, bottomInset: ctaBottomInset) { addItemButton }
         .sensoryFeedback(.success, trigger: restockHaptic)
         .sensoryFeedback(.impact(weight: .light), trigger: skipHaptic)
         .sheet(isPresented: $showSearch) { ToBuySearchSheet() }
         #if DEBUG
-        // `-toBuy.search` — 검색 시트 자동 오픈(스크린샷·QA용). 커버 자체는 `FridgeView`가 연다.
-        // 커버 전환과 같은 프레임에 시트를 올리면 프레젠테이션이 씹히므로 전환이 끝난 뒤로 미룬다.
+        // `-toBuy.search` — 검색 시트 자동 오픈(스크린샷·QA용). 탭 착지 자체는 `FridgeView`가 한다.
+        // 탭 전환·커버 전환과 같은 프레임에 시트를 올리면 프레젠테이션이 씹히므로 전환 뒤로 미룬다.
         .onAppear {
-            guard ProcessInfo.processInfo.arguments.contains("-toBuy.search") else { return }
+            guard !searchArgHandled,
+                  ProcessInfo.processInfo.arguments.contains("-toBuy.search") else { return }
+            searchArgHandled = true
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { showSearch = true }
         }
         #endif
@@ -74,12 +82,6 @@ struct ShoppingListView: View {
                                  quantity: quantity, glyph: glyph))
         }
         restockHaptic += 1
-    }
-
-    private var header: some View {
-        CoverHeader(title: "To buy",
-                    subtitle: "Restock what you use often",
-                    onClose: { dismiss() })
     }
 
     /// 직접 담은 구역(맨 위) / 이력 제안 구역 — 두 구역은 캡션이 다르다(제안 캡션이 수동 항목까지
@@ -167,6 +169,25 @@ struct ShoppingListView: View {
                 .reffiType(.body).foregroundStyle(ReffiColor.ink2)
         }
         .receiptSurface(elevated: .flat)
+    }
+}
+
+/// To buy의 **풀스크린 커버 형태** — 배경 + `CoverHeader`(§14.2)만 씌운 얇은 래퍼이고 본문은
+/// `ShoppingListContent`가 전부 그린다. 냉장고에서는 탭이 이 화면을 대신하지만, 커버로 띄워야 하는
+/// 진입 경로(딥링크·다른 화면에서의 호출)가 생겼을 때 헤더·닫기 크롬을 다시 조립하지 않게 남겨 둔다.
+struct ShoppingListView: View {
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        ZStack {
+            LiquidGlassBackground(accent: ReffiColor.blue.opacity(0.5))
+            VStack(spacing: 0) {
+                CoverHeader(title: "To buy",
+                            subtitle: "Restock what you use often",
+                            onClose: { dismiss() })
+                ShoppingListContent()
+            }
+        }
     }
 }
 

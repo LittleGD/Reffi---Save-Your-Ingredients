@@ -1,10 +1,15 @@
 import SwiftUI
 
-/// History — 냉장고의 리포트 진입점(헤더 아이콘·요약 페이저)에서 연다. 소비/버림 이력을 종이컷 카드로(§13).
+/// History 본문 — 소비/버림 이력을 종이컷 카드로(§13).
 /// ① 정산서(먹음·버림 두 행 + 낭비율 도장 + 자주 버린 재료 TOP 3) ② 타임라인.
-struct HistoryView: View {
+///
+/// **커버 크롬(헤더·닫기)을 갖지 않는 임베더블 본문**이다 — 냉장고 History 탭이 이 뷰를 그대로 얹고,
+/// 풀스크린 커버가 필요한 자리는 아래 `HistoryView`가 헤더만 씌운다.
+struct HistoryContent: View {
+    /// 스크롤 꼬리 여백 — 커버는 기본값(`s6`), 떠 있는 캡슐 네비가 있는 탭 패인은 `navClearance`.
+    var bottomPadding: CGFloat = ReffiSpace.s6
+
     @Environment(FridgeStore.self) private var store
-    @Environment(\.dismiss) private var dismiss
 
     /// 정산서에 세우는 자주 버린 재료 줄 수 — 영수증 한 장이 삼키는 상한.
     private static let topTossedLimit = 3
@@ -16,13 +21,17 @@ struct HistoryView: View {
     private var tossed: Int { recent.filter(\.wasted).count }
     private var rate: Int { store.wasteRate }
 
-    private var rateColor: Color {
+    /// 낭비율 색 — 임계값의 **단일 공급원**이다(색=정보, §1). 커버 배경 accent와 냉장고 History 탭의
+    /// 배경 accent가 같은 함수를 읽는다: 세 곳이 각자 `switch`를 들고 있으면 한쪽만 조용히 어긋난다.
+    static func rateColor(_ rate: Int) -> Color {
         switch rate {
         case ...10: ReffiColor.freshDark
         case ...30: ReffiColor.soonDark
         default:    ReffiColor.urgentDark
         }
     }
+
+    private var rateColor: Color { Self.rateColor(rate) }
 
     /// 자주 버린 재료 — 버림 이력을 **매칭 키**(표기 무관)로 묶어 많은 순, 정산 기간(30일)과 같은 모수.
     /// 표기로 묶으면 언어를 바꾸기 전후에 담은 같은 재료가 두 줄로 갈린다.
@@ -38,27 +47,14 @@ struct HistoryView: View {
     }
 
     var body: some View {
-        ZStack {
-            LiquidGlassBackground(accent: rateColor.opacity(0.6))
-            VStack(spacing: 0) {
-                header
-                ScrollView {
-                    VStack(spacing: ReffiSpace.s4) {
-                        settlementCard
-                        if !logs.isEmpty { timelineCard }   // 기록이 없으면 제목만 남은 빈 카드를 세우지 않는다
-                    }
-                    .padding(.horizontal, ReffiGrid.margin)
-                    .padding(.bottom, ReffiSpace.s6)
-                }
+        ScrollView {
+            VStack(spacing: ReffiSpace.s4) {
+                settlementCard
+                if !logs.isEmpty { timelineCard }   // 기록이 없으면 제목만 남은 빈 카드를 세우지 않는다
             }
+            .padding(.horizontal, ReffiGrid.margin)
+            .padding(.bottom, bottomPadding)
         }
-    }
-
-    /// 커버 헤더 — 단일 공급원 `CoverHeader`(§14.2 중앙 타이틀+서브 / 우측 종이 X).
-    private var header: some View {
-        CoverHeader(title: "History",
-                    subtitle: "What you ate and what you tossed",
-                    onClose: { dismiss() })
     }
 
     // MARK: ① 정산서 — 영수증 한 장에 "먹음·버림 두 행 → 낭비율 도장 → 자주 버린 재료 TOP 3"
@@ -201,5 +197,25 @@ struct HistoryView: View {
     /// (오래도록 인자만 받고 본문에서 쓰지 않아, 호출부 셋이 있지도 않은 변주를 믿고 있었다.)
     private func card<Content: View>(seed: Int, @ViewBuilder _ content: () -> Content) -> some View {
         content().receiptSurface(seed: seed)
+    }
+}
+
+/// History의 **풀스크린 커버 형태** — 배경 + `CoverHeader`(§14.2 중앙 타이틀+서브 / 우측 종이 X)만
+/// 씌운 얇은 래퍼이고 본문은 `HistoryContent`가 전부 그린다. 냉장고에서는 탭이 이 화면을 대신하지만,
+/// 커버로 띄워야 하는 진입 경로가 생겼을 때 헤더·닫기 크롬을 다시 조립하지 않게 남겨 둔다.
+struct HistoryView: View {
+    @Environment(FridgeStore.self) private var store
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        ZStack {
+            LiquidGlassBackground(accent: HistoryContent.rateColor(store.wasteRate).opacity(0.6))
+            VStack(spacing: 0) {
+                CoverHeader(title: "History",
+                            subtitle: "What you ate and what you tossed",
+                            onClose: { dismiss() })
+                HistoryContent()
+            }
+        }
     }
 }
