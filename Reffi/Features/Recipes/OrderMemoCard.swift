@@ -27,17 +27,16 @@ struct OrderMemoCard: View {
     /// 오른쪽 플릭(Cook) 발주 트리거 — 덱이 값을 올리면 "Cook this" 버튼과 **같은** `fire()`를 태운다.
     /// 발주 상태(슬램·줄긋기·이중 발주 가드)를 카드가 소유하므로 부모가 `fired`를 직접 켜지 않는다.
     var fireTrigger: Int = 0
-    /// Short 행의 To buy 원탭 — 부족 재료 **전부**를 장보기 메모로 담고 **새로 담긴 수**를 돌려준다.
+    /// Short 행의 담기 진입 — 부족 재료를 **덱에 넘기기만** 한다. 무엇을 담을지 고르는 팝업부터
+    /// 담김 알림·이동 질문까지가 덱 위에 뜨는 흐름이라, 카드가 직접 담으면 그 흐름을 카드 안
+    /// `middleScroll`(내부 세로 ScrollView + 톱니 클리핑)에 가둬야 한다.
     /// 레시피 항목을 그대로 넘긴다(표시명이 아니라) — `ref`가 있어야 장보기 표기를 정확히 풀 수 있다.
     /// nil이면 알약 자체를 그리지 않는다(스토어에 닿지 못하는 프리뷰·공유 렌더에서 위약 버튼 금지).
-    var onAddMissing: (([Recipe.Item]) -> Int)?
+    var onPickMissing: (([Recipe.Item]) -> Void)?
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var fired = false
     @State private var middleScrolls = false   // 중간 섹션이 실제로 스크롤되는가(안전망 발동 여부)
-    @State private var justAdded = false       // Short 알약의 임시 '담김' 상태(≈1.5초)
-    @State private var addedGeneration = 0     // 연타 시 앞선 타이머가 뒤 상태를 끄지 못하게
-    @State private var addHaptic = 0
 
     /// 임박(urgent+soon) 재료 수 — 안티-웨이스트 증명.
     private var rescuedCount: Int { result.used.filter { $0.freshness != .fresh }.count }
@@ -81,7 +80,6 @@ struct OrderMemoCard: View {
         .shadow(color: ReffiColor.shadowTint.opacity(headerOnly ? 0 : 0.05),
                 radius: 10, x: 0, y: 8)
         .onChange(of: fireTrigger) { _, _ in fire() }
-        .sensoryFeedback(.success, trigger: addHaptic)   // 목록에 담김 = 성공 완료(§7.6)
     }
 
     /// 중간 섹션 — 헤더·fireBand는 고정, 판정문~'ON THE TICKET'(+ Short 문구)만 내부 스크롤(§13.6).
@@ -231,9 +229,10 @@ struct OrderMemoCard: View {
 
     /// 부족 재료 줄 — "Short: …" + **To buy 원탭 알약**(§13.5).
     ///
-    /// 여기까지가 '이 티켓을 못 하는 이유'인데, 지금까지 그 다음 행동(장보기 메모에 적기)은 화면
-    /// 두 개 건너에 있었다. 알약은 그 왕복을 없앤다 — 부족 재료를 **전부** 한 번에 담는다(하나씩
-    /// 고르게 하면 티켓 위에 목록 UI를 또 얹는 셈이라, 티켓은 단서 카드라는 규율을 깬다).
+    /// 여기까지가 '이 티켓을 못 하는 이유'인데, 그 다음 행동(장보기 메모에 적기)은 화면 두 개 건너에
+    /// 있었다. 알약은 그 왕복을 없앤다 — 다만 **무엇을 담을지는 고르게 한다**(2026-08 owner request):
+    /// 부족 재료 중 이미 집에 있는 것이 섞이면 전량 담기는 목록에 없는 줄을 얹는다. 고르는 UI는
+    /// 티켓 위가 아니라 **덱 위 팝업**에 산다 — 티켓은 단서 카드라는 규율(§13.5)은 그대로다.
     ///
     /// 표기는 레시피 원문 그대로다("소고기 (얇게 썬 것)") — 여기선 레시피를 읽는 자리라 괄호 주석이
     /// 정보다. 담을 때만 `toBuyEntry`가 이름을 장보기용으로 정리한다.
@@ -246,47 +245,38 @@ struct OrderMemoCard: View {
             Text("Short: \(result.missing.map(\.displayName).joined(separator: ", "))")
                 .reffiType(.metaText)
                 .foregroundStyle(ReffiColor.ink2).lineLimit(2)
-            if let onAddMissing { addMissingPill(onAddMissing) }
+            if let onPickMissing { addMissingPill(onPickMissing) }
         }
         .padding(.top, 1)
     }
 
-    /// To buy 원탭 알약 — 담기 성공(새로 담긴 것이 있을 때)에만 `.success` 햅틱을 울리고,
-    /// 라벨은 ≈1.5초 동안 '담김'으로 바뀐다. **이미 담겨 있어 0건이어도 라벨은 바뀐다** —
-    /// 그것도 참인 상태 보고이고(목록에 있다), 아무 반응이 없으면 버튼이 죽은 것으로 읽힌다.
-    private func addMissingPill(_ add: @escaping ([Recipe.Item]) -> Int) -> some View {
+    /// To buy 담기 알약 — **문을 여는 버튼**이다. 라벨과 면은 그대로 두고(진입점의 정체는 바뀌지
+    /// 않았다) 결과 보고만 팝업으로 옮겼다: 예전의 '담김' 라벨 플래시(≈1.5초)는 담긴 개수를 말할 수
+    /// 없어 "이미 다 있었다"와 "새로 담았다"가 같은 그림이었는데, 이제 알림 팝업이 그 둘을 가른다.
+    private func addMissingPill(_ pick: @escaping ([Recipe.Item]) -> Void) -> some View {
         Button {
-            let added = add(result.missing)
-            if added > 0 { addHaptic += 1 }
-            addedGeneration += 1
-            let gen = addedGeneration
-            withAnimation(ReffiMotion.gated(ReffiMotion.pop, reduce: reduceMotion)) { justAdded = true }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                guard addedGeneration == gen else { return }   // 연타 — 마지막 탭만 시계를 쥔다
-                withAnimation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion)) {
-                    justAdded = false
-                }
-            }
+            pick(result.missing)
         } label: {
             HStack(spacing: 3) {
-                (justAdded ? ReffiIcon.check : ReffiIcon.add).reffi(11, .bold)
-                Text(justAdded ? "Added" : "Add to list").reffiType(.pillLabel)
+                ReffiIcon.add.reffi(11, .bold)
+                Text("Add to list").reffiType(.pillLabel)
             }
-            .foregroundStyle(justAdded ? ReffiColor.freshDark : ReffiColor.blueDark)
+            .foregroundStyle(ReffiColor.blueDark)
             .padding(.horizontal, ReffiSpace.s2 + 2)
             .padding(.vertical, 4)
             .background {
                 let shape = PaperRect(cornerRadius: ReffiRadius.sm, seed: number &+ 7)
-                shape.fill(justAdded ? ReffiColor.freshLight : ReffiColor.blueLight)
-                    .paperEdge(shape, tint: (justAdded ? ReffiColor.freshDark : ReffiColor.blueDark).opacity(0.18))
+                shape.fill(ReffiColor.blueLight)
+                    .paperEdge(shape, tint: ReffiColor.blueDark.opacity(0.18))
             }
             // 시각은 작아도 히트 영역은 44pt(§7.3) — 투명 여백으로 확보한다.
             .frame(minWidth: 44, minHeight: 44)
             .contentShape(Rectangle())
         }
         .buttonStyle(.paperPress)
-        .accessibilityLabel(justAdded ? Text("Added") : Text("Add to list"))
+        .accessibilityLabel(Text("Add to list"))
         .accessibilityValue(Text(verbatim: result.missing.map(\.displayName).joined(separator: ", ")))
+        .accessibilityHint(Text("Opens a list of the missing ingredients to pick from"))
     }
 
     /// 발주 도장 — "START"가 쾅(scale 1.5→1, pop) 찍힌다. 빨강 잉크(키친 fired).

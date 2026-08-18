@@ -9,6 +9,11 @@ import PhosphorSwift
 /// 옛 요약 두 버튼과 헤더 리포트 버튼이 열던 풀스크린 커버 둘을 탭 패인이 대신한다 — 목적지가
 /// 세 개뿐인데 그중 둘을 커버로 감추면 "지금 뭘 보고 있는가"가 화면에 남지 않는다.
 struct FridgeView: View {
+    /// 바깥에서 지정하는 착지 패인 — 덱의 담기 흐름이 "보기"로 끝나면 `.toBuy`가 들어온다.
+    /// **소비하면 곧바로 nil로 되돌린다**(1회성 신호): 값이 남아 있으면 사용자가 손으로 탭을 옮긴
+    /// 다음에도 같은 요청이 다시 살아나 패인이 되돌아간다.
+    @Binding var pendingPane: FridgeTab?
+
     @Environment(FridgeStore.self) private var store
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -121,6 +126,15 @@ struct FridgeView: View {
                 .ignoresSafeArea()
                 .allowsHitTesting(false)
             }
+        }
+        // 바깥에서 온 착지 요청 — 펼친 영수증과 열린 드롭다운을 먼저 정리한다. 상세는 탭 행까지
+        // 덮는 전체 화면이라(§13.5), 그대로 두면 탭만 바뀌고 화면은 영수증에 머문다.
+        .onChange(of: pendingPane) { _, requested in
+            guard let requested else { return }
+            pendingPane = nil
+            selectedID = nil
+            closeMenus()
+            tab = requested
         }
         // 종이 드롭다운(카테고리·정렬) — 트리거 칩 앵커 아래에 떠서(ScrollView 클리핑 밖, zIndex dropdown)
         // 전체 콘텐츠 위를 덮는다. 딤 없는 투명 탭 캐처가 바깥 탭을 받아 닫는다(가벼운 드롭다운, 모달 아님 — scrim 금지).

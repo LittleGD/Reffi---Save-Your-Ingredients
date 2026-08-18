@@ -493,22 +493,40 @@
         }
       }
     },
-    "Added": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "담김"
-          }
-        }
-      }
-    },
     "Added %@": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
             "value": "%@ 담김"
+          }
+        }
+      }
+    },
+    "Added %lld items": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Added 1 item"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Added %lld items"
+                }
+              }
+            }
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld개 담았어요"
           }
         }
       }
@@ -579,6 +597,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "이미 계정이 있으신가요?"
+          }
+        }
+      }
+    },
+    "Already on your list": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이미 목록에 있어요"
           }
         }
       }
@@ -719,6 +747,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "네트워크 연결을 확인해 주세요."
+          }
+        }
+      }
+    },
+    "Checked": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "선택됨"
           }
         }
       }
@@ -1872,6 +1910,16 @@
         }
       }
     },
+    "Not checked": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "선택 안 됨"
+          }
+        }
+      }
+    },
     "Nothing cleared out this week yet.": {
       "localizations": {
         "ko": {
@@ -1898,6 +1946,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "기록 없이 예약된 재료가 냉장고로 돌아가요."
+          }
+        }
+      }
+    },
+    "Nothing new to add.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "새로 담을 게 없어요."
           }
         }
       }
@@ -2062,6 +2120,16 @@
         }
       }
     },
+    "Opens a list of the missing ingredients to pick from": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "부족한 재료를 골라 담는 목록을 엽니다"
+          }
+        }
+      }
+    },
     "Opens the share sheet": {
       "localizations": {
         "ko": {
@@ -2158,6 +2226,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "원하는 만큼 골라주세요. 레시피가 따라올게요."
+          }
+        }
+      }
+    },
+    "Pick what to add": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "담을 것을 골라요"
           }
         }
       }
@@ -2833,6 +2911,16 @@
         }
       }
     },
+    "The rest were already on your list.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "나머지는 이미 목록에 있었어요."
+          }
+        }
+      }
+    },
     "This email is already registered. Try logging in.": {
       "localizations": {
         "ko": {
@@ -2953,6 +3041,16 @@
         }
       }
     },
+    "Toggles whether this goes on the list": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "목록에 담을지 켜고 끕니다"
+          }
+        }
+      }
+    },
     "Tomorrow: %@": {
       "localizations": {
         "ko": {
@@ -3039,6 +3137,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "이름과 소비기한을 입력해요"
+          }
+        }
+      }
+    },
+    "Uncheck anything you already have.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이미 있는 건 체크를 풀어요."
           }
         }
       }
@@ -3143,6 +3251,26 @@
         }
       }
     },
+    "View": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "보기"
+          }
+        }
+      }
+    },
+    "View your To buy list?": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "살 것 목록을 볼까요?"
+          }
+        }
+      }
+    },
     "Waste rate": {
       "localizations": {
         "ko": {
@@ -3239,6 +3367,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "구매처"
+          }
+        }
+      }
+    },
+    "You can open it later from the Fridge tab.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "나중에 냉장고 탭에서도 열 수 있어요."
           }
         }
       }

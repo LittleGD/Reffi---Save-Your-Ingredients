@@ -20,13 +20,17 @@ struct RootTabView: View {
     }()
     @State private var showAdd = false
     @State private var undoHaptic = 0
+    /// 냉장고가 다음에 열어야 할 패인 — **1회성 신호**다(받는 쪽이 소비하면서 nil로 되돌린다).
+    /// 탭 전환과 패인 지정이 서로 다른 뷰에 살기 때문에 값 하나로 묶어 함께 보낸다: `tab`만 바꾸면
+    /// 냉장고는 자기가 마지막에 보던 패인을 그대로 띄운다(패인 선택은 `FridgeView`의 세션 상태다).
+    @State private var fridgePane: FridgeTab?
 
     var body: some View {
         ZStack(alignment: .bottom) {
             // 세 탭 공존(pane) 유지 — switch 전환은 메인 물리 더미·undo 상태를 파괴한다.
             // 프로필 탭은 PR #4의 ProfileView(계정·취향·리포트)로 교체.
-            pane(MainView(isActive: tab == .home), visible: tab == .home)
-            pane(FridgeView(), visible: tab == .fridge)
+            pane(MainView(isActive: tab == .home, onOpenToBuy: { openFridge(.toBuy) }), visible: tab == .home)
+            pane(FridgeView(pendingPane: $fridgePane), visible: tab == .fridge)
             pane(ProfileView(), visible: tab == .profile)
 
             CapsuleNav(tab: $tab, onAdd: { showAdd = true })
@@ -68,6 +72,14 @@ struct RootTabView: View {
         .sheet(isPresented: $showAdd) {
             AddIngredientSheet()   // presentationDetents는 시트 내부에서 적용(중복 방지)
         }
+    }
+
+    /// 다른 탭의 흐름이 지정한 목적지로 간다 — **패인을 먼저 예약하고 탭을 옮긴다**(순서가 반대면
+    /// 냉장고가 한 프레임 동안 직전 패인을 보여 준 뒤 갈아탄다). 커버 체인은 이미 걷힌 뒤다
+    /// (`MainView`가 커버 `onDismiss`에서 부른다) — 여기서 탭을 바꾸는 것이 마지막 한 걸음이다.
+    private func openFridge(_ pane: FridgeTab) {
+        fridgePane = pane
+        tab = .fridge
     }
 
     @ViewBuilder private func pane(_ view: some View, visible: Bool) -> some View {

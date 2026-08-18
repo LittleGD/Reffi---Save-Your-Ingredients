@@ -22,6 +22,10 @@ struct MainView: View {
 
     /// 현재 탭으로 표시 중인지 — 아닐 때 물리 씬을 일시정지한다(배터리).
     var isActive: Bool = true
+    /// 냉장고의 To buy 패인으로 데려가 달라 — 덱의 담기 흐름이 "보기"로 끝날 때 루트가 받는다.
+    /// 라우터를 새로 만들지 않는다: 이 앱의 화면 전환은 전부 클로저·바인딩으로 위로 올린다
+    /// (선례: `onClose`·`onFire`·`onAddMissing`). 실제 탭 전환은 `RootTabView`가 한다.
+    var onOpenToBuy: () -> Void = {}
 
     /// SKScene 보관 박스 — @State 초기값 식은 뷰 구조체가 재생성될 때마다 평가되므로(예: undo 토스트
     /// 등장·소멸마다 RootTabView body 재평가 → MainView 재구성) 씬을 게으르게 만들어 1회만 생성한다.
@@ -41,6 +45,12 @@ struct MainView: View {
     @State private var uncoveredSnapshot: [String] = []
     @State private var firedTicket = false         // 커버당 발주 1회 — 슬램 창의 더블 파이어 방지
     @State private var coverGeneration = 0         // 지연 닫기 타이머가 새로 연 커버를 닫지 못하게
+    /// 담기 흐름(팝업 3단)이 덱 위에 떠 있다 — 켜져 있는 동안 발주 지연 닫기를 **미룬다**.
+    @State private var toBuyOverDeck = false
+    /// 미뤄 둔 지연 닫기 — **취소가 아니라 보류**다. 흐름이 끝나면 그대로 이어 실행한다.
+    @State private var pendingDeckDismiss = false
+    /// 커버가 걷힌 뒤 To buy로 간다 — 커버 해체와 탭 전환을 같은 프레임에 겹치지 않게 하는 한 칸.
+    @State private var pendingToBuyJump = false
     @State private var fireHaptic = 0
     @State private var decisionHaptic = 0
 
@@ -133,8 +143,19 @@ struct MainView: View {
         .sensoryFeedback(.impact(weight: .medium), trigger: fireHaptic)
         .sensoryFeedback(.impact(weight: .light), trigger: decisionHaptic)
         .fullScreenCover(isPresented: $showCarousel, onDismiss: {
-            // 발주로 닫혔으면 곧장 단계별 레시피로 — "Cook this"의 다음 화면은 조리다.
-            if firedTicket, store.activeCook != nil { showSteps = true }
+            // 덱이 사라졌으면 그 위에 뜬 것도 없다 — 신호가 true로 굳으면 **다음 발주의 지연 닫기가
+            // 영영 미뤄진다**(팝업엔 해체 완료 훅이 없어 극단 타이밍에서 실제로 굳을 수 있다).
+            toBuyOverDeck = false
+            pendingDeckDismiss = false
+            if pendingToBuyJump {
+                // 사용자가 방금 고른 목적지가 조리 화면보다 앞선다 — 여기서 조리 커버를 열면
+                // 그 위에 덮여 To buy가 보이지 않는다(발주 뒤 담기 흐름에서 실제로 겹치는 경로다).
+                pendingToBuyJump = false
+                onOpenToBuy()
+            } else if firedTicket, store.activeCook != nil {
+                // 발주로 닫혔으면 곧장 단계별 레시피로 — "Cook this"의 다음 화면은 조리다.
+                showSteps = true
+            }
         }) {
             RecipeMemoCarousel(results: carouselSnapshot,
                                hasIngredients: !store.ingredients.isEmpty,
@@ -142,7 +163,20 @@ struct MainView: View {
                                uncoveredNames: uncoveredSnapshot,
                                onClose: { showCarousel = false },
                                onFire: fire,
-                               onAddMissing: { store.addMissingToBuy($0) })
+                               onAddMissing: { store.addMissingToBuy($0) },
+                               onToBuyPresentationChange: { active in
+                                   toBuyOverDeck = active
+                                   // 흐름이 끝나는 순간 미뤄 둔 닫기를 **그대로 잇는다** — 발주 뒤
+                                   // 팝업에서 취소해도 ORDER · FIRED 전환은 사라지지 않는다.
+                                   if !active, pendingDeckDismiss {
+                                       pendingDeckDismiss = false
+                                       showCarousel = false
+                                   }
+                               },
+                               onOpenToBuy: {
+                                   pendingToBuyJump = true
+                                   showCarousel = false   // 탭 전환은 `onDismiss`에서 — 순서가 곧 안전이다
+                               })
         }
         .fullScreenCover(isPresented: $showSteps) {
             CookingStepsView(onClose: { showSteps = false })
@@ -643,9 +677,9 @@ struct MainView: View {
     /// 티켓 발주(Fire the Ticket) — used 재료를 이 레시피로 전량 소비 처리 → 슬램 본 뒤 커버 닫기.
     /// 되돌리기 토스트는 store의 통합 undo가 띄운다. 커버당 1회만(더블 파이어 방지).
     ///
-    /// **이 1.25초 창 안에서 덱 위에 뜰 수 있는 것은 없다.** Short 행의 To buy 담기는 원탭이라
-    /// 화면을 옮기지 않고 알약 라벨만 바꾼다 — 중첩 커버도, 팝업도 없으므로 닫기를 미룰 상대가
-    /// 없다(그 상대를 만들면 부모를 닫을 때 그 위의 것까지 함께 걷히는 캐스케이드가 생긴다).
+    /// **이 창 안에 덱 위로 팝업이 뜰 수 있다**(담기 3단 팝업, 2026-08). 그때 커버를 그냥 닫으면
+    /// 사용자가 방금 띄운 질문이 부모와 함께 걷힌다 — 그래서 닫기는 취소가 아니라 **보류**가 되고,
+    /// 흐름이 끝나는 순간 이어서 실행된다(`onToBuyPresentationChange`). 세대 검사는 그대로다.
     private func fire(_ result: RecipeRecommender.Result) {
         guard !firedTicket, !result.used.isEmpty else { return }
         firedTicket = true
@@ -654,10 +688,36 @@ struct MainView: View {
         // 메인 뱃지·씬 변화는 커버 뒤라 애니메이션이 필요 없다(전환 프레임드롭 방지).
         store.cook(result)
         let gen = coverGeneration
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.25) {
-            if coverGeneration == gen { showCarousel = false }   // 새로 연 커버는 닫지 않는다
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.fireDismissDelaySeconds) {
+            guard coverGeneration == gen else { return }   // 새로 연 커버는 닫지 않는다
+            if toBuyOverDeck { pendingDeckDismiss = true } else { showCarousel = false }
         }
     }
+
+    /// 발주 후 덱 커버가 닫히기까지의 유예(초) — 슬램 도장을 볼 시간이다.
+    /// 이름을 아래 순수 함수와 다르게 둔 것은 의도다(같은 이름이면 프로퍼티 호출로 읽혀 모호해진다).
+    private static var fireDismissDelaySeconds: Double {
+        #if DEBUG
+        return fireDismissDelay(from: ProcessInfo.processInfo.arguments)
+        #else
+        return defaultFireDismissDelay
+        #endif
+    }
+
+    static let defaultFireDismissDelay: Double = 1.25
+
+    #if DEBUG
+    /// `-fireDismissDelay <초>` — 위 창을 넓히는 QA 훅. 1.25초는 UI 테스트가 "그 창 안에서 팝업을
+    /// 띄우고 유예가 실제로 걸리는지"를 재현하기엔 너무 좁다(10차 선례에서 6초를 썼다).
+    /// 뷰에서 분기를 늘리는 대신 **순수 함수**로 떼어 유닛 테스트로 고정한다
+    /// (`FridgeTab.initial(from:)`·`tiltLabLaunchConfig` 선례). 값 파싱은 `arguments` 직접 순회다 —
+    /// UserDefaults 인자로 두면 음수·소수 표기에서 바인딩을 잃는다.
+    static func fireDismissDelay(from arguments: [String]) -> Double {
+        guard let i = arguments.firstIndex(of: "-fireDismissDelay"), i + 1 < arguments.count,
+              let value = Double(arguments[i + 1]), value > 0 else { return defaultFireDismissDelay }
+        return value
+    }
+    #endif
 }
 
 /// Ate/Tossed 결정 — 투명 풀스크린 커버 위 딤 + 종이 카드 + 종이컷 아이콘 버튼 쌍 + 명시적 취소.
