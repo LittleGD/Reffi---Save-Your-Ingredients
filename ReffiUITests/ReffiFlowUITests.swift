@@ -130,13 +130,37 @@ final class ReffiFlowUITests: XCTestCase {
         XCTAssertFalse(stockTab.isSelected, "직전 탭의 선택은 풀린다")
         attach(app, named: "fridge-tab-to-buy")
 
-        // History 탭 — 정산서는 도넛이 아니라 영수증(§13.9): 두 행·낭비율 도장·자주 버린 재료.
+        // History 탭 — 맨 위는 이번 주 히어로(종이 고리 + 요일 블롭 일곱), 30일 정산서는 그 아래다.
         historyTab.tap()
-        XCTAssertTrue(app.staticTexts["Tally · past 30 days"].waitForExistence(timeout: 4),
-                      "History 패인의 첫 카드는 30일 정산서다")
+        let heroCaption = app.staticTexts["One circle a day. The number is what you ate."]
+        XCTAssertTrue(heroCaption.waitForExistence(timeout: 4),
+                      "History 패인의 첫 블록은 이번 주 히어로다")
+        // 고리는 두 상태 중 정확히 하나로 읽힌다 — 이번 주 처리 건이 있으면 비율, 없으면 빈 창 안내.
+        // (샘플 이력의 날짜는 상대값이라, 실행일이 주의 어디냐에 따라 둘 다 정상이다.)
+        let ringWithRate = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label BEGINSWITH %@", "Eaten this week:")).firstMatch
+        let ringEmpty = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label == %@", "Nothing cleared out this week yet.")).firstMatch
+        XCTAssertTrue(ringWithRate.waitForExistence(timeout: 4) || ringEmpty.exists,
+                      "고리는 비율이나 빈 창 안내 중 하나를 읽어 준다(NaN·빈 라벨 금지)")
+        // 요일 행 — 오늘 칸은 언제 돌려도 정확히 하나다(잉크 솔리드로 구분한 그 칸).
+        let todayCell = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label BEGINSWITH %@", "Today, ")).firstMatch
+        XCTAssertTrue(todayCell.waitForExistence(timeout: 4), "요일 행에 오늘 칸이 선다")
         XCTAssertFalse(app.buttons["Add item"].exists, "To buy 패인의 CTA는 함께 사라져야 한다")
         XCTAssertTrue(historyTab.isSelected, "History가 선택된다")
         attach(app, named: "fridge-tab-history")
+
+        // 한 패인 스크롤: 히어로는 걷히고 정산서가 올라오지만 **탭 행은 그 자리에** 남는다.
+        XCTAssertTrue(app.staticTexts["Tally · past 30 days"].exists,
+                      "30일 정산서는 히어로 아래에 그대로 있다")
+        // 스와이프 폭은 기기·모션 설정에 따라 다르다 — 횟수를 못 박지 않고 조건으로 민다.
+        for _ in 0..<4 where heroCaption.isHittable { app.swipeUp() }
+        XCTAssertTrue(app.staticTexts["Tally · past 30 days"].waitForExistence(timeout: 4),
+                      "스크롤하면 정산서가 화면으로 올라온다")
+        XCTAssertFalse(heroCaption.isHittable, "히어로는 스크롤과 함께 걷힌다")
+        XCTAssertTrue(historyTab.isHittable, "탭 행은 스크롤 밖 고정 크롬이라 남아 있어야 한다")
+        attach(app, named: "fridge-tab-history-scrolled")
 
         // 다시 In stock — 패인 왕복 뒤에도 목록 조작 크롬이 그대로 돌아온다.
         stockTab.tap()
@@ -184,6 +208,40 @@ final class ReffiFlowUITests: XCTestCase {
         app.buttons["Sort: Recently added"].tap()
         app.buttons["Expiring first"].tap()
         XCTAssertTrue(app.buttons["Sort: Expiring first"].waitForExistence(timeout: 4), "기본 정렬 복귀")
+    }
+
+    // MARK: History 히어로 — 오늘의 판정이 곧 고리의 값
+
+    /// 히어로 고리는 장식이 아니라 **이번 주 장부**다. 오늘 재료 하나를 버리면 그 즉시
+    /// "처리했지만 안 먹은 것"이 한 건 생기므로, 고리는 반드시 100% 아래로 내려온다.
+    ///
+    /// 이 단언이 날짜와 무관하게 성립하는 이유: 버림이 오늘 찍히면 이번 주 창에 **반드시** 들어가고
+    /// (창은 이번 주 시작 자정부터 오늘을 포함한다), 분자(먹은 수)는 그대로인 채 분모만 늘어난다.
+    /// 실행일이 주의 어디든, 심지어 이번 주 첫 기록이든 결과는 같다 — 100%는 나올 수 없다.
+    /// 유닛 테스트가 못 덮는 배선(판정 → store → 히어로 재계산)을 여기서 고정한다.
+    func testFridge_HistoryHero_RingFollowsTodaysJudgement() {
+        let app = XCUIApplication()
+        // -fridgeExpand: 첫 재료의 펼친 상세로 바로 착지(Ate/Tossed 버튼 QA용 기존 인자).
+        app.launchArguments = ["-skipAuth", "-onboarding.done", "YES",
+                               "-fridgeTab", "-uiTestSampleFridge", "-fridgeExpand"]
+        app.launch()
+
+        let toss = app.buttons["Tossed"]
+        XCTAssertTrue(toss.waitForExistence(timeout: 8), "펼친 상세의 Tossed 버튼")
+        toss.tap()
+
+        let historyTab = app.buttons["History"]
+        XCTAssertTrue(historyTab.waitForExistence(timeout: 4), "판정 후 탭 행으로 돌아온다")
+        historyTab.tap()
+
+        let ring = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label BEGINSWITH %@", "Eaten this week:")).firstMatch
+        XCTAssertTrue(ring.waitForExistence(timeout: 4),
+                      "오늘 판정이 있으면 창이 비지 않으므로 고리는 비율을 읽는다")
+        XCTAssertFalse(app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label CONTAINS %@", "100 percent")).firstMatch.exists,
+                       "오늘 하나를 버렸는데 고리가 100%면 버림이 분모에 들어가지 않은 것이다")
+        attach(app, named: "history-hero-after-toss")
     }
 
     // MARK: To buy — 사전 밖 이름 직접 입력 담기
