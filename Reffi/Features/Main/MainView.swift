@@ -76,7 +76,11 @@ struct MainView: View {
         VStack(spacing: 0) {
             header
                 .padding(.horizontal, margin)
-                .padding(.top, ReffiSpace.s2)
+                // **세 루트 페이지의 제목이 같은 높이에서 시작한다**(23차). 냉장고·프로필이 둘 다
+                // `s5`인데 홈만 `s2`라 탭을 오갈 때 제목이 16pt 튀었다(실측: 홈 78.3pt vs 나머지 94.5pt).
+                // 남는 세로 공간은 아래 `physicsField`가 `maxHeight: .infinity` + 바닥 정렬로 흡수하므로
+                // 더미가 앉는 자리는 그대로다(필드는 `fieldRestHeight`로 이미 캡이 걸려 있다).
+                .padding(.top, ReffiSpace.s5)
 
             // 발주 진행 카드(§13.6 C) — 헤더 아래 죽은 공간이 상태 표면이 된다.
             if let cook = store.activeCook {
