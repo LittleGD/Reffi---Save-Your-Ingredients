@@ -47,7 +47,7 @@ struct PaperGlyphPile: View {
     var body: some View {
         GeometryReader { geo in
             let size = geo.size
-            let key = Self.key(source, size)
+            let key = Self.key(source, size, seed)
             // 캐시는 **동기 조회**다 — 탭을 오갈 때마다 한 프레임 빈 밴드가 스치지 않게.
             let image = Self.cached[key] ?? baked
             ZStack {
@@ -73,9 +73,18 @@ struct PaperGlyphPile: View {
         .allowsHitTesting(false)
     }
 
-    /// 굽기 키 — 글리프 구성과 실측 크기. 크기는 1pt 단위로 반올림해 소수점 흔들림으로 다시 굽지 않게 한다.
-    private static func key(_ glyphs: [FoodGlyph], _ size: CGSize) -> String {
-        "\(glyphs.map(\.rawValue).joined(separator: ","))|\(Int(size.width.rounded()))x\(Int(size.height.rounded()))"
+    /// 굽기 키 — 글리프 **집합**과 실측 크기와 시드. 크기는 1pt 단위로 반올림해 소수점 흔들림으로
+    /// 다시 굽지 않게 한다. 두 가지가 키의 함정이었다:
+    /// ① **순서를 정렬로 지운다** — 호출부(`pileGlyphs`)는 재고+이력을 이어 붙여 만드는데 판정
+    ///   한 번에 재료가 이력으로 넘어가면 같은 구성이 다른 순서로 온다. 순서 민감 키는 그때마다
+    ///   캐시를 놓쳐 "구성이 바뀔 때만 굽는다"는 약속이 실사용에서 깨진다. **격자 칸 배정은 배열
+    ///   순서를 쓰므로**(`glyphIndex = i % count`) 키만 정렬하면 "같은 키 = 같은 그림"이 깨진다 —
+    ///   그래서 `image(for:)`가 **입력도 같은 순서로 정렬**해 굽는다(칸 배치가 어차피 임의였으니
+    ///   정렬 순서로 굳혀도 시각 손실이 없다).
+    /// ② **시드를 키에 넣는다** — 시드가 다른 두 호출부가 키를 공유하면 뒤에 온 쪽이 앞의 그림을
+    ///   그대로 받는다.
+    private static func key(_ glyphs: [FoodGlyph], _ size: CGSize, _ seed: UInt64) -> String {
+        "\(glyphs.map(\.rawValue).sorted().joined(separator: ","))|\(Int(size.width.rounded()))x\(Int(size.height.rounded()))|\(seed)"
     }
 
     // MARK: 굽기 캐시 — 뷰 인스턴스보다 오래 산다
@@ -91,7 +100,8 @@ struct PaperGlyphPile: View {
 
     @MainActor
     private static func image(for glyphs: [FoodGlyph], size: CGSize, seed: UInt64) -> Image? {
-        let k = key(glyphs, size)
+        let glyphs = glyphs.sorted { $0.rawValue < $1.rawValue }   // 키와 같은 정렬 — 위 ① 참고
+        let k = key(glyphs, size, seed)
         if let hit = cached[k] { return hit }
         guard let made = bake(glyphs, in: size, seed: seed) else { return nil }
         cached[k] = made

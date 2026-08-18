@@ -386,6 +386,39 @@ struct FridgeStoreTests {
         #expect(row?.key == "onion")
         #expect(row?.name == IngredientLexicon.shared.entry(id: "onion")?.displayName)
         #expect(store.manualToBuy.first?.name == "양파")   // 저장값 자체는 담을 때 원문 그대로
+        // 패인(`ShoppingListContent.items`)은 `toBuy`가 아니라 `manualToBuy`를 직접 읽는다 —
+        // 그 경로가 쓰는 `displayName(for:)`도 같은 답을 내야 화면·토스트·타일 표기가 안 갈린다.
+        if let item = store.manualToBuy.first {
+            #expect(FridgeStore.displayName(for: item) == row?.name)
+        }
+    }
+
+    // MARK: Bought는 자기 행의 키로 메모를 내린다 (clearToBuy)
+
+    /// 자유 입력 줄("서울우유")은 캐논이 없어 키가 친 문자열 그대로다. 재입고(`insert`)의 자동
+    /// 내리기는 냉장고 재료의 **캐논** 키("milk")로 비교하므로 이 줄을 영영 못 내리고, 같은 캐논의
+    /// 다른 줄이 있으면 그쪽이 대신 내려간다 — Bought(뷰)는 행 자신의 키로 `clearToBuy`를 불러야 한다.
+    @Test func boughtClearsTheTappedFreeTextRowNotItsCanonSibling() {
+        let store = FridgeStore(ingredients: [], recipes: [], history: [])
+        #expect(store.addToBuy(name: "서울우유", canonicalID: nil, canonicalIsFinal: true))  // 자유 입력
+        #expect(store.addToBuy(name: "우유", canonicalID: "milk"))                          // 사전 타일
+        // Bought 재입고 — insert의 자동 내리기가 캐논("milk") 줄을 지운다("샀다"는 사실은 같으니 맞다).
+        store.add(Ingredient(name: "서울우유", category: "Dairy",
+                             expiresAt: Ingredient.day(offset: 3), glyph: .milk))
+        // 뷰가 행 키로 부르는 명시 내리기 — 자유 입력 줄이 반드시 함께 내려간다.
+        store.clearToBuy(key: "서울우유")
+        #expect(store.manualToBuy.isEmpty,
+                "Bought를 누른 자유 입력 줄이 목록에 남으면 안 된다")
+    }
+
+    /// 멱등 — 이미 내려간 키로 또 불러도(insert가 먼저 지운 캐논 줄 등) 아무 일도 없다.
+    @Test func clearToBuyIsIdempotent() {
+        let store = FridgeStore(ingredients: [], recipes: [], history: [])
+        #expect(store.addToBuy(name: "우유", canonicalID: "milk"))
+        store.clearToBuy(key: "milk")
+        #expect(store.manualToBuy.isEmpty)
+        store.clearToBuy(key: "milk")   // no-op — 크래시·persist 낭비 없음
+        #expect(store.manualToBuy.isEmpty)
     }
 
     @Test func manualRowKeepsUserNotationEvenWhenItHasACanon() {

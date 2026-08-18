@@ -45,7 +45,11 @@ enum SampleData {
 
     /// 소비/버림 이력(데모) — History·낭비율용. 최신이 앞.
     private static let past: [Past] = [
-        Past(id: "egg",        daysAgo: 1,  wasted: false),
+        // egg는 **오늘**(daysAgo 0) — 주간 히어로가 어떤 주 시작 관례(월요일/일요일)에서도 빈 주가
+        // 되지 않게 하는 고정점이다. 전부 daysAgo ≥ 1이면 주 첫날(예: 일요일 시작 로케일의 일요일)에
+        // 이번 주 창이 통째로 비어, 히어로가 빈 상태로 떨어지고 그 상태를 전제한 QA·UI 테스트가
+        // 요일에 따라 갈린다(실측: ReffiFlowUITests 히어로 반영 테스트가 일요일에만 실패했다).
+        Past(id: "egg",        daysAgo: 0,  wasted: false),
         Past(id: "strawberry", daysAgo: 2,  wasted: true),
         Past(id: "yogurt",     daysAgo: 3,  wasted: false),
         Past(id: "banana",     daysAgo: 4,  wasted: false),

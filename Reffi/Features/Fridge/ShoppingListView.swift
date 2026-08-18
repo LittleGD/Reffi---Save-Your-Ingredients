@@ -46,7 +46,9 @@ struct ShoppingListContent: View {
     #if DEBUG
     /// `-toBuy.search` 자동 오픈을 **런치당 한 번**으로 묶는다 — 탭 패인은 커버와 달리 오갈 때마다
     /// `onAppear`가 다시 도는데, 그때마다 시트가 튀어나오면 QA 세션에서 다른 탭을 볼 수가 없다.
-    @State private var searchArgHandled = false
+    /// `@State`가 아니라 **타입 스코프**다: 패인은 `switch tab` 분기라 탭을 떠나면 뷰째 해체돼
+    /// `@State`가 초기화된다 — 그러면 "런치당 한 번"이 "탭 진입마다 한 번"이 된다.
+    @MainActor private static var searchArgHandled = false
     #endif
 
     private typealias Row = (name: String, glyph: FoodGlyph, manual: Bool, key: String)
@@ -55,11 +57,20 @@ struct ShoppingListContent: View {
     /// 떨어진 것" 제안 구역을 걷어냈다: 장보기 메모는 내가 적은 것이어야 하고, 앱이 추측해 채워 넣은
     /// 줄이 그 위에 섞이면 목록이 내 것이 아니게 된다.
     ///
-    /// 걸러 내는 자리를 **여기(뷰)로 잡은 이유**는 `store.toBuy`의 파생 절반이 아직 살아 있어야 하기
-    /// 때문이다 — 흡수 의미론(수동이 같은 키의 제안을 먹는다)·`skipBuy`의 두 갈래·로케일 매칭이 전부
-    /// 그 절반 위에서 검증되고 있고, 덱의 "부족 재료 담기"(`addMissingToBuy`)가 그 규약을 그대로 탄다.
-    /// 모델을 잘라내면 그 계약이 함께 무너지므로 표시 층에서만 좁힌다.
-    private var items: [Row] { store.toBuy.filter(\.manual) }
+    /// **`store.toBuy`가 아니라 `manualToBuy`를 직접 읽는다.** `toBuy`의 수동 절반은 `manualToBuy`의
+    /// 1:1 사상이라 결과가 같고, `toBuy`를 부르면 안 쓰는 파생 절반(이력 전체 그룹핑+정렬, 최대
+    /// 2000건)까지 렌더마다 계산해 버린다. 파생 모델 자체는 살려 둔다 — 흡수 의미론(수동이 같은
+    /// 키의 제안을 먹는다)·`skipBuy`의 두 갈래·로케일 매칭이 전부 그 절반 위에서 검증되고 있고,
+    /// 덱의 "부족 재료 담기"(`addMissingToBuy`)가 그 규약을 그대로 탄다.
+    private var items: [Row] {
+        // 이름은 `displayName(for:)`로 다시 그린다 — 저장 표기가 사전 표제어와 일치할 때만 **지금
+        // 로케일**의 표제어로 바꾸는 함수라, 한국어에서 담은 "양파"가 영어 UI에서도 "Onion"으로
+        // 선다(자유 표기는 그대로). 이걸 우회하면 같은 화면의 검색 시트 타일·undo 토스트와 표기가
+        // 갈린다. `toBuy`의 수동 절반이 쓰는 함수와 동일하다(항목당 사전 조회 1회 — 파생 절반의
+        // 이력 그룹핑을 안 도는 이득은 그대로).
+        store.manualToBuy.map { (name: FridgeStore.displayName(for: $0),
+                                 glyph: $0.glyph, manual: true, key: $0.matchKey) }
+    }
 
     var body: some View {
         ScrollView {
@@ -86,9 +97,9 @@ struct ShoppingListContent: View {
         // `-toBuy.search` — 검색 시트 자동 오픈(스크린샷·QA용). 탭 착지 자체는 `FridgeView`가 한다.
         // 탭 전환·커버 전환과 같은 프레임에 시트를 올리면 프레젠테이션이 씹히므로 전환 뒤로 미룬다.
         .onAppear {
-            guard !searchArgHandled,
+            guard !Self.searchArgHandled,
                   ProcessInfo.processInfo.arguments.contains("-toBuy.search") else { return }
-            searchArgHandled = true
+            Self.searchArgHandled = true
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { showSearch = true }
         }
         #endif
@@ -98,8 +109,11 @@ struct ShoppingListContent: View {
     /// 아니다), 없으면 사전 기본값으로 새로 채운다. 소비기한은 항상 그 보관의 사전 기본값으로 재계산.
     /// 가구 인원 배율은 **스냅샷이 없는 폴백 경로에만** 적용한다 — 스냅샷이 있으면 사용자가 이미 그
     /// 수량을 한 번 결정한 값이라 존중하고 그대로 복원한다(재입고 때마다 배율이 누적되지 않게).
-    /// 직접 담은 항목이었다면 `store.add`가 그 메모를 함께 내린다(샀으니 목록에 남을 이유가 없다).
-    private func restock(name: String, glyph: FoodGlyph) {
+    /// 직접 담은 항목이었다면 메모도 함께 내린다(샀으니 목록에 남을 이유가 없다) — 내리는 키는
+    /// **행 자신의 키**다. `store.add` 쪽 자동 내리기는 냉장고 재료의 캐논 키로 비교하므로, 자유
+    /// 입력 줄(캐논 없음, 키 = 친 문자열)은 그쪽에서 절대 안 내려가고 같은 캐논의 다른 줄이 대신
+    /// 내려갈 수 있다(`FridgeStore.clearToBuy(key:)` 주석 참고).
+    private func restock(name: String, glyph: FoodGlyph, key: String) {
         let lex = IngredientLexicon.shared
         if let last = store.lastSnapshot(named: name) {
             let storage = last.storage == .freezer ? .fridge : last.storage
@@ -113,6 +127,7 @@ struct ShoppingListContent: View {
             store.add(Ingredient(name: name, category: glyph.categoryLabel, expiresAt: expiresAt,
                                  quantity: quantity, glyph: glyph))
         }
+        store.clearToBuy(key: key)
         restockHaptic += 1
     }
 
@@ -198,7 +213,7 @@ struct ShoppingListContent: View {
             Spacer()
             Button {
                 withAnimation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion)) {
-                    restock(name: item.name, glyph: item.glyph)
+                    restock(name: item.name, glyph: item.glyph, key: item.key)
                 }
             } label: {
                 Text("Bought")
@@ -325,31 +340,14 @@ struct ShoppingListContent: View {
     }
 }
 
-/// To buy의 **풀스크린 커버 형태** — 배경 + `CoverHeader`(§14.2)만 씌운 얇은 래퍼이고 본문은
-/// `ShoppingListContent`가 전부 그린다. 냉장고에서는 탭이 이 화면을 대신하지만, 커버로 띄워야 하는
-/// 진입 경로(딥링크·다른 화면에서의 호출)가 생겼을 때 헤더·닫기 크롬을 다시 조립하지 않게 남겨 둔다.
-struct ShoppingListView: View {
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        ZStack {
-            LiquidGlassBackground(accent: ReffiColor.blue.opacity(0.5))
-            VStack(spacing: 0) {
-                CoverHeader(title: "To buy",
-                            subtitle: "Restock what you use often",
-                            onClose: { dismiss() })
-                ShoppingListContent()
-            }
-        }
-    }
-}
 
 /// 재료 검색 바텀시트 — 정본 사전(`IngredientLexicon`)에서 골라 **장보기 목록에만** 얹는다(냉장고 반입 아님).
 /// 검색바 아래는 삭제된 재료 픽커 시트의 **재료 배열 그리드**(`pickerGrid`)가 채우고, 타이핑하면 같은
 /// 문법의 결과 그리드(`searchGrid`)로 바뀐다 — 타이핑 전후로 시각 언어가 갈리지 않는다.
 /// 연속 추가 UX: 타일을 탭해도 시트는 닫히지 않고 그 타일이 체크로 바뀐다(장보기 메모는 보통 한 번에 여럿 적는다).
-/// 사전 밖 이름을 자유 입력으로 **만드는** 경로는 여기 두지 않는다 — 그건 여전히 영수증 스캔의 후보 편집
-/// (`CandidateEditSheet`)이 정본이다(§13.5 단일 경로 예외를 최소로 유지).
+/// **직접 입력 담기(`directAddRow`)가 이 시트에 있다** — 사전 밖 이름은 친 그대로 자유 항목으로
+/// 담긴다(캐논 해석은 정확 일치까지만, `addTyped` 참고). 냉장고 **반입**용 자유 생성은 여전히 영수증
+/// 스캔의 후보 편집(`CandidateEditSheet`)이 정본이다 — 여기 것은 장보기 메모 한정이다.
 private struct ToBuySearchSheet: View {
     @Environment(FridgeStore.self) private var store
     @Environment(\.dismiss) private var dismiss
@@ -405,8 +403,8 @@ private struct ToBuySearchSheet: View {
     /// 원본 픽커 검색 필드(돋보기 + 필드 + 클리어 ×)의 구성을 그대로 되살린다.
     /// 클리어(×)가 필요한 이유: 이 시트의 기본 상태는 재료 배열이고 배열로 돌아가는 유일한 조작이
     /// 쿼리 비우기다 — 전체 선택-삭제밖에 없으면 기본 상태로의 복귀 비용이 배열을 기본으로 둔 설계를
-    /// 실사용에서 무너뜨린다. 돋보기도 함께 복원했다: 이 필드가 사전 *필터*이지 임의 재료 *생성*
-    /// 입구가 아니라는 어포던스를 원본이 이 아이콘으로 전달했고, 여기도 생성 경로가 없어 의미가 같다.
+    /// 실사용에서 무너뜨린다. 돋보기도 함께 복원했다: 필드 자체는 사전 *필터*이고, 친 이름을 그대로
+    /// 담는 생성은 결과 위의 `directAddRow` 한 곳이 맡는다(필드가 직접 만들지는 않는다).
     private var searchField: some View {
         HStack(spacing: ReffiSpace.s2) {
             ReffiIcon.search.reffi(16).foregroundStyle(ReffiColor.muted)
@@ -473,9 +471,10 @@ private struct ToBuySearchSheet: View {
     /// 뷰가 게이팅하면 파생 제안으로만 있던 품목을 수동으로 흡수하는 경로가 UI에서 도달 불가해진다.
     /// 담긴 상태에서는 타일과 **같은 도장**(`GlyphStamp`)이 찍히고 라벨이 'Added'로 바뀐다.
     private func directAddRow(_ query: String) -> some View {
-        // 키 유도는 `appendToBuy`와 **같은 식**이다(캐논 우선, 없으면 소문자 이름) — 축이 갈리면
-        // 도장과 실제 담김 판정이 어긋난다.
-        let key = IngredientLexicon.shared.canonicalID(for: query) ?? query.lowercased()
+        // 키 유도는 `addTyped`가 실제로 저장할 키와 **같은 식**이다(정확 일치 캐논, 없으면 소문자
+        // 이름) — 축이 갈리면 도장과 실제 담김 판정이 어긋난다. 포함 매칭을 쓰면 안 되는 이유는
+        // `addTyped` 주석 참고.
+        let key = IngredientLexicon.shared.exactCanonicalID(for: query) ?? query.lowercased()
         let listed = store.toBuyKeys.contains(key)
         return Button {
             addTyped(query)
@@ -512,14 +511,18 @@ private struct ToBuySearchSheet: View {
         .accessibilityAddTraits(listed ? [.isButton, .isSelected] : .isButton)
     }
 
-    /// 직접 입력 담기 실행 — 캐논 ID·글리프 해석을 **store에 맡긴다**(사전에 있으면 표제어로 묶이고,
-    /// 없으면 이름 매칭 → `.generic`으로 떨어진다). 뷰가 다시 추측하면 규칙이 두 곳으로 갈린다.
+    /// 직접 입력 담기 실행 — 해석은 **정확 일치까지만** 하고 끝낸다(`canonicalIsFinal`).
+    /// 친 이름이 사전 표제어와 정확히 같으면 그 캐논으로 묶이고, 아니면 **친 그대로** 자유 항목이다.
+    /// store의 포함 매칭 폴백에 맡기면 안 된다 — "Fish sauce brand X"가 fish에, 자유 표기가 남의
+    /// 캐논에 붙어, 그 캐논이 이미 목록에 있으면 **담기가 조용한 no-op**이 된다(43ecb3a가 레시피
+    /// 표기에서 막은 그 기전이 자유 입력으로 되살아난다). 글리프만 이름 매칭으로 추측한다(시각 전용).
     /// 애니메이션·햅틱 규약은 타일 담기(`add`)와 같다. 담긴 뒤에도 **시트는 닫히지 않고 검색어도
     /// 그대로 둔다** — 타일과 같은 연속 추가 UX이고, 남은 검색어 덕에 같은 행이 그 자리에서
     /// '담김' 도장으로 뒤집혀 방금 한 일이 눈에 보인다.
     private func addTyped(_ name: String) {
+        let canon = IngredientLexicon.shared.exactCanonicalID(for: name)
         let added = withAnimation(ReffiMotion.gated(ReffiMotion.pop, reduce: reduceMotion)) {
-            store.addToBuy(name: name)
+            store.addToBuy(name: name, canonicalID: canon, canonicalIsFinal: true)
         }
         if added { addHaptic += 1 }
     }

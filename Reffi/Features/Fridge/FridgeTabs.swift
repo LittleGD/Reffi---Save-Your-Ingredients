@@ -78,6 +78,10 @@ struct FridgeTabBar: View {
         }
         // 세 알약을 하나의 탭 컨테이너로 묶는다 — 보조기술이 "탭 하나"가 아니라 "탭들"로 읽게.
         .accessibilityElement(children: .contain)
+        // 탭 행은 콘텐츠가 아니라 크롬이다 — 접근성 글자에서도 accessibility1까지만 따라 키운다.
+        // 3등분 고정 폭에서 그 위 단계는 축소(0.75)로도 못 받아 목적지 이름이 잘리는데, 화면의
+        // 유일한 IA 표시가 이름을 잃는 것보다 크기를 멈추는 쪽이 낫다(시스템 탭 바와 같은 태도).
+        .dynamicTypeSize(...DynamicTypeSize.accessibility1)
     }
 
     private func pill(_ tab: FridgeTab) -> some View {

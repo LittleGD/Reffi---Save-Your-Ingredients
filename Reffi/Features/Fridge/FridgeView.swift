@@ -463,19 +463,21 @@ struct FridgeView: View {
             .accessibilityLabel(String(localized: "Filter: \(categoryTriggerLabel)"))
     }
 
-    /// 트리거에 적는 현재 선택 — 개수는 붙이지 않는다(전체 수는 타이틀 캡션이, 카테고리별 수는
-    /// 펼친 목록이 말한다. 칩 시절처럼 트리거에도 수를 달면 같은 숫자가 한 화면에 두 번 선다).
+    /// 트리거에 적는 현재 선택 — 개수는 붙이지 않는다(카테고리별 수는 펼친 드롭다운 행이 말하고,
+    /// 재고 총량은 이 화면에 두지 않는다는 결정은 `titleRow` 주석 참고. 칩 시절처럼 트리거에도
+    /// 수를 달면 같은 숫자가 펼침 전후로 두 번 선다).
     private var categoryTriggerLabel: String {
         activeCategory.map(FridgeCategoryFilter.displayName) ?? String(localized: "All")
     }
 
-    /// 드롭다운 행 라벨 — 이름 + 개수(칩이 보여 주던 그 수). 이름·개수 모두 이미 로컬라이즈된 조각이라
-    /// 조합에는 새 카탈로그 키가 필요 없다.
+    /// 드롭다운 행 라벨 — 이름 + 개수(칩이 보여 주던 그 수). 조각은 로컬라이즈돼 있지만 **조합
+    /// 순서도 언어의 것**이라 포맷 자체를 카탈로그(`%1$@ %2$lld`)에 태운다 — 코드 접합으로 굳히면
+    /// 어순이 다른 언어가 손댈 자리가 없다.
     private func categoryOptionLabel(_ category: String?) -> String {
         let name = category.map(FridgeCategoryFilter.displayName) ?? String(localized: "All")
         let count = category.map { c in categoryCounts.first { $0.category == c }?.count ?? 0 }
             ?? sortedItems.count
-        return "\(name) \(count.formatted())"
+        return String(localized: "\(name) \(count)")
     }
 
     /// 정렬 칩 — 현재 정렬 라벨을 상시 노출하는 종이컷 칩(§13.5). 비주얼은 그대로, 탭하면 스톡 Menu 대신

@@ -155,7 +155,10 @@ struct HistoryContent: View {
             .lineLimit(1)
             .minimumScaleFactor(0.7)
             .multilineTextAlignment(.center)
-            .padding(.horizontal, ReffiSpace.s3)
+            // 안지름 120에서 s3(12)씩 물리면 캡션이 96pt에 갇혀 **기본 크기에서도** 축소된다 —
+            // 캡션("eaten this week")의 자연 폭이 그보다 넓다. 여백은 고리 안쪽 곡률이 이미 주고
+            // 있으므로 최소(s1)만 남긴다.
+            .padding(.horizontal, ReffiSpace.s1)
             .frame(width: Self.ringSize - Self.ringThickness * 2)
         }
         .frame(width: Self.ringSize, height: Self.ringSize)
@@ -168,7 +171,9 @@ struct HistoryContent: View {
         guard let rate = week.eatenRate else {
             return Text("Nothing cleared out this week yet.")
         }
-        return Text("Eaten this week: \(rate) percent, \(week.eaten) of \(week.removed) items")
+        // `^[...](inflect: true)` — 분모 1일 때 "1 of 1 items"로 읽히지 않게 자동 문법 일치(en 전용;
+        // ko는 수 일치가 없어 번역값에 마크업이 없다).
+        return Text("Eaten this week: \(rate) percent, \(week.eaten) of ^[\(week.removed) items](inflect: true)")
     }
 
     /// 요일 블롭 한 변.
@@ -393,22 +398,3 @@ struct HistoryContent: View {
     }
 }
 
-/// History의 **풀스크린 커버 형태** — 배경 + `CoverHeader`(§14.2 중앙 타이틀+서브 / 우측 종이 X)만
-/// 씌운 얇은 래퍼이고 본문은 `HistoryContent`가 전부 그린다. 냉장고에서는 탭이 이 화면을 대신하지만,
-/// 커버로 띄워야 하는 진입 경로가 생겼을 때 헤더·닫기 크롬을 다시 조립하지 않게 남겨 둔다.
-struct HistoryView: View {
-    @Environment(FridgeStore.self) private var store
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        ZStack {
-            LiquidGlassBackground(accent: HistoryContent.rateColor(store.wasteRate).opacity(0.6))
-            VStack(spacing: 0) {
-                CoverHeader(title: "History",
-                            subtitle: "What you ate and what you tossed",
-                            onClose: { dismiss() })
-                HistoryContent()
-            }
-        }
-    }
-}

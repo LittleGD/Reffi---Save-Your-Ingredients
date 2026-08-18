@@ -367,7 +367,7 @@ final class CookTicketFlickUITests: XCTestCase {
         try XCTSkipUnless(frontTicketWithShortLine(app), "'Short:' 부족 재료가 있는 티켓이 없었다")
 
         let firedAt = Date()
-        app.buttons["Cook this"].firstMatch.tap()
+        fireFrontTicket(app)
         XCTAssertTrue(app.buttons["Add to list"].waitForExistence(timeout: 3),
                       "발주 직후에도 담기 알약은 남아 있어야 한다")
         XCTAssertTrue(openPickDialog(app), "발주 창 안에서 고르기 팝업이 떠야 한다")
@@ -391,6 +391,24 @@ final class CookTicketFlickUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["ORDER · FIRED"].waitForExistence(timeout: 20),
                       "취소로 흐름이 끝나면 미뤄 뒀던 발주 전환이 이어져 조리 화면으로 가야 한다")
         attachScreenshot(app, named: "j-fired-transition-resumed")
+    }
+
+
+    /// 앞 티켓의 "Cook this"를 **탭 가능한 것으로 특정해** 누르고, 발주가 실제로 성립했는지까지
+    /// 기다린다. 뒤 티켓(depth 1)도 풀 렌더라 같은 라벨이 트리에 2개 있고, `firstMatch`가 어느 쪽을
+    /// 집는지는 기기 폭에 따라 갈린다 — iPhone 17에서는 탭 불가능한 뒤 버튼을 집어 탭이 hit point
+    /// {-1,-1}로 조용히 유실됐고, 발주가 없어도 중간 단언들이 공허하게 참이라 마지막에서야 무너졌다.
+    /// 발주 성립은 "Cook this"가 1개로 줄어드는 것으로 판정한다(발주된 앞 티켓의 CTA는 걷힌다).
+    private func fireFrontTicket(_ app: XCUIApplication) {
+        let cooks = app.buttons.matching(identifier: "Cook this")
+        guard let hittable = cooks.allElementsBoundByIndex.first(where: { $0.isHittable }) else {
+            XCTFail("탭 가능한 'Cook this'가 없다"); return
+        }
+        hittable.tap()
+        let fired = XCTNSPredicateExpectation(predicate: NSPredicate(format: "count == 1"),
+                                              object: cooks)
+        XCTAssertEqual(XCTWaiter().wait(for: [fired], timeout: 4), .completed,
+                       "탭 후에도 'Cook this'가 2개 — 발주가 성립하지 않았다(뒤 티켓을 눌렀을 가능성)")
     }
 
     /// 부족 재료가 있는 앞 티켓을 찾아 알약까지 노출한다 — 못 찾으면 false(호출부가 skip).
@@ -418,7 +436,7 @@ final class CookTicketFlickUITests: XCTestCase {
         try XCTSkipUnless(frontTicketWithShortLine(app),
                           "'Short:' 부족 재료가 있는 티켓이 없었다 — 시드 확인 필요")
 
-        app.buttons["Cook this"].firstMatch.tap()
+        fireFrontTicket(app)
         XCTAssertTrue(app.buttons["Add to list"].exists,
                       "발주 직후에도 담기 알약은 남아 있어야 한다(부족하다는 사실은 발주로 바뀌지 않는다)")
         // 발주 전환은 그대로 이어진다 — 담기 흐름이 그것을 붙잡지 않는다.

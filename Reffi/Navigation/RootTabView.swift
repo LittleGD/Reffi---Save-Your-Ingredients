@@ -14,7 +14,10 @@ struct RootTabView: View {
         #if DEBUG
         // 스크린샷·QA용 — 런치 인자로 특정 탭 직행(-glyphGallery 선례, PR #4).
         if ProcessInfo.processInfo.arguments.contains("-profileTab") { return .profile }
-        if ProcessInfo.processInfo.arguments.contains("-fridgeTab") { return .fridge }
+        // 냉장고 **패인** 인자는 냉장고 탭을 함의한다 — RUN.md가 "단독 지정해도 착지"를 약속하는
+        // 인자들이라, 루트가 홈에 머물면 그 약속이 조용히 깨진다(패인 선택은 `FridgeTab.initial`).
+        if ["-fridgeTab", "-toBuy", "-toBuy.search", "-showHistory"]
+            .contains(where: ProcessInfo.processInfo.arguments.contains) { return .fridge }
         #endif
         return .home
     }()
@@ -66,7 +69,8 @@ struct RootTabView: View {
             // 스크린샷·QA 자동화가 launch 인자 하나만으로 안정적으로 목표 탭에 도달하게 한다.
             let args = ProcessInfo.processInfo.arguments
             if args.contains("-profileTab") { tab = .profile }
-            else if args.contains("-fridgeTab") { tab = .fridge }
+            else if ["-fridgeTab", "-toBuy", "-toBuy.search", "-showHistory"]
+                .contains(where: args.contains) { tab = .fridge }
         }
         #endif
         .sheet(isPresented: $showAdd) {

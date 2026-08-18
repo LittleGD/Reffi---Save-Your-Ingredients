@@ -160,9 +160,22 @@ struct RecipeMemoCarousel: View {
         let picked = PaperChecklistDialog.selected(pickItems, checked: pickChecked)
         let added = onAddMissing?(picked) ?? 0
         addedCount = added
-        alreadyCount = picked.count - added
+        alreadyCount = Self.alreadyOnListCount(picked: picked, added: added)
         if added > 0 { addHaptic += 1 }   // 아무 것도 안 담겼으면 울리지 않는다(3차 ⑥ 규약)
         showAdded = true
+    }
+
+    /// "이미 목록에 있었다"로 셀 수 있는 수 — **줄 수가 아니라 목록 키 수** 기준이다.
+    /// 두 항목이 같은 장보기 표제어로 풀리면(커스텀 레시피의 "다진 마늘"+"마늘 한 쪽") 목록엔 한
+    /// 줄만 생기는데, `picked.count - added`로 세면 나머지 하나가 "이미 있었다"로 둔갑해 알림이
+    /// 거짓말을 한다. 키 유도는 `appendToBuy`가 실제로 쓰는 식(캐논 ?? 소문자 이름)과 같다.
+    /// `internal`(비-private): 문구 분기가 이 수 하나에 걸려 있어 테스트가 같은 식을 검사한다.
+    static func alreadyOnListCount(picked: [Recipe.Item], added: Int) -> Int {
+        let keys = Set(picked.map { item -> String in
+            let entry = RecipeRecommender.toBuyEntry(for: item)
+            return entry.canonicalID ?? entry.name.lowercased()
+        })
+        return max(0, keys.count - added)
     }
 
     /// 흐름의 유일한 출구 — 어느 갈래로 끝나든 신호를 **정확히 한 번** 내린다.

@@ -72,4 +72,51 @@ struct ToBuyPickFlowTests {
         #expect(MainView.fireDismissDelay(from: ["-fireDismissDelay", "-3"]) == d)
     }
     #endif
+
+    // MARK: ③ 결과 알림 수 — "이미 있었다"는 줄 수가 아니라 **목록 키 수**로 센다
+
+    /// 두 항목이 같은 장보기 표제어로 풀리면(커스텀 레시피의 "다진 마늘"+"마늘 한 쪽") 목록엔 한
+    /// 줄만 생긴다 — `picked.count - added`로 세면 나머지 하나가 "이미 있었다"로 둔갑해 결과
+    /// 알림("The rest were already on your list.")이 거짓말을 한다.
+    @Test func alreadyCountCollapsesSameCanonPicks() {
+        let garlicTwice = [Recipe.Item(ref: nil, en: "minced garlic", ko: nil),
+                           Recipe.Item(ref: nil, en: "fresh garlic", ko: nil)]
+        // 사전 실측 고정 — 두 표기 모두 머리말 일치로 garlic 하나에 붙는다(전제가 무너지면 여기서 깨진다).
+        #expect(Set(garlicTwice.map { RecipeRecommender.toBuyEntry(for: $0).canonicalID }) == ["garlic"])
+        // 목록이 비어 있었다면 한 줄이 새로 생긴다(added 1) — "이미 있었다"는 0이어야 한다.
+        #expect(RecipeMemoCarousel.alreadyOnListCount(picked: garlicTwice, added: 1) == 0)
+        // 이미 garlic이 있었다면(added 0) "이미 있었다"도 키 기준 1이다 — 2가 아니라.
+        #expect(RecipeMemoCarousel.alreadyOnListCount(picked: garlicTwice, added: 0) == 1)
+    }
+
+    /// 서로 다른 키로 풀리는 평범한 선택 — 키 수 = 줄 수라 기존 셈과 같은 값이다(회귀 없음).
+    @Test func alreadyCountMatchesLineCountForDistinctPicks() {
+        let items = [Recipe.Item(ref: "beef", en: "beef", ko: nil),
+                     Recipe.Item(ref: "carrot", en: "carrot", ko: nil),
+                     Recipe.Item(ref: "onion", en: "onion", ko: nil)]
+        #expect(RecipeMemoCarousel.alreadyOnListCount(picked: items, added: 3) == 0)
+        #expect(RecipeMemoCarousel.alreadyOnListCount(picked: items, added: 1) == 2)
+        #expect(RecipeMemoCarousel.alreadyOnListCount(picked: items, added: 0) == 3)
+    }
+
+    // MARK: ④ 직접 입력 담기 — 해석은 정확 일치까지, 포함 매칭 금지
+
+    /// 자유 입력("Fish sauce brand X")이 포함 매칭으로 남의 캐논에 붙으면, 그 캐논이 이미 목록에
+    /// 있을 때 **담기가 조용한 no-op**이 된다(43ecb3a가 레시피 표기에서 막은 기전의 자유 입력판).
+    /// `addTyped`와 같은 식(정확 일치 + `canonicalIsFinal`)으로 store를 태워 자유 항목이 자유
+    /// 항목으로 남는 것을 고정한다.
+    @Test func typedAddKeepsFreeTextFreeEvenWhenItContainsALexiconWord() {
+        let store = FridgeStore(ingredients: [], recipes: [], history: [])
+        // 목록에 이미 fish(사전 표제어)가 있다.
+        #expect(store.addToBuy(name: "fish", canonicalID: "fish"))
+        // 포함 매칭이라면 "fish"에 붙어 중복 no-op이 됐을 자유 입력 — 정확 일치+종결이라 새 줄이 생긴다.
+        let typed = "Fish sauce brand X"
+        let canon = IngredientLexicon.shared.exactCanonicalID(for: typed)
+        #expect(canon == nil)
+        #expect(store.addToBuy(name: typed, canonicalID: canon, canonicalIsFinal: true),
+                "자유 입력이 남의 캐논에 흡수돼 담기지 않으면 안 된다")
+        #expect(store.manualToBuy.map(\.name).contains(typed))
+        // 정확 일치 입력은 여전히 캐논으로 묶인다 — 사전 표기를 친 사람은 표제어 줄을 받는다.
+        #expect(IngredientLexicon.shared.exactCanonicalID(for: "우유") == "milk")
+    }
 }

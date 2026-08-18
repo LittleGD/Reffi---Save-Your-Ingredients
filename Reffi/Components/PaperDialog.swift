@@ -77,6 +77,11 @@ struct PaperDialog: View {
             shape.fill(ReffiColor.paper).paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
         }
         .reffiShadow1()
+        // 접근성 글자는 accessibility3까지만 따라 키운다 — 카드에는 스크롤이 없어서, 그 위 단계는
+        // 667pt급 기기(SE·en)에서 카드가 화면을 넘겨 확정 CTA와 X가 통째로 화면 밖으로 나갔다
+        // (실측: AX5 카드 901pt vs 화면 667pt). 닫기·확정이 모두 닿지 않는 것보다 크기를 멈추는
+        // 쪽이 낫다(§7.3 — 탭 행 상한과 같은 태도, 콘텐츠가 아니라 결정 크롬이다).
+        .dynamicTypeSize(...DynamicTypeSize.accessibility3)
         .padding(.horizontal, ReffiSpace.s6)
         // 큰 화면에서 카드가 통째로 늘어나면 문장이 한 줄로 길어져 읽는 눈이 멀리 이동한다.
         .frame(maxWidth: 420)

@@ -761,6 +761,18 @@ final class FridgeStore {
         return true
     }
 
+    /// 메모 한 줄을 **그 줄의 키로** 내린다 — 재입고(`insert`)의 자동 내리기는 냉장고에 들어간
+    /// 재료의 `matchKey`(캐논)로 비교하는데, 자유 입력 줄("서울우유", "계란 한 판")의 키는 친 문자열
+    /// 그대로라 캐논과 영영 어긋난다: 줄이 안 내려가고, 같은 캐논의 **다른** 줄이 대신 내려간다.
+    /// Bought를 누른 행이 무엇인지는 뷰가 이미 알고 있으므로 재해석 없이 그 키로 지운다(멱등 —
+    /// insert가 이미 지웠으면 no-op이고, 그 경우 persist는 insert 쪽이 이미 했다).
+    func clearToBuy(key: String) {
+        let before = manualToBuy.count
+        manualToBuy.removeAll { $0.matchKey == key }
+        guard manualToBuy.count != before else { return }
+        persist(reschedulesAlerts: false)
+    }
+
     /// `addToBuy`의 **저장 없는** 내부 경로 — 판정·흡수 의미론은 전부 여기 있고 `persist`만 호출부가 쥔다.
     /// 루프로 담는 `addMissingToBuy`가 항목마다 전량 스냅샷을 인코딩(메인 스레드)하지 않게 하려는 분리다.
     /// 단건 호출부는 `addToBuy`를 그대로 쓰므로 동작이 바뀌지 않는다.
