@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// History 본문 — 소비/버림 이력을 종이컷 카드로(§13).
-/// ① 정산서(먹음·버림 두 행 + 낭비율 도장 + 자주 버린 재료 TOP 3) ② 타임라인.
+/// ① 이번 주 히어로(종이 고리 + 요일 블롭 일곱) ② 정산서(먹음·버림 두 행 + 낭비율 도장 +
+/// 자주 버린 재료 TOP 3) ③ 타임라인.
 ///
 /// **커버 크롬(헤더·닫기)을 갖지 않는 임베더블 본문**이다 — 냉장고 History 탭이 이 뷰를 그대로 얹고,
 /// 풀스크린 커버가 필요한 자리는 아래 `HistoryView`가 헤더만 씌운다.
@@ -47,8 +48,12 @@ struct HistoryContent: View {
     }
 
     var body: some View {
+        // 집계는 **본문당 한 번**만 돈다. computed로 두면 고리·요일 행·접근성 라벨이 각자 이력을
+        // 다시 훑고, 그 사이에 자정이 지나면 한 화면 안에서 두 값이 다른 주를 가리킬 수 있다.
+        let week = ConsumptionWeek.summary(of: logs)
         ScrollView {
             VStack(spacing: ReffiSpace.s4) {
+                hero(week)
                 settlementCard
                 if !logs.isEmpty { timelineCard }   // 기록이 없으면 제목만 남은 빈 카드를 세우지 않는다
             }
@@ -57,7 +62,156 @@ struct HistoryContent: View {
         }
     }
 
-    // MARK: ① 정산서 — 영수증 한 장에 "먹음·버림 두 행 → 낭비율 도장 → 자주 버린 재료 TOP 3"
+    // MARK: ① 이번 주 히어로 — 고리 하나 + 요일 블롭 일곱
+    //
+    // **창은 이번 주다**(정산서의 30일이 아니라). 바로 아래 요일 행이 이번 주 7일이므로, 고리만
+    // 30일이면 한 블록 안에서 서로 다른 두 책을 읽게 된다 — 옛 도넛이 링과 가운데 숫자에 다른 분모를
+    // 놓아 실패한 지점이 정확히 그것이다(§13.9). 요일 칸 일곱의 합이 곧 고리의 분자라, 화면에서
+    // 눈으로 검산된다. 30일 수치는 아래 정산서가 자기 라벨과 함께 계속 말한다.
+    //
+    // 전면 블리드(`-ReffiGrid.margin`)는 카테고리 칩 행이 쓰던 관용구 그대로다 — 히어로는 카드가
+    // 아니라 패인이 앉은 **바닥 면**이라 좌우 마진에 갇히면 카드 한 장으로 오해된다.
+    private func hero(_ week: ConsumptionWeek.Summary) -> some View {
+        VStack(spacing: ReffiSpace.s4) {
+            ring(week)
+            weekRow(week)
+            Text("One circle a day. The number is what you ate.")
+                .reffiType(.caption)
+                .foregroundStyle(ReffiColor.ink2)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, ReffiGrid.margin + ReffiSpace.s2)
+        .padding(.vertical, ReffiSpace.s5)
+        .background { PaperGlyphPile(glyphs: pileGlyphs) }
+        .padding(.horizontal, -ReffiGrid.margin)
+    }
+
+    /// 고리 지름·두께 — 안지름(지름 − 2×두께 = 120)이 가운데 두 줄을 받는 폭이다.
+    private static let ringSize: CGFloat = 156
+    private static let ringThickness: CGFloat = 18
+
+    private func ring(_ week: ConsumptionWeek.Summary) -> some View {
+        PaperRing(fraction: Double(week.eatenRate ?? 0) / 100,
+                  // 값은 "먹은 비율"인데 **색은 낭비율의 색**이다 — 앱 전체에서 초록은 "덜 버렸다"이고,
+                  // 그 임계값의 단일 공급원이 아래 `rateColor`다. 여기서 뒤집지 않으면 잘한 주가 빨개진다.
+                  tint: Self.rateColor(week.wasteRate ?? 0),
+                  thickness: Self.ringThickness,
+                  seed: 4) {
+            VStack(spacing: 2) {
+                if let rate = week.eatenRate {
+                    Text(rate.formatted(.percent))
+                        .font(.reffiNum(.hero))
+                        .foregroundStyle(ReffiColor.ink)
+                    Text("eaten this week")
+                        .reffiType(.metaText)
+                        .foregroundStyle(ReffiColor.ink2)
+                } else {
+                    // 처리 0건 — 0%는 "다 버렸다"는 없는 판정이다. 숫자를 아예 세우지 않는다.
+                    Text("Nothing this week")
+                        .reffiType(.metaText)
+                        .foregroundStyle(ReffiColor.ink2)
+                }
+            }
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
+            .multilineTextAlignment(.center)
+            .padding(.horizontal, ReffiSpace.s3)
+            .frame(width: Self.ringSize - Self.ringThickness * 2)
+        }
+        .frame(width: Self.ringSize, height: Self.ringSize)
+        // 고리는 숫자 하나가 아니라 "무엇의 몇 퍼센트인가"다 — 분자·분모까지 읽어 준다.
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(ringLabel(week))
+    }
+
+    private func ringLabel(_ week: ConsumptionWeek.Summary) -> Text {
+        guard let rate = week.eatenRate else {
+            return Text("Nothing cleared out this week yet.")
+        }
+        return Text("Eaten this week: \(rate) percent, \(week.eaten) of \(week.removed) items")
+    }
+
+    /// 요일 블롭 한 변.
+    private static let dayBlob: CGFloat = 38
+
+    private func weekRow(_ week: ConsumptionWeek.Summary) -> some View {
+        HStack(spacing: ReffiSpace.s1) {
+            ForEach(week.days) { dayCell($0) }
+        }
+        .accessibilityElement(children: .contain)
+    }
+
+    private func dayCell(_ day: ConsumptionWeek.Day) -> some View {
+        VStack(spacing: ReffiSpace.s1) {
+            Text(verbatim: ConsumptionWeek.initial(of: day))
+                .reffiType(.metaText)
+                .foregroundStyle(day.isToday ? ReffiColor.ink : ReffiColor.muted)
+            ZStack {
+                dayBlobSurface(day)
+                // 0은 찍지 않는다 — 일곱 칸에 0이 늘어서면 숫자가 아니라 노이즈가 된다.
+                // 조용한 날은 빈 종이 조각으로 남고, 먹은 날만 숫자를 든다.
+                if !day.isFuture, day.eaten > 0 {
+                    Text(day.eaten.formatted())
+                        .font(.reffiNum(.body))
+                        .foregroundStyle(day.isToday ? ReffiColor.canvas : ReffiColor.ink)
+                }
+            }
+            .frame(width: Self.dayBlob, height: Self.dayBlob)
+        }
+        // 큰 글자에서 블롭을 키우지 않고 **글자를 줄인다**(`FridgeTabBar` 알약과 같은 방어).
+        // 일곱 칸이 한 줄에 서는 배치라 칸이 커지면 주가 화면 밖으로 밀려난다 — 잘리는 것보다
+        // 작아지는 편이 낫고, 진짜 값은 접근성 라벨이 온전히 읽어 준다.
+        .lineLimit(1)
+        .minimumScaleFactor(0.6)
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(dayLabel(day))
+    }
+
+    /// 오늘 칸만 **잉크 솔리드**다(§13.5 탭 알약과 같은 문법).
+    ///
+    /// 바로 그 §13.5는 카테고리 필터 칩에 "선택 표시가 콘텐츠보다 무거워지면 안 된다"고 못 박았는데,
+    /// 그 규칙의 근거는 *조작 상태*가 조작 대상보다 무거워지는 것을 막는 것이었다. 오늘 칸은 조작
+    /// 상태가 아니다 — 이 행에서 **어디가 지금인지**를 정하는 유일한 기준점이고(그것 없이는 어느 쪽이
+    /// 지나간 날이고 어느 쪽이 아직 오지 않은 날인지 읽히지 않는다), 탭 알약이 패인 행에서 하는 일과
+    /// 같은 일이다. 게다가 이 행은 눌리지 않으므로, 무거운 표시가 컨트롤로 오독될 여지도 없다.
+    @ViewBuilder
+    private func dayBlobSurface(_ day: ConsumptionWeek.Day) -> some View {
+        let shape = PaperBlob(sides: 9, seed: 40 + day.weekday)
+        if day.isToday {
+            shape.fill(ReffiColor.ink)
+                .overlay(PaperGrain(seed: UInt64(40 + day.weekday), strength: 0.9).clipShape(shape))
+                .paperEdge(shape, tint: ReffiColor.paperEdgeOnFill)
+                .compositingGroup()
+        } else if day.isFuture {
+            // 아직 오지 않은 날 — 자리는 지키되 종이를 덜 오려 둔다(빈 칸이면 주가 짧아 보인다).
+            shape.fill(ReffiColor.sub.opacity(0.55))
+        } else {
+            shape.fill(ReffiColor.paper).paperEdge(shape)
+        }
+    }
+
+    private func dayLabel(_ day: ConsumptionWeek.Day) -> Text {
+        let name = ConsumptionWeek.name(of: day)
+        if day.isFuture { return Text("\(name), still to come") }
+        // 오늘은 요일 이름 대신 "Today"로 읽는다 — 화면에서 잉크로 구분해 둔 그 사실이 소리로도 와야 한다.
+        if day.isToday { return Text("Today, \(day.eaten) eaten") }
+        return Text("\(name), \(day.eaten) eaten")
+    }
+
+    /// 배경 더미에 세울 글리프 — **내 냉장고가 먼저, 그다음 내 이력**. 같은 글리프는 한 번만 쓴다
+    /// (한 종류가 스무 칸을 다 채우면 더미가 아니라 무늬가 된다). 둘 다 비면 컴포넌트의 고정 세트가 선다.
+    private var pileGlyphs: [FoodGlyph] {
+        var seen = Set<FoodGlyph>()
+        var result: [FoodGlyph] = []
+        for glyph in store.ingredients.map(\.glyph) + logs.map(\.glyph) where seen.insert(glyph).inserted {
+            result.append(glyph)
+        }
+        return result
+    }
+
+    // MARK: ② 정산서 — 영수증 한 장에 "먹음·버림 두 행 → 낭비율 도장 → 자주 버린 재료 TOP 3"
     //
     // 옛 도넛은 두 지표를 한 그래픽에 겹쳤다(링=버린 것의 카테고리 구성, 가운데 숫자=낭비율)가 서로
     // 다른 분모를 같은 원 안에 놓았고, 신선도 3색을 '식품군' 의미로 재사용해 §2.4를 정면으로 어겼다.
@@ -157,7 +311,7 @@ struct HistoryContent: View {
         String(format: "No. %04d", (eaten &* 31 &+ tossed &* 7 &+ rate) % 10000)
     }
 
-    // MARK: ② 타임라인
+    // MARK: ③ 타임라인
     private var timelineCard: some View {
         card(seed: 2) {
             VStack(alignment: .leading, spacing: ReffiSpace.s3) {

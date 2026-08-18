@@ -41,6 +41,26 @@
         }
       }
     },
+    "%@, %lld eaten": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@, %2$lld개 먹음"
+          }
+        }
+      }
+    },
+    "%@, still to come": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@, 아직 오지 않았어요"
+          }
+        }
+      }
+    },
     "%@. Open Reffi and fire a ticket.": {
       "localizations": {
         "ko": {
@@ -1051,6 +1071,16 @@
         }
       }
     },
+    "Eaten this week: %lld percent, %lld of %lld items": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이번 주 먹은 비율 %1$lld퍼센트, %3$lld개 중 %2$lld개"
+          }
+        }
+      }
+    },
     "Edit": {
       "localizations": {
         "ko": {
@@ -1812,6 +1842,16 @@
         }
       }
     },
+    "Nothing cleared out this week yet.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이번 주엔 아직 처리한 재료가 없어요."
+          }
+        }
+      }
+    },
     "Nothing here yet": {
       "localizations": {
         "ko": {
@@ -1872,6 +1912,16 @@
         }
       }
     },
+    "Nothing this week": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이번 주엔 아직"
+          }
+        }
+      }
+    },
     "Nothing to use yet": {
       "localizations": {
         "ko": {
@@ -1928,6 +1978,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "하루 한 번, 임박한 게 있을 때만요."
+          }
+        }
+      }
+    },
+    "One circle a day. The number is what you ate.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "동그라미 하나가 하루예요. 숫자는 그날 먹은 개수예요."
           }
         }
       }
@@ -2833,6 +2893,16 @@
         }
       }
     },
+    "Today, %lld eaten": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "오늘, %lld개 먹음"
+          }
+        }
+      }
+    },
     "Toggles whether some is left over": {
       "localizations": {
         "ko": {
@@ -3249,6 +3319,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "개"
+          }
+        }
+      }
+    },
+    "eaten this week": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이번 주 먹은 비율"
           }
         }
       }
