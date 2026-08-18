@@ -288,15 +288,65 @@ final class ReffiFlowUITests: XCTestCase {
         shot.lifetime = .keepAlways
         add(shot)
 
-        // 행의 컨트롤 둘(19차) — 라벨 붙은 "Bought"와 조용한 ✕. 접근성 라벨이 곧 이 행의 계약이라
-        // 둘 다 잡아 둔다(✕는 글리프뿐이라 라벨이 없으면 보조기술에선 존재하지 않는 버튼이 된다).
+        // 행에 남는 컨트롤은 **하나**다(21차) — 파란 "Bought". 빼기는 밀어야 나온다.
         XCTAssertTrue(app.buttons["Bought \(typed)"].exists,
                       "메모 행의 1차 액션은 'Bought <이름>'이다")
+        let deleteButton = app.buttons["Remove \(typed) from the memo"]
+        XCTAssertFalse(deleteButton.exists,
+                       "밀기 전에는 빼기 컨트롤이 보조기술에도 없어야 한다(화면 밖 버튼에 포커스 금지)")
 
-        // 상태 원복 — 테스트가 기기 저장 상태를 오염시키지 않게(빼기가 수동 항목을 지운다).
-        app.buttons["Remove \(typed) from the memo"].firstMatch.tap()
-        waitForDisappearance(app.staticTexts[typed], "원복: 담은 항목 제거")
+        // ① 드러내기 경로 — 끝에서 **멈춰서** 손을 떼면(hold) 예측 종점 ≈ 실제 이동이라
+        // 커밋 임계(200pt)를 넘지 않고 빨간 조각만 드러난다.
+        revealDelete(app, rowLabeled: typed)
+        XCTAssertTrue(deleteButton.waitForExistence(timeout: 4),
+                      "밀면 빨간 조각이 드러나고 그때서야 보조기술에도 보인다")
+        attach(app, named: "to-buy-row-mid-swipe")
+        deleteButton.tap()
+        waitForDisappearance(app.staticTexts[typed], "빼기 확정 — 행이 목록에서 사라진다")
+        attach(app, named: "to-buy-after-delete")
+
+        // 되돌리기 창 — 밀기는 버튼보다 오발이 잦아 토스트를 짝지었다(21차).
+        let undo = app.buttons["Undo"]
+        XCTAssertTrue(undo.waitForExistence(timeout: 4), "빼기 직후 되돌리기 토스트가 뜬다")
+        undo.tap()
+        XCTAssertTrue(app.staticTexts[typed].waitForExistence(timeout: 4),
+                      "되돌리면 그 줄이 목록으로 돌아온다")
+
+        // ② 끝까지 밀기 경로 — 관성이 붙은 플릭은 **탭 없이** 바로 확정된다. 같은 드래그가
+        // ①과 다른 결과를 내는 것이 임계 설계의 요지라, 두 경로를 같은 테스트에서 못 박는다.
+        // (이 경로가 상태 원복도 겸한다 — 담은 항목이 목록에서 사라진 채 끝난다.)
+        flickRowAway(app, rowLabeled: typed)
+        waitForDisappearance(app.staticTexts[typed], "끝까지 밀면 탭 없이 바로 빠진다")
+        XCTAssertTrue(app.buttons["Undo"].waitForExistence(timeout: 4),
+                      "끝까지 밀기도 같은 되돌리기 창을 연다")
     }
+
+    /// 행을 왼쪽으로 밀어 **드러내기에서 멈춘다**.
+    ///
+    /// 끝점에서 `thenHoldForDuration`으로 손가락을 세워 두는 것이 핵심이다 — 속도가 0으로 죽어
+    /// `predictedEndTranslation ≈ translation`이 되고, 그래야 커밋 임계(200pt) 아래로 남는다.
+    /// 이 hold가 없으면 XCUITest 기본 500pt/s가 예측 종점을 임계 너머로 밀어 **드러내기 없이 바로
+    /// 삭제된다**(첫 시도의 실패가 정확히 이것이었고, 그 실패 자체가 끝까지 밀기 경로의 증거였다).
+    ///
+    /// 시작점은 **행의 y · 화면 가로 중앙** — 이름 열과 Bought 알약 사이의 빈 면이라 버튼을 누르지
+    /// 않으면서 행 얼굴의 제스처만 잡는다(이름 텍스트에서 끌면 종점이 화면 밖으로 나간다).
+    private func revealDelete(_ app: XCUIApplication, rowLabeled label: String) {
+        let midY = app.staticTexts[label].frame.midY
+        let origin = app.coordinate(withNormalizedOffset: .zero)
+        let start = origin.withOffset(CGVector(dx: app.frame.midX, dy: midY))
+        let end = origin.withOffset(CGVector(dx: app.frame.midX - 120, dy: midY))
+        start.press(forDuration: 0.1, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.5)
+    }
+
+    /// 행을 끝까지 밀어 **바로 확정**한다 — 관성이 붙은 기본 속도 드래그.
+    private func flickRowAway(_ app: XCUIApplication, rowLabeled label: String) {
+        let midY = app.staticTexts[label].frame.midY
+        let origin = app.coordinate(withNormalizedOffset: .zero)
+        let start = origin.withOffset(CGVector(dx: app.frame.midX, dy: midY))
+        let end = origin.withOffset(CGVector(dx: app.frame.midX - 150, dy: midY))
+        start.press(forDuration: 0.05, thenDragTo: end)
+    }
+
 
     // MARK: 로그인 화면 요소
 

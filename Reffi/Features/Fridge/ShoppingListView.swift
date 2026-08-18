@@ -5,6 +5,10 @@ import SwiftUI
 /// Bought = 시트 없이 **즉시 재입고** — 직전 이력 스냅샷(보관·구매처·수량, 냉동이었다면 냉장으로)과
 /// 사전 기본 기한으로 바로 store에 채워 넣는다(§13.6 재입고 경로 — AddIngredientSheet 의존 없음).
 ///
+/// 빼기는 **행을 왼쪽으로 밀어서** 한다(21차) — 행에는 파란 Bought 알약 하나만 서고, 밀면 그 뒤에서
+/// 빨간 종이 조각이 드러난다. 밀기는 보조기술에 존재하지 않으므로 같은 동작을 행의 **커스텀 접근성
+/// 액션**으로도 낸다. 오발이 잦은 어포던스라 되돌리기 토스트를 짝지었다(`FridgeStore.skipBuyUndoable`).
+///
 /// **커버 크롬(헤더·닫기)을 갖지 않는 임베더블 본문**이다 — 냉장고 To buy 탭이 이 뷰를 그대로 얹고,
 /// 풀스크린 커버가 필요한 자리는 아래 `ShoppingListView`가 헤더만 씌운다. 목록·재입고·빼기·검색 시트
 /// 같은 실제 동작은 **여기 한 곳**에 산다(두 표면이 같은 규칙을 각자 적으면 조용히 갈린다).
@@ -19,11 +23,26 @@ struct ShoppingListContent: View {
 
     @State private var restockHaptic = 0
     /// 메모에서 빼기는 §7.6의 **판정·확정**이다(Ate/Tossed와 같은 결의 "이번엔 안 사기") — `.impact(.light)`.
-    /// 19차에 라벨이 "Skip"에서 조용한 ✕로 바뀌었지만 **햅틱은 그대로다**: §7.6의 매핑 기준은 어포던스가
-    /// 아니라 **의미**이고, 부르는 액션(`store.skipBuy`)이 그대로라 의미도 그대로다.
-    /// 사서 채우는 Bought 쪽이 성공 완료(`.success`)이므로 같은 행의 두 컨트롤이 다른 의미로 갈린다.
+    /// 라벨 "Skip"(~18차) → 조용한 ✕(19차) → **밀어서 삭제**(21차)로 어포던스가 두 번 바뀌는 동안
+    /// **햅틱은 한 번도 안 바뀌었다**: §7.6의 매핑 기준은 어포던스가 아니라 **의미**이고, 부르는 액션이
+    /// 여전히 "이번엔 안 사기"(`skipBuy` 계열)라 의미도 그대로다.
+    /// 사서 채우는 Bought 쪽이 성공 완료(`.success`)이므로 두 동작이 다른 의미로 갈린다.
     @State private var skipHaptic = 0
     @State private var showSearch = false
+    /// 지금 열려 있는(빨간 조각이 드러난) 행 — **한 번에 하나**다. 여러 줄이 동시에 열리면 어느 것을
+    /// 지우는지가 흐려지고, 닫는 방법도 사라진다(바깥 탭을 받을 자리가 없다).
+    @State private var revealedKey: String?
+    /// 진행 중인 드래그의 행과 이동량 — 축이 수평으로 갈린 뒤에만 채워진다.
+    @State private var dragKey: String?
+    @State private var dragX: CGFloat = 0
+
+    /// 드러나는 빨간 조각의 폭. 44pt 히트(§7.3)에 좌우 여백을 더한 값이다.
+    private static let revealWidth: CGFloat = 84
+    /// 끝까지 밀기(full swipe) 커밋 거리 — **예측 종점** 기준. 드러내기(84)의 두 배가 넘어야
+    /// "열려다 만 것"과 "끝까지 민 것"이 손끝에서 갈린다.
+    private static let commitDistance: CGFloat = 200
+    /// 드래그가 끌고 갈 수 있는 최대 거리 — 커밋 거리 너머로는 더 밀리지 않는다(고무줄 대신 정지).
+    private static let maxTravel: CGFloat = 260
     #if DEBUG
     /// `-toBuy.search` 자동 오픈을 **런치당 한 번**으로 묶는다 — 탭 패인은 커버와 달리 오갈 때마다
     /// `onAppear`가 다시 도는데, 그때마다 시트가 튀어나오면 QA 세션에서 다른 탭을 볼 수가 없다.
@@ -125,6 +144,9 @@ struct ShoppingListContent: View {
             ForEach(items, id: \.key) { row($0) }
         }
         .receiptSurface()
+        // 목록이 바뀌면(샀거나·담았거나) 열려 있던 조각은 닫는다 — 사라진 행의 상태가 남으면
+        // 그 자리에 올라온 다음 행이 이유 없이 열린 채로 뜬다.
+        .onChange(of: items.count) { _, _ in revealedKey = nil }
     }
 
     /// 목록 한 줄 — **라벨 붙은 알약 하나 + 조용한 아이콘 하나**다(19차).
@@ -133,72 +155,158 @@ struct ShoppingListContent: View {
     /// 무엇을 하는지(재고에 넣는다)를 말하고, 사용자가 방금 한 일은 **샀다**는 것이다. 메커니즘이 아니라
     /// 행위를 라벨에 세운다 — 동작(`restock`)은 그대로고 바뀐 건 이름뿐이다.
     ///
-    /// 반대쪽이 "Skip" 알약에서 **면 없는 ✕**로 내려온 이유는 위계다. 알약 둘이 나란히 서면 "사기"와
-    /// "안 사기"가 같은 무게로 읽히는데, 이 행에서 사용자가 실제로 누르는 건 압도적으로 앞쪽이다.
-    /// 빼기는 늘 닿을 수 있되 먼저 눈에 들어오면 안 되는 정리 동작이라, `QuietButton`이 정의한
-    /// **면 없는 보조 액션** 문법(§13.5)으로 내리고 종이 면 하나를 행에서 걷어냈다.
-    /// 확인 다이얼로그는 두지 않는다 — §7.6이 확인을 요구하는 파괴는 "삭제·초기화 **확정**"(계정·전체
-    /// 초기화·재료/레시피 삭제)이고, 이건 메모 한 줄을 내리는 것이라 이력도 재고도 건드리지 않으며
-    /// 같은 이름을 다시 담으면 원상 복구된다. 되돌리기 비용이 한 번의 탭인 동작에 다이얼로그를 세우면
-    /// 정리가 결심이 된다.
+    /// 반대쪽 빼기는 **버튼에서 제스처로 내려갔다**(21차). 19차가 "Skip" 알약을 면 없는 ✕로 내린 이유가
+    /// 위계였는데(행에서 실제로 누르는 건 압도적으로 앞쪽이다), 그 논리의 끝은 **행에서 아예 걷어내는 것**이다.
+    /// 이제 행에는 파란 알약 하나만 서고, 빼기는 밀어야 나온다 — 정리 동작이 읽는 리듬을 방해하지 않는다.
+    ///
+    /// 확인 다이얼로그는 여전히 두지 않는다(§7.6의 파괴 확정은 계정·전체 초기화·재료 삭제 쪽이다).
+    /// 대신 **되돌리기 토스트**를 세웠다: 어포던스가 버튼에서 밀기로 바뀌면 오발 가능성이 달라진다
+    /// (스크롤하려다, 옆 행을 만지려다). 근거는 `FridgeStore.skipBuyUndoable`에 적었다.
     private func row(_ item: Row) -> some View {
+        let base: CGFloat = revealedKey == item.key ? -Self.revealWidth : 0
+        let live: CGFloat = dragKey == item.key ? dragX : 0
+        let x = max(-Self.maxTravel, min(0, base + live))
+        let revealed = x < -8
+        return ZStack(alignment: .trailing) {
+            deleteZone(item, revealed: revealed)
+            rowFace(item)
+                // 행 얼굴은 **불투명 영수증 면**이라야 한다 — 뒤의 빨간 조각은 이 면이 밀려나면서
+                // 드러나는 것이지, 알파로 켜지는 것이 아니다(종이 두 장이 겹쳐 있다가 미끄러진다).
+                .background(ReffiColor.receipt)
+                .offset(x: x)
+                // `simultaneousGesture`인 이유: 이 행은 세로 `ScrollView` 안에 산다. `gesture`로 걸면
+                // 행 위에서 시작한 세로 스크롤을 이 제스처가 삼킨다. 동시로 두면 스크롤은 세로를,
+                // 이 제스처는 (축이 갈렸을 때만) 가로를 가져가 서로를 막지 않는다.
+                .simultaneousGesture(swipe(item, base: base))
+        }
+        // 밀려난 얼굴은 **행의 폭 안에서** 잘린다 — 안 자르면 종이가 영수증 카드 밖으로, 심하면
+        // 화면 밖까지 삐져나가 이름이 잘린 채 허공에 뜬다(첫 캡처에서 실제로 그렇게 보였다).
+        // 자르면 "카드 안쪽으로 미끄러져 들어간다"는 종이의 물리가 그대로 읽힌다.
+        .clipped()
+        // **밀기는 보조기술에 존재하지 않는다.** VoiceOver 사용자에게 같은 동작을 주는 유일한 길이
+        // 커스텀 액션이라, 빼기를 제스처로 내린 이 라운드에서는 선택이 아니라 필수다.
+        // 세 경로(끝까지 밀기·드러낸 조각 탭·이 액션)가 전부 아래 `remove(_:)` 하나를 부른다.
+        .accessibilityAction(named: Text("Remove from the memo")) { remove(item) }
+    }
+
+    /// 행 얼굴 — 실루엣 + 이름 + 파란 Bought 알약. 19차의 구성에서 ✕만 빠졌다.
+    private func rowFace(_ item: Row) -> some View {
         HStack(spacing: ReffiSpace.s3) {
             PaperSilhouette(glyph: item.glyph, fresh: .fresh)
                 .frame(width: ReffiFoodIcon.row, height: ReffiFoodIcon.row)
             Text(verbatim: item.name).reffiType(.body).foregroundStyle(ReffiColor.ink)
             Spacer()
-            // 두 컨트롤 사이만 **s2(8)** — §7.3이 정한 인접 탭 타깃의 최소값이다. ✕는 44pt 히트 안에
-            // 14pt 글리프라 좌우로 15pt의 투명 여백을 스스로 갖고 있어, 눈에 보이는 간격은 8+15 ≈ s5(24)로
-            // 앉는다. 바깥 s3(12)를 그대로 물려주면 체감 27이 되어 ✕가 행에서 떨어져 나온 조각으로 읽힌다.
-            // 바깥 s3은 실루엣↔이름 쪽에 그대로 남는다(영수증 행의 읽는 리듬은 안 건드린다).
-            HStack(spacing: ReffiSpace.s2) {
-                Button {
-                    withAnimation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion)) {
-                        restock(name: item.name, glyph: item.glyph)
-                    }
-                } label: {
-                    Text("Bought")
-                        .reffiType(.pillLabel)
-                        .fixedSize()   // 이름 열이 길어도 라벨은 꺾이지 않는다 — 폭 경합에선 이름이 접힌다
-                        .foregroundStyle(ReffiColor.blueDark)
-                        .padding(.horizontal, ReffiSpace.s3 + 2)
-                        .padding(.vertical, ReffiSpace.s1 + 1)
-                        .background {
-                            let s = PaperRect(cornerRadius: ReffiRadius.pill, seed: 1)
-                            s.fill(ReffiColor.blueLight).paperEdge(s, tint: ReffiColor.ink.opacity(0.06))
-                        }
-                        .frame(minHeight: 44)
-                        .contentShape(Rectangle())
+            Button {
+                withAnimation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion)) {
+                    restock(name: item.name, glyph: item.glyph)
                 }
-                .buttonStyle(.paperPress)
-                .accessibilityLabel(Text("Bought \(item.name)"))
-                .accessibilityHint(Text("Puts it back in the fridge and clears it from the memo."))
-                Button {
-                    withAnimation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion)) {
-                        store.skipBuy(key: item.key)
+            } label: {
+                Text("Bought")
+                    .reffiType(.pillLabel)
+                    .fixedSize()   // 이름 열이 길어도 라벨은 꺾이지 않는다 — 폭 경합에선 이름이 접힌다
+                    .foregroundStyle(ReffiColor.blueDark)
+                    .padding(.horizontal, ReffiSpace.s3 + 2)
+                    .padding(.vertical, ReffiSpace.s1 + 1)
+                    .background {
+                        let s = PaperRect(cornerRadius: ReffiRadius.pill, seed: 1)
+                        s.fill(ReffiColor.blueLight).paperEdge(s, tint: ReffiColor.ink.opacity(0.06))
                     }
-                    skipHaptic += 1   // §7.6 판정·확정 = .impact (Bought의 .success와 짝)
-                } label: {
-                    // 글리프는 정본 `ReffiIcon.close`(x) 그대로 — 새 글리프를 만들지 않는다.
-                    // 시각 14pt / 히트 44×44로 갈라 §7.3을 채운다(`PaperCloseButton`이 40/44로 쓰는 그 분리다).
-                    ReffiIcon.close.reffi(14, .bold)
-                        .foregroundStyle(ReffiColor.ink2)
-                        .frame(width: 44, height: 44)
-                        .contentShape(Rectangle())
-                }
-                // 면이 없는 보조 액션이라 `QuietButton`과 같은 프레스(0.97)를 쓴다 —
-                // `.paperPress`(0.96)는 종이 면이 눌리는 감각이라 면 없는 글리프엔 근거가 없다.
-                .buttonStyle(.reffiPress)
-                .accessibilityLabel(Text("Remove \(item.name) from the memo"))
-                .accessibilityHint(Text("Takes it off the list without buying it."))
+                    .frame(minHeight: 44)
+                    .contentShape(Rectangle())
             }
+            .buttonStyle(.paperPress)
+            .accessibilityLabel(Text("Bought \(item.name)"))
+            .accessibilityHint(Text("Puts it back in the fridge and clears it from the memo."))
         }
     }
 
-    /// 직접 담기 진입 — 하단 도킹 CTA(`dockedCTA`)로 `PaperButton`을 쓰되 `secondary`다: 이 화면의 1차
-    /// 행동은 행마다의 파란 Bought(재입고)라, 파란 와이드 버튼이 그 위계를 뒤집으면 안 된다.
+    /// 드러나는 빨간 **종이 조각** — 시스템 빨간 띠가 아니다(§13.1: 이 앱의 면은 전부 오려 낸 종이다).
+    /// 행 얼굴 뒤에 늘 앉아 있고 얼굴이 밀려나야 보이므로 알파를 켜고 끄지 않는다.
+    ///
+    /// 안 드러났을 때는 **보조기술에서도 숨긴다** — 화면 밖 버튼에 포커스가 잡히면 VoiceOver 사용자는
+    /// 보이지 않는 컨트롤을 만지게 된다. 그 사용자를 위한 길은 위 행의 커스텀 액션이다.
+    private func deleteZone(_ item: Row, revealed: Bool) -> some View {
+        Button { remove(item) } label: {
+            ReffiIcon.delete.reffi(16, .bold)
+                .foregroundStyle(ReffiColor.urgentDark)
+                .frame(width: Self.revealWidth - ReffiSpace.s2, height: 44)
+                .background {
+                    let s = PaperRect(cornerRadius: ReffiRadius.md, seed: 7)
+                    s.fill(ReffiColor.urgentLight).paperEdge(s, tint: ReffiColor.ink.opacity(0.06))
+                }
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.paperPress)
+        .accessibilityLabel(Text("Remove \(item.name) from the memo"))
+        .accessibilityHint(Text("Takes it off the list without buying it."))
+        .accessibilityHidden(!revealed)
+        .allowsHitTesting(revealed)
+    }
+
+    /// 가로 밀기 — 축을 **한 번만** 판별해 고정하는 덱(`RecipeMemoCarousel.frontDrag`)의 규약 그대로다.
+    /// |Δx| > |Δy|·1.4일 때만 이 제스처가 행을 잡고, 세로 우세·애매한 구간(대략 35.5°~54.5°)은
+    /// 끝까지 잡지 않아 스크롤에 그대로 넘어간다. 매 이벤트 재판정하면 곡선 드래그에서 분기가 바뀌며
+    /// 직전 분기가 남긴 이동량이 스테일로 굳는다.
+    ///
+    /// 왼쪽만 의미가 있다 — 닫힌 행을 오른쪽으로 밀면 `min(0, …)`에 걸려 아무 일도 일어나지 않고,
+    /// 열린 행에서는 같은 식이 닫기로 작동한다(부호 하나로 두 방향이 자연히 갈린다).
+    private func swipe(_ item: Row, base: CGFloat) -> some Gesture {
+        DragGesture(minimumDistance: 14)
+            .onChanged { v in
+                if dragKey != item.key {
+                    let dx = abs(v.translation.width), dy = abs(v.translation.height)
+                    guard dx > dy * 1.4 else { return }   // 아직 안 갈렸거나 세로다 — 스크롤에 양보
+                    dragKey = item.key
+                    // 다른 행이 열려 있었다면 닫는다(열린 행은 한 번에 하나).
+                    if revealedKey != item.key { revealedKey = nil }
+                }
+                dragX = v.translation.width
+            }
+            .onEnded { v in
+                guard dragKey == item.key else { return }
+                let predicted = base + v.predictedEndTranslation.width
+                let settled = base + v.translation.width
+                dragKey = nil
+                dragX = 0
+                if predicted < -Self.commitDistance {
+                    remove(item)   // 끝까지 밀기 = 바로 커밋(토스트가 되돌릴 길을 남긴다)
+                } else {
+                    withAnimation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion)) {
+                        // 절반을 넘겼으면 열린 채로 머문다(탭으로 확정), 아니면 제자리로.
+                        revealedKey = settled < -Self.revealWidth / 2 ? item.key : nil
+                    }
+                }
+            }
+    }
+
+    /// 메모에서 빼기 — **세 경로의 유일한 종점**(끝까지 밀기 · 드러낸 조각 탭 · 접근성 액션).
+    /// 한 곳으로 모아 두면 어느 경로로 들어와도 같은 store 호출·같은 햅틱·같은 되돌리기 창이 된다.
+    private func remove(_ item: Row) {
+        withAnimation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion)) {
+            revealedKey = nil
+            dragKey = nil
+            dragX = 0
+            store.skipBuyUndoable(key: item.key)
+        }
+        skipHaptic += 1   // §7.6 판정·확정 = .impact (Bought의 .success와 짝)
+    }
+
+    /// 직접 담기 진입 — 하단 도킹 CTA(`dockedCTA`)의 `PaperButton`, **`primary`(파랑)**다(21차).
+    ///
+    /// 옛 근거("이 화면의 1차 행동은 행마다의 파란 Bought라 파란 와이드 버튼이 위계를 뒤집는다")는
+    /// 두 번 무너졌다. ① 16차에 이력 파생 제안이 사라져 **목록의 유일한 소스가 이 버튼**이 됐다 —
+    /// 여기서 담지 않으면 화면에 행 자체가 없다. 빈 상태 카피("Tap Add item to jot down what you need.")가
+    /// 이미 그렇게 말하고 있는데 버튼만 보조 톤이었다. ② 행의 Bought는 **목록에 이미 있는 줄에만**
+    /// 존재하는 반응형 액션이고, 이 버튼은 화면에 늘 있는 **진입**이다. 둘은 같은 축의 1·2등이 아니라
+    /// 다른 축이다.
+    ///
+    /// **파랑이 둘("Bought" 알약과 이 버튼)이라는 긴장은 남는다.** §2.4의 5% 액센트 규율이 겨누는 것은
+    /// 같은 화면에서 파랑이 여러 곳에 흩뿌려져 어디가 행동인지 흐려지는 상태인데, 여기서는 파랑이
+    /// 정확히 두 종류의 행동에만 쓰이고 **면의 채도로 갈린다**: 행 알약은 연한 면(`blueLight`) + 진한
+    /// 글자(`blueDark`)라 목록 안에 앉고, 도킹 CTA는 꽉 찬 파랑 면 + 흰 글자라 화면의 바닥에서 뜬다.
+    /// 같은 색의 두 밀도가 위계를 만든다 — 색을 갈랐다면(예: 초록 CTA) 오히려 새 의미를 만들었을 것이다.
     private var addItemButton: some View {
-        PaperButton(title: "Add item", kind: .secondary, seed: 3) { showSearch = true }
+        PaperButton(title: "Add item", kind: .primary, seed: 3) { showSearch = true }
     }
 
     /// 빈 상태 — 이제 **직접 담은 것이 없을 때** 뜬다(제안 구역이 사라져 목록의 유일한 소스가 수동이다).
