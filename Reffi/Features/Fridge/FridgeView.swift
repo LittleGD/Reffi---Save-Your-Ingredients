@@ -741,12 +741,6 @@ struct ExpandedFridgeCard: View {
     var onEdit: () -> Void = {}
     private let toothH: CGFloat = ReffiTooth.card
 
-    /// 영수증 번호 — 이름에서 유도(장식, 안정적).
-    private var receiptNo: String {
-        let s = abs(ingredient.name.unicodeScalars.reduce(7) { $0 &* 31 &+ Int($1.value) })
-        return String(format: "No. %04d", s % 10000)
-    }
-
     var body: some View {
         let f = ingredient.freshness
         let shape = ReceiptShape(tooth: toothH)
@@ -796,19 +790,8 @@ struct ExpandedFridgeCard: View {
             .padding(.horizontal, ReffiSpace.s5)
             .padding(.vertical, ReffiSpace.s2)
 
-            dashRule
-            HStack {
-                Text(verbatim: "REFFI · KEEP IT FRESH")
-                    .reffiType(.monoEyebrow)
-                    .foregroundStyle(ReffiColor.muted)
-                Spacer()
-                Text(receiptNo)
-                    .font(.reffiNum(.meta)).foregroundStyle(ReffiColor.muted)
-            }
-            .padding(.horizontal, ReffiSpace.s5)
-            .padding(.top, ReffiSpace.s3)
-            .padding(.bottom, ReffiSpace.s2)
         }
+        .padding(.bottom, ReffiSpace.s2)
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.bottom, toothH)
         .background(paper, in: shape)
