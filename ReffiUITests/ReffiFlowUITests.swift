@@ -118,6 +118,10 @@ final class ReffiFlowUITests: XCTestCase {
         // In stock 패인의 고유 콘텐츠 — 영수증 스택과 목록 조작 크롬.
         XCTAssertTrue(app.staticTexts["Beef"].waitForExistence(timeout: 4), "재고 영수증 카드")
         XCTAssertTrue(app.buttons["Sort: Expiring first"].exists, "재고 패인의 정렬 칩")
+        // 패인 헤드라인은 **자기 패인에만** 선다 — In stock의 첫 블록은 컨트롤 한 줄이고,
+        // 이름 붙일 종이가 따로 없어 헤드라인을 두지 않는다.
+        XCTAssertFalse(app.staticTexts["Grocery memo"].exists, "To buy 헤드라인이 재고 패인에 새면 안 된다")
+        XCTAssertFalse(app.staticTexts["Kitchen ledger"].exists, "History 헤드라인이 재고 패인에 새면 안 된다")
         attach(app, named: "fridge-tab-in-stock")
 
         // To buy 탭 — 카드 밖 헤드라인이 패인의 이름표고, 하단 도킹 "Add item"은 커버 때 그대로다.
@@ -130,11 +134,19 @@ final class ReffiFlowUITests: XCTestCase {
         XCTAssertFalse(stockTab.isSelected, "직전 탭의 선택은 풀린다")
         attach(app, named: "fridge-tab-to-buy")
 
-        // History 탭 — 맨 위는 이번 주 히어로(종이 고리 + 요일 블롭 일곱), 30일 정산서는 그 아래다.
+        // History 탭 — 맨 위는 패인 헤드라인("Kitchen ledger"), 그 아래가 이번 주 히어로(종이 고리 +
+        // 요일 블롭 일곱)고, 30일 정산서는 다시 그 아래다. 헤드라인 이름이 탭 라벨("History")과
+        // **다른 것이 요점**이다 — 같은 말이면 한 화면에 같은 이름이 두 번 선다.
         historyTab.tap()
+        let ledgerHeadline = app.staticTexts["Kitchen ledger"]
+        XCTAssertTrue(ledgerHeadline.waitForExistence(timeout: 4),
+                      "History 패인의 첫 블록은 헤드라인이다")
+        XCTAssertFalse(app.staticTexts["Grocery memo"].exists, "To buy 헤드라인은 함께 사라져야 한다")
         let heroCaption = app.staticTexts["One circle a day. The number is what you ate."]
         XCTAssertTrue(heroCaption.waitForExistence(timeout: 4),
-                      "History 패인의 첫 블록은 이번 주 히어로다")
+                      "히어로는 헤드라인 바로 아래에 선다")
+        XCTAssertTrue(ledgerHeadline.frame.maxY <= heroCaption.frame.minY,
+                      "헤드라인이 히어로보다 위에 있어야 한다")
         // 고리는 두 상태 중 정확히 하나로 읽힌다 — 이번 주 처리 건이 있으면 비율, 없으면 빈 창 안내.
         // (샘플 이력의 날짜는 상대값이라, 실행일이 주의 어디냐에 따라 둘 다 정상이다.)
         let ringWithRate = app.descendants(matching: .any)
@@ -151,7 +163,7 @@ final class ReffiFlowUITests: XCTestCase {
         XCTAssertTrue(historyTab.isSelected, "History가 선택된다")
         attach(app, named: "fridge-tab-history")
 
-        // 한 패인 스크롤: 히어로는 걷히고 정산서가 올라오지만 **탭 행은 그 자리에** 남는다.
+        // 한 패인 스크롤: 헤드라인·히어로는 걷히고 정산서가 올라오지만 **탭 행은 그 자리에** 남는다.
         XCTAssertTrue(app.staticTexts["Tally · past 30 days"].exists,
                       "30일 정산서는 히어로 아래에 그대로 있다")
         // 스와이프 폭은 기기·모션 설정에 따라 다르다 — 횟수를 못 박지 않고 조건으로 민다.
@@ -159,6 +171,7 @@ final class ReffiFlowUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Tally · past 30 days"].waitForExistence(timeout: 4),
                       "스크롤하면 정산서가 화면으로 올라온다")
         XCTAssertFalse(heroCaption.isHittable, "히어로는 스크롤과 함께 걷힌다")
+        XCTAssertFalse(ledgerHeadline.isHittable, "헤드라인도 스크롤 콘텐츠라 함께 걷힌다")
         XCTAssertTrue(historyTab.isHittable, "탭 행은 스크롤 밖 고정 크롬이라 남아 있어야 한다")
         attach(app, named: "fridge-tab-history-scrolled")
 

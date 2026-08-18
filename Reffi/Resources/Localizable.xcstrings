@@ -1571,6 +1571,16 @@
         }
       }
     },
+    "Kitchen ledger": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "주방 장부"
+          }
+        }
+      }
+    },
     "Know before food turns": {
       "localizations": {
         "ko": {

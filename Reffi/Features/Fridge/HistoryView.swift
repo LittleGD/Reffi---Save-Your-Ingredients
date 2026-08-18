@@ -53,13 +53,43 @@ struct HistoryContent: View {
         let week = ConsumptionWeek.summary(of: logs)
         ScrollView {
             VStack(spacing: ReffiSpace.s4) {
-                hero(week)
+                // 헤드라인 ↔ 히어로는 **s4(16)**, 위의 탭 행과는 s5(24, `FridgeView.fridgeHeader`가 준다).
+                // To buy는 같은 자리에 s3(12)을 쓰는데 **여기서 값이 다른 이유는 읽히는 거리를 맞추기
+                // 위해서다**(3x 캡처 실측): To buy의 다음 면은 톱니(`ReceiptShape`) 영수증이라 골이
+                // 프레임 윗변보다 아래에 앉아 제목 잉크 바닥에서 면까지 **18pt**로 읽히는데, 히어로는
+                // 전면 블리드 밴드라 윗변이 프레임 그대로 딱 떨어진다 — 같은 s3을 주면 13pt로 5pt
+                // 더 붙어 'g' 디센더가 밴드 선에 닿는다. s4면 **17pt**로 To buy와 같아진다.
+                // 값이 아니라 **읽히는 거리**를 토큰으로 맞춘 것이고, 위(24) : 아래(16)의 2:1 남짓한
+                // 비율도 그대로라 제목은 여전히 자기가 이름 붙이는 것 쪽에 붙는다.
+                VStack(alignment: .leading, spacing: ReffiSpace.s4) {
+                    headline
+                    hero(week)
+                }
                 settlementCard
                 if !logs.isEmpty { timelineCard }   // 기록이 없으면 제목만 남은 빈 카드를 세우지 않는다
             }
             .padding(.horizontal, ReffiGrid.margin)
             .padding(.bottom, bottomPadding)
         }
+    }
+
+    /// 패인 헤드라인 — To buy의 `Grocery memo`와 **같은 문법**(카드/밴드 밖, `heading` 24, leading 마진,
+    /// `.isHeader`, 스크롤과 함께 걷힘)이다. 이름이 `History`가 아니라 **`Kitchen ledger`**인 것이
+    /// 이 줄이 존재할 수 있는 이유다: 23차는 "History 헤드라인은 바로 위 탭 라벨과 같은 말이 두 번
+    /// 서는 것"이라며 두지 않기로 했는데, 그 근거는 헤드라인 자체가 아니라 **중복된 이름**에 있었다.
+    /// 탭 라벨은 목적지 이름("History")이고 헤드라인은 이 패인이 무엇을 담은 종이인가("주방 장부")라,
+    /// 이름이 갈리면 두 줄이 서로 다른 일을 한다 — To buy의 탭 라벨("To buy")과 헤드라인
+    /// ("Grocery memo")이 갈려 있는 것과 정확히 같은 관계다.
+    ///
+    /// role이 `.heading`(24)인 근거는 17차와 같다(§3.2): `display`=화면 제목("Fridge") ·
+    /// `heading`=**패인 전체**를 이름 붙이는 제목 · `subhead`=**카드 이름**(아래 "Tally · past 30 days").
+    /// 세 층이 한 화면에 34 → 24 → 18로 서서 위계가 그대로 읽힌다.
+    private var headline: some View {
+        Text("Kitchen ledger")
+            .reffiType(.heading)
+            .foregroundStyle(ReffiColor.ink)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityAddTraits(.isHeader)
     }
 
     // MARK: ① 이번 주 히어로 — 고리 하나 + 요일 블롭 일곱
