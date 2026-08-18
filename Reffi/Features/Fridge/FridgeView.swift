@@ -4,17 +4,34 @@ import PhosphorSwift
 /// 냉장고 — 전체 재고를 임박순으로 쌓은 "흰 영수증" 스택(§13).
 /// 영수증 냉장고의 IA(스택 + 탭→상세 + 히스토리)를 그대로, 비주얼은 Main의 종이컷 언어로.
 /// 카드 탭 → Wallet식으로 펼쳐져 상세(구매정보 + Ate/Tossed), 나머지는 하단에 collapse.
+///
+/// **화면은 상단 탭 셋으로 갈린다**(2026-08): In stock(이 스택) · To buy · History.
+/// 옛 요약 두 버튼과 헤더 리포트 버튼이 열던 풀스크린 커버 둘을 탭 패인이 대신한다 — 목적지가
+/// 세 개뿐인데 그중 둘을 커버로 감추면 "지금 뭘 보고 있는가"가 화면에 남지 않는다.
 struct FridgeView: View {
+    /// 바깥에서 지정하는 착지 패인 — 덱의 담기 흐름이 "보기"로 끝나면 `.toBuy`가 들어온다.
+    /// **소비하면 곧바로 nil로 되돌린다**(1회성 신호): 값이 남아 있으면 사용자가 손으로 탭을 옮긴
+    /// 다음에도 같은 요청이 다시 살아나 패인이 되돌아간다.
+    @Binding var pendingPane: FridgeTab?
+
     @Environment(FridgeStore.self) private var store
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @Namespace private var ns
     @State private var selectedID: Ingredient.ID?
-    @State private var showHistory = false
-    @State private var showShopping = false
+    /// 상단 탭 — 기본은 In stock. QA 인자(`-toBuy`·`-toBuy.search`·`-showHistory`)는 그 목적지 탭으로 착지.
+    @State private var tab: FridgeTab = {
+        #if DEBUG
+        return FridgeTab.initial(from: ProcessInfo.processInfo.arguments)
+        #else
+        return .stock
+        #endif
+    }()
     @State private var editing: Ingredient?
-    /// 정렬 드롭다운 열림 — 앱 커스텀 `PaperDropdown`(스톡 Menu 대체). 세션 한정.
-    @State private var sortMenuOpen = false
+    /// 지금 열린 종이 드롭다운 — **불리언 두 개가 아니라 하나의 상태**다. `DropdownAnchorKey`는
+    /// 화면당 한 개 열림을 전제하므로(둘이 동시에 앵커를 올리면 팝업이 엉뚱한 칩 아래에 뜬다),
+    /// "동시에 열림"이라는 표현 불가능한 상태를 타입에서 지운다. 세션 한정.
+    @State private var openMenu: OpenMenu = .none
     /// 판정(Ate/Tossed) 햅틱 카운터 — `MainView.decisionHaptic`과 동일 트리거·weight(룰⑦: 같은 의미는 같은 햅틱).
     @State private var decisionHaptic = 0
     /// 펼친 영수증의 실측 높이 — 스크롤 뷰가 콘텐츠보다 커지지 않게 묶는 캡(0이면 미측정 = 캡 없음).
@@ -52,11 +69,22 @@ struct FridgeView: View {
     private var items: [Ingredient] {
         FridgeCategoryFilter.apply(activeCategory, to: sortedItems)
     }
-    /// 재고에 존재하는 카테고리 + 개수(캐논 순서) — 칩 행의 유일한 데이터 소스.
+    /// 재고에 존재하는 카테고리 + 개수(캐논 순서) — 카테고리 드롭다운의 유일한 데이터 소스.
     private var categoryCounts: [FridgeCategoryFilter.Bucket] {
         FridgeCategoryFilter.buckets(of: sortedItems)
     }
-    private var accent: Color { items.first?.freshness.main ?? ReffiColor.fresh }
+    /// 드롭다운 옵션 — `nil`(전체) + 재고에 있는 카테고리. `String?`을 그대로 값 타입으로 쓴다:
+    /// 필터 상태(`activeCategory`)가 이미 `String?`이라 별도 래퍼를 만들면 변환이 한 겹 더 생긴다.
+    private var categoryOptions: [String?] { [nil] + categoryCounts.map(\.category) }
+    /// 배경 accent — 패인마다 다르다. 옛 커버 둘이 각자 갖고 있던 색을 탭에서도 그대로 유지한다
+    /// (To buy = blue · History = 낭비율 색). 표면이 바뀌면 배경도 함께 바뀌어야 탭 전환이 읽힌다.
+    private var accent: Color {
+        switch tab {
+        case .stock:   items.first?.freshness.main ?? ReffiColor.fresh
+        case .toBuy:   ReffiColor.blue.opacity(0.5)
+        case .history: HistoryContent.rateColor(store.wasteRate).opacity(0.6)
+        }
+    }
     private var selected: Ingredient? { items.first { $0.id == selectedID } }
     private var motion: Animation? { ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion) }
 
@@ -73,13 +101,21 @@ struct FridgeView: View {
         ZStack {
             LiquidGlassBackground(accent: accent)
             if let sel = selected {
+                // 펼친 영수증은 **화면을 통째로** 가져간다(탭 행까지 덮는다) — 상세는 이 화면의 유일한
+                // 1차 표면이고, 판정(Ate/Tossed)까지 한 화면에서 끝나야 한다(§7.3 잘림 금지).
                 expanded(sel)
             } else {
-                collapsed
+                VStack(spacing: 0) {
+                    fridgeHeader
+                    pane
+                }
             }
             // 하단 마스크 — 화면 끝(홈 인디케이터 포함)까지 크림으로 덮어, 떠 있는 네비 밑으로
             // 카드가 새지 않게. VStack이 화면을 꽉 채우고 safe area를 무시 → 바닥 정렬이 물리적 끝에 닿음.
-            if selected == nil {
+            // **그냥 스크롤하는 패인(In stock·History)에만** 건다: 실측으로 History 타임라인 행이 캡슐 네비
+            // 유리 뒤에서 반쯤 읽히는 잔상이 그대로 보였다(스크린샷 03-history 최초 캡처). To buy는 도킹
+            // CTA가 이미 같은 자리에 불투명 면을 깔기 때문에, 여기서 또 덮으면 그 버튼이 마스크 밑에 깔린다.
+            if selected == nil, tab != .toBuy {
                 VStack(spacing: 0) {
                     Spacer(minLength: 0)
                     LinearGradient(colors: [ReffiColor.canvas.opacity(0), ReffiColor.canvas],
@@ -91,30 +127,61 @@ struct FridgeView: View {
                 .allowsHitTesting(false)
             }
         }
-        // 정렬 드롭다운 — 트리거 칩 앵커 아래에 떠서(ScrollView 클리핑 밖, zIndex dropdown) 전체 콘텐츠 위를 덮는다.
-        // 딤 없는 투명 탭 캐처가 바깥 탭을 받아 닫는다(가벼운 드롭다운, 모달 아님 — scrim 금지).
+        // 바깥에서 온 착지 요청 — 펼친 영수증과 열린 드롭다운을 먼저 정리한다. 상세는 탭 행까지
+        // 덮는 전체 화면이라(§13.5), 그대로 두면 탭만 바뀌고 화면은 영수증에 머문다.
+        .onChange(of: pendingPane) { _, requested in
+            guard let requested else { return }
+            pendingPane = nil
+            selectedID = nil
+            closeMenus()
+            tab = requested
+        }
+        // 종이 드롭다운(카테고리·정렬) — 트리거 칩 앵커 아래에 떠서(ScrollView 클리핑 밖, zIndex dropdown)
+        // 전체 콘텐츠 위를 덮는다. 딤 없는 투명 탭 캐처가 바깥 탭을 받아 닫는다(가벼운 드롭다운, 모달 아님 — scrim 금지).
+        // **열린 트리거만 앵커를 올리므로**(각 트리거의 `anchorPreference`가 조건부) 여기 도착하는 앵커는
+        // 항상 지금 열린 그 칩의 것이다 — 두 칩이 상시 발행하면 마지막 것이 이겨 팝업이 엉뚱한 자리에 뜬다.
         .overlayPreferenceValue(DropdownAnchorKey.self) { anchor in
             GeometryReader { proxy in
-                if sortMenuOpen, let anchor {
+                if openMenu != .none, let anchor {
                     let rect = proxy[anchor]
                     let width: CGFloat = 220
-                    let x = min(max(ReffiGrid.margin, rect.maxX - width),
+                    // 정렬 칩은 행 오른쪽 끝, 카테고리 칩은 왼쪽 끝에 산다 — 팝업도 그 변에 맞춰 붙인다
+                    // (반대편에 붙이면 트리거에서 먼 쪽으로 열려 어느 칩이 열었는지가 흐려진다).
+                    let leading = openMenu == .category
+                    let rawX = leading ? rect.minX : rect.maxX - width
+                    let x = min(max(ReffiGrid.margin, rawX),
                                 max(ReffiGrid.margin, proxy.size.width - width - ReffiGrid.margin))
                     ZStack(alignment: .topLeading) {
                         Color.clear
                             .contentShape(Rectangle())
                             .ignoresSafeArea()
-                            .onTapGesture { closeSortMenu() }
-                        PaperDropdown(options: FridgeSort.allCases,
-                                      selected: sort,
-                                      label: { $0.label },
-                                      seed: 5) { newSort in
-                            sortRaw = newSort.rawValue
-                            closeSortMenu()
+                            .onTapGesture { closeMenus() }
+                        Group {
+                            switch openMenu {
+                            case .category:
+                                PaperDropdown(options: categoryOptions,
+                                              selected: activeCategory,
+                                              label: categoryOptionLabel,
+                                              seed: 9) { category in
+                                    selectCategory(category)
+                                    closeMenus()
+                                }
+                            case .sort:
+                                PaperDropdown(options: FridgeSort.allCases,
+                                              selected: sort,
+                                              label: { $0.label },
+                                              seed: 5) { newSort in
+                                    sortRaw = newSort.rawValue
+                                    closeMenus()
+                                }
+                            case .none:
+                                EmptyView()
+                            }
                         }
                         .frame(width: width)
                         .offset(x: x, y: rect.maxY + ReffiSpace.s1)
-                        .transition(.scale(scale: 0.92, anchor: .topTrailing).combined(with: .opacity))
+                        .transition(.scale(scale: 0.92, anchor: leading ? .topLeading : .topTrailing)
+                            .combined(with: .opacity))
                     }
                     .zIndex(ReffiZ.dropdown)
                 }
@@ -143,21 +210,21 @@ struct FridgeView: View {
                 withAnimation(motion) { selectedID = nil }
             }
         }
-        // History·To buy도 Start cooking처럼 하단에서 올라와 전체를 덮는 풀스크린 커버.
-        .fullScreenCover(isPresented: $showHistory) { HistoryView() }
-        .fullScreenCover(isPresented: $showShopping) { ShoppingListView() }
+        // 탭이 갈리면 In stock 전용 상태를 정리한다 — 펼친 영수증이 다른 패인을 보고 온 뒤에도
+        // 남아 있으면 돌아오는 순간 유령 상세가 뜨고, 열린 정렬 드롭다운은 앵커를 잃은 채 상태만 남는다.
+        .onChange(of: tab) { _, _ in
+            selectedID = nil
+            if openMenu != .none { closeMenus() }
+        }
         .sheet(item: $editing) { IngredientEditView(ingredient: $0) }
         // 자정 경과 — 탭을 띄워둔 채 날이 바뀌어도 D-day 도장·정렬이 갱신되게(메인과 동일 패턴).
         .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged)) { _ in
             dayTick += 1
         }
         #if DEBUG
-        // 스크린샷·QA용 — `-showHistory` 런치 인자로 History 시트 바로 열기(-previewCarousel 선례).
+        // 스크린샷·QA용 런치 인자. 탭 착지(`-toBuy`·`-toBuy.search`·`-showHistory`)는 `tab` 상태의
+        // 초기값(`FridgeTab.initial(from:)`)이 이미 정했다 — 여기선 패인 안쪽 상태만 다룬다.
         .onAppear {
-            if ProcessInfo.processInfo.arguments.contains("-showHistory") { showHistory = true }
-            // `-toBuy` To buy 커버 직행. `-toBuy.search`(검색 시트 자동 오픈)는 단독 지정해도 커버가 열린다.
-            if ProcessInfo.processInfo.arguments.contains("-toBuy")
-                || ProcessInfo.processInfo.arguments.contains("-toBuy.search") { showShopping = true }
             // `-fridgeExpand` — 첫 재료를 바로 펼침(Ate/Tossed 버튼 QA용). 샘플 시드가 늦을 수 있어 지연 재시도.
             if ProcessInfo.processInfo.arguments.contains("-fridgeExpand") {
                 selectedID = items.first?.id
@@ -174,7 +241,13 @@ struct FridgeView: View {
             }
             // `-fridge.sortOpen` — 정렬 드롭다운 자동 오픈(스크린샷용).
             if ProcessInfo.processInfo.arguments.contains("-fridge.sortOpen") {
-                sortMenuOpen = true
+                openMenu = .sort
+            }
+            // `-fridge.categoryOpen` — 카테고리 드롭다운 자동 오픈(스크린샷용). 둘 다 주면 정렬이 이긴다
+            // (한 번에 하나만 열린다 — 아래 대입이 위를 덮지 않도록 순서가 아니라 조건으로 가른다).
+            if ProcessInfo.processInfo.arguments.contains("-fridge.categoryOpen"),
+               openMenu == .none {
+                openMenu = .category
             }
             // `-fridgeEdit` — 첫 재료의 편집 시트 자동 표시(-loadSample과 함께). 시드가 늦으면 지연 재시도.
             if ProcessInfo.processInfo.arguments.contains("-fridgeEdit") {
@@ -189,23 +262,40 @@ struct FridgeView: View {
 
     @State private var dayTick = 0   // 자정 리렌더 트리거
 
-    // MARK: 접힌 스택
-    private var collapsed: some View {
+    // MARK: 고정 헤더 — 타이틀 + 탭 행. 스크롤 밖이다: 세 패인을 오가는 조작이라 항상 같은 자리에
+    // 있어야 하고, 스크롤과 함께 사라지면 "지금 어느 탭인가"라는 유일한 표시를 잃는다.
+    private var fridgeHeader: some View {
+        VStack(alignment: .leading, spacing: ReffiSpace.s3) {   // s3 = 제목-본문 간격
+            titleRow
+            FridgeTabBar(selection: $tab)
+        }
+        .padding(.horizontal, ReffiGrid.margin)
+        .padding(.top, ReffiSpace.s5)
+        // **탭 행 ↔ 패인의 유일한 경계**다 — 세 패인 모두 자체 상단 패딩이 없으므로(실측 확인)
+        // 이 한 값이 셋에 그대로 간다. s4(16)에서 s5(24)로 넓혀 탭이 콘텐츠에서 숨을 쉬게 한다:
+        // 탭은 화면의 IA라 아래 목록에 붙어 있으면 목록의 머리처럼 읽힌다.
+        .padding(.bottom, ReffiSpace.s5)
+    }
+
+    /// 선택된 탭의 본문. To buy·History는 커버에서 쓰던 **같은 콘텐츠 뷰**를 크롬 없이 얹는다 —
+    /// 두 표면이 같은 화면을 각자 그리면 규칙이 갈린다. 다른 건 바닥 여백뿐이다(떠 있는 캡슐 네비 몫).
+    @ViewBuilder private var pane: some View {
+        switch tab {
+        case .stock:   stockPane
+        case .toBuy:   ShoppingListContent(ctaBottomInset: ReffiChrome.navReserve)
+        case .history: HistoryContent(bottomPadding: ReffiChrome.navClearance)
+        }
+    }
+
+    // MARK: In stock — 접힌 영수증 스택
+    private var stockPane: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: ReffiSpace.s5) {
                 let _ = dayTick   // 자정 틱 의존 — 날이 바뀌면 이 서브트리를 재계산
-                // 타이틀 + 요약 페이저를 한 블록으로 묶는다 — 화면을 열자마자 "살 것"이 먼저 읽혀야 하고,
-                // 페이저가 타이틀의 첫 콘텐츠로 붙어야 큰 제목이 홀로 떠 보이지 않는다(s3 = 제목-본문 간격).
-                VStack(alignment: .leading, spacing: ReffiSpace.s3) {
-                    titleRow
-                    summaryRow
-                }
-                // 재고 카운트 + 정렬·보기 + 카테고리 칩 — 전부 **아래 목록을 조작하는** 컨트롤이라
-                // 목록 쪽에 붙여 한 블록으로 읽히게 한다(요약 페이저와는 s5로 갈린다).
-                VStack(alignment: .leading, spacing: ReffiSpace.s3) {
-                    stockRow
-                    if categoryCounts.count > 1 { categoryFilterRow }   // 한 종류뿐이면 필터가 무의미 — 행을 아예 뺀다
-                }
+                // 목록 조작 컨트롤은 **한 줄**이다(2026-08 declutter): 재고 수는 타이틀 옆 캡션으로 올라갔고
+                // 카테고리 칩 행은 이 줄 왼쪽의 드롭다운 하나로 접혔다. 남은 s5는 "컨트롤 블록 ↔ 콘텐츠"
+                // 경계 값 그대로다 — 블록이 두 줄에서 한 줄로 준 것이지 경계의 성격이 바뀐 건 아니다.
+                controlRow
                 if items.isEmpty {
                     emptyState
                 } else {
@@ -228,7 +318,6 @@ struct FridgeView: View {
                 }
             }
             .padding(.horizontal, ReffiGrid.margin)
-            .padding(.top, ReffiSpace.s5)
             .padding(.bottom, ReffiChrome.navClearance)   // 끝까지 스크롤해도 마지막 카드가 네비 위로 올라오게
         }
     }
@@ -339,45 +428,67 @@ struct FridgeView: View {
         )
     }
 
-    // MARK: 헤더 — 타이틀과 재고/정렬 행은 **떨어져 산다**. 사이에 요약 행이 들어와,
-    // 화면 상단이 "여기가 어디인가(Fridge) → 지금 할 일(살 것) → 목록 조작"의 순서로 읽힌다.
+    // MARK: 헤더 — "여기가 어디인가(Fridge · N) → 무엇을 보는가(탭) → 목록 조작(컨트롤 한 줄)"의 순서.
+
+    /// 타이틀. **재고 총량은 이 화면에 두지 않는다**(2026-08 owner decision) — 옛 "N in stock" 라벨도,
+    /// 그것을 이어받았던 타이틀 옆 "· N" 캡션도 함께 걷었다. 다른 자리로 옮기지 않았다:
+    /// 냉장고에 몇 개가 들었는지는 목록 자체가 보여 주고, 지금 급한 것(D-day)이 이 화면의 payload다.
     private var titleRow: some View {
         Text("Fridge").reffiType(.display).foregroundStyle(ReffiColor.ink)
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// 재고 수 + 리포트·정렬·보기 — 서브라인 오른쪽 끝에 통합(별도 행 제거, 수직 적층 최소화).
-    private var stockRow: some View {
+    /// 목록 조작 한 줄 — 좌: 카테고리 필터 드롭다운 / 우: 정렬 + 보기 토글.
+    /// 좌우로 가르는 이유는 성격이 다르기 때문이다: 왼쪽은 **무엇을 보이는가**(범위를 좁힌다),
+    /// 오른쪽은 **어떻게 보이는가**(순서·밀도). 셋 다 같은 44pt 종이 칩이라 한 줄로 읽힌다.
+    private var controlRow: some View {
         HStack(spacing: ReffiSpace.s2) {
-            // Ate/Tossed 숫자는 리포트와 중복이라 뺐다 — 한 번에 보이는 정보 최소화.
-            Text("\(sortedItems.count) in stock")
-                .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
+            // 카테고리가 한 종류뿐이면 필터가 무의미하다 — 칩 행 시절과 같은 규칙(동작 없는 UI 금지).
+            if categoryCounts.count > 1 { categoryMenu }
             Spacer(minLength: ReffiSpace.s2)
-            reportButton
             sortMenu
             viewToggle
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// 리포트 진입 — 헤더에 상시 노출하는 종이컷 아이콘 버튼(`PaperIconButton`, §13.5).
-    /// 요약 페이저 2장째(무낭비 리포트)는 **스와이프해야 보이는** 경로라, 이력을 보러 온 사람이
-    /// 첫 화면에서 진입점을 찾지 못했다. 페이저는 그대로 두고(발견은 그쪽이, 재방문은 이쪽이 맡는다)
-    /// 헤더에 항상 같은 자리의 버튼을 둔다. 44pt 블롭이라 §7.3 터치 타깃을 그대로 만족한다.
-    private var reportButton: some View {
-        // 인텐트가 `primary`(Blue)인 이유: 헤더의 다른 두 컨트롤(정렬·보기)은 목록을 다루는 크롬이고
-        // 이건 **다른 화면으로 가는 액션**이다 — §2.4의 5% 액션 색이 정확히 이 구분을 맡는다.
-        // `neutral`(sub 면)은 크림 캔버스와 대비가 1.1:1 수준이라 44pt에서 그레인만 보이는 회색 얼룩이 됐다.
-        PaperIconButton(icon: ReffiIcon.report, intent: .primary, size: 44, seed: 4) {
-            showHistory = true
-        }
-        .accessibilityLabel("No-waste report")
+    /// 카테고리 필터 칩 — 현재 선택을 상시 노출하는 드롭다운 트리거(§13.5 "탭 → 옵션 목록"의 단일 문법).
+    /// 가로 스크롤 칩 행을 이 하나로 접었다: 칩은 한 줄을 통째로 먹으면서도 오른쪽 칩이 잘려 나가
+    /// "몇 종이 더 있는지"를 스크롤해야만 알 수 있었는데, 드롭다운은 전 카테고리를 개수와 함께 한 번에 편다.
+    /// 접근성 라벨은 칩 시절의 `Filter: <이름>` 문법을 그대로 잇는다(UI 테스트 셀렉터도 같은 축).
+    private var categoryMenu: some View {
+        PaperDropdownTrigger(label: categoryTriggerLabel,
+                             isOpen: openMenu == .category,
+                             seed: 9) { toggleMenu(.category) }
+            .accessibilityLabel(String(localized: "Filter: \(categoryTriggerLabel)"))
+    }
+
+    /// 트리거에 적는 현재 선택 — 개수는 붙이지 않는다(카테고리별 수는 펼친 드롭다운 행이 말하고,
+    /// 재고 총량은 이 화면에 두지 않는다는 결정은 `titleRow` 주석 참고. 칩 시절처럼 트리거에도
+    /// 수를 달면 같은 숫자가 펼침 전후로 두 번 선다).
+    private var categoryTriggerLabel: String {
+        activeCategory.map(FridgeCategoryFilter.displayName) ?? String(localized: "All")
+    }
+
+    /// 드롭다운 행 라벨 — 이름 + 개수(칩이 보여 주던 그 수). 조각은 로컬라이즈돼 있지만 **조합
+    /// 순서도 언어의 것**이라 포맷 자체를 카탈로그(`%1$@ %2$lld`)에 태운다 — 코드 접합으로 굳히면
+    /// 어순이 다른 언어가 손댈 자리가 없다.
+    private func categoryOptionLabel(_ category: String?) -> String {
+        let name = category.map(FridgeCategoryFilter.displayName) ?? String(localized: "All")
+        let count = category.map { c in categoryCounts.first { $0.category == c }?.count ?? 0 }
+            ?? sortedItems.count
+        return String(localized: "\(name) \(count)")
     }
 
     /// 정렬 칩 — 현재 정렬 라벨을 상시 노출하는 종이컷 칩(§13.5). 비주얼은 그대로, 탭하면 스톡 Menu 대신
     /// 앱 커스텀 `PaperDropdown`을 토글한다. 칩 바운드를 앵커로 올려 드롭다운을 바로 아래에 띄운다.
+    ///
+    /// **앵커는 열려 있을 때만 올린다** — 같은 줄에 카테고리 트리거가 생기면서 이 화면의 드롭다운
+    /// 트리거가 둘이 됐다. `DropdownAnchorKey`는 마지막 non-nil이 이기므로, 상시 발행하면 뒤에 오는
+    /// 이 칩이 항상 이겨 **카테고리 팝업이 정렬 칩 아래에 뜬다**(`PaperDropdownTrigger`가 같은 이유로
+    /// 조건부 발행을 한다). 시각·히트 영역은 종전 그대로다.
     private var sortMenu: some View {
-        Button { toggleSortMenu() } label: {
+        Button { toggleMenu(.sort) } label: {
             HStack(spacing: ReffiSpace.s1) {
                 ReffiIcon.sort.reffi(12, .bold)
                 Text(sort.label)
@@ -393,76 +504,21 @@ struct FridgeView: View {
             }
             .frame(minHeight: 44)   // §7.3 터치 타깃
             .contentShape(Rectangle())
-            .anchorPreference(key: DropdownAnchorKey.self, value: .bounds) { $0 }
+            .anchorPreference(key: DropdownAnchorKey.self, value: .bounds) {
+                openMenu == .sort ? $0 : nil
+            }
         }
         .buttonStyle(.paperPress)
         .accessibilityLabel("Sort: \(sort.label)")
     }
 
-    // MARK: 카테고리 필터 칩 행 — 정렬(순서)과 직교하는 "좁혀 보기". 정렬 칩과 같은 종이 문법이되,
-    // 선택 상태는 굵은 잉크 단면(sub 면 + ink 2pt)으로 구분한다 — 면 반전은 필터 상태가
-    // 콘텐츠보다 무거워져 폐기(드롭다운의 체크 문법은 팝업 전용).
-    private var categoryFilterRow: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: ReffiSpace.s2) {
-                categoryChip(name: String(localized: "All"), count: sortedItems.count,
-                             on: activeCategory == nil, seed: 9) { setCategory(nil) }
-                ForEach(categoryCounts, id: \.category) { bucket in
-                    categoryChip(name: FridgeCategoryFilter.displayName(bucket.category),
-                                 count: bucket.count,
-                                 on: activeCategory == bucket.category,
-                                 seed: FridgeCategoryFilter.chipSeed(bucket.category)) { setCategory(bucket.category) }
-                }
-            }
-            // 스크롤 콘텐츠 자체에 마진을 줘 첫/마지막 칩이 화면 끝에 붙지 않게. 세로 패딩은
-            // 종이 프레스(스케일)·헤어라인이 스크롤 클립에 잘리지 않는 여유.
-            .padding(.horizontal, ReffiGrid.margin)
-            .padding(.vertical, 3)
-        }
-        .scrollClipDisabled()
-        .padding(.horizontal, -ReffiGrid.margin)   // 상위 페이지 마진 상쇄 — 행만 가장자리까지 흐른다
-        .padding(.vertical, -3)
-    }
-
-    /// 필터 칩 한 개 — 라벨 + 개수. 히트 44(§7.3), 선택은 굵은 잉크 테두리 + `.isSelected` 트레잇.
-    private func categoryChip(name: String, count: Int, on: Bool, seed: Int,
-                              action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            HStack(spacing: ReffiSpace.s1) {
-                Text(name)
-                    .font(ReffiTextRole.caption.font)
-                    .tracking(ReffiTextRole.caption.tracking)
-                    .foregroundStyle(ReffiColor.ink)
-                Text(count.formatted())
-                    .font(.reffiNum(.meta))
-                    .foregroundStyle(ReffiColor.ink2)
-            }
-            .lineLimit(1)
-            .padding(.horizontal, ReffiSpace.s3)
-            .padding(.vertical, ReffiSpace.s2)
-            .background {
-                let s = PaperRect(cornerRadius: ReffiRadius.xs, seed: seed)
-                if on {
-                    // 선택 = sub 면 + 굵은 잉크 단면. 옛 ink 솔리드 반전은 화면 최고 대비를
-                    // 필터 '상태'가 가져가 콘텐츠(영수증 스택)를 눌렀다(감사 미검출 ①).
-                    s.fill(ReffiColor.sub).paperEdge(s, tint: ReffiColor.ink.opacity(0.55), width: 2)
-                } else {
-                    s.fill(ReffiColor.paper).paperEdge(s)
-                }
-            }
-            .frame(minHeight: 44)   // §7.3 터치 타깃
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.paperPress)
-        .accessibilityLabel(String(localized: "Filter: \(name)"))
-        .accessibilityValue(count.formatted())
-        .accessibilityAddTraits(on ? [.isButton, .isSelected] : .isButton)
-    }
-
-    /// 칩 탭 — 같은 칩 재탭은 해제(= 전체). 목록이 통째로 갈리므로 선택된 상세는 접는다.
-    private func setCategory(_ category: String?) {
+    /// 카테고리 선택 — 고른 값을 **그대로** 넣는다. 칩 시절의 "같은 칩 재탭 = 해제"는 칩 문법이었고,
+    /// 드롭다운에서는 이미 체크가 붙은 행을 다시 눌렀다고 필터가 풀리면 체크 표시와 모순된다.
+    /// 해제 경로는 목록 맨 위의 "All"이 맡는다(칩 행에도 있던 그 경로라 닿을 수 있는 상태는 같다).
+    /// 목록이 통째로 갈리므로 선택된 상세는 접는다.
+    private func selectCategory(_ category: String?) {
         withAnimation(motion) {
-            activeCategory = (category == activeCategory) ? nil : category
+            activeCategory = category
             selectedID = nil
         }
     }
@@ -486,88 +542,6 @@ struct FridgeView: View {
         .accessibilityLabel(compact ? "Switch to stack view" : "Switch to simple view")
     }
 
-    // MARK: 요약 행 — 장보기·무낭비 리포트를 **나란히 두 버튼**으로. 페이저(스와이프+점 인디케이터)를
-    // 걷어냈다: 두 장뿐인 걸 한 장씩 감추면 리포트는 스와이프를 아는 사람만 닿고, 그 사실을 알리려고
-    // 둔 점 인디케이터가 화면에서 가장 눈에 거슬리는 요소가 됐다. 둘 다 상시 노출이면 예고할 것도 없다.
-    private var summaryRow: some View {
-        HStack(spacing: ReffiSpace.s3) {
-            Button { showShopping = true } label: {
-                summaryCard(icon: ReffiIcon.receipt, title: "To buy",
-                            value: "\(store.toBuy.count)", tint: ReffiColor.blueDark, seed: 8)
-            }
-            .buttonStyle(.paperPress)
-            .accessibilityLabel("Shopping list, \(store.toBuy.count) items")
-
-            Button { showHistory = true } label: {
-                summaryCard(icon: ReffiIcon.report, title: "No-waste report",
-                            value: "\(store.wasteRate)%", tint: rateColor, seed: 7)
-            }
-            .buttonStyle(.paperPress)
-            .accessibilityLabel("Open no-waste report, \(store.wasteRate) percent wasted")
-        }
-        // 행 높이를 **가장 높은 카드**에 맞춘다 — 카드 쪽 `maxHeight: .infinity`와 짝이다.
-        // 이게 없으면 무한대 제안이 부모의 남은 높이를 전부 먹어 두 카드가 화면 절반까지 늘어난다.
-        .fixedSize(horizontal: false, vertical: true)
-        .padding(.horizontal, cardInset)   // 아래 영수증 스택과 같은 폭으로 정렬
-    }
-
-    /// 요약 카드 = 종이컷 버튼(§13.5) — 메인 CTA(PaperButton)와 같은 8각형 셰입 + 종이 질감 + 그림자.
-    /// 색은 크림 위 sub 면 + ink 글자(§2.6), 아이콘·값만 의미색(To buy=blue, 리포트=낭비율색).
-    ///
-    /// **반쪽 폭이라 세로로 쌓는다** — 한 줄에 아이콘·제목·값·셰브론을 다 넣던 전폭 시절 구성은
-    /// "No-waste report" 하나로도 폭이 모자란다. 위 줄에 아이콘과 **값**(이 카드의 payload)을 양 끝으로
-    /// 벌리고 제목을 아래에 깔면, 좁은 폭에서도 숫자가 먼저 읽힌다.
-    /// 셰브론은 뺐다 — §13.5 룰⑩에서 셰브론은 **시트** 진입 기표인데 이 둘은 풀스크린 커버를 열고,
-    /// 나란한 두 종이 버튼 자체가 이미 누를 것으로 읽힌다(좁은 폭에서 글자와 경합할 이유가 없다).
-    private func summaryCard(icon: Ph, title: LocalizedStringKey, value: String,
-                             tint: Color, seed: Int) -> some View {
-        VStack(alignment: .leading, spacing: ReffiSpace.s1) {
-            HStack(spacing: ReffiSpace.s2) {
-                icon.reffi(17, .bold).foregroundStyle(tint)
-                Spacer(minLength: ReffiSpace.s1)
-                Text(value)
-                    .font(.reffiNum(.body)).foregroundStyle(tint)
-                    .lineLimit(1)
-            }
-            // **제목은 말줄임하지 않는다**(전폭 시절부터의 불변식) — 이 카드에서 제목은 유일한
-            // 목적지 이름이라 "No-waste rep…"이 되면 어디로 가는 버튼인지가 사라진다.
-            // 반쪽 폭에서는 한 줄로는 안 들어간다: 번들 폰트 실측으로 영문 "No-waste report"가
-            // 기본 크기에서 이미 가용폭(iPhone SE 119.5pt)을 넘는다. 그래서 **두 줄까지 허용**하고,
-            // 축소는 그 뒤 마지막 수단으로만 쓴다(0.7까지 — 접근성 큰 글씨에서 세 줄로 흐르지 않게).
-            Text(title)
-                .reffiType(.checklistItem)
-                .foregroundStyle(ReffiColor.ink)
-                .lineLimit(2)
-                .minimumScaleFactor(0.7)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .padding(.horizontal, ReffiSpace.s3 + 2)
-        .padding(.vertical, ReffiSpace.s3)
-        // 둘이 같은 폭·같은 높이로 선다. `maxHeight: .infinity`가 **높이를 맞추는 쪽**이다 —
-        // 제목이 두 줄로 접히는 카드가 생기면서 둘의 이상적 높이가 갈렸고, minHeight(하한)만으로는
-        // HStack이 각자 제 높이로 그려 위아래 모서리가 어긋난다. 행 쪽에서 `.fixedSize(vertical:)`로
-        // 가장 높은 카드에 행 높이를 맞추고, 여기서 두 카드가 그 높이를 채운다.
-        .frame(maxWidth: .infinity, minHeight: 60, maxHeight: .infinity)
-        .contentShape(Rectangle())
-        .background {
-            let s = PaperCutRect(seed: seed)                            // 아이콘 버튼(9각)·CTA와 같은 8각형
-            s.fill(ReffiColor.paper)                                    // 밝은 종이 면(sub는 크림 위에서 칙칙)
-                .overlay(PaperGrain(seed: UInt64(seed) &+ 11, strength: 0.7).clipShape(s))  // 옅은 질감
-                .paperEdge(s, tint: ReffiColor.ink.opacity(0.06), width: 1)
-                .compositingGroup()
-                .reffiShadow1()
-        }
-    }
-
-    /// 낭비율 색 — HistoryView와 동일 임계값(색=정보, §1). 캔버스 위라 dark 변형(§2.6).
-    private var rateColor: Color {
-        switch store.wasteRate {
-        case ...10: ReffiColor.freshDark
-        case ...30: ReffiColor.soonDark
-        default:    ReffiColor.urgentDark
-        }
-    }
-
     private var emptyState: some View {
         VStack(alignment: .leading, spacing: ReffiSpace.s2) {
             Text("Nothing here yet").reffiType(.subhead).foregroundStyle(ReffiColor.ink)
@@ -582,13 +556,23 @@ struct FridgeView: View {
         }
     }
 
-    // MARK: 정렬 드롭다운 — 진입 .pop / 이탈 .exit(§7.5), reduced-motion 존중.
-    private func toggleSortMenu() { sortMenuOpen ? closeSortMenu() : openSortMenu() }
-    private func openSortMenu() {
-        withAnimation(ReffiMotion.gated(ReffiMotion.pop, reduce: reduceMotion)) { sortMenuOpen = true }
+    // MARK: 종이 드롭다운 — 진입 .pop / 이탈 .exit(§7.5), reduced-motion 존중.
+
+    /// 이 화면에서 열릴 수 있는 드롭다운. 값이 하나뿐이라 **둘이 동시에 열리는 상태가 존재하지 않는다**
+    /// (`DropdownAnchorKey`의 "화면당 하나" 전제를 상태 모양으로 강제한다).
+    enum OpenMenu { case none, category, sort }
+
+    /// 트리거 탭 — 열려 있던 그 메뉴면 닫고, 아니면 그쪽으로 **갈아탄다**(다른 메뉴가 열려 있어도
+    /// 한 번의 탭으로 옮겨진다 — 먼저 닫으라고 요구하면 칩 두 개가 서로를 막는다).
+    private func toggleMenu(_ menu: OpenMenu) {
+        if openMenu == menu {
+            closeMenus()
+        } else {
+            withAnimation(ReffiMotion.gated(ReffiMotion.pop, reduce: reduceMotion)) { openMenu = menu }
+        }
     }
-    private func closeSortMenu() {
-        withAnimation(ReffiMotion.gated(ReffiMotion.exit, reduce: reduceMotion)) { sortMenuOpen = false }
+    private func closeMenus() {
+        withAnimation(ReffiMotion.gated(ReffiMotion.exit, reduce: reduceMotion)) { openMenu = .none }
     }
 
     // MARK: 액션
@@ -661,14 +645,6 @@ enum FridgeCategoryFilter {
                 || items.contains(where: { added.contains($0.id) && key(of: $0) == category })
         else { return nil }
         return category
-    }
-
-    /// 칩 종이 셰이프 시드 — **카테고리 키**에서 유도한다(재고 개수가 아니라). 개수를 쓰면 먹거나
-    /// 추가할 때마다 손으로 오린 윤곽이 다시 랜덤해지고(§13.1: 시드가 같으면 항상 같은 모양),
-    /// 개수가 같은 칩끼리는 똑같이 생긴다. 20 오프셋은 같은 화면의 다른 종이 면
-    /// (빈 상태 3 · 리포트 버튼 4 · 정렬 칩 5 · 보기 토글 6 · 요약 카드 7/8 · All 칩 9)과 겹치지 않기 위한 것.
-    static func chipSeed(_ category: String) -> Int {
-        20 + (order.firstIndex(of: category) ?? order.count)
     }
 
     /// 표시명 — 저장·비교는 영문 캐논, 표시만 로컬라이즈(카테고리 키는 이미 카탈로그에 등록돼 있다).
@@ -781,12 +757,6 @@ struct ExpandedFridgeCard: View {
     var onEdit: () -> Void = {}
     private let toothH: CGFloat = ReffiTooth.card
 
-    /// 영수증 번호 — 이름에서 유도(장식, 안정적).
-    private var receiptNo: String {
-        let s = abs(ingredient.name.unicodeScalars.reduce(7) { $0 &* 31 &+ Int($1.value) })
-        return String(format: "No. %04d", s % 10000)
-    }
-
     var body: some View {
         let f = ingredient.freshness
         let shape = ReceiptShape(tooth: toothH)
@@ -836,19 +806,8 @@ struct ExpandedFridgeCard: View {
             .padding(.horizontal, ReffiSpace.s5)
             .padding(.vertical, ReffiSpace.s2)
 
-            dashRule
-            HStack {
-                Text(verbatim: "REFFI · KEEP IT FRESH")
-                    .reffiType(.monoEyebrow)
-                    .foregroundStyle(ReffiColor.muted)
-                Spacer()
-                Text(receiptNo)
-                    .font(.reffiNum(.meta)).foregroundStyle(ReffiColor.muted)
-            }
-            .padding(.horizontal, ReffiSpace.s5)
-            .padding(.top, ReffiSpace.s3)
-            .padding(.bottom, ReffiSpace.s2)
         }
+        .padding(.bottom, ReffiSpace.s2)
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.bottom, toothH)
         .background(paper, in: shape)

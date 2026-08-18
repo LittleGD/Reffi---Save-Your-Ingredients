@@ -18,11 +18,15 @@ struct RecipeMemoCarousel: View {
     var uncoveredNames: [String] = []
     var onClose: () -> Void
     var onFire: (RecipeRecommender.Result) -> Void = { _ in }
-    /// Short 행의 To buy 원탭 — 부족 재료 **전부**를 담고 새로 담긴 수를 돌려준다(§13.5).
-    /// 덱은 그대로 앞 티켓에 전달만 한다. 이 탭은 화면을 옮기지 않는다 — 담기가 끝이고, 목록은
-    /// 냉장고 탭의 To buy 카드로 연다. 그래서 덱 위에 뜨는 중첩 프레젠테이션이 하나도 없고,
-    /// 발주 지연 닫기와 경쟁할 상대도 없다.
+    /// 고른 재료를 실제로 담는다 — **새로 담긴 수**를 돌려준다(이미 있던 것은 세지 않는다, §13.5).
+    /// 덱은 팝업에서 고른 부분집합만 넘긴다. nil이면 담기 알약 자체가 그려지지 않는다.
     var onAddMissing: (([Recipe.Item]) -> Int)?
+    /// 담기 흐름(팝업 3단)이 덱 위에 떠 있는가 — 켜지는 순간부터 끝날 때까지 **한 번씩만** 통지한다.
+    /// 발주 후 지연 닫기가 이 신호를 보고 "취소가 아니라 미룸"으로 처리한다(`MainView.fire`).
+    /// 중간에 false가 새면 그 틈으로 지연 닫기가 빠져나가, 사용자가 보던 팝업이 부모 커버와 함께 걷힌다.
+    var onToBuyPresentationChange: (Bool) -> Void = { _ in }
+    /// 마지막 팝업에서 "보기"를 고르면 — 덱 커버를 걷고 냉장고의 To buy 패인으로 데려간다.
+    var onOpenToBuy: () -> Void = {}
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.openURL) private var openURL
@@ -38,6 +42,20 @@ struct RecipeMemoCarousel: View {
     /// 미커버 브리지 행의 실측 높이 — 카드 예산에서 빼려면 고정값이 아니라 실제 높이가 필요하다
     /// (Dynamic Type을 키우면 한 줄도 두 배가 된다). 0 = 아직 안 그렸거나 행이 없음.
     @State private var bridgeHeight: CGFloat = 0
+    // MARK: 담기 3단 팝업 상태 — 선택(체크리스트) → 알림(담김) → 질문(이동)
+    /// 이번 흐름이 다루는 부족 재료. 팝업이 뜬 뒤 덱을 넘겨도 목록이 바뀌지 않게 **스냅샷**으로 든다.
+    @State private var pickItems: [Recipe.Item] = []
+    /// 체크된 행 — `pickItems`의 인덱스. 기본은 **전부 체크**다(부족하다고 이미 판정된 목록이라,
+    /// 기본값이 '아무것도 안 담음'이면 흔한 경우에 사용자가 매번 손을 더 대야 한다).
+    @State private var pickChecked: Set<Int> = []
+    @State private var showPick = false
+    @State private var showAdded = false
+    @State private var showMove = false
+    /// 직전 담기의 결과 — 알림 팝업이 **사실을 말하기 위해** 필요하다(N건 담김 / 이미 있던 것).
+    @State private var addedCount = 0
+    @State private var alreadyCount = 0
+    @State private var addHaptic = 0
+
     /// 커버 헤더의 실측 높이 — 브리지 행과 카드가 **둘 다** 이 값 아래에 선다. 기본 텍스트 크기의
     /// `CoverHeader`는 s4(16) + 44 + s3(12) = 72이라 초기값도 72지만, 큰 글씨에서 타이틀·부제가
     /// 2줄로 접히면 그만큼 자란다 — 고정 72로 두면 헤더가 브리지 행을 통째로 덮는다.
@@ -73,6 +91,102 @@ struct RecipeMemoCarousel: View {
             }
         }
         .onAppear { order = Array(results.indices) }
+        // 팝업 셋은 **같은 뷰 트리 안의 오버레이**다(§14.7) — 시스템 알림이면 해체 전환이 부모 커버의
+        // 닫기 요청과 겹쳐 그 요청이 삼켜진다(10차에서 3회 중 1회 재현). 오버레이는 전환 큐가 없다.
+        .paperChecklistDialog(isPresented: $showPick,
+                              title: "Pick what to add",
+                              message: "Uncheck anything you already have.",
+                              rows: pickRows,
+                              checked: $pickChecked,
+                              // 확정 라벨은 **개수형**이다(`ReceiptScanView`의 담기 CTA와 같은 키) —
+                              // 진입 알약("Add to list")과 라벨이 갈려야 무엇을 누르는지가 흐려지지
+                              // 않고, 0건이면 "Add 0 items"가 disabled로 남아 이유까지 설명한다.
+                              confirmTitle: "Add \(pickChecked.count) items",
+                              seed: 12,
+                              onConfirm: commitAdd,
+                              onClose: { endAddFlow() })
+        .paperDialog(isPresented: $showAdded,
+                     title: addedTitle,
+                     message: addedMessage,
+                     seed: 13,
+                     // 알림형은 딤 탭을 무시한다 — 조용히 닫히면 이어질 질문을 못 받는다(§14.7).
+                     primary: PaperDialogAction("OK") { showMove = true })
+        .paperDialog(isPresented: $showMove,
+                     title: "View your To buy list?",
+                     message: "You can open it later from the Fridge tab.",
+                     seed: 14,
+                     backdropDismisses: true,   // 질문형 — 바깥 탭 = 취소(실수로 이동시키지 않는다)
+                     primary: PaperDialogAction("View") { endAddFlow(openToBuy: true) },
+                     secondary: PaperDialogAction("Cancel") { endAddFlow() })
+        .sensoryFeedback(.success, trigger: addHaptic)   // 목록에 담김 = 성공 완료(§7.6)
+    }
+
+    // MARK: - 담기 3단 팝업
+
+    /// 체크리스트 행 — **장보기 표기로 정리한 이름·글리프**를 보여 준다(레시피 원문이 아니라).
+    /// 목록에 실제로 서게 될 줄이 "Garlic"인데 팝업이 "minced garlic"을 고르게 하면, 고른 것과
+    /// 담긴 것의 이름이 갈린다. 해석은 `RecipeRecommender.toBuyEntry` 한 곳이 한다(담기와 같은 함수).
+    private var pickRows: [PaperChecklistDialog.Row] {
+        pickItems.enumerated().map { idx, item in
+            let entry = RecipeRecommender.toBuyEntry(for: item)
+            return PaperChecklistDialog.Row(id: idx, name: entry.name, glyph: entry.glyph)
+        }
+    }
+
+    private var addedTitle: LocalizedStringKey {
+        addedCount > 0 ? "Added \(addedCount) items" : "Already on your list"
+    }
+
+    /// 부분 담김(고른 것 중 일부는 이미 있었다)일 때만 한 줄을 더한다 — 개수 두 개를 나란히 세우면
+    /// 알림이 정산서가 된다. 0건이면 "새로 담을 게 없다"고 사실만 말한다.
+    private var addedMessage: LocalizedStringKey? {
+        if addedCount == 0 { return "Nothing new to add." }
+        return alreadyCount > 0 ? "The rest were already on your list." : nil
+    }
+
+    /// 알약 탭 — 흐름의 시작. 여기서 프레젠테이션 신호를 켜고, 끝(취소·닫기·이동)에서만 끈다.
+    private func startAddFlow(_ items: [Recipe.Item]) {
+        guard !items.isEmpty else { return }
+        pickItems = items
+        pickChecked = Set(items.indices)
+        addedCount = 0
+        alreadyCount = 0
+        onToBuyPresentationChange(true)
+        showPick = true
+    }
+
+    /// 체크된 것만 담는다. 하나도 체크되지 않은 상태는 CTA가 `disabled`라 여기 도달하지 않는다.
+    private func commitAdd() {
+        let picked = PaperChecklistDialog.selected(pickItems, checked: pickChecked)
+        let added = onAddMissing?(picked) ?? 0
+        addedCount = added
+        alreadyCount = Self.alreadyOnListCount(picked: picked, added: added)
+        if added > 0 { addHaptic += 1 }   // 아무 것도 안 담겼으면 울리지 않는다(3차 ⑥ 규약)
+        showAdded = true
+    }
+
+    /// "이미 목록에 있었다"로 셀 수 있는 수 — **줄 수가 아니라 목록 키 수** 기준이다.
+    /// 두 항목이 같은 장보기 표제어로 풀리면(커스텀 레시피의 "다진 마늘"+"마늘 한 쪽") 목록엔 한
+    /// 줄만 생기는데, `picked.count - added`로 세면 나머지 하나가 "이미 있었다"로 둔갑해 알림이
+    /// 거짓말을 한다. 키 유도는 `appendToBuy`가 실제로 쓰는 식(캐논 ?? 소문자 이름)과 같다.
+    /// `internal`(비-private): 문구 분기가 이 수 하나에 걸려 있어 테스트가 같은 식을 검사한다.
+    static func alreadyOnListCount(picked: [Recipe.Item], added: Int) -> Int {
+        let keys = Set(picked.map { item -> String in
+            let entry = RecipeRecommender.toBuyEntry(for: item)
+            return entry.canonicalID ?? entry.name.lowercased()
+        })
+        return max(0, keys.count - added)
+    }
+
+    /// 흐름의 유일한 출구 — 어느 갈래로 끝나든 신호를 **정확히 한 번** 내린다.
+    private func endAddFlow(openToBuy: Bool = false) {
+        showPick = false
+        showAdded = false
+        showMove = false
+        pickItems = []
+        pickChecked = []
+        onToBuyPresentationChange(false)
+        if openToBuy { onOpenToBuy() }
     }
 
     // MARK: - 티켓 덱 (뒤 종이 = 실제 다음 티켓)
@@ -102,7 +216,8 @@ struct RecipeMemoCarousel: View {
                       onFire: { fire(results[idx]) },
                       // 플릭 발주는 **앞 티켓만** — 뒤 티켓엔 0을 고정해 트리거가 전파되지 않게 한다.
                       fireTrigger: isFront ? fireTrigger : 0,
-                      onAddMissing: onAddMissing)
+                      // 카드는 목록을 넘기기만 한다 — 고르기·담기·이동은 덱 위 팝업의 일이다.
+                      onPickMissing: onAddMissing == nil ? nil : { startAddFlow($0) })
             .frame(height: cardHeight)   // 카드가 컨테이너를 넘지 못하게 캡(headerOnly도 동일 캡)
             .padding(.horizontal, ReffiGrid.margin + 8)
             .padding(.top, topInset)

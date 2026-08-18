@@ -73,12 +73,18 @@ extension View {
     /// 바 위쪽 `s6` 띠는 그 색으로의 페이드고 그 아래는 불투명 면이라, 콘텐츠가 짧아 스크롤이 없을 때도
     /// CTA가 허공에 뜨지 않고 바닥에 붙은 종이로 읽힌다(냉장고 하단 마스크와 같은 어휘, `FridgeView`).
     /// 홈 인디케이터까지 면이 이어지도록 배경만 safe area를 무시한다 — 버튼 자체는 safe area 안에 남는다.
-    func dockedCTA<Bar: View>(over surface: Color, @ViewBuilder bar: () -> Bar) -> some View {
+    ///
+    /// `bottomInset`은 **바 아래로 남길 여백**이다. 커버는 화면 바닥을 통째로 쓰므로 기본 `s3`이지만,
+    /// 냉장고 To buy 탭처럼 **떠 있는 캡슐 네비가 있는 화면**에 얹을 때는 그 자리(`ReffiChrome.navReserve`)를
+    /// 비워야 CTA가 네비 밑에 깔리지 않는다. 값만 바꾸고 페이드·불투명 면 구성은 한 곳에 남긴다.
+    func dockedCTA<Bar: View>(over surface: Color,
+                              bottomInset: CGFloat = ReffiSpace.s3,
+                              @ViewBuilder bar: () -> Bar) -> some View {
         safeAreaInset(edge: .bottom, spacing: 0) {
             bar()
                 .padding(.horizontal, ReffiGrid.margin)
                 .padding(.top, ReffiSpace.s6)     // 페이드 띠 높이와 같다 — 버튼은 불투명 면 위에서 시작한다
-                .padding(.bottom, ReffiSpace.s3)
+                .padding(.bottom, bottomInset)
                 .background {
                     VStack(spacing: 0) {
                         LinearGradient(colors: [surface.opacity(0), surface],

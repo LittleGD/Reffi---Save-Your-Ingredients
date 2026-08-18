@@ -67,6 +67,7 @@ xcrun simctl io booted screenshot reffi-home.png
 - `-previewCarousel` 추천 캐러셀 바로 열기 · `-previewAdd` 재료 추가 시트 바로 열기
 - `-cookCarousel` 티켓 덱 자동 오픈(플릭 방향 의미론 UI 테스트가 쓴다). ⚠️ `store.available`(예약 제외 재고)이 비어 있으면 `loadSampleData()`를 부른다 — **추가가 아니라 전체 대체**다: 조리 세션이 모든 재료를 예약 중이거나 냉장고만 비고 이력·장보기 메모가 남은 상태에서 단독으로 주면 그 데이터가 되돌릴 수 없이 지워진다. UI 테스트는 `-uiTestSampleFridge`와 같이 주므로 그 경로에선 무동작
 - `-cookTicket` 샘플로 강제 발주 후 조리 티켓(`CookingStepsView`) 바로 열기
+- `-fireDismissDelay <초>` 발주 후 티켓 덱 커버가 닫히기까지의 유예(기본 1.25초)를 넓힌다. 담기 팝업이 그 창 안에서 뜰 때 닫기가 실제로 **미뤄지는지**를 UI 테스트가 재현하려면 1.25초로는 너무 좁다(`MainView.fireDismissDelay(from:)`, 유닛 테스트가 파싱을 고정한다)
 - `-tiltLab` 기울기 실험실 하단 오버레이 — X/Y 슬라이더로 씬 중력을 직접 주입한다. 시뮬레이터엔 자이로가 없어 굴러가는 모양·컨테인먼트 QA는 사실상 이 경로로만 가능하다. SHAKE 버튼 + `HAPTIC n/s` 카운터(햅틱 하드웨어가 없으니 발화 수가 유일한 관측 수단 — 정지한 더미에서 0으로 떨어지는지도 여기서 본다)
 - `-tiltLab.x <-1…1>` `-tiltLab.y <-1…1>` 중력 방향 주입(실험실도 함께 켜짐). 값 파싱은 `ProcessInfo.arguments` 직접 순회 — UserDefaults 인자로 두면 `-tiltLab.x -0.9`의 음수를 다음 키로 오인해 바인딩을 통째로 잃는다
 - `-tiltLab.shake` 런치 1.5초 뒤 셰이크 버스트 자동 발동(재료가 자리를 잡은 뒤라야 충돌이 의미 있다)
@@ -78,11 +79,12 @@ xcrun simctl io booted screenshot reffi-home.png
   ```
   주의: `SpriteView`가 내부 SKView의 `debugOptions`를 소유해 씬의 `didMove`에서 `showsPhysics`를 켜면 매 업데이트마다 덮인다(실측: 아무것도 안 그려진다) — 오버레이는 반드시 `SpriteView` 생성 인자로 준다.
 
-**냉장고**
-- `-showHistory` History 커버 · `-fridgeExpand` 첫 재료 펼침 · `-fridgeExpandSolo` 재료 1개만 남기고 펼침(네비 클리어런스 QA)
-- `-fridgeEdit` 첫 재료 편집 시트(+`-loadSample`) · `-fridge.sortOpen` 정렬 드롭다운(`PaperDropdown`) 자동 오픈
+**냉장고** — 페이지가 상단 탭 셋(In stock · To buy · History)으로 갈렸다. 아래 셋은 **커버가 아니라 해당 탭으로 착지**한다(매핑 정본은 `FridgeTab.initial(from:)`, 회귀는 `FridgeTabLaunchArgTests`가 잡는다).
+- `-showHistory` History **탭** 직행(단독 지정해도 냉장고 탭에 착지) · `-fridgeExpand` 첫 재료 펼침 · `-fridgeExpandSolo` 재료 1개만 남기고 펼침(네비 클리어런스 QA)
+- `-fridgeEdit` 첫 재료 편집 시트(+`-loadSample`) · `-fridge.sortOpen` 정렬 드롭다운(`PaperDropdown`) 자동 오픈 · `-fridge.categoryOpen` 카테고리 필터 드롭다운 자동 오픈(둘 다 주면 정렬이 이긴다 — 화면당 하나만 열린다)
 - `-fridge.compact YES` 간편보기 · `-fridge.sort recent|freshest|expiry` 정렬 (둘 다 `@AppStorage` 키를 덮는 UserDefaults 인자)
-- `-toBuy` To buy 커버 직행(`-fridgeTab`·`-loadSample`과 함께) · `-toBuy.search` 재료 검색 바텀시트까지 자동 오픈(단독 지정해도 커버가 열린다 — 커버 전환과 같은 프레임에 시트를 올리면 씹혀서 전환 뒤로 미룬다)
+- `-toBuy` To buy **탭** 직행(`-fridgeTab`·`-loadSample`과 함께) · `-toBuy.search` 재료 검색 바텀시트까지 자동 오픈(단독 지정해도 To buy 탭에 착지한다 — 탭 전환과 같은 프레임에 시트를 올리면 씹혀서 전환 뒤로 미루고, 자동 오픈은 런치당 한 번이라 탭을 오가도 다시 튀어나오지 않는다)
+- `-fridgeExpand*`는 In stock 탭 전용이다 — 펼친 영수증은 탭 행까지 덮는 전체 화면이고, 탭을 옮기면 선택이 풀린다
 
 **테스트 환경변수**(런치 인자가 아니라 `xcodebuild test`에 주는 값)
 - `REFFI_CONTACT_SHEET=1` 요리 아이콘 콘택트 시트 산출 — 없으면 해당 두 @Test는 단언만 하고 렌더·파일 쓰기를 건너뛴다(아래 "검증 상태")

@@ -28,3 +28,6 @@ build/
 supabase/.env.local
 supabase/.temp/
 supabase/.branches/
+
+# 디자인 리뷰 패널 스킬 산출물(로컬 아티팩트)
+.design-review-panel/

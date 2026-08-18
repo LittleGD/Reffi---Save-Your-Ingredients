@@ -386,6 +386,39 @@ struct FridgeStoreTests {
         #expect(row?.key == "onion")
         #expect(row?.name == IngredientLexicon.shared.entry(id: "onion")?.displayName)
         #expect(store.manualToBuy.first?.name == "양파")   // 저장값 자체는 담을 때 원문 그대로
+        // 패인(`ShoppingListContent.items`)은 `toBuy`가 아니라 `manualToBuy`를 직접 읽는다 —
+        // 그 경로가 쓰는 `displayName(for:)`도 같은 답을 내야 화면·토스트·타일 표기가 안 갈린다.
+        if let item = store.manualToBuy.first {
+            #expect(FridgeStore.displayName(for: item) == row?.name)
+        }
+    }
+
+    // MARK: Bought는 자기 행의 키로 메모를 내린다 (clearToBuy)
+
+    /// 자유 입력 줄("서울우유")은 캐논이 없어 키가 친 문자열 그대로다. 재입고(`insert`)의 자동
+    /// 내리기는 냉장고 재료의 **캐논** 키("milk")로 비교하므로 이 줄을 영영 못 내리고, 같은 캐논의
+    /// 다른 줄이 있으면 그쪽이 대신 내려간다 — Bought(뷰)는 행 자신의 키로 `clearToBuy`를 불러야 한다.
+    @Test func boughtClearsTheTappedFreeTextRowNotItsCanonSibling() {
+        let store = FridgeStore(ingredients: [], recipes: [], history: [])
+        #expect(store.addToBuy(name: "서울우유", canonicalID: nil, canonicalIsFinal: true))  // 자유 입력
+        #expect(store.addToBuy(name: "우유", canonicalID: "milk"))                          // 사전 타일
+        // Bought 재입고 — insert의 자동 내리기가 캐논("milk") 줄을 지운다("샀다"는 사실은 같으니 맞다).
+        store.add(Ingredient(name: "서울우유", category: "Dairy",
+                             expiresAt: Ingredient.day(offset: 3), glyph: .milk))
+        // 뷰가 행 키로 부르는 명시 내리기 — 자유 입력 줄이 반드시 함께 내려간다.
+        store.clearToBuy(key: "서울우유")
+        #expect(store.manualToBuy.isEmpty,
+                "Bought를 누른 자유 입력 줄이 목록에 남으면 안 된다")
+    }
+
+    /// 멱등 — 이미 내려간 키로 또 불러도(insert가 먼저 지운 캐논 줄 등) 아무 일도 없다.
+    @Test func clearToBuyIsIdempotent() {
+        let store = FridgeStore(ingredients: [], recipes: [], history: [])
+        #expect(store.addToBuy(name: "우유", canonicalID: "milk"))
+        store.clearToBuy(key: "milk")
+        #expect(store.manualToBuy.isEmpty)
+        store.clearToBuy(key: "milk")   // no-op — 크래시·persist 낭비 없음
+        #expect(store.manualToBuy.isEmpty)
     }
 
     @Test func manualRowKeepsUserNotationEvenWhenItHasACanon() {
@@ -540,6 +573,128 @@ struct FridgeStoreTests {
         #expect(store.dismissedToBuy.contains("onion"))   // 수동이 흡수하던 제안까지 함께 접힘
     }
 
+    // MARK: History 세 표면의 수치 일치 (22차) — 히어로 · 30일 정산서 · 타임라인
+
+    /// 한 이력 묶음으로 세 표면이 **같은 분류**를 쓰는지 본다.
+    ///
+    /// 제보("숫자끼리도 안 맞아")의 실체를 가리기 위한 테스트다. 세 표면은 창(window)이 다를 뿐
+    /// 판정 기준은 하나여야 한다 — `wasted` 플래그 하나. 창 차이로 설명되지 않는 불일치가 있으면
+    /// 그건 집계 버그다.
+    @Test func historySurfacesShareOneClassification() {
+        // 발주 소비(via)·버림·창 밖 로그를 섞은 고정 픽스처.
+        let logs = [
+            RemovalLog(name: "Egg", glyph: .egg, daysAgo: 0, wasted: false),
+            RemovalLog(name: "Milk", glyph: .milk, daysAgo: 0, wasted: true),
+            RemovalLog(name: "Beef", glyph: .meat, canonicalID: "beef",
+                       removedAt: Ingredient.day(offset: -1), wasted: false, via: "Bibimbap"),
+            RemovalLog(name: "Bread", glyph: .bread, daysAgo: 2, wasted: false),
+            RemovalLog(name: "Apple", glyph: .apple, daysAgo: 40, wasted: true),   // 30일 창 밖
+        ]
+        let store = FridgeStore(ingredients: [], recipes: [], history: logs)
+
+        // ① 히어로(이번 주) — 요일 칸의 합이 곧 고리의 분자다.
+        let week = ConsumptionWeek.summary(of: store.history)
+        #expect(week.days.reduce(0) { $0 + $1.eaten } == week.eaten)
+
+        // ② 히어로 vs 타임라인 — 타임라인이 "Ate"로 그리는 줄(= !wasted)과 같은 집합이어야 한다.
+        //    발주 소비(via != nil)도 타임라인에선 "Ate"이므로 히어로도 세야 한다.
+        let weekStart = ConsumptionWeek.weekStart()
+        let timelineAteThisWeek = store.history.filter { $0.removedAt >= weekStart && !$0.wasted }.count
+        let timelineAllThisWeek = store.history.filter { $0.removedAt >= weekStart }.count
+        #expect(week.eaten == timelineAteThisWeek)
+        #expect(week.removed == timelineAllThisWeek)
+
+        // ③ 30일 정산서 vs 타임라인 — 같은 플래그, 같은 창.
+        let cutoff = Ingredient.day(offset: -30)
+        let tallyAte = store.recentHistory.filter { !$0.wasted }.count
+        let tallyTossed = store.recentHistory.filter(\.wasted).count
+        #expect(tallyAte == store.history.filter { $0.removedAt >= cutoff && !$0.wasted }.count)
+        #expect(tallyTossed == store.history.filter { $0.removedAt >= cutoff && $0.wasted }.count)
+        #expect(tallyAte == 3)      // Egg · Beef(발주) · Bread
+        #expect(tallyTossed == 1)   // Milk (Apple은 창 밖)
+        #expect(store.wasteRate == 25)
+
+        // ④ 창 밖 로그는 어느 창에도 안 샌다.
+        #expect(store.recentHistory.count == 4)
+        #expect(week.removed <= store.recentHistory.count)
+    }
+
+    /// 발주로 소비된 줄(`via`)이 히어로에서 빠지면 요리를 많이 한 주가 가장 나쁜 주로 보인다 —
+    /// 타임라인은 그 줄을 "Ate"로 그리므로 두 표면이 정면으로 어긋난다.
+    @Test func recipeConsumptionCountsAsEatenOnEverySurface() {
+        let logs = [
+            RemovalLog(name: "Beef", glyph: .meat, canonicalID: "beef",
+                       removedAt: Ingredient.day(offset: 0), wasted: false, via: "Bibimbap"),
+            RemovalLog(name: "Onion", glyph: .onion, canonicalID: "onion",
+                       removedAt: Ingredient.day(offset: 0), wasted: false, via: "Bibimbap"),
+        ]
+        let store = FridgeStore(ingredients: [], recipes: [], history: logs)
+        let week = ConsumptionWeek.summary(of: store.history)
+        #expect(week.eaten == 2)
+        #expect(week.eatenRate == 100)
+        #expect(store.recentHistory.filter { !$0.wasted }.count == 2)
+        #expect(store.wasteRate == 0)
+    }
+
+    // MARK: skipBuyUndoable — 밀어서 삭제 전용(21차). 결과는 skipBuy와 같고 되돌리기 창만 더한다.
+
+    @Test func swipeRemovalRestoresTheRowInItsOriginalPlace() {
+        // 되돌린 줄이 목록 맨 끝으로 튀면 "되돌렸다"가 아니라 "다시 담았다"로 읽힌다 —
+        // 가운데 줄을 지웠다가 되돌려 자리까지 회복되는지 본다.
+        let store = FridgeStore(ingredients: [], recipes: [], history: [])
+        #expect(store.addToBuy(name: "양파", canonicalID: "onion", glyph: .onion))
+        #expect(store.addToBuy(name: "Milk", canonicalID: "milk", glyph: .milk))
+        #expect(store.addToBuy(name: "Egg", canonicalID: "egg", glyph: .egg))
+        let before = store.manualToBuy.map(\.matchKey)
+        #expect(before == ["onion", "milk", "egg"])
+
+        store.skipBuyUndoable(key: "milk")
+        #expect(store.manualToBuy.map(\.matchKey) == ["onion", "egg"])
+        #expect(store.pendingUndo != nil)   // 밀기는 오발이 잦다 — 창이 열려야 한다
+
+        store.undoPending()
+        #expect(store.manualToBuy.map(\.matchKey) == before)   // 제자리로
+        #expect(store.pendingUndo == nil)
+    }
+
+    @Test func swipeRemovalUndoAlsoReleasesTheDismissKeyItAdded() {
+        // 수동이 흡수하던 제안이 있으면 skipBuy가 영구 제외에도 넣는다 — 되돌리기는 그것까지 풀어야
+        // 같은 품목이 다시 제안으로 잡힐 수 있다(안 풀면 되돌려도 반쪽만 복구된다).
+        let store = FridgeStore(ingredients: [], recipes: [],
+                                history: [RemovalLog(name: "양파", glyph: .onion, daysAgo: 2, wasted: false)])
+        #expect(store.addToBuy(name: "onion", canonicalID: "onion", glyph: .onion))
+        store.skipBuyUndoable(key: "onion")
+        #expect(store.dismissedToBuy.contains("onion"))
+
+        store.undoPending()
+        #expect(!store.dismissedToBuy.contains("onion"))
+        #expect(store.manualToBuy.map(\.matchKey) == ["onion"])
+    }
+
+    @Test func swipeRemovalKeepsADismissKeyThatWasAlreadyThere() {
+        // 이번 호출이 **새로** 넣은 키만 되돌린다 — 원래 제외돼 있던 품목까지 풀면
+        // 되돌리기가 사용자가 예전에 내린 결정을 조용히 뒤집는다.
+        let store = FridgeStore(ingredients: [], recipes: [],
+                                history: [RemovalLog(name: "양파", glyph: .onion, daysAgo: 2, wasted: false)])
+        store.skipBuy(key: "onion")                    // 먼저 제안을 접어 둔다
+        #expect(store.dismissedToBuy.contains("onion"))
+        #expect(store.addToBuy(name: "onion", canonicalID: "onion", glyph: .onion))
+
+        store.skipBuyUndoable(key: "onion")
+        store.undoPending()
+        #expect(store.dismissedToBuy.contains("onion"))   // 옛 결정은 그대로
+        #expect(store.manualToBuy.map(\.matchKey) == ["onion"])
+    }
+
+    @Test func swipeRemovalOfANonManualKeyOpensNoUndoWindow() {
+        // 되돌릴 줄이 없으면 창도 없다 — 빈 토스트가 6초 떠 있는 상태를 만들지 않는다.
+        let store = FridgeStore(ingredients: [], recipes: [],
+                                history: [RemovalLog(name: "양파", glyph: .onion, daysAgo: 2, wasted: false)])
+        store.skipBuyUndoable(key: "onion")             // 파생 제안일 뿐 수동 항목이 아니다
+        #expect(store.pendingUndo == nil)
+        #expect(store.dismissedToBuy.contains("onion"))  // 동작 자체는 skipBuy 그대로
+    }
+
     @Test func skipBuyKeyOverloadRemovesManualItemWithoutDismissing() {
         // key 버전도 순수 수동 항목(이력 제안과 안 겹침)은 영구 제외 목록을 오염시키지 않는다
         // (skipRemovesManualItemWithoutDismissing의 key 버전 — 회귀 방지).
@@ -552,7 +707,7 @@ struct FridgeStoreTests {
     }
 
     @Test func toBuyRowKeyDrivesSkipBuyKeyForDerivedSuggestion() throws {
-        // ShoppingListView의 Skip 버튼은 이제 이름을 넘기지 않고 store.toBuy가 실어 나른 `key`로
+        // ShoppingListView의 빼기(✕) 버튼은 이제 이름을 넘기지 않고 store.toBuy가 실어 나른 `key`로
         // skipBuy(key:)를 호출한다 — 그 축이 실제로 맞물리는지 스토어 레벨에서 검증
         // (뷰 유닛 테스트가 없는 영역이라 이 계약이 유일한 회귀 방지선이다).
         let store = FridgeStore(ingredients: [], recipes: [],
@@ -858,16 +1013,6 @@ struct FridgeStoreTests {
         #expect(FridgeCategoryFilter.resolved("Dairy", in: after) == nil)
         // 같은 재료가 그대로면 키도 그대로 — 불필요한 재판정을 만들지 않는다.
         #expect(FridgeCategoryFilter.changeKey(of: milk) == FridgeCategoryFilter.changeKey(of: milk))
-    }
-
-    @Test func chipSeedIsStablePerCategoryNotPerCount() {
-        // 시드는 카테고리 키에서만 나온다 — 재고가 늘고 줄어도 칩 윤곽이 다시 랜덤해지지 않는다.
-        #expect(FridgeCategoryFilter.chipSeed("Veg") == FridgeCategoryFilter.chipSeed("Veg"))
-        // 카테고리가 다르면 시드도 다르다(개수가 같아도 똑같이 생기지 않는다).
-        let seeds = FridgeCategoryFilter.order.map(FridgeCategoryFilter.chipSeed)
-        #expect(Set(seeds).count == FridgeCategoryFilter.order.count)
-        // 같은 화면의 다른 종이 면 시드(빈 상태 3 · 정렬 칩 5 · 보기 토글 6 · 요약 7/8 · All 9)와 겹치지 않는다.
-        #expect(seeds.allSatisfy { $0 > 9 })
     }
 
     @Test func promoteUrgentSwapsInMoreUrgentWhenCounterFull() {

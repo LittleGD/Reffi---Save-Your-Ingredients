@@ -32,6 +32,14 @@ struct UndoToast: View {
                 Text("\(name) · removed")
                     .reffiType(.caption).foregroundStyle(.white)
                     .lineLimit(1)
+            case .memoRemoved(let name):
+                // 장보기 메모 한 줄 — 위 `.removed`와 **다른 문장**을 쓴다. 그쪽은 냉장고에서 재료가
+                // 사라졌다는 말이고 이건 살 것 목록에서 내렸다는 말이라, 같은 "removed"로 뭉치면
+                // 토스트만 보고는 재고가 지워진 줄 안다. 글리프는 같은 정본을 쓴다(둘 다 '내림'이다).
+                ReffiIcon.delete.reffi(15, .fill).foregroundStyle(ReffiColor.urgent)
+                Text("\(name) · off the memo")
+                    .reffiType(.caption).foregroundStyle(.white)
+                    .lineLimit(1)
             }
             Spacer(minLength: ReffiSpace.s2)
             Button(action: onUndo) {
