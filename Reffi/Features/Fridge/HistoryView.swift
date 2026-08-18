@@ -106,6 +106,15 @@ struct HistoryContent: View {
                     Text("eaten this week")
                         .reffiType(.metaText)
                         .foregroundStyle(ReffiColor.ink2)
+                    // **분자·분모를 눈에 보이게 둔다**(22차). 비율만 세우면 히어로의 가장 큰 숫자가
+                    // 사용자의 행동에 반응하지 않는 구간이 생긴다 — 이번 주에 버린 게 없으면 뭘 더
+                    // 먹어도 100%에 고정된다(실측: 재고에서 먹음 판정 후 요일 칸은 0→1, 정산서는
+                    // 7→8로 움직였는데 링의 100%만 그대로였고, 그것이 "안 바뀐다"는 제보의 정체였다).
+                    // 이 줄은 판정마다 반드시 움직이고, 동시에 **표본 크기**를 드러내 아래 30일
+                    // 정산서의 낭비율과 나란히 놓였을 때의 모순감도 함께 푼다(2개 중 2개 vs 13개 중 5개).
+                    Text("\(week.eaten) of \(week.removed)")
+                        .font(.reffiNum(.meta))
+                        .foregroundStyle(ReffiColor.muted)
                 } else {
                     // 처리 0건 — 0%는 "다 버렸다"는 없는 판정이다. 숫자를 아예 세우지 않는다.
                     Text("Nothing this week")

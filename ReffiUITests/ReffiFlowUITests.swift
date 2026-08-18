@@ -244,6 +244,49 @@ final class ReffiFlowUITests: XCTestCase {
         attach(app, named: "history-hero-after-toss")
     }
 
+    // MARK: History — 다른 패인에서 한 판정이 같은 실행 안에서 반영되는가
+
+    /// 사용자 제보(22차): "In stock에서 먹음/버림을 처리해도 History의 링·숫자가 안 바뀐다".
+    ///
+    /// **20차 테스트와 결정적으로 다른 점**: 그쪽은 판정을 먼저 하고 History를 *처음* 열었다
+    /// (= 뷰가 그때 처음 만들어지므로 어차피 새 값을 읽는다). 사용자의 실제 순서는 반대다 —
+    /// **History를 먼저 보고**, 다른 패인에서 판정한 뒤, 돌아온다. 재실행 없이 한 번의 실행 안에서
+    /// 그 왕복을 그대로 태워야 스테일을 잡을 수 있다.
+    func testFridge_History_ReflectsJudgementMadeInAnotherPane() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-skipAuth", "-onboarding.done", "YES",
+                               "-fridgeTab", "-uiTestSampleFridge"]
+        app.launch()
+
+        let historyTab = app.buttons["History"]
+        let stockTab = app.buttons["In stock"]
+        XCTAssertTrue(historyTab.waitForExistence(timeout: 8), "History 탭")
+
+        // ① History를 **먼저** 본다 — 이 방문이 뷰를 만들고, 그 상태가 스테일의 후보다.
+        historyTab.tap()
+        let ring = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label BEGINSWITH %@", "Eaten this week:")).firstMatch
+        XCTAssertTrue(ring.waitForExistence(timeout: 4), "고리가 비율을 읽는다")
+        let before = ring.label
+        attach(app, named: "history-before-judgement")
+
+        // ② In stock에서 판정 한 번(먹음).
+        stockTab.tap()
+        let card = app.staticTexts["Beef"]
+        XCTAssertTrue(card.waitForExistence(timeout: 4), "재고 카드")
+        card.tap()
+        let ate = app.buttons["Ate"]
+        XCTAssertTrue(ate.waitForExistence(timeout: 4), "펼친 상세의 Ate 버튼")
+        ate.tap()
+
+        // ③ 같은 실행에서 History로 돌아온다 — 여기서 값이 그대로면 그것이 제보된 버그다.
+        historyTab.tap()
+        XCTAssertTrue(ring.waitForExistence(timeout: 4), "고리가 여전히 비율을 읽는다")
+        attach(app, named: "history-after-judgement")
+        XCTAssertNotEqual(ring.label, before,
+                          "다른 패인의 판정이 History에 반영돼야 한다(분모가 최소 1 늘어난다)")
+    }
+
     // MARK: To buy — 사전 밖 이름 직접 입력 담기
 
     /// 검색 시트의 **직접 입력 담기**: 사전에 없는 이름을 친 그대로 메모에 담는다.

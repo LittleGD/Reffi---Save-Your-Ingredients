@@ -169,6 +169,16 @@
         }
       }
     },
+    "%lld of %lld": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld / %2$lld"
+          }
+        }
+      }
+    },
     "%lld recipes": {
       "localizations": {
         "en": {

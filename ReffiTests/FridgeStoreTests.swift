@@ -540,6 +540,69 @@ struct FridgeStoreTests {
         #expect(store.dismissedToBuy.contains("onion"))   // 수동이 흡수하던 제안까지 함께 접힘
     }
 
+    // MARK: History 세 표면의 수치 일치 (22차) — 히어로 · 30일 정산서 · 타임라인
+
+    /// 한 이력 묶음으로 세 표면이 **같은 분류**를 쓰는지 본다.
+    ///
+    /// 제보("숫자끼리도 안 맞아")의 실체를 가리기 위한 테스트다. 세 표면은 창(window)이 다를 뿐
+    /// 판정 기준은 하나여야 한다 — `wasted` 플래그 하나. 창 차이로 설명되지 않는 불일치가 있으면
+    /// 그건 집계 버그다.
+    @Test func historySurfacesShareOneClassification() {
+        // 발주 소비(via)·버림·창 밖 로그를 섞은 고정 픽스처.
+        let logs = [
+            RemovalLog(name: "Egg", glyph: .egg, daysAgo: 0, wasted: false),
+            RemovalLog(name: "Milk", glyph: .milk, daysAgo: 0, wasted: true),
+            RemovalLog(name: "Beef", glyph: .meat, canonicalID: "beef",
+                       removedAt: Ingredient.day(offset: -1), wasted: false, via: "Bibimbap"),
+            RemovalLog(name: "Bread", glyph: .bread, daysAgo: 2, wasted: false),
+            RemovalLog(name: "Apple", glyph: .apple, daysAgo: 40, wasted: true),   // 30일 창 밖
+        ]
+        let store = FridgeStore(ingredients: [], recipes: [], history: logs)
+
+        // ① 히어로(이번 주) — 요일 칸의 합이 곧 고리의 분자다.
+        let week = ConsumptionWeek.summary(of: store.history)
+        #expect(week.days.reduce(0) { $0 + $1.eaten } == week.eaten)
+
+        // ② 히어로 vs 타임라인 — 타임라인이 "Ate"로 그리는 줄(= !wasted)과 같은 집합이어야 한다.
+        //    발주 소비(via != nil)도 타임라인에선 "Ate"이므로 히어로도 세야 한다.
+        let weekStart = ConsumptionWeek.weekStart()
+        let timelineAteThisWeek = store.history.filter { $0.removedAt >= weekStart && !$0.wasted }.count
+        let timelineAllThisWeek = store.history.filter { $0.removedAt >= weekStart }.count
+        #expect(week.eaten == timelineAteThisWeek)
+        #expect(week.removed == timelineAllThisWeek)
+
+        // ③ 30일 정산서 vs 타임라인 — 같은 플래그, 같은 창.
+        let cutoff = Ingredient.day(offset: -30)
+        let tallyAte = store.recentHistory.filter { !$0.wasted }.count
+        let tallyTossed = store.recentHistory.filter(\.wasted).count
+        #expect(tallyAte == store.history.filter { $0.removedAt >= cutoff && !$0.wasted }.count)
+        #expect(tallyTossed == store.history.filter { $0.removedAt >= cutoff && $0.wasted }.count)
+        #expect(tallyAte == 3)      // Egg · Beef(발주) · Bread
+        #expect(tallyTossed == 1)   // Milk (Apple은 창 밖)
+        #expect(store.wasteRate == 25)
+
+        // ④ 창 밖 로그는 어느 창에도 안 샌다.
+        #expect(store.recentHistory.count == 4)
+        #expect(week.removed <= store.recentHistory.count)
+    }
+
+    /// 발주로 소비된 줄(`via`)이 히어로에서 빠지면 요리를 많이 한 주가 가장 나쁜 주로 보인다 —
+    /// 타임라인은 그 줄을 "Ate"로 그리므로 두 표면이 정면으로 어긋난다.
+    @Test func recipeConsumptionCountsAsEatenOnEverySurface() {
+        let logs = [
+            RemovalLog(name: "Beef", glyph: .meat, canonicalID: "beef",
+                       removedAt: Ingredient.day(offset: 0), wasted: false, via: "Bibimbap"),
+            RemovalLog(name: "Onion", glyph: .onion, canonicalID: "onion",
+                       removedAt: Ingredient.day(offset: 0), wasted: false, via: "Bibimbap"),
+        ]
+        let store = FridgeStore(ingredients: [], recipes: [], history: logs)
+        let week = ConsumptionWeek.summary(of: store.history)
+        #expect(week.eaten == 2)
+        #expect(week.eatenRate == 100)
+        #expect(store.recentHistory.filter { !$0.wasted }.count == 2)
+        #expect(store.wasteRate == 0)
+    }
+
     // MARK: skipBuyUndoable — 밀어서 삭제 전용(21차). 결과는 skipBuy와 같고 되돌리기 창만 더한다.
 
     @Test func swipeRemovalRestoresTheRowInItsOriginalPlace() {
