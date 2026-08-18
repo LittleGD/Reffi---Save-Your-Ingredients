@@ -540,6 +540,65 @@ struct FridgeStoreTests {
         #expect(store.dismissedToBuy.contains("onion"))   // 수동이 흡수하던 제안까지 함께 접힘
     }
 
+    // MARK: skipBuyUndoable — 밀어서 삭제 전용(21차). 결과는 skipBuy와 같고 되돌리기 창만 더한다.
+
+    @Test func swipeRemovalRestoresTheRowInItsOriginalPlace() {
+        // 되돌린 줄이 목록 맨 끝으로 튀면 "되돌렸다"가 아니라 "다시 담았다"로 읽힌다 —
+        // 가운데 줄을 지웠다가 되돌려 자리까지 회복되는지 본다.
+        let store = FridgeStore(ingredients: [], recipes: [], history: [])
+        #expect(store.addToBuy(name: "양파", canonicalID: "onion", glyph: .onion))
+        #expect(store.addToBuy(name: "Milk", canonicalID: "milk", glyph: .milk))
+        #expect(store.addToBuy(name: "Egg", canonicalID: "egg", glyph: .egg))
+        let before = store.manualToBuy.map(\.matchKey)
+        #expect(before == ["onion", "milk", "egg"])
+
+        store.skipBuyUndoable(key: "milk")
+        #expect(store.manualToBuy.map(\.matchKey) == ["onion", "egg"])
+        #expect(store.pendingUndo != nil)   // 밀기는 오발이 잦다 — 창이 열려야 한다
+
+        store.undoPending()
+        #expect(store.manualToBuy.map(\.matchKey) == before)   // 제자리로
+        #expect(store.pendingUndo == nil)
+    }
+
+    @Test func swipeRemovalUndoAlsoReleasesTheDismissKeyItAdded() {
+        // 수동이 흡수하던 제안이 있으면 skipBuy가 영구 제외에도 넣는다 — 되돌리기는 그것까지 풀어야
+        // 같은 품목이 다시 제안으로 잡힐 수 있다(안 풀면 되돌려도 반쪽만 복구된다).
+        let store = FridgeStore(ingredients: [], recipes: [],
+                                history: [RemovalLog(name: "양파", glyph: .onion, daysAgo: 2, wasted: false)])
+        #expect(store.addToBuy(name: "onion", canonicalID: "onion", glyph: .onion))
+        store.skipBuyUndoable(key: "onion")
+        #expect(store.dismissedToBuy.contains("onion"))
+
+        store.undoPending()
+        #expect(!store.dismissedToBuy.contains("onion"))
+        #expect(store.manualToBuy.map(\.matchKey) == ["onion"])
+    }
+
+    @Test func swipeRemovalKeepsADismissKeyThatWasAlreadyThere() {
+        // 이번 호출이 **새로** 넣은 키만 되돌린다 — 원래 제외돼 있던 품목까지 풀면
+        // 되돌리기가 사용자가 예전에 내린 결정을 조용히 뒤집는다.
+        let store = FridgeStore(ingredients: [], recipes: [],
+                                history: [RemovalLog(name: "양파", glyph: .onion, daysAgo: 2, wasted: false)])
+        store.skipBuy(key: "onion")                    // 먼저 제안을 접어 둔다
+        #expect(store.dismissedToBuy.contains("onion"))
+        #expect(store.addToBuy(name: "onion", canonicalID: "onion", glyph: .onion))
+
+        store.skipBuyUndoable(key: "onion")
+        store.undoPending()
+        #expect(store.dismissedToBuy.contains("onion"))   // 옛 결정은 그대로
+        #expect(store.manualToBuy.map(\.matchKey) == ["onion"])
+    }
+
+    @Test func swipeRemovalOfANonManualKeyOpensNoUndoWindow() {
+        // 되돌릴 줄이 없으면 창도 없다 — 빈 토스트가 6초 떠 있는 상태를 만들지 않는다.
+        let store = FridgeStore(ingredients: [], recipes: [],
+                                history: [RemovalLog(name: "양파", glyph: .onion, daysAgo: 2, wasted: false)])
+        store.skipBuyUndoable(key: "onion")             // 파생 제안일 뿐 수동 항목이 아니다
+        #expect(store.pendingUndo == nil)
+        #expect(store.dismissedToBuy.contains("onion"))  // 동작 자체는 skipBuy 그대로
+    }
+
     @Test func skipBuyKeyOverloadRemovesManualItemWithoutDismissing() {
         // key 버전도 순수 수동 항목(이력 제안과 안 겹침)은 영구 제외 목록을 오염시키지 않는다
         // (skipRemovesManualItemWithoutDismissing의 key 버전 — 회귀 방지).

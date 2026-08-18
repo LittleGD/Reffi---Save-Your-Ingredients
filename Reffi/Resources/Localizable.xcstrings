@@ -21,6 +21,16 @@
         }
       }
     },
+    "%@ · off the memo": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · 메모에서 뺐어요"
+          }
+        }
+      }
+    },
     "%@ · removed": {
       "localizations": {
         "ko": {
@@ -2298,6 +2308,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "메모에서 %@ 빼기"
+          }
+        }
+      }
+    },
+    "Remove from the memo": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "메모에서 빼기"
           }
         }
       }

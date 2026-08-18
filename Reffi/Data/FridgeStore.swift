@@ -511,6 +511,18 @@ final class FridgeStore {
             case finished(recipe: String, count: Int)   // 완료(확정) — undo = 세션·수량·이력 원복
             case decision(name: String, wasted: Bool)
             case removed(name: String)                 // 이력 없는 삭제(정정) — undo = 스냅샷 복원
+            case memoRemoved(name: String)             // 장보기 메모 한 줄 — undo = 그 줄을 제자리로
+        }
+
+        /// 메모 한 줄을 되돌리는 데 필요한 전부 — 재료가 아니라 `ManualBuyItem`이라
+        /// `restoreSnapshots`(냉장고 재료) 경로를 탈 수 없다. 다른 undo가 이력에서 되살리는 것과 달리
+        /// 메모는 지우면 흔적이 남지 않으므로 항목 자체를 들고 있는다.
+        struct MemoRestore: Equatable {
+            let item: ManualBuyItem
+            /// 지우기 전의 자리 — 되돌린 줄이 목록 맨 끝으로 튀면 "되돌렸다"가 아니라 "다시 담았다"로 읽힌다.
+            let index: Int
+            /// `skipBuy`가 이번 호출에서 영구 제외에 새로 넣은 키(안 넣었으면 nil) — undo가 그것도 되돌린다.
+            let dismissedKey: String?
         }
         let token: UUID       // 세대 토큰 — 이전 창의 만료 타이머가 새 창을 닫지 못하게
         let logIDs: [UUID]
@@ -520,18 +532,21 @@ final class FridgeStore {
         /// 이력 로그 없이 지운 재료의 원본 — `logIDs` 경로와 달리 이력에서 되살릴 게 없어 직접 들고 있는다.
         var restoreSnapshots: [Ingredient] = []
         var previousSession: CookSession?          // fired: 교체 전 세션 / finished: 종료된 세션
+        var memoRestore: MemoRestore?              // memoRemoved 전용
     }
 
     private func beginUndo(_ kind: PendingUndo.Kind, logIDs: [UUID], counterSnapshot: [UUID],
                            leftoverSnapshots: [Ingredient] = [],
                            restoreSnapshots: [Ingredient] = [],
-                           previousSession: CookSession? = nil) {
+                           previousSession: CookSession? = nil,
+                           memoRestore: PendingUndo.MemoRestore? = nil) {
         let token = UUID()
         pendingUndo = PendingUndo(token: token, logIDs: logIDs, kind: kind,
                                   counterSnapshot: counterSnapshot,
                                   leftoverSnapshots: leftoverSnapshots,
                                   restoreSnapshots: restoreSnapshots,
-                                  previousSession: previousSession)
+                                  previousSession: previousSession,
+                                  memoRestore: memoRestore)
         Task { [weak self] in
             try? await Task.sleep(for: .seconds(6))
             guard let self, self.pendingUndo?.token == token else { return }
@@ -544,10 +559,22 @@ final class FridgeStore {
     func undoPending() {
         guard let undo = pendingUndo else { return }
         pendingUndo = nil
+        // 메모 되돌리기는 **여기서 끝난다** — 이력도 재고도 작업대도 건드리지 않았으므로 아래의
+        // 복원·작업대 재구성 경로를 태울 이유가 없다(태우면 무관한 replenish가 한 번 더 돈다).
+        if case .memoRemoved = undo.kind, let memo = undo.memoRestore {
+            if let key = memo.dismissedKey { dismissedToBuy.remove(key) }
+            // 자리 복원 — 그 사이 목록이 짧아졌으면 끝에 붙인다(인덱스는 힌트지 계약이 아니다).
+            let at = min(memo.index, manualToBuy.count)
+            if !manualToBuy.contains(where: { $0.matchKey == memo.item.matchKey }) {
+                manualToBuy.insert(memo.item, at: at)
+            }
+            persist(reschedulesAlerts: false)   // 재료 불변
+            return
+        }
         switch undo.kind {
         case .fired, .finished:
             activeCook = undo.previousSession   // fired: 교체 전(보통 nil) / finished: 종료된 세션 재개
-        case .decision, .removed:
+        case .decision, .removed, .memoRemoved:
             break
         }
         // 이력 로그 없이 지운 재료(정정 삭제)는 스냅샷에서 바로 되살린다.
@@ -806,6 +833,32 @@ final class FridgeStore {
             dismissedToBuy.insert(key)
         }
         persist(reschedulesAlerts: false)   // 재료 불변
+    }
+
+    /// 메모 한 줄 빼기 + **되돌리기 창**(21차) — 밀어서 삭제 전용 경로다.
+    ///
+    /// `skipBuy(key:)`와 결과는 같고 undo 토스트가 뜨는 것만 다르다. 창이 필요해진 이유는
+    /// 어포던스가 바뀌었기 때문이다: 버튼(✕)은 누를 의도 없이 눌리지 않지만 **밀기는 오발이 잦다**
+    /// (스크롤하려다, 다른 행을 만지려다). 19차가 확인 다이얼로그를 두지 않기로 한 근거가
+    /// "되돌리기 비용이 한 번의 탭"이었는데, 그 근거는 사용자가 **무엇을 지웠는지 알 때만** 성립한다.
+    /// 실수로 민 줄은 이름조차 못 보고 사라지므로, 다이얼로그(사전 확인) 대신 토스트(사후 취소)를 세운다.
+    ///
+    /// 판정을 바꾸지 않고 `skipBuy`를 그대로 태운다 — 흡수·영구 제외의 두 갈래 규칙이 한 곳에만 있어야
+    /// 두 경로가 조용히 갈리지 않는다. 이 함수는 그 앞뒤로 스냅샷과 undo 창만 두른다.
+    func skipBuyUndoable(key: String) {
+        guard let index = manualToBuy.firstIndex(where: { $0.matchKey == key }) else {
+            skipBuy(key: key)   // 수동 항목이 아니면 되돌릴 줄이 없다 — 기존 경로 그대로
+            return
+        }
+        let item = manualToBuy[index]
+        let wasDismissed = dismissedToBuy.contains(key)
+        skipBuy(key: key)
+        // 이번 호출이 **새로** 영구 제외에 넣었을 때만 그것도 되돌린다(원래 제외였다면 건드리지 않는다).
+        let newlyDismissed = !wasDismissed && dismissedToBuy.contains(key)
+        beginUndo(.memoRemoved(name: Self.displayName(for: item)),
+                  logIDs: [], counterSnapshot: counterIDs,
+                  memoRestore: PendingUndo.MemoRestore(item: item, index: index,
+                                                       dismissedKey: newlyDismissed ? key : nil))
     }
 
     /// 이름으로 최근 이력 스냅샷 조회 — 재입고 프리필(보관·구매처·수량 복원)용. matchKey로 교차 표기 조회.
