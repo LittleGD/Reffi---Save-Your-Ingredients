@@ -203,62 +203,194 @@ final class CookTicketFlickUITests: XCTestCase {
         add(shot)
     }
 
-    /// **To buy 원탭 알약**(§13.5 ⑨) — 유닛 테스트가 닿지 못하는 런타임 배선이 대상이다:
-    /// ① 알약 탭이 `store.addMissingToBuy`까지 실제로 도달하는가
-    /// ② **화면이 바뀌지 않는가** — 담기는 티켓에 머문 채 끝나야 한다(팝업도, 중첩 커버도 없다)
-    /// ③ 라벨이 '담김'으로 바뀌어 사용자에게 상태를 보고하는가
-    /// ④ 담긴 것이 실제로 냉장고 탭의 To buy 목록에 있는가.
-    ///
-    /// 재료 이름은 시드에서 오므로 테스트에 박지 않는다 — Short 줄에서 읽어 To buy 행과 대조한다.
-    /// 대조는 **포함 관계**로 본다: 담길 때 표기가 사전 표제어로 정리되기 때문이다
-    /// (레시피 원문 "minced garlic" → 목록엔 "Garlic", `RecipeRecommender.toBuyEntry`).
-    func testTicketDeck_AddToBuyPill_AddsMissingWithoutLeavingTheTicket() throws {
-        let app = launchDeck()
+    // MARK: 담기 3단 팝업 헬퍼
 
-        // 부족 재료가 있는 티켓을 찾는다 — 없으면 왼쪽 플릭(Pass)으로 다음 티켓을 본다.
-        // 샘플 냉장고(13종)로는 상위 티켓 대부분에 부족 재료가 뜨지만, 시드가 바뀌어 하나도 없으면
-        // 이 테스트는 검증 대상이 사라진 것이라 실패가 아니라 skip이 맞다.
-        try XCTSkipUnless(frontTicketWithShortLine(app),
-                          "덱을 한 바퀴 돌 동안 'Short:' 부족 재료가 있는 티켓이 없었다 — 시드가 바뀌었는지 확인 필요")
+    /// 고르기 팝업의 체크 행 — 라벨은 재료 이름, 값은 `Checked`/`Not checked`다.
+    /// 이름을 테스트에 박지 않고 **팝업이 실제로 세운 줄**을 읽는다(표기는 사전 표제어로 정리된다).
+    private func checkedRows(_ app: XCUIApplication) -> XCUIElementQuery {
+        app.buttons.matching(NSPredicate(format: "value == %@", "Checked"))
+    }
 
-        let shortText = shortLine(app).label
-        XCTAssertTrue(shortText.count > "Short: ".count, "Short 줄에서 부족 재료를 읽지 못했다")
-        attachScreenshot(app, named: "a-expanded-card-with-pill")
+    /// 확정 CTA — 라벨이 개수형("Add 2 items" / "Add 1 item")이라 정규식으로 잡는다.
+    /// 진입 알약("Add to list")과 라벨이 갈려 있어 이 조회가 알약을 집지 않는다.
+    private func confirmAddButton(_ app: XCUIApplication) -> XCUIElement {
+        app.buttons.matching(NSPredicate(format: "label MATCHES %@", "Add [0-9]+ items?")).firstMatch
+    }
 
+    /// 알약을 눌러 고르기 팝업까지 연다 — 열렸으면 true.
+    @discardableResult
+    private func openPickDialog(_ app: XCUIApplication) -> Bool {
         app.buttons["Add to list"].tap()
+        return app.staticTexts["Pick what to add"].waitForExistence(timeout: 5)
+    }
 
-        // ③ 라벨이 '담김'으로 바뀐다 — 원탭의 유일한 피드백이라 이게 없으면 버튼이 죽은 것으로 읽힌다.
-        XCTAssertTrue(app.buttons["Added"].waitForExistence(timeout: 5),
-                      "담기 뒤 알약 라벨이 'Added'로 바뀌어야 한다")
-        attachScreenshot(app, named: "b-pill-shows-added")
-
-        // ② **화면이 바뀌지 않는다.** 팝업도 중첩 커버도 없다 — 담기는 티켓 위에서 끝난다.
-        XCTAssertTrue(app.staticTexts["Today's tickets"].exists,
-                      "담기는 티켓에 머문 채 끝나야 한다(덱이 그대로 보여야 한다)")
-        XCTAssertTrue(shortLine(app).exists, "보던 티켓이 그대로여야 한다")
-        XCTAssertEqual(app.alerts.count, 0, "시스템 알림이 뜨면 안 된다")
-
-        // ①④ 실제로 담겼는가 — 덱을 닫고 냉장고 탭의 To buy 목록에서 확인한다.
-        app.buttons["Close"].firstMatch.tap()
-        XCTAssertTrue(app.buttons["Fridge"].waitForExistence(timeout: 10), "덱을 닫으면 메인으로 돌아와야 한다")
+    /// 냉장고 To buy 패인으로 이동(덱은 이미 닫힌 상태여야 한다).
+    private func openToBuyPane(_ app: XCUIApplication) {
+        XCTAssertTrue(app.buttons["Fridge"].waitForExistence(timeout: 10), "메인으로 돌아와야 한다")
         app.buttons["Fridge"].tap()
-        // 냉장고 페이지는 상단 탭 셋(In stock · To buy · History)으로 갈렸다 — 옛 요약 버튼
-        // ("Shopping list, N items")이 열던 커버 대신 To buy **탭**이 같은 목록을 연다.
         let toBuyTab = app.buttons["To buy"]
         XCTAssertTrue(toBuyTab.waitForExistence(timeout: 10), "냉장고 페이지에 To buy 탭이 있어야 한다")
         toBuyTab.tap()
-        // 탭 패인엔 커버 헤더가 없으므로 목록의 상시 요소(하단 도킹 "Add item")로 도착을 확인한다.
-        XCTAssertTrue(app.buttons["Add item"].waitForExistence(timeout: 10), "To buy 목록이 열려야 한다")
+        XCTAssertTrue(app.buttons["Add item"].waitForExistence(timeout: 10), "To buy 패인이 열려야 한다")
+    }
 
-        // Short 줄의 재료 하나라도 목록에 있어야 한다(표기는 사전 표제어로 정리되므로 포함 관계로 본다).
-        let missing = shortText.dropFirst("Short: ".count)
-            .components(separatedBy: ", ").map { $0.lowercased() }
-        let rows = app.staticTexts.allElementsBoundByIndex.map { $0.label.lowercased() }
-        let matched = missing.contains { m in
-            rows.contains { row in row.contains(m) || m.contains(row) }
-        }
-        attachScreenshot(app, named: "c-to-buy-list")
-        XCTAssertTrue(matched, "부족 재료(\(missing))가 To buy 목록(\(rows))에 담겨 있어야 한다")
+    /// 화면에 보이는 모든 텍스트(소문자) — 목록 대조용.
+    private func visibleTexts(_ app: XCUIApplication) -> [String] {
+        app.staticTexts.allElementsBoundByIndex.map { $0.label.lowercased() }
+    }
+
+    // MARK: - ⑦ 담기 3단 팝업 — 해피 패스 (고르기 → 알림 → 이동)
+
+    /// **담기 흐름 전체**(§13.5 ⑨ · §14.7) — 유닛 테스트가 닿지 못하는 런타임 배선이 대상이다:
+    /// ① 알약이 고르기 팝업을 연다 ② 체크를 푼 재료는 **담기지 않는다** ③ 알림 팝업이 결과를 말한다
+    /// ④ 이동 질문에서 "보기"를 고르면 **냉장고의 To buy 패인에 착지**한다(덱 커버 해체 → 탭 전환)
+    /// ⑤ 착지한 목록에 체크한 것은 있고 푼 것은 없다.
+    ///
+    /// 재료 이름은 시드에서 오므로 테스트에 박지 않는다 — 팝업이 세운 줄에서 읽어 목록과 대조한다.
+    func testTicketDeck_AddFlow_PicksItemsThenLandsOnToBuyPane() throws {
+        let app = launchDeck()
+        try XCTSkipUnless(frontTicketWithShortLine(app),
+                          "덱을 한 바퀴 돌 동안 'Short:' 부족 재료가 있는 티켓이 없었다 — 시드가 바뀌었는지 확인 필요")
+        attachScreenshot(app, named: "a-ticket-with-pill")
+
+        XCTAssertTrue(openPickDialog(app), "알약을 누르면 고르기 팝업이 떠야 한다")
+        let rows = checkedRows(app)
+        XCTAssertGreaterThan(rows.count, 0, "고르기 팝업엔 부족 재료가 줄로 서야 한다")
+        // 기본은 **전부 체크** — 이 팝업의 기본값이 '아무것도 안 담음'이면 흔한 경우에 손이 더 간다.
+        XCTAssertEqual(rows.count, app.buttons.matching(
+            NSPredicate(format: "value == %@ OR value == %@", "Checked", "Not checked")).count,
+                       "처음엔 모든 줄이 체크돼 있어야 한다")
+        attachScreenshot(app, named: "b-pick-dialog")
+
+        // 부족 재료가 둘 이상일 때만 '하나 풀기'를 검증할 수 있다(1종 티켓이면 대상이 없다).
+        let total = rows.count
+        try XCTSkipUnless(total >= 2, "부족 재료가 1종인 티켓이라 '체크 풀기'를 검증할 수 없다")
+        let dropped = rows.element(boundBy: total - 1).label
+        let kept = rows.element(boundBy: 0).label
+        rows.element(boundBy: total - 1).tap()
+        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "value == %@", "Not checked")).count == 1,
+                      "체크를 푼 줄은 정확히 하나여야 한다")
+        attachScreenshot(app, named: "c-pick-dialog-one-unchecked")
+
+        let confirm = confirmAddButton(app)
+        XCTAssertTrue(confirm.exists, "확정 CTA는 개수형 라벨이어야 한다")
+        XCTAssertEqual(confirm.label, total - 1 == 1 ? "Add 1 item" : "Add \(total - 1) items",
+                       "CTA 라벨의 개수는 체크된 줄 수와 같아야 한다")
+        confirm.tap()
+
+        // 팝업② 담김 알림 — 새로 담긴 게 있으므로 개수형 제목이 선다.
+        let addedTitle = app.staticTexts.matching(
+            NSPredicate(format: "label MATCHES %@", "Added [0-9]+ items?")).firstMatch
+        XCTAssertTrue(addedTitle.waitForExistence(timeout: 5), "담김 알림이 떠야 한다")
+        XCTAssertFalse(app.staticTexts["Pick what to add"].exists, "두 팝업이 겹쳐 뜨면 안 된다")
+        attachScreenshot(app, named: "d-added-dialog")
+        app.buttons["OK"].tap()
+
+        // 팝업③ 이동 질문
+        XCTAssertTrue(app.staticTexts["View your To buy list?"].waitForExistence(timeout: 5),
+                      "확인을 누르면 이동 질문이 떠야 한다")
+        attachScreenshot(app, named: "e-move-dialog")
+        app.buttons["View"].tap()
+
+        // 덱 커버가 걷히고 냉장고의 To buy 패인에 착지한다 — 라우터 없이 클로저 체인으로 간다.
+        XCTAssertTrue(app.staticTexts["Grocery memo"].waitForExistence(timeout: 15),
+                      "보기를 고르면 냉장고의 To buy 패인에 착지해야 한다")
+        XCTAssertTrue(app.buttons["Add item"].waitForExistence(timeout: 5), "To buy 패인의 도킹 CTA")
+        XCTAssertFalse(app.staticTexts["Today's tickets"].exists, "덱은 걷혀 있어야 한다")
+        attachScreenshot(app, named: "f-to-buy-after-view")
+
+        // 체크한 것은 있고, 푼 것은 없다.
+        let texts = visibleTexts(app)
+        XCTAssertTrue(texts.contains { $0.contains(kept.lowercased()) },
+                      "체크한 재료(\(kept))가 목록(\(texts))에 있어야 한다")
+        XCTAssertFalse(texts.contains { $0 == dropped.lowercased() },
+                       "체크를 푼 재료(\(dropped))는 목록(\(texts))에 없어야 한다")
+    }
+
+    // MARK: - ⑦-b X로 닫으면 아무것도 담기지 않는다
+
+    /// 고르기 팝업의 우상단 X는 **아무것도 하지 않고** 닫는 길이다 — 담기지도, 다음 팝업이 뜨지도 않는다.
+    /// 이 길이 없으면 팝업을 연 순간부터 담기를 무르는 방법이 사라진다.
+    func testTicketDeck_AddFlow_CloseAddsNothing() throws {
+        let app = launchDeck()
+        try XCTSkipUnless(frontTicketWithShortLine(app), "'Short:' 부족 재료가 있는 티켓이 없었다")
+        XCTAssertTrue(openPickDialog(app), "고르기 팝업")
+
+        // 덱 커버의 닫기 X와 라벨이 같으므로 식별자로 가른다.
+        app.buttons["dialog.close"].tap()
+        XCTAssertFalse(app.staticTexts["Pick what to add"].waitForExistence(timeout: 2), "팝업은 닫힌다")
+        XCTAssertFalse(app.staticTexts["View your To buy list?"].exists, "이동 질문이 뜨면 안 된다")
+        XCTAssertTrue(app.staticTexts["Today's tickets"].exists, "보던 티켓 덱에 그대로 머문다")
+        XCTAssertTrue(shortLine(app).exists, "같은 티켓이어야 한다")
+
+        // 목록은 비어 있어야 한다 — `-uiTestSampleFridge`가 장보기 메모를 비우고 시작한다.
+        app.buttons["Close"].firstMatch.tap()
+        openToBuyPane(app)
+        XCTAssertTrue(app.staticTexts["Nothing on the list"].waitForExistence(timeout: 5),
+                      "X로 닫았으므로 장보기 메모는 비어 있어야 한다")
+        attachScreenshot(app, named: "g-to-buy-still-empty")
+    }
+
+    // MARK: - ⑦-c 이동 질문에서 취소하면 티켓에 남는다
+
+    /// 마지막 질문의 취소는 **이동만** 거절한다 — 담기는 이미 끝났고, 화면은 덱에 머문다.
+    func testTicketDeck_AddFlow_CancelKeepsYouOnTheTicket() throws {
+        let app = launchDeck()
+        try XCTSkipUnless(frontTicketWithShortLine(app), "'Short:' 부족 재료가 있는 티켓이 없었다")
+        XCTAssertTrue(openPickDialog(app), "고르기 팝업")
+        confirmAddButton(app).tap()
+        XCTAssertTrue(app.buttons["OK"].waitForExistence(timeout: 5), "담김 알림")
+        app.buttons["OK"].tap()
+        XCTAssertTrue(app.staticTexts["View your To buy list?"].waitForExistence(timeout: 5), "이동 질문")
+        app.buttons["Cancel"].tap()
+
+        XCTAssertTrue(app.staticTexts["Today's tickets"].waitForExistence(timeout: 5),
+                      "취소하면 보던 덱에 그대로 머문다")
+        XCTAssertFalse(app.staticTexts["Grocery memo"].exists, "냉장고로 옮겨 가면 안 된다")
+
+        // 담기 자체는 취소되지 않는다 — 목록에는 남아 있다.
+        app.buttons["Close"].firstMatch.tap()
+        openToBuyPane(app)
+        XCTAssertFalse(app.staticTexts["Nothing on the list"].exists,
+                       "이동만 취소했을 뿐 담기는 끝났으므로 목록이 비어 있으면 안 된다")
+        attachScreenshot(app, named: "h-to-buy-after-cancel")
+    }
+
+    // MARK: - ⑦-d 발주 직후 창 — 팝업이 떠 있는 동안 덱 닫기는 **미뤄진다**
+
+    /// 발주 후 덱 커버는 유예 뒤 닫힌다. 그 창 안에서 팝업을 열면 커버가 그냥 닫혀선 안 된다 —
+    /// 부모가 걷히면 사용자가 방금 띄운 질문이 함께 사라진다(10차에 실측한 캐스케이드).
+    /// 그리고 **미룸은 취소가 아니다**: 팝업 흐름이 끝나면 미뤄 둔 발주 전환(ORDER · FIRED)이 이어진다.
+    /// 기본 1.25초 창은 자동화로 재현이 어려워 `-fireDismissDelay 6`으로 창만 넓힌다(메커니즘은 동일).
+    func testTicketDeck_AddFlowDuringFireWindow_DefersDeckDismissThenResumes() throws {
+        let app = launchDeck(extraArguments: ["-fireDismissDelay", "6"])
+        try XCTSkipUnless(frontTicketWithShortLine(app), "'Short:' 부족 재료가 있는 티켓이 없었다")
+
+        let firedAt = Date()
+        app.buttons["Cook this"].firstMatch.tap()
+        XCTAssertTrue(app.buttons["Add to list"].waitForExistence(timeout: 3),
+                      "발주 직후에도 담기 알약은 남아 있어야 한다")
+        XCTAssertTrue(openPickDialog(app), "발주 창 안에서 고르기 팝업이 떠야 한다")
+
+        // 지연 닫기 시점(발주 + 6초)을 **일부러 넘긴다**.
+        let deadline = firedAt.addingTimeInterval(9)
+        while Date() < deadline, app.staticTexts["Pick what to add"].exists { }
+        XCTAssertTrue(app.staticTexts["Pick what to add"].exists,
+                      "지연 닫기 시점을 넘겨도 팝업은 살아 있어야 한다(덱 닫기가 미뤄진다)")
+        XCTAssertFalse(app.staticTexts["ORDER · FIRED"].exists,
+                       "팝업이 떠 있는 동안엔 조리 화면으로 넘어가지 않는다")
+        attachScreenshot(app, named: "i-pick-dialog-survives-fire-window")
+
+        confirmAddButton(app).tap()
+        XCTAssertTrue(app.buttons["OK"].waitForExistence(timeout: 5), "담김 알림")
+        app.buttons["OK"].tap()
+        XCTAssertTrue(app.staticTexts["View your To buy list?"].waitForExistence(timeout: 5), "이동 질문")
+        app.buttons["Cancel"].tap()
+
+        // 미뤄 둔 전환이 이어진다 — 취소는 이동을 거절한 것이지 발주를 되돌린 것이 아니다.
+        XCTAssertTrue(app.staticTexts["ORDER · FIRED"].waitForExistence(timeout: 20),
+                      "취소로 흐름이 끝나면 미뤄 뒀던 발주 전환이 이어져 조리 화면으로 가야 한다")
+        attachScreenshot(app, named: "j-fired-transition-resumed")
     }
 
     /// 부족 재료가 있는 앞 티켓을 찾아 알약까지 노출한다 — 못 찾으면 false(호출부가 skip).
@@ -278,10 +410,9 @@ final class CookTicketFlickUITests: XCTestCase {
     // MARK: - ⑧ 발주 직후에도 담기 알약은 살아 있다
 
     /// 발주(fire) 뒤에도 부족 재료는 여전히 부족하다 — 오히려 그때 더 사야 한다.
-    /// `MainView.fire`는 발주 1.25초 뒤 덱 커버를 닫으므로 창이 좁지만, **원탭 담기는 화면을
-    /// 옮기지 않으므로** 그 창과 경쟁할 것이 없다(예전엔 여기서 중첩 커버가 함께 걷히는
-    /// 캐스케이드가 났고, 그걸 막느라 닫기를 미루는 상태 기계를 얹어야 했다).
-    /// 이 테스트는 발주 뒤에도 알약이 사라지지 않는다는 것만 고정한다.
+    /// `MainView.fire`는 발주 뒤 유예를 두고 덱 커버를 닫는데, **알약을 누르지 않으면** 그 창에
+    /// 경쟁할 상대가 없다(팝업을 여는 경로는 위 ⑦-d가 따로 잠근다).
+    /// 이 테스트는 발주 뒤에도 알약이 사라지지 않고 전환이 정시에 이어진다는 것만 고정한다.
     func testTicketDeck_AddToBuyPill_SurvivesFiring() throws {
         let app = launchDeck()
         try XCTSkipUnless(frontTicketWithShortLine(app),
