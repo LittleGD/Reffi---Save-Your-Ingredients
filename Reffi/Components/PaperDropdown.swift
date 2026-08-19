@@ -85,7 +85,7 @@ struct PaperDropdown<Value: Hashable>: View {
                             .opacity(option == selected ? 1 : 0)
                     }
                     .padding(.horizontal, ReffiSpace.s4)
-                    .frame(minHeight: 44)               // §7.3 터치 타깃
+                    .frame(minHeight: ReffiChrome.tapMin)               // §7.3 터치 타깃
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .contentShape(Rectangle())
                 }
@@ -145,7 +145,7 @@ struct PaperDropdownTrigger: View {
                 let s = PaperRect(cornerRadius: ReffiRadius.sm, seed: seed)
                 s.fill(ReffiColor.paper).paperEdge(s)
             }
-            .frame(minHeight: 44)   // §7.3 터치 타깃
+            .frame(minHeight: ReffiChrome.tapMin)   // §7.3 터치 타깃
             .contentShape(Rectangle())
             .anchorPreference(key: DropdownAnchorKey.self, value: .bounds) { isOpen ? $0 : nil }
         }

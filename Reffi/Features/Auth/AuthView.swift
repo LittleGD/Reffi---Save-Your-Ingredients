@@ -147,20 +147,14 @@ struct AuthView: View {
         }
     }
 
-    // MARK: 입력 필드 — 시트 인풋과 같은 PaperRect 문법
+    // MARK: 입력 필드 — 시트 인풋과 같은 `fieldSurface` 한 칸(§13.8)
 
     private func field(_ placeholder: LocalizedStringKey, text: Binding<String>, focused: Field) -> some View {
         TextField(placeholder, text: text)
             .reffiType(.body)
             .foregroundStyle(ReffiColor.ink)
             .focused($focus, equals: focused)
-            .padding(.horizontal, ReffiSpace.s4)
-            .padding(.vertical, ReffiSpace.s3)
-            .frame(minHeight: 44)   // §7.3
-            .background {
-                let s = PaperRect(cornerRadius: ReffiRadius.md, seed: focused == .email ? 2 : 3)
-                s.fill(ReffiColor.canvas).paperEdge(s, tint: ReffiColor.paperEdgeField)
-            }
+            .fieldSurface(seed: focused == .email ? 2 : 3)   // 면·패딩·히트를 모디파이어가 쥔다
     }
 
     private var secureField: some View {
@@ -168,13 +162,7 @@ struct AuthView: View {
             .reffiType(.body)
             .foregroundStyle(ReffiColor.ink)
             .focused($focus, equals: .password)
-            .padding(.horizontal, ReffiSpace.s4)
-            .padding(.vertical, ReffiSpace.s3)
-            .frame(minHeight: 44)
-            .background {
-                let s = PaperRect(cornerRadius: ReffiRadius.md, seed: 3)
-                s.fill(ReffiColor.canvas).paperEdge(s, tint: ReffiColor.paperEdgeField)
-            }
+            .fieldSurface(seed: 3)
     }
 
     // MARK: 피드백 — 에러(urgent-dark) / 안내(fresh-dark), §2.6 캔버스 위 dark
@@ -206,7 +194,7 @@ struct AuthView: View {
             .buttonStyle(.reffiPress)
         }
         .frame(maxWidth: .infinity)
-        .frame(minHeight: 44)
+        .frame(minHeight: ReffiChrome.tapMin)
     }
 
     private var dashRule: some View {

@@ -33,11 +33,14 @@ extension View {
     }
 }
 
-/// z-레이어 스케일(§6.5).
+/// z-레이어 스케일(§6.5) 중 **iOS가 실제로 쓰는 한 단**.
+///
+/// CSS 쪽 5단(`--z-base`/`sticky`/`dropdown`/`modal`/`toast`)을 그대로 옮겨 왔지만, 네이티브에서
+/// 쌓임 순서를 `zIndex`로 정하는 자리는 드롭다운 하나뿐이다 — modal·toast는 `sheet`/`fullScreenCover`
+/// 같은 **프레젠테이션 계층**이, sticky는 `safeAreaInset`/`overlay`가 각각 자기 규칙으로 세운다.
+/// 안 쓰는 상수를 남겨 두면 다음 사람이 `.zIndex(ReffiZ.modal)`로 시트를 세우려다 같은 계층 안에서만
+/// 도는 숫자라는 걸 뒤늦게 알게 된다. **스케일 정본은 §6.5 문서**고, 여기는 실사용분만 둔다.
 enum ReffiZ {
-    static let base: Double = 0
-    static let sticky: Double = 100   // 스티키 헤더·하단 액션바·＋ 버튼
+    /// 드롭다운·팝오버 — 루트 오버레이 안에서 스크롤 콘텐츠 위로 올린다(`PaperDropdown`).
     static let dropdown: Double = 1000
-    static let modal: Double = 2000
-    static let toast: Double = 3000
 }

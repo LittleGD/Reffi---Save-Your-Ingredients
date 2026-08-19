@@ -151,7 +151,7 @@ struct PaperChecklistDialog: View {
                 Spacer(minLength: 0)
             }
             .padding(.vertical, ReffiSpace.s1)
-            .frame(minHeight: 44)          // §7.3 — 행 전체가 타깃이다(작은 상자만 노리게 하지 않는다)
+            .frame(minHeight: ReffiChrome.tapMin)          // §7.3 — 행 전체가 타깃이다(작은 상자만 노리게 하지 않는다)
             .contentShape(Rectangle())
         }
         .buttonStyle(.reffiPress)
@@ -175,9 +175,9 @@ struct PaperChecklistDialog: View {
                     .overlay(PaperGrain(seed: UInt64(max(0, seed)) &+ 11, strength: 0.9).clipShape(shape))
                     .paperEdge(shape, tint: ReffiColor.paperEdgeOnFill)
                     .compositingGroup()
-                // blue 면 위의 콘텐츠는 흰색이다 — `PaperButtonLabel`의 primary와 같은 규약
+                // blue 면 위의 콘텐츠는 `onAccent`다 — `PaperButtonLabel`의 primary와 같은 규약
                 // (ink 면이 아니므로 `onInk`가 아니다: 그건 다크에서 뒤집히는 잉크 면 전용이다).
-                ReffiIcon.check.reffi(13, .bold).foregroundStyle(.white)
+                ReffiIcon.check.reffi(13, .bold).foregroundStyle(ReffiColor.onAccent)
             } else {
                 shape.fill(ReffiColor.paper).paperEdge(shape, tint: ReffiColor.ink.opacity(0.18))
             }

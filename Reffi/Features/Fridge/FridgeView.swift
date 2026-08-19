@@ -544,7 +544,7 @@ struct FridgeView: View {
                 let s = PaperRect(cornerRadius: ReffiRadius.sm, seed: 5)
                 s.fill(ReffiColor.paper).paperEdge(s)
             }
-            .frame(minHeight: 44)   // §7.3 터치 타깃
+            .frame(minHeight: ReffiChrome.tapMin)   // §7.3 터치 타깃
             .contentShape(Rectangle())
             .anchorPreference(key: DropdownAnchorKey.self, value: .bounds) {
                 openMenu == .sort ? $0 : nil
@@ -577,7 +577,7 @@ struct FridgeView: View {
                     let s = PaperRect(cornerRadius: ReffiRadius.sm, seed: 6)
                     s.fill(ReffiColor.paper).paperEdge(s)
                 }
-                .frame(minWidth: 44, minHeight: 44)   // §7.3
+                .frame(minWidth: ReffiChrome.tapMin, minHeight: ReffiChrome.tapMin)   // §7.3
                 .contentShape(Rectangle())
         }
         .buttonStyle(.paperPress)
@@ -861,7 +861,7 @@ struct ExpandedFridgeCard: View {
                         Button(action: onEdit) {
                             ReffiIcon.manual.reffi(16, .bold)
                                 .foregroundStyle(ReffiColor.ink2)
-                                .frame(minWidth: 44, minHeight: 44)   // §7.3 최소 터치 타깃
+                                .frame(minWidth: ReffiChrome.tapMin, minHeight: ReffiChrome.tapMin)   // §7.3 최소 터치 타깃
                                 .contentShape(Rectangle())
                         }
                         .buttonStyle(.paperPress)

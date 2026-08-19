@@ -70,10 +70,10 @@ struct PaperIconLabel: View {
         case .neutral: ReffiColor.sub
         }
     }
-    /// 솔리드(딥)면 흰 아이콘, 그 외 파스텔/틴트면 dark 아이콘(§2.6).
+    /// 솔리드(딥)면 `onAccent`(흰) 아이콘, 그 외 파스텔/틴트면 dark 아이콘(§2.6).
     private var iconColor: Color {
         switch intent {
-        case .primary: .white
+        case .primary: ReffiColor.onAccent
         case .soft:    ReffiColor.urgentDark
         case .fresh:   ReffiColor.freshDark
         case .soon:    ReffiColor.soonDark

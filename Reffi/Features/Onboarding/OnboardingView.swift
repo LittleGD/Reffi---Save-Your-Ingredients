@@ -213,7 +213,7 @@ struct OnboardingView: View {
             .padding(-12))
         // 카메라 배지 — "찍는" 행위.
         .overlay(alignment: .bottomTrailing) {
-            ReffiIcon.camera.reffi(18, .fill).foregroundStyle(.white)
+            ReffiIcon.camera.reffi(18, .fill).foregroundStyle(ReffiColor.onAccent)   // blue 면 위(§2.7)
                 .frame(width: 40, height: 40)
                 .background(ReffiColor.blue, in: Circle())
                 .overlay(Circle().stroke(ReffiColor.paper, lineWidth: 2.5))
@@ -300,7 +300,7 @@ struct OnboardingView: View {
             // Cook this 밴드(정적) — 실제 카드의 blue 발주 CTA를 종이컷+그레인으로 그대로 재연.
             Text("Cook this")
                 .font(ReffiTextRole.subhead.font).tracking(ReffiTextRole.subhead.tracking)
-                .foregroundStyle(.white)
+                .foregroundStyle(ReffiColor.onAccent)   // 실제 카드와 같은 blue 면 위 콘텐츠(§2.7)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, ReffiSpace.s2 + 1)
                 .background {
@@ -522,7 +522,7 @@ struct OnboardingView: View {
         HStack(spacing: 6) {
             ForEach(0...introLast, id: \.self) { i in
                 Circle()
-                    .fill(i == page ? ReffiColor.ink2 : ReffiColor.muted.opacity(0.3))
+                    .fill(i == page ? ReffiColor.ink2 : ReffiColor.muted.opacity(ReffiOpacity.inactive))
                     .frame(width: 7, height: 7)
             }
         }
@@ -611,8 +611,9 @@ struct OnboardingView: View {
     /// "Start" 도장 슬램 — 큰 상태에서 스프링으로 내려앉으며(오버슈트) 임팩트 햅틱.
     private var startStamp: some View {
         ZStack {
-            // 스크림은 양 모드 자연스러운 고정 검정 유지(순검정 딤).
-            Color.black.opacity(0.10).ignoresSafeArea()
+            // 모달 딤(`scrim`)이 아니라 **슬램 플래시**다 — 도장이 내려앉는 0.75초만 배경을 눌러
+            // 무게를 주는 조명이라, 손이 멈춰 있는 동안 서 있는 모달 딤과 역할이 갈린다(§2.7 `scrimFlash`).
+            ReffiColor.scrimFlash.ignoresSafeArea()
             DDayStamp(text: String(localized: "Start"), color: ReffiColor.blueDark, size: 46)
                 .scaleEffect(stampScale)
                 .opacity(stampOpacity)
@@ -642,7 +643,7 @@ struct OnboardingView: View {
         HStack(spacing: 6) {
             ForEach(0...setupLast, id: \.self) { i in
                 Circle()
-                    .fill(i == setupPage ? ReffiColor.ink2 : ReffiColor.muted.opacity(0.3))
+                    .fill(i == setupPage ? ReffiColor.ink2 : ReffiColor.muted.opacity(ReffiOpacity.inactive))
                     .frame(width: 7, height: 7)
             }
         }

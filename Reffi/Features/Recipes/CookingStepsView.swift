@@ -164,7 +164,7 @@ struct CookingStepsView: View {
                     Text("Cancel cooking, put ingredients back")
                         .reffiType(.caption)
                         .foregroundStyle(ReffiColor.ink2)
-                        .frame(maxWidth: .infinity, minHeight: 44)
+                        .frame(maxWidth: .infinity, minHeight: ReffiChrome.tapMin)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.reffiPress)
@@ -222,7 +222,7 @@ struct CookingStepsView: View {
             }
             .padding(.horizontal, ReffiSpace.s3)
             .padding(.vertical, ReffiSpace.s2)
-            .frame(minHeight: 44)
+            .frame(minHeight: ReffiChrome.tapMin)
             .contentShape(Rectangle())
         }
         .buttonStyle(.reffiPress)
@@ -366,7 +366,7 @@ struct CookingStepsView: View {
                 let shape = PaperCutRect(seed: 3)
                 shape.fill(ReffiColor.urgentLight)
                     .overlay(PaperGrain(seed: 14).clipShape(shape))
-                    .paperEdge(shape, tint: ReffiColor.urgentDark.opacity(0.18))
+                    .paperEdge(shape, tint: ReffiColor.paperEdgeAccent(ReffiColor.urgentDark))
                     .compositingGroup()
                     .reffiShadow1()
             }

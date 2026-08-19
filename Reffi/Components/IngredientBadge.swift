@@ -31,7 +31,7 @@ struct IngredientBadge: View {
             .padding(.trailing, ReffiSpace.s3 + 2)
             .padding(.vertical, ReffiSpace.s2 + 2)
             .background { surface }
-            .frame(minHeight: 44)              // §7.3 최소 터치 타깃
+            .frame(minHeight: ReffiChrome.tapMin)              // §7.3 최소 터치 타깃
             .contentShape(Rectangle())
         }
         .buttonStyle(.paperPress)
@@ -71,7 +71,7 @@ struct AddBadge: View {
                 shape.stroke(ReffiColor.muted.opacity(0.7),
                              style: StrokeStyle(lineWidth: 1.5, dash: [4, 4]))
             }
-            .frame(minHeight: 44)              // §7.3 최소 터치 타깃
+            .frame(minHeight: ReffiChrome.tapMin)              // §7.3 최소 터치 타깃
             .contentShape(Rectangle())
         }
         .buttonStyle(.paperPress)

@@ -179,14 +179,14 @@ struct ReceiptScanView: View {
                 // "선택 = 체크 글리프"는 PaperDropdown·To buy 타일과 같은 문법이다.
                 let box = PaperRect(cornerRadius: ReffiRadius.sm, seed: 6)
                 ReffiIcon.check.reffi(12, .bold)
-                    .foregroundStyle(isOn ? Color.white : .clear)
+                    .foregroundStyle(isOn ? ReffiColor.onAccent : .clear)   // blue 면 위 콘텐츠(§2.7)
                     .frame(width: 22, height: 22)
                     .background {
                         box.fill(isOn ? ReffiColor.blue : ReffiColor.paper)
                             .paperEdge(box, tint: isOn ? ReffiColor.paperEdgeOnFill
                                                        : ReffiColor.ink.opacity(0.18))
                     }
-                    .frame(width: 44, height: 44)
+                    .frame(width: ReffiChrome.tapMin, height: ReffiChrome.tapMin)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.paperPress)
@@ -224,7 +224,7 @@ struct ReceiptScanView: View {
                         let s = PaperRect(cornerRadius: ReffiRadius.sm, seed: 3)
                         s.fill(ReffiColor.paper).paperEdge(s)
                     }
-                    .frame(minWidth: 44, minHeight: 44)   // §7.3 터치 타깃
+                    .frame(minWidth: ReffiChrome.tapMin, minHeight: ReffiChrome.tapMin)   // §7.3 터치 타깃
                     .contentShape(Rectangle())
             }
             .buttonStyle(.paperPress)   // §7.5 — 종이 면에는 종이 프레스(.plain은 눌림이 없다)
@@ -448,7 +448,7 @@ private struct CandidateEditSheet: View {
             TextField("Name", text: $candidate.name,
                       prompt: Text("Name").foregroundStyle(ReffiColor.ink2))
                 .reffiType(.body).foregroundStyle(ReffiColor.ink)
-                .frame(minHeight: 44)
+                .frame(minHeight: ReffiChrome.tapMin)
 
             ReffiRule(.ticket)
 
@@ -469,7 +469,7 @@ private struct CandidateEditSheet: View {
                                      isOpen: openDropdown == .unit, seed: 5) { toggle(.unit) }
                     .accessibilityLabel(Text("Unit: \(candidate.quantity.unit.label)"))
             }
-            .frame(minHeight: 44)
+            .frame(minHeight: ReffiChrome.tapMin)
 
             ReffiRule(.ticket)
 
@@ -481,7 +481,7 @@ private struct CandidateEditSheet: View {
                                      isOpen: openDropdown == .storage, seed: 3) { toggle(.storage) }
                     .accessibilityLabel(Text("Storage: \(candidate.storage.label)"))
             }
-            .frame(minHeight: 44)
+            .frame(minHeight: ReffiChrome.tapMin)
 
             ReffiRule(.ticket)
 
@@ -495,14 +495,14 @@ private struct CandidateEditSheet: View {
                     .datePickerStyle(.compact)
                     .tint(ReffiColor.blue)
             }
-            .frame(minHeight: 44)
+            .frame(minHeight: ReffiChrome.tapMin)
 
             ReffiRule(.ticket)
 
             TextField("Where you bought it", text: $candidate.place,
                       prompt: Text("Where you bought it").foregroundStyle(ReffiColor.ink2))
                 .reffiType(.body).foregroundStyle(ReffiColor.ink)
-                .frame(minHeight: 44)
+                .frame(minHeight: ReffiChrome.tapMin)
         }
         .receiptSurface()
     }

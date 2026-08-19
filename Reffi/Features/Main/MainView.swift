@@ -297,7 +297,7 @@ struct MainView: View {
                     Button { scene.shakeBurst() } label: {
                         Text(verbatim: "SHAKE")
                             .reffiType(.monoEyebrow)
-                            .foregroundStyle(.white)
+                            .foregroundStyle(ReffiColor.onAccent)   // blue 면 위 콘텐츠(§2.7)
                             .padding(.horizontal, ReffiSpace.s3)
                             .padding(.vertical, 4)
                             .background(ReffiColor.blue, in: Capsule())
@@ -426,7 +426,7 @@ struct MainView: View {
                         s.fill(ReffiColor.sub)
                             .paperEdge(s, tint: ReffiColor.blueDark.opacity(0.38), width: 1.2)
                     }
-                    .frame(minHeight: 44)
+                    .frame(minHeight: ReffiChrome.tapMin)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.reffiPress)
@@ -434,14 +434,14 @@ struct MainView: View {
                 Text("Later")
                     .reffiType(.pillLabel)
                     .foregroundStyle(ReffiColor.ink2)
-                    .frame(minWidth: 44, minHeight: 44)
+                    .frame(minWidth: ReffiChrome.tapMin, minHeight: ReffiChrome.tapMin)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.reffiPress)
         }
         .padding(.horizontal, ReffiSpace.s4)
         .padding(.vertical, ReffiSpace.s1)
-        .frame(minHeight: 44)
+        .frame(minHeight: ReffiChrome.tapMin)
         .background {
             let shape = ReceiptShape(tooth: ReffiTooth.chip)
             shape.fill(ReffiColor.paper).paperEdge(shape)
@@ -602,7 +602,7 @@ struct MainView: View {
                         .reffiType(.caption)
                         .foregroundStyle(ReffiColor.blueDark)
                         .underline()
-                        .frame(minHeight: 44)
+                        .frame(minHeight: ReffiChrome.tapMin)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.reffiPress)
@@ -843,7 +843,7 @@ private struct DecisionCover: View {
             Text("Keep it")
                 .reffiType(.caption)
                 .foregroundStyle(ReffiColor.ink2)
-                .frame(minWidth: 44, minHeight: 44)
+                .frame(minWidth: ReffiChrome.tapMin, minHeight: ReffiChrome.tapMin)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.reffiPress)

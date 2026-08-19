@@ -206,7 +206,7 @@ struct OrderMemoCard: View {
             Button { fire() } label: {
                 Text("Cook this")
                     .font(ReffiTextRole.subhead.font).tracking(ReffiTextRole.subhead.tracking)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(ReffiColor.onAccent)   // blue 면 위 콘텐츠(§2.7)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, ReffiSpace.s3 + 1)
                     .background {
@@ -267,10 +267,10 @@ struct OrderMemoCard: View {
             .background {
                 let shape = PaperRect(cornerRadius: ReffiRadius.sm, seed: number &+ 7)
                 shape.fill(ReffiColor.blueLight)
-                    .paperEdge(shape, tint: ReffiColor.blueDark.opacity(0.18))
+                    .paperEdge(shape, tint: ReffiColor.paperEdgeAccent(ReffiColor.blueDark))
             }
             // 시각은 작아도 히트 영역은 44pt(§7.3) — 투명 여백으로 확보한다.
-            .frame(minWidth: 44, minHeight: 44)
+            .frame(minWidth: ReffiChrome.tapMin, minHeight: ReffiChrome.tapMin)
             .contentShape(Rectangle())
         }
         .buttonStyle(.paperPress)

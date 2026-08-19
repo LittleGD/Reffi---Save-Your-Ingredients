@@ -21,7 +21,7 @@ struct QuietButton: View {
             .foregroundStyle(tint)
             .padding(.vertical, ReffiSpace.s2)
             .padding(.horizontal, ReffiSpace.s2)
-            .frame(minHeight: 44)   // §7.3 터치 타깃
+            .frame(minHeight: ReffiChrome.tapMin)   // §7.3 터치 타깃
             .contentShape(Rectangle())
         }
         .buttonStyle(.reffiPress)

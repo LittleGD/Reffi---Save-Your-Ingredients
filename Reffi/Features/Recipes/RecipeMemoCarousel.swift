@@ -430,7 +430,7 @@ struct RecipeMemoCarousel: View {
             } label: {
                 ReffiIcon.youtube.reffi(18, .fill)
                     .foregroundStyle(ReffiColor.urgentDark)
-                    .frame(width: 44, height: 44)   // 시각 18pt, 히트 44pt(§7.3)
+                    .frame(width: ReffiChrome.tapMin, height: ReffiChrome.tapMin)   // 시각 18pt, 히트 44pt(§7.3)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.paperPress)
@@ -439,7 +439,7 @@ struct RecipeMemoCarousel: View {
         }
         .padding(.leading, ReffiSpace.s4)
         .padding(.trailing, ReffiSpace.s1)
-        .frame(minHeight: 44)
+        .frame(minHeight: ReffiChrome.tapMin)
         .background {
             let shape = PaperRect(cornerRadius: ReffiRadius.sm, seed: 5)
             shape.fill(ReffiColor.paper)

@@ -300,7 +300,7 @@ struct RecipeEditorView: View {
                 .background {
                     // 조용한 종이 면 + urgent 틴트 헤어라인(보더 아님) — 그림자 없이 Save보다 잔잔하게.
                     let s = PaperRect(cornerRadius: ReffiRadius.md, seed: 9)
-                    s.fill(ReffiColor.paper).paperEdge(s, tint: ReffiColor.urgentDark.opacity(0.18))
+                    s.fill(ReffiColor.paper).paperEdge(s, tint: ReffiColor.paperEdgeAccent(ReffiColor.urgentDark))
                 }
             }
             .buttonStyle(.paperPress)

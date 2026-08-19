@@ -19,7 +19,9 @@ struct PaperButtonLabel: View {
     var isBusy: Bool = false
 
     private var fill: Color { kind == .primary ? ReffiColor.blue : ReffiColor.sub }
-    private var foreground: Color { kind == .primary ? .white : ReffiColor.ink }
+    // blue 면 위 콘텐츠는 `onAccent`다(§2.7) — 흰색인 근거가 `blue`의 다크 L 상한에 묶여 있으므로
+    // 리터럴 `.white`가 아니라 토큰으로 부른다. ink 면 위의 `onInk`와는 다른 토큰이다.
+    private var foreground: Color { kind == .primary ? ReffiColor.onAccent : ReffiColor.ink }
 
     var body: some View {
         HStack(spacing: ReffiSpace.s2) {

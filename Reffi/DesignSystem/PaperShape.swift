@@ -149,6 +149,32 @@ extension View {
     func paperEdge<S: Shape>(_ shape: S, tint: Color = ReffiColor.paperEdge, width: CGFloat = 1) -> some View {
         overlay(shape.stroke(tint, lineWidth: width))
     }
+
+    /// 입력 필드 한 칸(§13.8) — 면(`field`) + 필드 단면(`paperEdgeField`) + 패딩 + 터치 타깃을 한 번에.
+    ///
+    /// `receiptSurface`가 영수증 카드에 한 것을 필드에 한다. 손으로 재조립하던 시절 같은 역할이
+    /// canvas / paper / receipt+그레인 / 면 없음 **네 갈래**로 갈렸고, 갈린 축이 부모 면이었다 —
+    /// 시트 캔버스 위 필드와 영수증 카드 위 필드가 서로 다른 종이를 골랐다. 면은 `ReffiColor.field`가
+    /// 두 부모 사이에 앉아 해결하고, 여기서는 그 면에 딸린 패딩·히트·그레인까지 한 곳에 묶는다.
+    ///
+    /// **그레인을 넣는 이유**: 이 앱에서 매끈한 면은 시스템 컨트롤이고 종이는 전부 결을 갖는다.
+    /// 옆 타일이 결을 가진 화면에서 필드만 매끈하면 인풋만 다른 재질(플라스틱)로 읽힌다(장보기 검색 선례).
+    ///
+    /// **카드 안의 행(row) 필드에는 쓰지 않는다** — 영수증 카드가 이미 "쓰는 종이"라 그 위에 또 한 장을
+    /// 얹으면 종이가 겹친다. 그쪽은 면 없이 절취선(`ReffiRule(.ticket)`)이 행을 나눈다(§13.1).
+    func fieldSurface(seed: Int = 0) -> some View {
+        let shape = PaperRect(cornerRadius: ReffiRadius.md, seed: seed)
+        return self
+            .padding(.horizontal, ReffiSpace.s4)
+            .padding(.vertical, ReffiSpace.s3)
+            .frame(minHeight: ReffiChrome.tapMin)   // §7.3 터치 타깃
+            .background {
+                shape.fill(ReffiColor.field)
+                    .overlay(PaperGrain(seed: UInt64(max(0, seed)) &+ 11, strength: 0.5).clipShape(shape))
+                    .paperEdge(shape, tint: ReffiColor.paperEdgeField)
+                    .compositingGroup()
+            }
+    }
 }
 
 /// 결정적 의사난수(시드 LCG) — 종이 그레인이 매 프레임 바뀌지 않게 고정.

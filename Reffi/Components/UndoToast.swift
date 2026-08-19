@@ -19,7 +19,7 @@ struct UndoToast: View {
                 Text("Undo")
                     .reffiType(.pillLabel)
                     .foregroundStyle(ReffiColor.toastAction)   // 고정 사유는 토큰 정의 주석 참조
-                    .frame(minWidth: 44, minHeight: 44)
+                    .frame(minWidth: ReffiChrome.tapMin, minHeight: ReffiChrome.tapMin)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.paperPress)

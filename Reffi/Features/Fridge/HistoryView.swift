@@ -413,7 +413,7 @@ struct HistoryContent: View {
                 Text("Show \(step) more")
                     .reffiType(.checklistItem)
                     .foregroundStyle(ReffiColor.blueDark)   // §2.6 종이 위 파랑 잉크는 blueDark
-                    .frame(maxWidth: .infinity, minHeight: 44)   // §7.3 최소 터치 타깃
+                    .frame(maxWidth: .infinity, minHeight: ReffiChrome.tapMin)   // §7.3 최소 터치 타깃
                     .contentShape(Rectangle())
             }
             .buttonStyle(.reffiPress)

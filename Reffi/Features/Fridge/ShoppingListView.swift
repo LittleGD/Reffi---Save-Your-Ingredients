@@ -226,7 +226,7 @@ struct ShoppingListContent: View {
                         let s = PaperRect(cornerRadius: ReffiRadius.pill, seed: 1)
                         s.fill(ReffiColor.blueLight).paperEdge(s)
                     }
-                    .frame(minHeight: 44)
+                    .frame(minHeight: ReffiChrome.tapMin)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.paperPress)
@@ -244,7 +244,7 @@ struct ShoppingListContent: View {
         Button { remove(item) } label: {
             ReffiIcon.delete.reffi(16, .bold)
                 .foregroundStyle(ReffiColor.urgentDark)
-                .frame(width: Self.revealWidth - ReffiSpace.s2, height: 44)
+                .frame(width: Self.revealWidth - ReffiSpace.s2, height: ReffiChrome.tapMin)   // §7.3
                 .background {
                     let s = PaperRect(cornerRadius: ReffiRadius.md, seed: 7)
                     s.fill(ReffiColor.urgentLight).paperEdge(s)
@@ -426,21 +426,10 @@ private struct ToBuySearchSheet: View {
                 .accessibilityLabel(Text("Clear search"))
             }
         }
-        .padding(.horizontal, ReffiSpace.s4)
-        .padding(.vertical, ReffiSpace.s3)
-        .frame(minHeight: 44)   // §7.3 터치 타깃
-        .background {
-            let s = PaperRect(cornerRadius: ReffiRadius.md, seed: 6)
-            // receipt — 원본 픽커 검색 필드의 인라인 값 oklch(0.985, 0.004, 90)이 곧 이 토큰이고,
-            // 시트 안의 다른 종이 면(타일·listCard·emptyCard·noMatchCard)도 전부 receipt다.
-            // paper(0.99, 0.006, 90)는 다른 토큰이라 여기만 남으면 시트 안 종이결이 갈라진다.
-            // 그레인도 타일과 같은 대역으로 얹는다 — 바로 아래 타일이 전부 종이결을 갖는데 필드만
-            // 매끈하면 같은 시트 안에서 인풋만 다른 재질(플라스틱)로 읽힌다.
-            s.fill(ReffiColor.receipt)
-                .overlay(PaperGrain(seed: 6, strength: 0.5).clipShape(s))
-                .paperEdge(s, tint: ReffiColor.paperEdgeField)
-                .compositingGroup()
-        }
+        // §13.8 필드 한 칸 — 면·그레인·헤어라인·패딩·히트가 한 모디파이어에서 나온다.
+        // 이 필드는 종이 카드가 아니라 시트 캔버스 위에 직접 서는 독립 필드라 면을 갖는다
+        // (영수증 카드 **안**의 행 필드는 반대로 면 없이 절취선이 나눈다).
+        .fieldSurface(seed: 6)
     }
 
     @ViewBuilder private var content: some View {
@@ -493,7 +482,7 @@ private struct ToBuySearchSheet: View {
             }
             .padding(.horizontal, ReffiSpace.s4)
             .padding(.vertical, ReffiSpace.s3)
-            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)   // §7.3 터치 타깃
+            .frame(maxWidth: .infinity, minHeight: ReffiChrome.tapMin, alignment: .leading)   // §7.3 터치 타깃
             .background {
                 // 그리드 타일과 같은 종이 문법(면 `receipt` + 옅은 그레인 + 헤어라인).
                 let s = PaperRect(cornerRadius: ReffiRadius.md, seed: 7)
@@ -601,7 +590,7 @@ private struct ToBuySearchSheet: View {
             }
             .padding(.vertical, ReffiSpace.s2)
             .padding(.horizontal, ReffiSpace.s1)
-            .frame(maxWidth: .infinity, minHeight: 44)   // §7.3 터치 타깃
+            .frame(maxWidth: .infinity, minHeight: ReffiChrome.tapMin)   // §7.3 터치 타깃
             .background {
                 // 종이 시드는 `ReffiHash.stable` — `String.hashValue`는 런치마다 시드가 바뀌어 같은 타일이
                 // 매번 다른 종이결로 뜨고 스크린샷 회귀가 불가능해진다(요리 아이콘 색과 같은 유틸을 공유한다).

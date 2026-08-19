@@ -35,7 +35,7 @@ struct CoverHeader<Accessory: View>: View {
     var body: some View {
         VStack(spacing: ReffiSpace.s1) {
             HStack(alignment: .center, spacing: 0) {
-                Color.clear.frame(width: 44, height: 44)   // 우측 X(44)와 대칭 — 타이틀 진짜 중앙
+                Color.clear.frame(width: ReffiChrome.tapMin, height: ReffiChrome.tapMin)   // 우측 X(44)와 대칭 — 타이틀 진짜 중앙
                 Spacer(minLength: ReffiSpace.s2)
                 VStack(spacing: 1) {
                     Text(title)
