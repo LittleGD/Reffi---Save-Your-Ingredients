@@ -55,7 +55,6 @@ struct MainView: View {
     @State private var decisionHaptic = 0
 
     private let margin = ReffiGrid.margin
-    private let navClearance: CGFloat = 86
 
     private var counter: [Ingredient] { store.counterIngredients }
     private var carouselResults: [RecipeRecommender.Result] {
@@ -122,7 +121,10 @@ struct MainView: View {
             PaperButton(title: "Start cooking") { cook() }
                 .padding(.horizontal, margin)
                 .padding(.top, ReffiSpace.s3)
-                .padding(.bottom, navClearance)
+                // 스크롤이 아니라 화면에 못 박힌 CTA라 **자리 예약** 쪽이다(§9.3) — 냉장고 펼침의
+                // 바닥 여백과 같은 값을 본다. 홈만 자기 상수(86)를 들고 있어 네비 높이를 건드리면
+                // 여기만 조용히 어긋났다.
+                .padding(.bottom, ReffiChrome.navReserve)
                 .disabled(counter.isEmpty)   // 디밍은 PaperButton이 §7.2로 처리 — 여기서 겹치면 곱해진다.
         }
         .animation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion), value: store.activeCook)
@@ -310,7 +312,7 @@ struct MainView: View {
             }
             .reffiShadow1()
             .padding(.horizontal, margin)
-            .padding(.bottom, navClearance + 60)
+            .padding(.bottom, ReffiChrome.navReserve + 60)
             .onAppear {
                 pushTiltLab()
                 scene.onClatter = { [clatterLog] in

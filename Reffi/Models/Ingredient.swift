@@ -278,6 +278,19 @@ struct Ingredient: Identifiable, Codable, Equatable {
         }
     }
 
+    /// 남은 일수를 **소리로** 읽는 문구 — 화면 표기(`dDayText`)는 도장·배지 폭에 맞춘 축약이라
+    /// 보조기술에는 그대로 쓸 수 없다("3d"는 문자 그대로 "삼디"로 읽히고, 영문 음성은 3D(입체)와 겹친다).
+    /// 표기와 문구를 **한 쌍으로** 여기 둔다 — 화면마다 손으로 적으면 한쪽만 고쳐져 둘이 어긋난다.
+    var dDayAccessibilityText: String { Self.dDayAccessibilityText(daysLeft: effectiveDaysLeft) }
+
+    static func dDayAccessibilityText(daysLeft: Int) -> String {
+        switch daysLeft {
+        case ..<0: String(localized: "Past use-by date", comment: "Spoken D-day label when past the use-by date")
+        case 0:    String(localized: "Expires today", comment: "Spoken D-day label when expiring today")
+        default:   String(localized: "\(daysLeft) days left", comment: "Spoken D-day label, e.g. 3 days left")
+        }
+    }
+
     var purchasedText: String { purchasedAt.formatted(date: .abbreviated, time: .omitted) }
     var expiresText: String { effectiveExpiresAt.formatted(date: .abbreviated, time: .omitted) }
     var placeText: String { place.isEmpty ? "–" : place }

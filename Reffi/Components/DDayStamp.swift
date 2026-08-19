@@ -8,9 +8,18 @@ struct DDayStamp: View {
     let text: String
     let color: Color
     var size: CGFloat = 13
+    /// 올캡으로 찍을 것인가 — **크롬 단어 전용**이다(FROZEN·DAY 12·Start). 그 라벨들은 영문 원문이
+    /// 이미 도장 문법으로 쓰여 있어 올캡이 시각 문법이고, 한국어에선 `.uppercased()`가 no-op이라 무해하다.
+    /// 반대로 **번역되는 데이터 라벨은 반드시 `false`**다(§3.5, `GlyphStamp` 주석의 그 원칙): 남은 일수는
+    /// `Ingredient.dDayText`가 "3d"·"Today"로 내는 값인데 올캡을 씌우면 영문에서 "3D"(3차원)로 읽히고
+    /// "TODAY"는 이 앱이 아무 데서도 쓰지 않는 표기가 된다.
+    var caps: Bool = true
+    /// 보조기술이 읽을 문구 — 도장은 자리를 아끼려 줄인 표기(3d)라 소리로는 뜻이 서지 않는다.
+    /// nil이면 보이는 글자를 그대로 읽는다(FROZEN처럼 축약이 아닌 크롬 단어).
+    var accessibilityLabel: String?
 
     var body: some View {
-        Text(text.uppercased())
+        Text(caps ? text.uppercased() : text)
             .font(.reffiStamp(size))
             .monospacedDigit()          // §3.4 — 자릿수가 바뀌어도 도장 폭이 흔들리지 않게
             .tracking(size * 0.06)
@@ -22,7 +31,7 @@ struct DDayStamp: View {
                     .stroke(color, lineWidth: max(1.6, size * 0.12))
             }
             .rotationEffect(.degrees(-7))
-            .accessibilityLabel(text)
+            .accessibilityLabel(accessibilityLabel ?? text)
     }
 }
 

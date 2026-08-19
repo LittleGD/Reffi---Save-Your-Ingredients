@@ -422,7 +422,7 @@ private struct ToBuySearchSheet: View {
                         .frame(width: 30, height: 30)
                         .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.reffiPress)   // §7.2 — .plain은 눌림이 없다(앱에서 유일하게 남아 있던 자리)
                 .accessibilityLabel(Text("Clear search"))
             }
         }

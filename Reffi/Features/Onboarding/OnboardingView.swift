@@ -241,7 +241,11 @@ struct OnboardingView: View {
         ZStack(alignment: .topTrailing) {
             PaperSilhouette(glyph: .egg, fresh: .fresh)
                 .frame(width: 132, height: 132)
-            DDayStamp(text: String(localized: "Today"), color: ReffiColor.urgentDark, size: 15)
+            // 이 도장은 크롬 단어가 아니라 **D-day 표기**다(`Ingredient.dDayText`가 오늘에 내는 그 값) —
+            // 온보딩이 가르친 표기를 본 앱이 그대로 써야 하므로 캡스도 냉장고 도장과 같이 간다.
+            DDayStamp(text: String(localized: "Today"), color: ReffiColor.urgentDark, size: 15,
+                      caps: false,
+                      accessibilityLabel: Ingredient.dDayAccessibilityText(daysLeft: 0))
                 .offset(x: 14, y: -6)
         }
     }

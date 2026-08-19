@@ -174,16 +174,21 @@ struct ReceiptScanView: View {
             .accessibilityLabel(Text(verbatim: c.name))
             .accessibilityValue(isOn ? Text("Selected") : Text(verbatim: ""))
 
-            VStack(alignment: .leading, spacing: 1) {
-                HStack(spacing: ReffiSpace.s2) {
-                    Text(verbatim: c.name).reffiType(.body).foregroundStyle(ReffiColor.ink)
-                    if c.showsEstimateBadge { estimateBadge }
+            // 이름 블록도 체크와 **같은 토글**이라 같은 컨트롤이어야 한다 — 탭 제스처만 얹으면
+            // 보조기술엔 그냥 글자로 서고(누를 수 있다는 신호가 없다) 눌림도 없다(§7.5).
+            Button { toggleSelection(c.id) } label: {
+                VStack(alignment: .leading, spacing: 1) {
+                    HStack(spacing: ReffiSpace.s2) {
+                        Text(verbatim: c.name).reffiType(.body).foregroundStyle(ReffiColor.ink)
+                        if c.showsEstimateBadge { estimateBadge }
+                    }
+                    Text(verbatim: c.rawLine).reffiType(.caption).foregroundStyle(ReffiColor.muted)
+                        .lineLimit(1)
                 }
-                Text(verbatim: c.rawLine).reffiType(.caption).foregroundStyle(ReffiColor.muted)
-                    .lineLimit(1)
+                .contentShape(Rectangle())
             }
-            .contentShape(Rectangle())
-            .onTapGesture { toggleSelection(c.id) }
+            .buttonStyle(.paperPress)
+            .accessibilityValue(isOn ? Text("Selected") : Text(verbatim: ""))
 
             Spacer(minLength: ReffiSpace.s2)
 

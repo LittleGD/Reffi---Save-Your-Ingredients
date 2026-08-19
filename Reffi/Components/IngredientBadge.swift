@@ -35,7 +35,8 @@ struct IngredientBadge: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.paperPress)
-        .accessibilityLabel(Text("\(ingredient.displayName), \(ingredient.dDayText)"))
+        // 화면의 "3d"는 뱃지 폭에 맞춘 축약이라 소리로는 뜻이 서지 않는다 — 읽을 때는 풀어 쓴다.
+        .accessibilityLabel(Text("\(ingredient.displayName), \(ingredient.dDayAccessibilityText)"))
         .accessibilityHint(Text("Decide: eaten or tossed?"))
     }
 

@@ -25,6 +25,13 @@ final class ReffiFlowUITests: XCTestCase {
         XCTAssertEqual(XCTWaiter().wait(for: [gone], timeout: timeout), .completed, message)
     }
 
+    /// 재고 영수증 카드 — 카드가 **버튼**이 되면서 재료 이름은 그 버튼 라벨의 한 조각이 됐다
+    /// (버튼은 라벨의 글자들을 하나의 접근성 원소로 합친다). 이름만 보는 staticText 셀렉터는
+    /// 그래서 더 이상 성립하지 않는다 — 이름을 품은 버튼으로 집는다.
+    private func stockCard(_ app: XCUIApplication, _ name: String) -> XCUIElement {
+        app.buttons.matching(NSPredicate(format: "label CONTAINS %@", name)).firstMatch
+    }
+
     /// 온보딩을 처음부터 시작. `-skipAuth`로 게스트 상태를 로컬에 고정해, 셋업 완료 후
     /// 메인 진입이 실제 익명 로그인 네트워크 호출에 좌우되지 않고 결정론적으로 검증되게 한다
     /// (게이트 로직 자체는 세션 유무와 무관하게 온보딩 완료 시 곧장 메인으로 보낸다).
@@ -116,7 +123,7 @@ final class ReffiFlowUITests: XCTestCase {
         XCTAssertFalse(toBuyTab.isSelected, "선택은 하나뿐")
         XCTAssertFalse(historyTab.isSelected, "선택은 하나뿐")
         // In stock 패인의 고유 콘텐츠 — 영수증 스택과 목록 조작 크롬.
-        XCTAssertTrue(app.staticTexts["Beef"].waitForExistence(timeout: 4), "재고 영수증 카드")
+        XCTAssertTrue(stockCard(app, "Beef").waitForExistence(timeout: 4), "재고 영수증 카드")
         XCTAssertTrue(app.buttons["Sort: Expiring first"].exists, "재고 패인의 정렬 칩")
         // 패인 헤드라인은 **자기 패인에만** 선다 — In stock의 첫 블록은 컨트롤 한 줄이고,
         // 이름 붙일 종이가 따로 없어 헤드라인을 두지 않는다.
@@ -178,7 +185,7 @@ final class ReffiFlowUITests: XCTestCase {
         // 다시 In stock — 패인 왕복 뒤에도 목록 조작 크롬이 그대로 돌아온다.
         stockTab.tap()
         XCTAssertTrue(stockTab.isSelected, "In stock으로 복귀")
-        XCTAssertTrue(app.staticTexts["Beef"].waitForExistence(timeout: 4), "재고 영수증 카드 복귀")
+        XCTAssertTrue(stockCard(app, "Beef").waitForExistence(timeout: 4), "재고 영수증 카드 복귀")
 
         // 카테고리 필터 — 가로 스크롤 칩 행이 컨트롤 한 줄의 드롭다운 하나로 접혔다.
         let categoryPill = app.buttons["Filter: All"]
@@ -189,14 +196,14 @@ final class ReffiFlowUITests: XCTestCase {
         XCTAssertTrue(vegRow.waitForExistence(timeout: 4), "카테고리 행은 이름 + 개수를 함께 읽는다")
         vegRow.tap()
         XCTAssertTrue(app.buttons["Filter: Veg"].waitForExistence(timeout: 4), "선택이 트리거 라벨에 반영")
-        waitForDisappearance(app.staticTexts["Beef"], "Veg로 좁히면 고기 카드는 목록에서 빠진다")
+        waitForDisappearance(stockCard(app, "Beef"), "Veg로 좁히면 고기 카드는 목록에서 빠진다")
         attach(app, named: "fridge-in-stock-filtered")
 
         // All로 원복 — 드롭다운에서 해제 경로는 목록 맨 위 "All"이다(칩 재탭이 아니다).
         app.buttons["Filter: Veg"].tap()
         app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "All ")).firstMatch.tap()
         XCTAssertTrue(app.buttons["Filter: All"].waitForExistence(timeout: 4), "All로 복귀")
-        XCTAssertTrue(app.staticTexts["Beef"].waitForExistence(timeout: 4), "필터를 풀면 전체 목록 복귀")
+        XCTAssertTrue(stockCard(app, "Beef").waitForExistence(timeout: 4), "필터를 풀면 전체 목록 복귀")
 
         // 보기 토글(원탭 버튼) — 간편보기 전환(수량 텍스트가 노출되는 행으로 바뀜)
         let toCompact = app.buttons["Switch to simple view"]
@@ -217,7 +224,7 @@ final class ReffiFlowUITests: XCTestCase {
 
         // 상태 원복(스택 보기·임박한 순) — 테스트가 기기 저장 상태를 오염시키지 않게.
         app.buttons["Switch to stack view"].tap()
-        XCTAssertTrue(app.staticTexts["Beef"].waitForExistence(timeout: 4), "스택 카드 복귀")
+        XCTAssertTrue(stockCard(app, "Beef").waitForExistence(timeout: 4), "스택 카드 복귀")
         app.buttons["Sort: Recently added"].tap()
         app.buttons["Expiring first"].tap()
         XCTAssertTrue(app.buttons["Sort: Expiring first"].waitForExistence(timeout: 4), "기본 정렬 복귀")
@@ -285,7 +292,7 @@ final class ReffiFlowUITests: XCTestCase {
 
         // ② In stock에서 판정 한 번(먹음).
         stockTab.tap()
-        let card = app.staticTexts["Beef"]
+        let card = stockCard(app, "Beef")
         XCTAssertTrue(card.waitForExistence(timeout: 4), "재고 카드")
         card.tap()
         let ate = app.buttons["Ate"]

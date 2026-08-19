@@ -314,14 +314,21 @@ struct FridgeView: View {
                     } else {
                         VStack(spacing: overlap) {
                             ForEach(Array(items.enumerated()), id: \.element.id) { i, ing in
-                                FridgeCard(ingredient: ing, depth: i, seed: i, height: cardHeight)
-                                    .matchedGeometryEffect(id: ing.id, in: ns)
-                                    .zIndex(Double(i))
-                                    .contentShape(Rectangle())
-                                    .onTapGesture { select(ing) }
-                                    .padding(.horizontal, cardInset)
-                                    .rotationEffect(.degrees(tilt(i)))
-                                    .offset(x: slip(i))
+                                // 카드는 **버튼**이다 — 탭 제스처만 얹으면 보조기술에 버튼 트레잇이 서지 않고
+                                // (VoiceOver가 "누를 수 있다"고 말할 근거가 없다) 눌림 피드백도 없다.
+                                // 겹침·틸트를 만드는 modifier는 버튼 밖에 남긴다: zIndex는 형제 순서를
+                                // 정하는 값이라 라벨 안에서는 뜻이 없고, 회전·오프셋은 히트 영역까지 함께 돈다.
+                                Button { select(ing) } label: {
+                                    FridgeCard(ingredient: ing, depth: i, seed: i, height: cardHeight)
+                                        .matchedGeometryEffect(id: ing.id, in: ns)
+                                        .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.paperPress)
+                                .accessibilityHint(Text("Opens details"))
+                                .zIndex(Double(i))
+                                .padding(.horizontal, cardInset)
+                                .rotationEffect(.degrees(tilt(i)))
+                                .offset(x: slip(i))
                             }
                         }
                     }
@@ -336,10 +343,13 @@ struct FridgeView: View {
     private var compactList: some View {
         LazyVStack(spacing: ReffiSpace.s2) {
             ForEach(items) { ing in
-                FridgeCompactRow(ingredient: ing)
-                    .matchedGeometryEffect(id: ing.id, in: ns)
-                    .contentShape(Rectangle())
-                    .onTapGesture { select(ing) }
+                Button { select(ing) } label: {
+                    FridgeCompactRow(ingredient: ing)
+                        .matchedGeometryEffect(id: ing.id, in: ns)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.paperPress)
+                .accessibilityHint(Text("Opens details"))
             }
         }
         .padding(.horizontal, cardInset)
@@ -419,11 +429,14 @@ struct FridgeView: View {
         let visible = CGFloat(count - 1) * peek + 48
         return VStack(spacing: -(cardHeight - peek)) {
             ForEach(Array(others.enumerated()), id: \.element.id) { i, ing in
-                FridgeCard(ingredient: ing, depth: i, seed: ing.daysLeft, height: cardHeight)
-                    .matchedGeometryEffect(id: ing.id, in: ns)
-                    .zIndex(Double(i))
-                    .contentShape(Rectangle())
-                    .onTapGesture { select(ing) }
+                Button { select(ing) } label: {
+                    FridgeCard(ingredient: ing, depth: i, seed: ing.daysLeft, height: cardHeight)
+                        .matchedGeometryEffect(id: ing.id, in: ns)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.paperPress)
+                .accessibilityHint(Text("Opens details"))
+                .zIndex(Double(i))
             }
         }
         .frame(height: visible, alignment: .top)
@@ -432,7 +445,10 @@ struct FridgeView: View {
         .padding(.horizontal, ReffiGrid.margin + cardInset)
         .padding(.bottom, ReffiChrome.navReserve)
         // 위로 스와이프(또는 탭) → 냉장고 스택으로 촤라락 복귀.
-        .gesture(
+        // `simultaneousGesture`인 이유는 To buy 행(`ShoppingListView.row`)과 같다 — 안쪽이 버튼이 되면
+        // `gesture`는 안쪽 제스처에 밀려 한 번도 잡히지 않는다. 동시로 두면 탭은 버튼이, 위로 미는 손은
+        // 이 제스처가 가져간다(스와이프는 카드 위쪽 띠에서 시작해 카드 밖으로 나가므로 둘이 겹치지 않는다).
+        .simultaneousGesture(
             DragGesture(minimumDistance: 16)
                 .onEnded { v in if v.translation.height < -36 { deselect() } }
         )
@@ -706,6 +722,7 @@ struct FridgeCompactRow: View {
             Text(ingredient.dDayText)
                 .font(.reffiNum(.body))
                 .foregroundStyle(f.dark)   // §2.6 캔버스/종이 위 색-텍스트는 dark
+                .accessibilityLabel(ingredient.dDayAccessibilityText)
         }
         .padding(.horizontal, ReffiSpace.s4)
         .padding(.vertical, ReffiSpace.s3)
@@ -743,7 +760,8 @@ struct FridgeCard: View {
                 if ingredient.isFrozen {
                     DDayStamp(text: String(localized: "FROZEN"), color: ReffiColor.blueDark, size: 12)
                 }
-                DDayStamp(text: ingredient.dDayText, color: f.dark, size: 17)
+                DDayStamp(text: ingredient.dDayText, color: f.dark, size: 17,
+                          caps: false, accessibilityLabel: ingredient.dDayAccessibilityText)
             }
             HStack(spacing: ReffiSpace.s3) {
                 PaperSilhouette(glyph: ingredient.glyph, fresh: f)
@@ -800,7 +818,8 @@ struct ExpandedFridgeCard: View {
                         if ingredient.isFrozen {
                             DDayStamp(text: String(localized: "FROZEN"), color: ReffiColor.blueDark, size: 11)
                         }
-                        DDayStamp(text: ingredient.dDayText, color: f.dark, size: 14)
+                        DDayStamp(text: ingredient.dDayText, color: f.dark, size: 14,
+                                  caps: false, accessibilityLabel: ingredient.dDayAccessibilityText)
                     }
                 }
             }

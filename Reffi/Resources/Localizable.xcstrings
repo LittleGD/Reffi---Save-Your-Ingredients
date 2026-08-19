@@ -3511,6 +3511,89 @@
           }
         }
       }
+    },
+    "Opens details" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "상세를 열어요"
+          }
+        }
+      }
+    },
+    "Expires today" : {
+      "comment" : "Spoken D-day label when expiring today",
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "오늘까지"
+          }
+        }
+      }
+    },
+    "Past use-by date" : {
+      "comment" : "Spoken D-day label when past the use-by date",
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "소비기한 지남"
+          }
+        }
+      }
+    },
+    "%lld days left" : {
+      "comment" : "Spoken D-day label, e.g. 3 days left",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld day left"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld days left"
+                }
+              }
+            }
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld일 남음"
+          }
+        }
+      }
+    },
+    "Logging in…" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "로그인 중…"
+          }
+        }
+      }
+    },
+    "Signing up…" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "가입 중…"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"
