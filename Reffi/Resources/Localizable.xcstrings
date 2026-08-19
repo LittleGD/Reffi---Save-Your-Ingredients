@@ -2060,16 +2060,6 @@
         }
       }
     },
-    "One sec…" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "잠시만요…"
-          }
-        }
-      }
-    },
     "Onion, Egg, Rice…" : {
       "localizations" : {
         "ko" : {

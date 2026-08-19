@@ -313,6 +313,9 @@ struct OrderMemoCard: View {
                     .padding(.horizontal, ReffiSpace.s2)
                     .padding(.vertical, 1)
                     .background(ing.freshness.light, in: PaperCutRect(seed: 2))   // §13.1 종이컷 8각형(캡슐 금지)
+                    // 보이는 값은 축약(3d)이라 소리로는 뜻이 서지 않는다 — 냉장고 도장·간편 행·재료 뱃지와
+                    // 같은 표기/문구 한 쌍(`Ingredient.dDayAccessibilityText`)을 이 칩도 본다.
+                    .accessibilityLabel(ing.dDayAccessibilityText)
             }
         }
     }
