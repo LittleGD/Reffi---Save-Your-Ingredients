@@ -154,7 +154,7 @@
     --color-blue-dark:    oklch(76%   0.095 250);
     --color-blue-light:   oklch(30%   0.045 250);
     --neutral-900: oklch(93%   0.010 85);
-    --neutral-700: oklch(76%   0.012 82);
+    --neutral-700: oklch(81%   0.012 82);
     --neutral-500: oklch(71%   0.012 80);
     --neutral-200: oklch(32%   0.008 80);
     --neutral-50:  oklch(21.5% 0.010 78);
@@ -192,7 +192,7 @@
   --color-blue-dark:    oklch(76%   0.095 250);
   --color-blue-light:   oklch(30%   0.045 250);
   --neutral-900: oklch(93%   0.010 85);
-  --neutral-700: oklch(76%   0.012 82);
+  --neutral-700: oklch(81%   0.012 82);
   --neutral-500: oklch(71%   0.012 80);
   --neutral-200: oklch(32%   0.008 80);
   --neutral-50:  oklch(21.5% 0.010 78);
@@ -993,6 +993,7 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
           </div>
         </div>
         <div class="note" style="margin-top:var(--space-4)"><strong><code class="inline">muted</code>는 "약해 보이라"는 뜻이지 "작으라"는 뜻이 아니다.</strong> placeholder·메타 줄도 본문 크기로 앉으므로 요건은 ≥4.5다. 옛 값(라이트 56% / 다크 60%)은 캔버스 위만 통과하고 종이 면에선 라이트 4.53 · <strong>다크 3.04</strong>로 무너져, 라이트 <strong>51%</strong> / 다크 <strong>71%</strong> 로 내리고 올렸다(아래 다크 대비 실측표). 두 값 모두 통과 구간(라이트 L≤.52 · 다크 L≥.702)의 <code class="inline">ink2</code> 반대편 끝에서 한 눈금만 들여 잡은 것이다 — 더 밀면 ink → ink2 → muted 3단 위계가 두 단으로 붙는다.</div>
+        <div class="note" style="margin-top:var(--space-3)"><strong>다크 램프는 간격으로 선다 — 가운데 단이 그 간격을 맞춘다.</strong> 위 <code class="inline">muted</code> 조정으로 다크가 .93 → .76 → .71, 곧 간격 <strong>.17 / .05</strong> 가 되어 3단이 2.5단처럼 읽혔다. 그래서 <code class="inline">ink2</code> 다크를 <strong>.76 → .81</strong> 로 올려 <strong>.12 / .10</strong> 으로 되벌렸다(paper 면 위 9.94 / 6.77 / 4.75, 단계비 1.47 / 1.43). ink 쪽 계단이 아주 조금 큰 것은 의도다 — 본문↔캡션이 캡션↔placeholder보다 큰 층위 차이라는 건 라이트 램프(.18 / .08)의 형태이기도 하다. <strong>아래가 아니라 가운데를 움직인 이유</strong>는 <code class="inline">muted</code>의 바닥을 종이 면 밝기가 잡고 있어서다 — 다크 면을 면 분리 구간(1.35~1.5 · <code class="inline">field</code> ≥1.19) 안에서 통째로 내려도 <code class="inline">muted</code>는 <strong>.701</strong> 까지가 한계고 <code class="inline">canvas</code>를 .185까지 미는 극단에서도 .679다. 면 여섯 개를 흔들어 한 단당 .008을 얻는 거래라, 다크 위계는 면이 아니라 잉크 쪽에서 푼다.</div>
 
         <p class="subhead text">60 : 30 : 5 : 5 운용 비율 (페이지당)</p>
         <div class="ratio">
@@ -1047,7 +1048,7 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
         <div class="note" style="margin-top:var(--space-3)"><strong><code class="inline">blue</code>는 면(fill) 전용이다.</strong> 종이·캔버스 위에 얹는 잉크(글자·아이콘·밑줄 링크)는 언제나 <code class="inline">blue-dark</code>다. <code class="inline">blue</code>는 흰 글자를 받는 채운 면의 색이라 잉크로 쓰면 라이트에서도 빠듯하고(캔버스 5.18 · <code class="inline">blue-light</code> 면 4.59) 다크에선 면 쪽으로 밝아져 무너진다(3.78 · <strong>2.93</strong>). <code class="inline">blue-dark</code>는 같은 자리에서 6.37~8.42다.</div>
 
         <p class="subhead text" id="dark">2.8 다크 모드 — "밤의 주방 패스"</p>
-        <p class="t-body text" style="color:var(--color-ink-2);margin-bottom:var(--space-4)">라이트를 반전한 흑백이 아니라, 조명 낮은 주방에서 보이는 <strong>웜 차콜</strong>(hue 78~90 유지)이다. <strong>순검정은 쓰지 않는다</strong> — 예외는 그림자(<code class="inline">shadowTint</code>)·모달 딤(<code class="inline">scrim</code>)·슬램 플래시(<code class="inline">scrimFlash</code>)뿐, 셋 다 면이 아니라 "빛이 없는" 레이어라 온기가 필요 없다. 시맨틱 토큰만 적응하고 <strong>일러스트(FoodGlyph) 팔레트는 스킴 불변 고정색</strong>이다(§13.3) — 재료 식별이 스킴에 흔들리면 안 된다. 신선도에 따른 시듦(Wilt)도 같은 원칙 — 채도·명도 배수와 재질별 형태 값은 스킴과 무관한 순수 상수라 라이트·다크에서 동일하게 적용된다. 공유 카드(<code class="inline">RecipeShareCard</code>)는 항상 라이트로 굽는다. 그림자는 항상 <code class="inline">shadowTint</code>(<code class="inline">ink</code> 금지 — 다크에서 크림으로 뒤집혀 밝은 글로우가 된다). <code class="inline">paperEdge</code> 헤어라인의 다크 반전은 "종이 두께" 표현으로 의도적으로 둔다. <strong>다크에선 면 밝기가 그림자의 일을 대신한다</strong> — 카드·CTA 면(<code class="inline">paper</code>·<code class="inline">receipt</code>·<code class="inline">sub</code>)은 바탕과 1.35~1.5:1을 지키고, 커버의 바탕(<code class="inline">paperPass</code>)은 반대로 한 단 내려 그 위 카드가 같은 요건을 넘게 한다(아래 면 분리표).</p>
+        <p class="t-body text" style="color:var(--color-ink-2);margin-bottom:var(--space-4)">라이트를 반전한 흑백이 아니라, 조명 낮은 주방에서 보이는 <strong>웜 차콜</strong>(hue 78~90 유지)이다. <strong>순검정은 쓰지 않는다</strong> — 예외는 그림자(<code class="inline">shadowTint</code>)·모달 딤(<code class="inline">scrim</code>)·슬램 플래시(<code class="inline">scrimFlash</code>)뿐, 셋 다 면이 아니라 "빛이 없는" 레이어라 온기가 필요 없다. 시맨틱 토큰만 적응하고 <strong>일러스트(FoodGlyph) 팔레트는 스킴 불변 고정색</strong>이다(§13.3) — 재료 식별이 스킴에 흔들리면 안 된다. 신선도에 따른 시듦(Wilt)도 같은 원칙 — 채도·명도 배수와 재질별 형태 값은 스킴과 무관한 순수 상수라 라이트·다크에서 동일하게 적용된다. 공유 카드(<code class="inline">RecipeShareCard</code>)는 항상 라이트로 굽는다. 그림자는 항상 <code class="inline">shadowTint</code>(<code class="inline">ink</code> 금지 — 다크에서 크림으로 뒤집혀 밝은 글로우가 된다). <code class="inline">paperEdge</code> 헤어라인의 다크 반전은 "종이 두께" 표현으로 의도적으로 둔다. <strong>다크에선 면 밝기가 그림자의 일을 대신한다</strong> — 카드·CTA 면(<code class="inline">paper</code>·<code class="inline">receipt</code>·<code class="inline">sub</code>)은 바탕과 1.35~1.5:1을 지키고, 커버의 바탕(<code class="inline">paperPass</code>)은 반대로 한 단 내려 그 위 카드가 같은 요건을 넘게 한다(아래 면 분리표). <strong>다크 잉크 3단은 간격이 지켜야 살아 있다</strong> — 면 대비(≥4.5)만 통과시키면 <code class="inline">muted</code>가 밝은 쪽으로 밀려 램프가 위에 뭉치므로, 다크에는 요건이 하나 더 있다: <strong>ink → ink2 → muted 두 간격이 서로 2배를 넘지 않는다</strong>(현행 .12 / .10). 조정은 <code class="inline">muted</code>가 아니라 가운데 단(<code class="inline">ink2</code>)으로 한다(2.3 램프 각주).</p>
 
         <p class="t-caption text" style="color:var(--color-ink-2);margin-bottom:var(--space-3)">면·콘텐츠 토큰 8종 — 우측 상단 토글로 전환해 보면 스와치가 실시간으로 바뀐다(라이브 CSS 변수). <code class="inline">toastAction</code>·<code class="inline">onAccent</code>·<code class="inline">scrimFlash</code>는 고정색(비적응)이다.</p>
         <div class="swatch-row">
@@ -1092,7 +1093,8 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
             <tr><td>ink on canvas</td><td>≥7.0</td><td class="num pass">14.68</td><td class="num pass">14.26</td></tr>
             <tr><td>ink on paper</td><td>≥7.0</td><td class="num pass">15.56</td><td class="num pass">9.94</td></tr>
             <tr><td>ink on receipt</td><td>≥7.0</td><td class="num pass">15.33</td><td class="num pass">9.75</td></tr>
-            <tr><td>ink2 on canvas</td><td>≥4.5</td><td class="num pass">7.44</td><td class="num pass">8.16</td></tr>
+            <tr><td>ink2 on canvas</td><td>≥4.5</td><td class="num pass">7.44</td><td class="num pass">9.70</td></tr>
+            <tr><td>ink2 on paper</td><td>≥4.5</td><td class="num pass">7.89</td><td class="num pass">6.77</td></tr>
             <tr><td>muted on canvas</td><td>≥4.5</td><td class="num pass">5.28</td><td class="num pass">6.81</td></tr>
             <tr><td>muted on paper</td><td>≥4.5</td><td class="num pass">5.59</td><td class="num pass">4.75</td></tr>
             <tr><td>muted on paperPass</td><td>≥4.5</td><td class="num pass">4.97</td><td class="num pass">6.39</td></tr>
@@ -1105,11 +1107,11 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
             <tr><td>onInk on ink</td><td>≥7.0</td><td class="num pass">16.01</td><td class="num pass">14.09</td></tr>
             <tr><td>(참고) white on toast</td><td>≥4.5</td><td class="num pass">16.01</td><td class="num pass">10.02</td></tr>
             <tr><td>(참고) ink on sub</td><td>≥7.0</td><td class="num pass">13.22</td><td class="num pass">10.33</td></tr>
-            <tr><td>(참고) ink2 on receipt</td><td>≥4.5</td><td class="num pass">7.77</td><td class="num pass">5.58</td></tr>
+            <tr><td>(참고) ink2 on receipt</td><td>≥4.5</td><td class="num pass">7.77</td><td class="num pass">6.64</td></tr>
             <tr><td>(참고) muted on receipt</td><td>≥4.5</td><td class="num pass">5.51</td><td class="num pass">4.66</td></tr>
             <tr><td>(참고) muted on sub</td><td>≥4.5</td><td class="num pass">4.75</td><td class="num pass">4.93</td></tr>
             <tr><td>ink on field</td><td>≥7.0</td><td class="num pass">13.22</td><td class="num pass">11.88</td></tr>
-            <tr><td>ink2 on field</td><td>≥4.5</td><td class="num pass">6.70</td><td class="num pass">6.80</td></tr>
+            <tr><td>ink2 on field</td><td>≥4.5</td><td class="num pass">6.70</td><td class="num pass">8.08</td></tr>
             <tr><td>muted on field (placeholder)</td><td>≥4.5</td><td class="num pass">4.75</td><td class="num pass">5.67</td></tr>
           </tbody>
         </table>
