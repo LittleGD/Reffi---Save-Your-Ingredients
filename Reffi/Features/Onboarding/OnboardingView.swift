@@ -99,13 +99,16 @@ struct OnboardingView: View {
 
     // MARK: 가치 페이지 — 히어로(텍스트를 그대로 시각화한 미니 영수증) + 한글 디스플레이(§3.1)
 
+    /// 타이틀만 `LocalizedStringResource`인 이유: Display 폰트를 고르려면 **해석된 문자열**이 필요한데
+    /// `LocalizedStringKey`는 그 결과를 밖으로 내주지 않는다(아래 스크립트 폴백 주석 참고).
     private func valuePage<H: View>(@ViewBuilder hero: () -> H,
-                                    title: LocalizedStringKey, body copy: LocalizedStringKey) -> some View {
+                                    title: LocalizedStringResource, body copy: LocalizedStringKey) -> some View {
         // 페이저 안이라 넘친 콘텐츠를 되찾을 길이 없다 — `TabView(.page)`는 자기 경계로 잘라내고,
         // 스와이프는 옆 장으로 갈 뿐 잘린 글자를 데려오지 않는다. 큰 글씨에서 타이틀·본문이 자라면
         // 세로로 흐르게 두고 스크롤로 닿게 한다. 점·CTA는 이 밖(부모 VStack)에 고정이라 그대로 남는다.
         // 히어로는 `GeometryReader`(이탈 클로저)에 들어가기 전에 값으로 받아 둔다 — 빌더 인자는 non-escaping이다.
         let heroView = hero()
+        let titleText = String(localized: title)
         return GeometryReader { geo in
             ScrollView {
                 VStack(alignment: .center, spacing: ReffiSpace.s5) {
@@ -119,8 +122,9 @@ struct OnboardingView: View {
                         .padding(.bottom, ReffiSpace.s4)
 
                     // 영문 디스플레이 = Story Script(§3.1 브랜드 모먼트 — 워드마크·온보딩 타이틀). 인트로 카피는 가운데 정렬.
-                    Text(title)
-                        .reffiType(.display)
+                    // 세 장 다 번역되는 타이틀이라 스크립트 폴백을 경유한다(ko는 Pretendard Bold, §3.1).
+                    Text(verbatim: titleText)
+                        .reffiType(.display, for: titleText)
                         .multilineTextAlignment(.center)
                         .frame(maxWidth: .infinity)
                         .foregroundStyle(ReffiColor.ink)
@@ -347,9 +351,12 @@ struct OnboardingView: View {
     /// 시드 로드 실패(빈 카탈로그) 폴백: 히어로를 숨기지 않고 사전(IngredientLexicon) 첫 엔트리들로 구성해
     /// 어떤 경로에도 소스코드 리터럴 레시피명이 남지 않게 한다.
     private static func heroTicket() -> HeroTicket {
-        let dDayMeta: [(String, Color)] = [("Today", ReffiColor.urgentDark),
-                                            ("1d", ReffiColor.soonDark),
-                                            ("2d", ReffiColor.soonDark)]
+        // D-day 표기는 앱 유일의 정본 포매터를 탄다(`Ingredient.dDayText`) — 위 냉장고 영수증(receiptRows)과
+        // 같은 규칙이다. 리터럴로 적으면 ko 기기에서 이 히어로만 영어로 남는다. 올캡도 씌우지 않는다:
+        // 냉장고 카드의 도장이 `caps: false`로 찍는 그 값이라 여기서 대문자로 바꾸면 표기가 갈린다.
+        let dDayMeta: [(String, Color)] = [(Ingredient.dDayText(daysLeft: 0), ReffiColor.urgentDark),
+                                            (Ingredient.dDayText(daysLeft: 1), ReffiColor.soonDark),
+                                            (Ingredient.dDayText(daysLeft: 2), ReffiColor.soonDark)]
         let seed = RecipeCatalog.loadSeed()
         if let recipe = seed.first(where: { $0.id == "bibimbap" })
             ?? seed.first(where: { $0.cuisine == "korean" && $0.ingredients.count >= 2 })
@@ -562,8 +569,10 @@ struct OnboardingView: View {
                 // 상단 — 디스플레이 폰트(Story Script)로 현재 단계를 가운데 표기.
                 // 줄 끝 숫자 잘림 주의 — SwiftUI Text는 마지막 글리프를 advance에서 클리핑한다(UILabel은 무사).
                 // StoryScript 숫자 advance는 폰트에서 잉크 폭만큼 패치됨(§Fonts/StoryScript — `-titleClipLab` 실험 근거).
-                Text("Step \(setupPage + 1)")
-                    .reffiType(.display)
+                // ko는 "N단계" — 번역되는 Display라 스크립트 폴백을 경유한다(§3.1).
+                let stepText = String(localized: "Step \(setupPage + 1)")
+                Text(verbatim: stepText)
+                    .reffiType(.display, for: stepText)
                     .multilineTextAlignment(.center)
                     .foregroundStyle(ReffiColor.ink)
                     .frame(maxWidth: .infinity)

@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import os
 import Supabase
 import AuthenticationServices
 import CryptoKit
@@ -17,6 +18,9 @@ final class AuthStore {
 
     /// Supabase 클라이언트 — publishable key는 클라이언트 임베드용 공개 키(RLS로 보호).
     static let client = SupabaseClient(supabaseURL: supabaseURL, supabaseKey: anonKey)
+
+    /// 인증 진단 로그(FridgeStore.log와 같은 서브시스템). 화면에 못 내보내는 서버 원문이 여기로 간다.
+    static let log = Logger(subsystem: "com.reffi.app", category: "auth")
 
     /// OAuth 콜백 — Info.plist의 `reffi` URL 스킴과 일치해야 한다.
     static let redirectURL = URL(string: "reffi://auth-callback")!
@@ -195,7 +199,11 @@ final class AuthStore {
             { return String(localized: "Check your network connection.") }
         if lower.contains("provider is not enabled") { return String(localized: "This sign-in method isn't available yet.") }
         if (error as? ASAuthorizationError) != nil { return String(localized: "Couldn't complete Apple sign-in.") }
-        return raw
+        // 매칭 실패 폴백 — 서버 원문은 화면에 내보내지 않는다. 영어로 고정된 데다 서버 용어("AuthApiError",
+        // "invalid_grant")를 그대로 노출해, 한국어 기기에서 유일하게 영어로 뜨는 문장이 되고 사용자가
+        // 할 수 있는 일도 알려주지 않는다. 원문은 로그로만 남긴다(진단은 잃지 않는다).
+        log.error("unmatched auth error: \(raw)")
+        return String(localized: "Couldn't sign you in. Try again in a moment.")
     }
 
     enum AuthLocalError: LocalizedError {

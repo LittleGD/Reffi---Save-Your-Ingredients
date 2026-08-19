@@ -663,8 +663,10 @@ struct MainView: View {
         let results = carouselResults
         let stock = store.available
         carouselSnapshot = results
-        atRiskSnapshot = stock.filter { $0.freshness != .fresh }.map(\.name)   // available은 이미 임박순
-        uncoveredSnapshot = RecipeRecommender.uncoveredUrgent(ingredients: stock, results: results).map(\.name)
+        // 호명은 문장 안에 들어가는 **표시 이름**이다 — 저장 `name`은 담던 순간 표기라 로케일이 박제된다
+        // (§Ingredient.displayName). 브리지 문구와 그 옆 영상 검색어가 같은 배열을 쓰므로 여기 한 곳만 고르면 된다.
+        atRiskSnapshot = stock.filter { $0.freshness != .fresh }.map(\.displayName)   // available은 이미 임박순
+        uncoveredSnapshot = RecipeRecommender.uncoveredUrgent(ingredients: stock, results: results).map(\.displayName)
     }
 
     private func cook() {

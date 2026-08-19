@@ -178,6 +178,8 @@ struct ProfileView: View {
                         ReffiIcon.profile.reffi(30).foregroundStyle(ReffiColor.blueDark)
                     } else {
                         Text(avatarInitial)
+                            // 폴백 판별은 공용 `String.hasHangul`(§ReffiTypography) — 아바타만 라틴 쪽이
+                            // 30pt 전용 크기라 `font(for:)`를 그대로 못 쓰고 판별만 공유한다.
                             .font(avatarInitial.hasHangul
                                   ? ReffiTextRole.display.koreanDisplayFont
                                   : .custom("StoryScript-Regular", size: 30, relativeTo: .title))
@@ -194,9 +196,7 @@ struct ProfileView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     // 한글 닉네임은 Story Script(한글 미지원) 대신 Pretendard Bold 폴백(§3.1).
                     Text(profile.nickname)
-                        .font(profile.nickname.hasHangul
-                              ? ReffiTextRole.display.koreanDisplayFont
-                              : ReffiTextRole.display.font)
+                        .font(ReffiTextRole.display.font(for: profile.nickname))
                         .foregroundStyle(ReffiColor.ink)
                         .lineLimit(1)
                     Text(subtitle).reffiType(.caption).foregroundStyle(ReffiColor.ink2)
@@ -488,16 +488,5 @@ struct SettingsRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.reffiPress)
-    }
-}
-
-private extension String {
-    /// 한글 포함 여부 — Story Script는 한글 미지원(§3.1) → Display 폴백(Pretendard Bold) 판별.
-    var hasHangul: Bool {
-        unicodeScalars.contains {
-            (0xAC00...0xD7A3).contains($0.value)      // 완성형
-            || (0x1100...0x11FF).contains($0.value)   // 자모
-            || (0x3130...0x318F).contains($0.value)   // 호환 자모
-        }
     }
 }

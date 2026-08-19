@@ -76,7 +76,7 @@
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@. Reffi를 열고 티켓을 발주하세요."
+            "value" : "%@. Reffi를 열고 오늘의 티켓을 골라보세요."
           }
         }
       }
@@ -919,6 +919,16 @@
         }
       }
     },
+    "Couldn't sign you in. Try again in a moment." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "로그인하지 못했어요. 잠시 후 다시 시도해 주세요."
+          }
+        }
+      }
+    },
     "Cuisines" : {
       "localizations" : {
         "ko" : {
@@ -1314,7 +1324,7 @@
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "왼쪽으로 튕기면 넘기고, 오른쪽은 발주예요. 먼저 상할 순서로 정렬했어요."
+            "value" : "왼쪽으로 튕기면 넘기고, 오른쪽으로 튕기면 이 티켓으로 요리해요. 먼저 상할 순서로 정렬했어요."
           }
         }
       }
