@@ -134,6 +134,15 @@ private struct CapsuleNav: View {
     @Binding var tab: RootTabView.Tab
     let onAdd: () -> Void
 
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    /// AX 크기에서는 **아이콘만** 세운다(iOS 표준 탭바와 같은 처세).
+    /// 캡슐은 실치수 58pt 높이에 네 항목을 가로로 세우는 면이라, 큰 글자에서 라벨이 들어갈 자리가
+    /// 애초에 없다 — 그대로 두면 '홈'은 'H…', 'Fri…'처럼 **잘린 글자**가 되어 큰 글자를 켠 사람에게
+    /// 오히려 덜 읽히는 라벨을 준다. 라벨을 지우는 대신 길게 눌러 화면 중앙에 크게 띄우는
+    /// Large Content Viewer를 항목마다 걸어 이름을 잃지 않게 한다(아래 `navButton`).
+    private var iconOnly: Bool { typeSize.isAccessibilitySize }
+
     var body: some View {
         HStack(spacing: ReffiSpace.s3) {
             navItem(.home, ReffiIcon.home, "Home")
@@ -163,22 +172,38 @@ private struct CapsuleNav: View {
                   selected: false, action: onAdd)
     }
 
-    /// 모든 네비 항목 공통 형식 — 아이콘(23) + 라벨(11/caption2 스케일).
+    /// 모든 네비 항목 공통 형식 — 아이콘(23) + 라벨(11/caption2 스케일, AX 크기에선 아이콘만).
     private func navButton(icon: Ph, label: LocalizedStringKey, tint: Color, weight: Ph.IconWeight,
                            selected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             VStack(spacing: 3) {
                 icon.reffi(23, weight)
-                Text(label)
-                    .reffiType(.metaText)
+                if !iconOnly {
+                    Text(label)
+                        .reffiType(.metaText)
+                }
             }
             .foregroundStyle(tint)
-            .frame(minWidth: 52, minHeight: 48)
+            // 라벨이 빠지면 보이는 것은 아이콘(23)뿐이라 **손가락이 닿는 면이 같이 줄 위험**이 있다.
+            // 그래서 기본 크기의 실치수(52×48)를 유지하되 하한을 §7.3 토큰으로 못 박는다 — tapMin이
+            // 언젠가 48로 오르면(토큰 주석 참조) 이 두 값도 같이 따라 올라간다.
+            .frame(minWidth: max(52, ReffiChrome.tapMin), minHeight: max(48, ReffiChrome.tapMin))
             .contentShape(Rectangle())
         }
         .buttonStyle(.reffiPress)
         .accessibilityLabel(Text(label))
         .accessibilityAddTraits(selected ? [.isSelected] : [])
+        // 길게 누르면 화면 중앙에 아이콘+이름을 크게 띄운다 — 라벨이 숨은 AX 크기에서만 시스템이
+        // 켜므로 항상 걸어 둔다. Phosphor는 SF Symbol이 아니라 `systemImage:` 를 못 쓴다 —
+        // 이미지 자리에 화면과 **같은 아이콘**(ReffiIcon 경유)을 그대로 넣어야 확대 라벨이
+        // 캡슐에 보이는 것과 같은 기호를 보여 준다.
+        .accessibilityShowsLargeContentViewer {
+            Label {
+                Text(label)
+            } icon: {
+                icon.reffi(23, weight)
+            }
+        }
     }
 }
 
