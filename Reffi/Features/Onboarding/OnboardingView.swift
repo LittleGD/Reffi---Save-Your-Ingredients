@@ -1,8 +1,8 @@
 import SwiftUI
 import UserNotifications
 
-/// 온보딩 — [인트로] 가치 3장(기록→레시피→리포트): 하단 버튼 없이 스와이프, 마지막 장에서 "Let's Start" 등장.
-///        [셋업 시트] "Let's Start" → 하단에서 올라오는 시트에서 개인화(가구·취향) + 알림 프라이밍을 Next로 진행.
+/// 온보딩 — [인트로] 가치 3장(기록→레시피→리포트): 하단 버튼 없이 스와이프, 마지막 장에서 "Let's start" 등장.
+///        [셋업 시트] "Let's start" → 하단에서 올라오는 시트에서 개인화(가구·취향) + 알림 프라이밍을 Next로 진행.
 /// 인트로/셋업 각각 3점 인디케이터. 혜택 중심 카피, 언제든 건너뛰기, 답은 ProfileStore에 즉시 저장(가입 전이어도 로컬 유지).
 struct OnboardingView: View {
     @Environment(ProfileStore.self) private var profile
@@ -11,12 +11,12 @@ struct OnboardingView: View {
     let onFinish: () -> Void
 
     @State private var page = 0             // 인트로 페이지 0…introLast
-    @State private var showSetup = false    // "Let's Start" → 하단에서 올라오는 셋업 시트
+    @State private var showSetup = false    // "Let's start" → 하단에서 올라오는 셋업 시트
     @State private var setupPage = 0        // 셋업 시트 내 페이지 0…setupLast
     @State private var stamping = false     // 셋업 완료 시 "Start" 도장 슬램 연출
     @State private var stampScale: CGFloat = 2.4
     @State private var stampOpacity: Double = 0
-    private let introLast = 2               // 인트로 마지막 장(page 2) — 여기서 "Let's Start"로 셋업 시트를 연다
+    private let introLast = 2               // 인트로 마지막 장(page 2) — 여기서 "Let's start"로 셋업 시트를 연다
     private let setupLast = 2               // 셋업 3장(가구·취향·알림)의 마지막
 
     init(onFinish: @escaping () -> Void) {
@@ -66,7 +66,7 @@ struct OnboardingView: View {
                 bottomButton
             }
         }
-        // "Let's Start" → 하단에서 올라와 화면 전체를 덮는 셋업(개인화·알림). Start cooking과 동일한 풀스크린 커버.
+        // "Let's start" → 하단에서 올라와 화면 전체를 덮는 셋업(개인화·알림). Start cooking과 동일한 풀스크린 커버.
         .fullScreenCover(isPresented: $showSetup) {
             setupSheet
         }
@@ -532,7 +532,7 @@ struct OnboardingView: View {
         .accessibilityLabel("Intro \(page + 1) of \(introLast + 1)")
     }
 
-    /// 인트로 하단 — 마지막 장에서만 "Let's Start"(셋업 시트 오픈), 그 전엔 조용한 "Next".
+    /// 인트로 하단 — 마지막 장에서만 "Let's start"(셋업 시트 오픈), 그 전엔 조용한 "Next".
     ///
     /// 1~2장에 전진 액션이 하나도 없던 시절엔 앱의 첫 화면에서 **유일하게 보이는 버튼이 이탈 경로(Skip)**라
     /// 위계상 탈출구가 #1이었다(감사 R3-2). 슬롯 높이(52)는 원래 예약돼 있어 레이아웃 점프 없이 들어간다.
@@ -541,7 +541,7 @@ struct OnboardingView: View {
     @ViewBuilder private var bottomButton: some View {
         VStack(spacing: ReffiSpace.s1) {
             if page == introLast {
-                PaperButton(title: "Let's Start", seed: 2) {
+                PaperButton(title: "Let's start", seed: 2) {
                     showSetup = true
                 }
                 .transition(.opacity.combined(with: .move(edge: .bottom)))
@@ -560,7 +560,7 @@ struct OnboardingView: View {
         .animation(motion, value: page)
     }
 
-    // MARK: 셋업 시트 — "Let's Start"로 하단에서 올라오는 개인화(가구·취향) + 알림 프라이밍
+    // MARK: 셋업 시트 — "Let's start"로 하단에서 올라오는 개인화(가구·취향) + 알림 프라이밍
 
     private var setupSheet: some View {
         ZStack {

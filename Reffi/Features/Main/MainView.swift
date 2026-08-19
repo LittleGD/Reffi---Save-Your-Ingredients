@@ -390,7 +390,9 @@ struct MainView: View {
         if counter.isEmpty { return Text("Fill the counter, then cook") }
         if urgentCount > 0 { return Text("\(urgentCount) at risk today. Cook one?") }
         if soonCount > 0 { return Text("\(soonCount) to eat soon. Plan tonight?") }
-        return Text("All fresh. Get ahead of it.")
+        // 임박이 없을 때도 **다음 한 걸음**을 지목한다 — "미리 해치우라"는 재촉만 남기면
+        // 무엇부터인지가 없어 행동으로 이어지지 않는다(냉장고 정렬 기본값과 같은 순서를 말한다).
+        return Text("All fresh. Cook the oldest one first.")
     }
 
     // MARK: - 알림 유도 배너 (프리퍼미션)

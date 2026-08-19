@@ -169,8 +169,11 @@ struct IngredientEditView: View {
             HStack {
                 Text("Where").reffiType(.body).foregroundStyle(ReffiColor.ink)
                 Spacer(minLength: ReffiSpace.s4)
-                TextField("Add place", text: $draft.place,
-                          prompt: Text("Add place").foregroundStyle(ReffiColor.ink2))
+                // 필드 이름은 왼쪽 행 라벨과 **같은 "Where"**다 — 라벨이 이미 무슨 칸인지 말했으므로
+                // 자리표시자까지 그 이름을 되풀이하면 한 줄에 같은 말이 두 번 선다. 자리표시자는
+                // **예시**를 맡는다(영수증 후보 편집 시트의 구매처 필드와 같은 짝).
+                TextField("Where", text: $draft.place,
+                          prompt: Text("e.g. Emart").foregroundStyle(ReffiColor.ink2))
                     .multilineTextAlignment(.trailing)
                     .reffiType(.body).foregroundStyle(ReffiColor.ink)
             }

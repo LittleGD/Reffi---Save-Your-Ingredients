@@ -235,7 +235,9 @@ struct ReceiptScanView: View {
     /// 추정 기한 배지 — 사전 미매칭(D+3 폴백) 또는 매칭돼도 해당 보관 shelfLife 데이터가 없는 항목.
     /// soonDark 톤 종이 칩(§2.6 신선도 팔레트 재사용 + §13.1 종이컷 8각형) — 새 컴포넌트가 아니라 기존 언어의 조합.
     private var estimateBadge: some View {
-        Text("Est. date: check")
+        // 배지는 **무엇인지만** 말한다 — "확인 필요"라는 요청은 이미 카드 푸터가 한 번 하고 있어,
+        // 칩에 다시 얹으면 같은 화면에서 같은 부탁이 두 번 선다(어느 쪽을 따라야 하는지가 흐려진다).
+        Text("Estimated date")
             .reffiType(.pillLabel)
             .foregroundStyle(ReffiColor.soonDark)
             .padding(.horizontal, ReffiSpace.s2)
@@ -499,8 +501,11 @@ private struct CandidateEditSheet: View {
 
             ReffiRule(.ticket)
 
-            TextField("Where you bought it", text: $candidate.place,
-                      prompt: Text("Where you bought it").foregroundStyle(ReffiColor.ink2))
+            // 필드 이름은 `IngredientEditView`의 구매처 행과 **같은 한 단어**("Where")다 — 같은 값을
+            // 고치는 두 폼이 서로 다른 이름을 쓰면 어느 쪽이 무엇을 담는 칸인지 매번 다시 읽어야 한다.
+            // 비어 있을 때 보이는 자리표시자는 이름을 되풀이하지 않고 **예시**를 준다(무엇을 치면 되는지).
+            TextField("Where", text: $candidate.place,
+                      prompt: Text("e.g. Emart").foregroundStyle(ReffiColor.ink2))
                 .reffiType(.body).foregroundStyle(ReffiColor.ink)
                 .frame(minHeight: ReffiChrome.tapMin)
         }

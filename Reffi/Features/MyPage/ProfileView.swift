@@ -218,7 +218,7 @@ struct ProfileView: View {
 
     /// 부제 — 요리 취향 요약(스트릭은 리포트 도장으로 이동해 중복 제거). 취향 없으면 담백한 문구.
     private var subtitle: String {
-        profile.cuisines.isEmpty ? String(localized: "Saving with Reffi") : profile.cuisines.summaryText
+        profile.cuisines.isEmpty ? String(localized: "Saving food with Reffi") : profile.cuisines.summaryText
     }
 
     // MARK: - 요리 취향 영수증
