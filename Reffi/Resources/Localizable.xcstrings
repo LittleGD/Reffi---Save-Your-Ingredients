@@ -3121,16 +3121,6 @@
         }
       }
     },
-    "Unit" : {
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "단위"
-          }
-        }
-      }
-    },
     "Use %lld today" : {
       "localizations" : {
         "ko" : {
@@ -3581,6 +3571,144 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "가입 중…"
+          }
+        }
+      }
+    },
+    "%@ eaten. Undo available." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 먹었어요. 되돌릴 수 있어요."
+          }
+        }
+      }
+    },
+    "%@ tossed. Undo available." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 버렸어요. 되돌릴 수 있어요."
+          }
+        }
+      }
+    },
+    "%@ removed. Undo available." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 지웠어요. 되돌릴 수 있어요."
+          }
+        }
+      }
+    },
+    "%@ off the memo. Undo available." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 메모에서 뺐어요. 되돌릴 수 있어요."
+          }
+        }
+      }
+    },
+    "Started %@. %lld reserved. Undo available." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ 조리를 시작했어요. 재료 %2$lld개를 예약했어요. 되돌릴 수 있어요."
+          }
+        }
+      }
+    },
+    "Finished %@. %lld logged. Undo available." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ 조리를 마쳤어요. 재료 %2$lld개를 기록했어요. 되돌릴 수 있어요."
+          }
+        }
+      }
+    },
+    "Undone." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "되돌렸어요."
+          }
+        }
+      }
+    },
+    "Expanded" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "펼침"
+          }
+        }
+      }
+    },
+    "Collapsed" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "접힘"
+          }
+        }
+      }
+    },
+    "Unit: %@" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "단위: %@"
+          }
+        }
+      }
+    },
+    "Storage: %@" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "보관: %@"
+          }
+        }
+      }
+    },
+    "%lld items recognized" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld item recognized"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld items recognized"
+                }
+              }
+            }
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld개를 찾았어요"
           }
         }
       }

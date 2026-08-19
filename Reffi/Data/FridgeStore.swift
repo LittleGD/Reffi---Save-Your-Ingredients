@@ -535,6 +535,13 @@ final class FridgeStore {
         var memoRestore: MemoRestore?              // memoRemoved 전용
     }
 
+    /// 되돌리기 창의 길이(초). 기본 6, **VoiceOver가 켜지면 UI 레이어가 늘려 준다**(`RootTabView`) —
+    /// 고지를 듣고 토스트로 포커스를 옮겨 Undo까지 가는 데 6초로는 닿지 못한다. 값만 받는 이유는
+    /// 이 클래스가 순수 데이터이기 때문이다: 여기서 `UIAccessibility`를 보면 스토어가 UI를 알게 된다.
+    var undoWindowSeconds: Double = FridgeStore.defaultUndoWindow
+    static let defaultUndoWindow: Double = 6
+    static let voiceOverUndoWindow: Double = 14
+
     private func beginUndo(_ kind: PendingUndo.Kind, logIDs: [UUID], counterSnapshot: [UUID],
                            leftoverSnapshots: [Ingredient] = [],
                            restoreSnapshots: [Ingredient] = [],
@@ -547,8 +554,10 @@ final class FridgeStore {
                                   restoreSnapshots: restoreSnapshots,
                                   previousSession: previousSession,
                                   memoRestore: memoRestore)
+        // 창 길이는 **열 때 정해진다** — 도중에 값이 바뀌어도 이미 뜬 토스트의 수명은 흔들리지 않는다.
+        let window = undoWindowSeconds
         Task { [weak self] in
-            try? await Task.sleep(for: .seconds(6))
+            try? await Task.sleep(for: .seconds(window))
             guard let self, self.pendingUndo?.token == token else { return }
             self.pendingUndo = nil
         }

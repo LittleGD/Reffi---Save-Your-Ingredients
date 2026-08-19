@@ -58,6 +58,21 @@ struct ReceiptScanView: View {
             guard !items.isEmpty else { return }
             Task { await loadPhotos(items) }
         }
+        // 단계 전환은 화면을 통째로 갈아 끼우면서도 포커스를 옮기지 않는다 — 고지가 없으면 스캔을
+        // 누른 뒤 무슨 일이 벌어지는지, 끝났는지, 몇 개를 찾았는지가 전부 침묵이다.
+        .onChange(of: phase) { _, newPhase in
+            switch newPhase {
+            case .pick:
+                break   // 되돌아온 자리는 화면이 스스로 말한다(제목·버튼이 다시 선다)
+            case .processing:
+                ReffiAnnounce.say(String(localized: "Reading receipt…"))
+            case .review:
+                // 결과 요약까지 말한다 — "끝났다"만으로는 다시 찍어야 하는지 알 수 없다.
+                ReffiAnnounce.say(candidates.isEmpty
+                                  ? String(localized: "Nothing recognized")
+                                  : String(localized: "\(candidates.count) items recognized"))
+            }
+        }
     }
 
     @ViewBuilder private var content: some View {
@@ -102,8 +117,12 @@ struct ReceiptScanView: View {
 
     private var processing: some View {
         VStack(spacing: ReffiSpace.s4) {
+            // 라벨 없는 스피너는 보조기술에서 이름 없는 점 하나다 — 아래 문장과 **같은 말**을 준다.
             ProgressView()
+                .accessibilityLabel(Text("Reading receipt…"))
             Text("Reading receipt…").reffiType(.body).foregroundStyle(ReffiColor.ink2)
+                // 그 문장이 곧 스피너의 이름이라 두 번 읽을 이유가 없다(화면에는 그대로 남는다).
+                .accessibilityHidden(true)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(ReffiColor.canvas)
@@ -444,10 +463,11 @@ private struct CandidateEditSheet: View {
                     .foregroundStyle(ReffiColor.ink)
                     .frame(width: 64)
                 // 스톡 시스템 팝업 대신 앱 커스텀 종이 드롭다운(커먼 룰 H) — IngredientEditView와 같은 문법.
+                // 라벨이 현재 값까지 안고 간다 — 값 자리는 트리거가 펼침/접힘을 말하는 데 쓴다
+                // (정렬 칩의 "Filter: …"와 같은 문법).
                 PaperDropdownTrigger(label: candidate.quantity.unit.label,
                                      isOpen: openDropdown == .unit, seed: 5) { toggle(.unit) }
-                    .accessibilityLabel(Text("Unit"))
-                    .accessibilityValue(Text(verbatim: candidate.quantity.unit.label))
+                    .accessibilityLabel(Text("Unit: \(candidate.quantity.unit.label)"))
             }
             .frame(minHeight: 44)
 
@@ -459,8 +479,7 @@ private struct CandidateEditSheet: View {
                 // 저장값은 영문 식별자 그대로, 표시만 로컬라이즈(`StorageLocation.label`).
                 PaperDropdownTrigger(label: candidate.storage.label,
                                      isOpen: openDropdown == .storage, seed: 3) { toggle(.storage) }
-                    .accessibilityLabel(Text("Storage"))
-                    .accessibilityValue(Text(verbatim: candidate.storage.label))
+                    .accessibilityLabel(Text("Storage: \(candidate.storage.label)"))
             }
             .frame(minHeight: 44)
 

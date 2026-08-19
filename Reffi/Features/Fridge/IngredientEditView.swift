@@ -156,10 +156,11 @@ struct IngredientEditView: View {
                     .frame(width: 64)
                 // 스톡 `.pickerStyle(.menu)`(흰 시스템 팝업) 대신 앱 커스텀 종이 드롭다운 —
                 // "탭 → 옵션 목록"이 앱 전체에서 한 문법이어야 한다(커먼 룰 H).
+                // 라벨이 현재 값까지 안고 간다 — 값 자리는 트리거가 펼침/접힘을 말하는 데 쓴다
+                // (정렬 칩의 "Filter: …"와 같은 문법).
                 PaperDropdownTrigger(label: draft.quantity.unit.label,
                                      isOpen: openDropdown == .unit, seed: 5) { toggle(.unit) }
-                    .accessibilityLabel(Text("Unit"))
-                    .accessibilityValue(Text(verbatim: draft.quantity.unit.label))
+                    .accessibilityLabel(Text("Unit: \(draft.quantity.unit.label)"))
             }
             .frame(minHeight: 40)
 
@@ -183,8 +184,7 @@ struct IngredientEditView: View {
                 // 저장값은 영문 식별자 그대로, 표시만 로컬라이즈(`StorageLocation.label`).
                 PaperDropdownTrigger(label: draft.storage.label,
                                      isOpen: openDropdown == .storage, seed: 3) { toggle(.storage) }
-                    .accessibilityLabel(Text("Storage"))
-                    .accessibilityValue(Text(verbatim: draft.storage.label))
+                    .accessibilityLabel(Text("Storage: \(draft.storage.label)"))
             }
             .frame(minHeight: 40)
 

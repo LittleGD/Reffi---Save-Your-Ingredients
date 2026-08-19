@@ -146,6 +146,10 @@ struct FridgeView: View {
             closeMenus()
             tab = requested
         }
+        // 드롭다운이 열린 동안 뒤 화면은 보조기술에서 사라진다 — 바깥을 건드리면 어차피 닫히는 면이라
+        // (아래 투명 탭 캐처), 소리로만 배경을 훑을 수 있는 상태는 모델이 어긋난 것이다.
+        // **오버레이보다 먼저** 걸어야 팝업 자신이 함께 가려지지 않는다.
+        .accessibilityHidden(openMenu != .none)
         // 종이 드롭다운(카테고리·정렬) — 트리거 칩 앵커 아래에 떠서(ScrollView 클리핑 밖, zIndex dropdown)
         // 전체 콘텐츠 위를 덮는다. 딤 없는 투명 탭 캐처가 바깥 탭을 받아 닫는다(가벼운 드롭다운, 모달 아님 — scrim 금지).
         // **열린 트리거만 앵커를 올리므로**(각 트리거의 `anchorPreference`가 조건부) 여기 도착하는 앵커는
@@ -166,13 +170,17 @@ struct FridgeView: View {
                             .contentShape(Rectangle())
                             .ignoresSafeArea()
                             .onTapGesture { closeMenus() }
+                            // 이름 없는 투명 면 — 커서에 걸리면 정체불명의 요소가 하나 는다.
+                            // 바깥 탭의 접근성 대응은 팝업의 escape 액션(`onDismiss`)이 맡는다.
+                            .accessibilityHidden(true)
                         Group {
                             switch openMenu {
                             case .category:
                                 PaperDropdown(options: categoryOptions,
                                               selected: activeCategory,
                                               label: categoryOptionLabel,
-                                              seed: 9) { category in
+                                              seed: 9,
+                                              onDismiss: { closeMenus() }) { category in
                                     selectCategory(category)
                                     closeMenus()
                                 }
@@ -180,7 +188,8 @@ struct FridgeView: View {
                                 PaperDropdown(options: FridgeSort.allCases,
                                               selected: sort,
                                               label: { $0.label },
-                                              seed: 5) { newSort in
+                                              seed: 5,
+                                              onDismiss: { closeMenus() }) { newSort in
                                     sortRaw = newSort.rawValue
                                     closeMenus()
                                 }
@@ -832,7 +841,9 @@ struct ExpandedFridgeCard: View {
                 row("Purchased", ingredient.purchasedText)
                 row("Where", ingredient.placeText)
                 row("Quantity", ingredient.quantityText)
-                row("Expires", "\(ingredient.expiresText) · \(ingredient.dDayText)", valueColor: f.dark)
+                // 값에 축약(· 3d)이 섞인 유일한 행이라 소리로 읽을 말을 따로 준다(§3.4 D-day 한 쌍).
+                row("Expires", "\(ingredient.expiresText) · \(ingredient.dDayText)", valueColor: f.dark,
+                    spokenValue: "\(ingredient.expiresText), \(ingredient.dDayAccessibilityText)")
                 row("Storage", ingredient.storage.label)
             }
             .padding(.horizontal, ReffiSpace.s5)
@@ -847,7 +858,14 @@ struct ExpandedFridgeCard: View {
         .reffiShadowCard()
     }
 
-    private func row(_ label: LocalizedStringKey, _ value: String, valueColor: Color = ReffiColor.ink) -> some View {
+    /// 명세 한 줄 — 라벨(좌) + 값(우).
+    ///
+    /// **라벨과 값은 한 요소로 읽는다**(`FridgeCompactRow`·History와 같은 문법): 나누면 다섯 줄이
+    /// 열 개 요소가 되고, "Expires" 다음 스와이프에서야 날짜가 나온다. `spokenValue`는 화면 표기가
+    /// 축약일 때 그 자리에 대신 읽을 말이다(축약은 눈에만 통한다).
+    private func row(_ label: LocalizedStringKey, _ value: String,
+                     valueColor: Color = ReffiColor.ink,
+                     spokenValue: String? = nil) -> some View {
         VStack(spacing: 0) {
             HStack(alignment: .firstTextBaseline) {
                 Text(label).reffiType(.caption).foregroundStyle(ReffiColor.ink2)
@@ -856,9 +874,11 @@ struct ExpandedFridgeCard: View {
                     .font(.reffiNum(.body))
                     .foregroundStyle(valueColor)
                     .multilineTextAlignment(.trailing)
+                    .accessibilityLabel(Text(verbatim: spokenValue ?? value))
             }
             .padding(.vertical, ReffiSpace.s2 + 2)
         }
+        .accessibilityElement(children: .combine)
     }
 
     private var dashRule: some View {

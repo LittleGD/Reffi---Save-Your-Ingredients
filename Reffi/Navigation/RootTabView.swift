@@ -9,6 +9,7 @@ struct RootTabView: View {
 
     @Environment(FridgeStore.self) private var store
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityVoiceOverEnabled) private var voiceOver
 
     @State private var tab: Tab = {
         #if DEBUG
@@ -48,6 +49,7 @@ struct RootTabView: View {
                     withAnimation(ReffiMotion.gated(ReffiMotion.pop, reduce: reduceMotion)) {
                         store.undoPending()
                     }
+                    ReffiAnnounce.say(String(localized: "Undone."))
                 }
                 .padding(.top, ReffiSpace.s2)
                 .transition(.move(edge: .top).combined(with: .opacity))
@@ -55,6 +57,21 @@ struct RootTabView: View {
         }
         .animation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion), value: store.pendingUndo)
         .sensoryFeedback(.success, trigger: undoHaptic)
+        // 판정·삭제는 뱃지·카드를 화면에서 지우고 토스트만 남긴다 — 그 토스트는 포커스를 가져가지
+        // 않으므로, 고지가 없으면 보조기술 사용자는 무엇이 사라졌는지도 되돌릴 수 있다는 것도 모른다.
+        // **토스트를 띄우는 이 자리가 고지 자리**다(FridgeStore는 순수 데이터라 보조기술을 볼 수 없다).
+        .onChange(of: store.pendingUndo) { previous, current in
+            // 창이 **열릴 때만** 말한다: 만료로 닫히는 것은 사건이 아니고, 되돌리기 실행은 버튼이 말한다.
+            // 토큰으로 비교하는 이유는 연속 판정 때문이다 — 같은 이름·같은 종류를 잇달아 처리하면
+            // 값이 같아 새 창이 열린 줄 모른다(토큰은 창마다 새로 발급된다).
+            guard let current, previous?.token != current.token else { return }
+            ReffiAnnounce.say(current.announcement)
+        }
+        // VoiceOver가 켜져 있으면 되돌리기 창을 늘린다 — 고지를 듣고(2~3초) 토스트로 포커스를 옮겨
+        // Undo까지 스와이프하는 데 6초는 모자란다. 스토어에 UIKit을 들이지 않으려고 값만 건넨다.
+        .onChange(of: voiceOver, initial: true) { _, on in
+            store.undoWindowSeconds = on ? FridgeStore.voiceOverUndoWindow : FridgeStore.defaultUndoWindow
+        }
         #if DEBUG
         // UI 테스트 결정적 상태 — 기기에 남은 사용자 데이터와 무관하게 샘플 냉장고로 고정.
         // (-loadSample은 첫 실행(isPristine)에만 시드하므로 테스트엔 강제 리셋 인자가 따로 필요.)
