@@ -81,7 +81,7 @@ struct OnboardingView: View {
         }
     }
     private var motion: Animation? {
-        ReffiMotion.gated(.easeOut(duration: 0.24), reduce: reduceMotion)
+        ReffiMotion.gated(ReffiMotion.enter, reduce: reduceMotion)   // 면 전환 = 진입(§7.1 dur-3 ease-out)
     }
 
     // MARK: 상단 — 워드마크(좌) + 건너뛰기(우)
@@ -624,10 +624,11 @@ struct OnboardingView: View {
         // `.impact(.heavy)`는 매핑 표에도 예외(SpriteKit 물리 텍스처)에도 근거가 없는 오프맵이었다.
         .sensoryFeedback(.success, trigger: stamping)
         .onAppear {
-            let anim: Animation = reduceMotion
-                ? .easeOut(duration: 0.2)
-                : .spring(response: 0.26, dampingFraction: 0.5)   // 오버슈트 = 쾅
-            withAnimation(anim) { stampScale = 1; stampOpacity = 1 }
+            // 오버슈트 = 쾅(§7.5 slam). Reduce Motion이면 도장은 연출 없이 그 자리에 찍혀 있다
+            // (§7.4 — 줄이면 짧은 페이드로 갈아타는 게 아니라 애니메이션을 없앤다).
+            withAnimation(ReffiMotion.gated(ReffiMotion.slam, reduce: reduceMotion)) {
+                stampScale = 1; stampOpacity = 1
+            }
         }
     }
 
@@ -730,8 +731,8 @@ private struct HeroReveal: ViewModifier {
     private var animation: Animation {
         switch kind {
         case .pop: ReffiMotion.pop
-        case .stamp: .spring(response: 0.26, dampingFraction: 0.5)   // 오버슈트 = 쾅
-        case .riseUp: .spring(response: 0.55, dampingFraction: 0.72) // 스르륵 올라와 살짝 정착
+        case .stamp: ReffiMotion.slam      // 오버슈트 = 쾅(§7.5) — 셋업 Start 도장과 같은 토큰
+        case .riseUp: ReffiMotion.settle   // 스르륵 올라와 살짝 정착 = reflow와 같은 안착 스프링
         }
     }
 }
@@ -769,10 +770,13 @@ private struct FlashReveal: ViewModifier {
         token += 1
         let gen = token
         shown = false
-        withAnimation(.easeOut(duration: 0.42)) { shown = true }      // 페이드 인
+        // 들고 나는 것은 §7.1 그대로다 — 오브젝트가 뜨는 것은 **진입**(ease-out dur-3),
+        // 지는 것은 **이탈**(ease-in dur-1, 더 빠르게). 0.42/0.33은 어느 토큰에도 없던 길이라
+        // 이 연출만 다른 시계를 쓰고 있었다. 머무는 시간(hold)은 아래 0.9초가 그대로 잡는다.
+        withAnimation(ReffiMotion.enter) { shown = true }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) {
-            guard gen == token, active else { return }               // 최신 재생만 사라지게
-            withAnimation(.easeIn(duration: 0.33)) { shown = false }  // 페이드 아웃
+            guard gen == token, active else { return }   // 최신 재생만 사라지게
+            withAnimation(ReffiMotion.exit) { shown = false }
         }
     }
 }

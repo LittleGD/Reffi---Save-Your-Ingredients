@@ -106,9 +106,12 @@ struct IngredientEditView: View {
         }
     }
 
+    /// 진입 `.enter` / 이탈 `.exit`(§7.1) — 메뉴는 읽으러 여는 것이라 예산이 짧다.
+    /// `pop`(§7.5)은 종이컷 표면이 튀어 오르는 문법이라 340ms + 오버슈트로 그 예산을 깬다
+    /// (냉장고 정렬 메뉴와 같은 판단 — "탭 → 옵션 목록"은 앱 전체에서 한 문법이다).
     private func toggle(_ which: OpenDropdown) {
         let opening = openDropdown != which
-        withAnimation(ReffiMotion.gated(opening ? ReffiMotion.pop : ReffiMotion.exit,
+        withAnimation(ReffiMotion.gated(opening ? ReffiMotion.enter : ReffiMotion.exit,
                                         reduce: reduceMotion)) {
             openDropdown = opening ? which : nil
         }

@@ -52,10 +52,21 @@ struct RootTabView: View {
                     ReffiAnnounce.say(String(localized: "Undone."))
                 }
                 .padding(.top, ReffiSpace.s2)
-                .transition(.move(edge: .top).combined(with: .opacity))
+                // 이 토스트는 **잉크 캡슐**이지 종이가 아니다 — 종이컷 표면 전용인 통통 스프링(§7.5)을
+                // 태우면 안내가 튀어 오르며 종이 행세를 한다. 들 때는 §7.1 진입(dur-3 ease-out)으로
+                // 내려오고, **날 때는 자리를 밀지 않고 그 자리에서 흐려진다**: 되돌리기 창이 만료로
+                // 조용히 닫히는 것은 사건이 아니라 시간이 지난 것이라, 다시 위로 걷히면 눈이 그것을
+                // 새 사건으로 쫓는다. 진입=이탈 대칭이던 옛 문법의 정확한 반대다(§7.1 이탈은 더 빠르게).
+                .transition(.asymmetric(
+                    insertion: .move(edge: .top).combined(with: .opacity)
+                        .animation(ReffiMotion.gated(ReffiMotion.enter, reduce: reduceMotion)),
+                    removal: .opacity
+                        .animation(ReffiMotion.gated(ReffiMotion.exit, reduce: reduceMotion))))
             }
         }
-        .animation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion), value: store.pendingUndo)
+        // 트랜지션이 자기 커브를 들고 있으므로 여기서는 **창이 열리고 닫히는 트랜잭션만** 연다
+        // (Reduce Motion이면 nil이라 토스트가 즉시 서고 즉시 사라진다, §7.4).
+        .animation(ReffiMotion.gated(ReffiMotion.enter, reduce: reduceMotion), value: store.pendingUndo)
         .sensoryFeedback(.success, trigger: undoHaptic)
         // 판정·삭제는 뱃지·카드를 화면에서 지우고 토스트만 남긴다 — 그 토스트는 포커스를 가져가지
         // 않으므로, 고지가 없으면 보조기술 사용자는 무엇이 사라졌는지도 되돌릴 수 있다는 것도 모른다.

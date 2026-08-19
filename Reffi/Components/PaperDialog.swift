@@ -43,7 +43,9 @@ struct PaperDialog: View {
                 // 바깥 탭의 접근성 대응은 아래 `.escape` 액션이 맡는다(호출부가 준 행동과 같은 것).
                 .accessibilityHidden(true)
             card
-                .scaleEffect(shown ? 1 : 0.85)
+                // 진입 하한은 0.95다(§7.1) — 0.85는 "멀리서 날아온다"라 묻는 종이가 뜨는 게 아니라
+                // 던져지는 것으로 읽혔다. 존재감은 팝 스프링의 오버슈트가 만든다(판정 커버와 같은 값).
+                .scaleEffect(shown ? 1 : 0.95)
                 .opacity(shown ? 1 : 0)
         }
         // 뒤 화면을 VoiceOver에서 가린다 — 모달이 뜬 동안 티켓 덱을 훑을 수 있으면 모달이 아니다.

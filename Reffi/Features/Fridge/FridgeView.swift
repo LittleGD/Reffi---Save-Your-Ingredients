@@ -48,6 +48,15 @@ struct FridgeView: View {
     /// 직전에 본 전체 재고 id — 이번 변화에서 **새로 나타난** 재료를 가려내는 기준(필터 자동 해제).
     @State private var knownIDs: Set<Ingredient.ID> = []
 
+    /// 하단 스택을 위로 미는 동안의 실시간 변위 — 손을 따라가는 **직접 조작**이라 상태가 아니라
+    /// 제스처에 매달아 둔다. `@State`로 두면 스크롤이 제스처를 가로채 `onEnded`가 오지 않는 경로에서
+    /// 값이 그대로 굳는다(이 스택은 `simultaneousGesture`라 그 경로가 실제로 있다) — `@GestureState`는
+    /// 손을 떼든 취소되든 스스로 0으로 돌아온다. 되돌아가는 길만 안착 스프링을 태운다(§7.5 settle).
+    @GestureState(resetTransaction: Transaction(animation: ReffiMotion.settle))
+    private var stackLift: CGFloat = 0
+    /// 스와이프로 닫은 시각 — 같은 터치가 이어서 던지는 버튼 탭을 한 번 삼키는 데 쓴다(아래 `bottomStack`).
+    @State private var stackDismissedAt: Date?
+
     private let cardHeight: CGFloat = 170   // 길게 늘려 슬립·틸트로 생기는 측면 빈틈을 덮음
     private let overlap: CGFloat = -60   // advance(=높이+겹침)=110 — 이름 안전 구간은 기본~xxxLarge 한정(AX는 `showsCompactList`)
     private let cardInset: CGFloat = 18   // 페이지 마진 위 추가 인셋 — 영수증 폭 좁힘(가운데)
@@ -438,7 +447,12 @@ struct FridgeView: View {
         let visible = CGFloat(count - 1) * peek + 48
         return VStack(spacing: -(cardHeight - peek)) {
             ForEach(Array(others.enumerated()), id: \.element.id) { i, ing in
-                Button { select(ing) } label: {
+                // 위로 밀어 닫은 손은 카드를 고르려는 손이 아니다. 같은 터치가 **버튼 탭으로도**
+                // 도착한다 — SwiftUI 버튼은 이동 거리가 아니라 프레임 이탈로 탭을 취소하는데,
+                // 카드가 170pt라 90pt를 밀어 올려도 손끝은 여전히 같은 버튼 안이다. 그대로 두면
+                // 닫기(deselect) 직후 그 버튼이 다른 카드를 열어, 스와이프가 "닫힘"이 아니라
+                // "옆 카드로 갈아탐"으로 끝난다(실측). 닫은 제스처가 남긴 표를 여기서 한 번 삼킨다.
+                Button { if !consumeStackDismiss() { select(ing) } } label: {
                     FridgeCard(ingredient: ing, depth: i, seed: ing.daysLeft, height: cardHeight)
                         .matchedGeometryEffect(id: ing.id, in: ns)
                         .contentShape(Rectangle())
@@ -451,6 +465,9 @@ struct FridgeView: View {
         .frame(height: visible, alignment: .top)
         .clipShape(Rectangle())
         .contentShape(Rectangle())
+        // 미는 동안 스택이 **손을 따라 올라온다** — 0.6 감쇠라 종이 더미가 살짝 저항하며 끌려온다.
+        // Reduce Motion이면 따라오지 않고 제자리에 있다(판정은 그대로 되므로 기능은 남는다, §7.4).
+        .offset(y: reduceMotion ? 0 : stackLift)
         .padding(.horizontal, ReffiGrid.margin + cardInset)
         .padding(.bottom, ReffiChrome.navReserve)
         // 위로 스와이프(또는 탭) → 냉장고 스택으로 촤라락 복귀.
@@ -459,9 +476,47 @@ struct FridgeView: View {
         // 이 제스처가 가져간다(스와이프는 카드 위쪽 띠에서 시작해 카드 밖으로 나가므로 둘이 겹치지 않는다).
         .simultaneousGesture(
             DragGesture(minimumDistance: 16)
-                .onEnded { v in if v.translation.height < -36 { deselect() } }
+                .updating($stackLift) { v, lift, _ in
+                    // 위(음수)로만 끌린다 — 아래로 미는 손엔 여기서 할 일이 없다(스크롤 몫).
+                    lift = min(0, v.translation.height) * Self.stackLiftDamping
+                }
+                .onEnded { v in
+                    // 변위 단독 판정(옛 -36)은 **짧고 빠른 튕김**을 놓쳤다 — 손가락이 36pt를 긋기
+                    // 전에 떠도 사람은 이미 "밀어 올렸다"고 느낀다. 덱·To buy 행과 같은 규약으로
+                    // 던진 속도(`predictedEndTranslation`)를 함께 본다: 끝까지 끌었거나(변위),
+                    // 짧아도 세게 튕겼으면(예측) 닫는다.
+                    if v.translation.height < -Self.stackDismissDistance
+                        || v.predictedEndTranslation.height < -Self.stackDismissPredicted {
+                        markStackDismissed()
+                        deselect()
+                    }
+                }
         )
     }
+
+    /// 방금 스와이프로 닫았다는 표. 같은 터치의 버튼 탭이 **바로 다음 런루프**에 도착하므로
+    /// 창을 아주 짧게 잡고 스스로 지운다 — 버튼이 어떤 이유로든 오지 않아도 다음 진짜 탭을
+    /// 삼키지 않는다(표를 무기한 들고 있으면 그 다음 카드가 안 열리는 유령 버그가 된다).
+    private func markStackDismissed() {
+        stackDismissedAt = Date()
+    }
+
+    private func consumeStackDismiss() -> Bool {
+        guard let at = stackDismissedAt, Date().timeIntervalSince(at) < Self.stackDismissSwallow else { return false }
+        stackDismissedAt = nil
+        return true
+    }
+
+    /// 닫기 제스처가 버튼 탭을 삼키는 창(초).
+    private static let stackDismissSwallow: TimeInterval = 0.2
+
+    /// 손을 따라 올라오는 비율 — 1이면 종이가 손에 붙어 날아가고, 낮으면 무겁다. 0.6은
+    /// "끌려오지만 더미의 무게가 남는" 지점(덱 카드는 1:1로 따라간다 — 그건 한 장이라 가볍다).
+    private static let stackLiftDamping: CGFloat = 0.6
+    /// 끝까지 끌어 닫는 변위 — 옛 판정값 그대로다(이미 손에 익은 거리).
+    private static let stackDismissDistance: CGFloat = 36
+    /// 튕겨 닫는 예측 변위 — 감속까지 더한 예측이라 실제 변위보다 크게 잡는다.
+    private static let stackDismissPredicted: CGFloat = 120
 
     // MARK: 헤더 — "여기가 어디인가(Fridge · N) → 무엇을 보는가(탭) → 목록 조작(컨트롤 한 줄)"의 순서.
 
@@ -598,7 +653,11 @@ struct FridgeView: View {
         }
     }
 
-    // MARK: 종이 드롭다운 — 진입 .pop / 이탈 .exit(§7.5), reduced-motion 존중.
+    // MARK: 종이 드롭다운 — 진입 .enter / 이탈 .exit(§7.1), reduced-motion 존중.
+    //
+    // 메뉴는 **읽으러 여는 것**이라 예산이 짧다(150~250ms). `pop`(response 0.34 + 오버슈트)은
+    // 종이컷 표면이 튀어 오르는 문법(§7.5)이라 340ms를 넘겨 그 예산을 깬다 — 정렬 하나 바꾸려고
+    // 손이 두 번 멈춘다. 드롭다운 면 자체는 종이지만 **성격이 메뉴**라 §7.1 진입을 쓴다.
 
     /// 이 화면에서 열릴 수 있는 드롭다운. 값이 하나뿐이라 **둘이 동시에 열리는 상태가 존재하지 않는다**
     /// (`DropdownAnchorKey`의 "화면당 하나" 전제를 상태 모양으로 강제한다).
@@ -610,7 +669,7 @@ struct FridgeView: View {
         if openMenu == menu {
             closeMenus()
         } else {
-            withAnimation(ReffiMotion.gated(ReffiMotion.pop, reduce: reduceMotion)) { openMenu = menu }
+            withAnimation(ReffiMotion.gated(ReffiMotion.enter, reduce: reduceMotion)) { openMenu = menu }
         }
     }
     private func closeMenus() {

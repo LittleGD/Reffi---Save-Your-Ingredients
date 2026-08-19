@@ -183,7 +183,8 @@ struct AuthView: View {
             Text(isSignIn ? "New here?" : "Already have an account?")
                 .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
             Button(isSignIn ? "Sign up" : "Log in") {
-                withAnimation(ReffiMotion.gated(.easeOut(duration: 0.18), reduce: reduceMotion)) {
+                // 로그인↔가입은 같은 폼이 성격만 바뀌는 **상태 전환**이다(§7.1 standard, dur-2).
+                withAnimation(ReffiMotion.gated(ReffiMotion.standard, reduce: reduceMotion)) {
                     mode = isSignIn ? .signUp : .signIn
                     auth.errorMessage = nil
                     auth.notice = nil

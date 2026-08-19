@@ -56,6 +56,8 @@ struct MainView: View {
     /// 필드 실측 폭 — `fieldRestHeight`의 한 줄 하한이 칩 변(폭 파생)을 알아야 해서 잰다.
     /// 첫 레이아웃 전(0)에는 행 공식만 쓰고, 폭이 잡히면 같은 프레임에 하한이 따라온다.
     @State private var fieldWidth: CGFloat = 0
+    /// 직전 렌더의 뱃지 id — 이번에 **새로 들어온 뱃지**를 가려내 등장 스태거를 매기는 기준이다.
+    @State private var knownBadgeIDs: Set<Ingredient.ID> = []
 
     private let margin = ReffiGrid.margin
 
@@ -143,8 +145,10 @@ struct MainView: View {
                         .allowsHitTesting(false)
                 }
             }
-            .animation(ReffiMotion.gated(.easeInOut(duration: 0.5), reduce: reduceMotion), value: topF)
-            .animation(ReffiMotion.gated(.easeInOut(duration: 0.5), reduce: reduceMotion), value: urgentCount > 0)
+            // 배경 색면은 §7.1 밖 유일한 예외 길이(`ambient`, 0.5s)를 쓴다 — 화면을 통째로 덮은
+            // 색이 dur3로 갈아타면 "깜빡"으로 읽힌다(토큰 정의 주석 참조).
+            .animation(ReffiMotion.gated(ReffiMotion.ambient, reduce: reduceMotion), value: topF)
+            .animation(ReffiMotion.gated(ReffiMotion.ambient, reduce: reduceMotion), value: urgentCount > 0)
         }
         .sensoryFeedback(.impact(weight: .medium), trigger: fireHaptic)
         .sensoryFeedback(.impact(weight: .light), trigger: decisionHaptic)
@@ -619,11 +623,22 @@ struct MainView: View {
     /// 뱃지 행 — 긴급도순 가로 스크롤(가장 임박이 맨 앞). 끝에 ＋추가.
     /// (신선도 점 행은 뱃지의 인디케이터 바·D-N과 중복이라 제거 — §13.6 E)
     private var badgeScroll: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
+        // 이번 렌더에서 **새로** 들어온 뱃지들 — 아직 `knownBadgeIDs`에 없는 것이 이번 진입분이다.
+        // 영수증 스캔·샘플 냉장고처럼 한 번에 여럿이 들어오는 경로가 있어, 순서를 알아야 스태거를
+        // 매길 수 있다(하나만 들어오면 목록도 하나라 지연은 0이다).
+        let entering = counter.map(\.id).filter { !knownBadgeIDs.contains($0) }
+        return ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: ReffiSpace.s2) {
                 ForEach(Array(counter.enumerated()), id: \.element.id) { i, ing in
                     IngredientBadge(ingredient: ing, seed: i) { decide(ing.id) }
-                        .transition(.scale(scale: 1.3, anchor: .center).combined(with: .opacity))   // 뿅 사라짐
+                        // **진입과 이탈은 다른 사건이다.** 대칭(.scale 1.3)이면 새 뱃지가 130%에서
+                        // 쪼그라들며 나타나 "방금 지운 것이 되돌아왔나"로 읽힌다. 진입은 §7.1대로
+                        // 0.95에서 자라 오르고(하한 0.95 — scale(0) 금지), 이탈만 §7.5의 뿅(1.3)이다.
+                        .transition(.asymmetric(
+                            insertion: .scale(scale: 0.95, anchor: .center).combined(with: .opacity)
+                                .animation(ReffiMotion.gated(ReffiMotion.pop.delay(badgeEnterDelay(ing.id, in: entering)),
+                                                             reduce: reduceMotion)),
+                            removal: .scale(scale: 1.3, anchor: .center).combined(with: .opacity)))   // 뿅 사라짐
                 }
                 AddBadge(seed: counter.count) { showAdd = true }
             }
@@ -631,7 +646,22 @@ struct MainView: View {
             .padding(.vertical, ReffiSpace.s1)   // 그림자 여유
         }
         .animation(ReffiMotion.gated(ReffiMotion.pop, reduce: reduceMotion), value: counter.map(\.id))
+        // 진입분 판정 기준을 다음 변화로 넘긴다. `initial: true`로 첫 표시에서 채워 두지 않으면,
+        // 나중에 한 개를 더해도 화면에 있던 전부가 "새로 들어온 것"으로 읽혀 엉뚱한 지연을 받는다.
+        .onChange(of: counter.map(\.id), initial: true) { _, now in knownBadgeIDs = Set(now) }
     }
+
+    /// 여럿이 한꺼번에 들어올 때의 등장 지연(초) — 한 덩어리가 통째로 커지는 대신 하나씩 놓인다.
+    /// 40ms는 §7.1 dur-1(120ms)의 1/3로, 앞뒤 뱃지의 팝이 겹치되 순서는 보이는 간격이다.
+    /// 여섯 번째부터는 같은 지연으로 묶는다 — 스캔으로 열 개가 들어와도 마지막이 0.2초 넘게
+    /// 늦으면 "느리게 뜬다"가 되지, 스태거로 읽히지 않는다.
+    private func badgeEnterDelay(_ id: Ingredient.ID, in entering: [Ingredient.ID]) -> Double {
+        guard let i = entering.firstIndex(of: id) else { return 0 }
+        return Double(min(i, Self.badgeStaggerCap)) * Self.badgeStagger
+    }
+
+    private static let badgeStagger: Double = 0.04
+    private static let badgeStaggerCap = 5
 
     // MARK: - Ate / Tossed decision
 
@@ -642,6 +672,9 @@ struct MainView: View {
         withTransaction(t) { deciding = ing }
     }
 
+    /// 커버 해체 — 여기 도착할 때 카드는 **이미 흐려져 있다**(`DecisionCover.close`가 §7.1 이탈을
+    /// 먼저 재생하고 부른다). 그래서 `fullScreenCover`의 시스템 슬라이드만 끄면 되고, 이 시점의
+    /// 0프레임 컷은 보이지 않는 것을 치우는 일이다.
     private func closeDecision() {
         var t = Transaction(); t.disablesAnimations = true
         withTransaction(t) { deciding = nil }
@@ -747,6 +780,8 @@ private struct DecisionCover: View {
     var onCancel: () -> Void
 
     @State private var shown = false
+    /// 이탈 페이드가 도는 동안 잠금 — 그 창에 두 번째 판정이 들어오는 것을 막는다(아래 `close`).
+    @State private var closing = false
 
     /// Freeze 노출 조건 — 오늘 만료(urgent) + 재냉동 아님(1회 제한). '미루기 버튼' 방지.
     private var showFreeze: Bool { ingredient.freshness == .urgent && ingredient.canFreeze }
@@ -766,20 +801,33 @@ private struct DecisionCover: View {
         ZStack {
             ReffiColor.scrim.ignoresSafeArea()
                 .opacity(shown ? 1 : 0)
-                .onTapGesture { onCancel() }
+                .onTapGesture { close(onCancel) }
                 .accessibilityHidden(true)
             card
-                .scaleEffect(shown ? 1 : 0.85)
+                // 진입 하한은 0.95다(§7.1) — 0.85는 "멀리서 날아온다"라 종이 카드가 뜨는 게 아니라
+                // 던져지는 것으로 읽혔다. 팝 스프링의 오버슈트가 나머지 존재감을 만든다.
+                .scaleEffect(shown ? 1 : 0.95)
                 .opacity(shown ? 1 : 0)
         }
         .onAppear {
-            if reduceMotion {
-                shown = true
-            } else {
-                withAnimation(ReffiMotion.pop) { shown = true }
-            }
+            withAnimation(ReffiMotion.gated(ReffiMotion.pop, reduce: reduceMotion)) { shown = true }
         }
-        .accessibilityAction(.escape) { onCancel() }
+        .accessibilityAction(.escape) { close(onCancel) }
+    }
+
+    /// 이탈 — 예전엔 부모가 `disablesAnimations`로 커버를 **0프레임에 잘라** 냈다. 뜰 때는 스프링으로
+    /// 부풀던 카드가 사라질 때만 한 프레임에 없어지니, 눈이 "무엇이 닫혔는지"를 못 따라가고 판정이
+    /// 취소된 것처럼 보였다. §7.1대로 이탈은 진입보다 짧게(dur-1 ease-in) 한 번 흐린 뒤 해체한다.
+    /// Reduce Motion이면 그 페이드도 없이 즉시(§7.4).
+    ///
+    /// 페이드가 도는 0.12초는 **버튼이 두 번 눌릴 수 있는 창**이다 — `closing`으로 잠가 Tossed 직후
+    /// Ate가 겹쳐 들어오는 이중 판정을 막는다(부모의 커버 해체는 그 뒤에 한 번만 일어난다).
+    private func close(_ finish: @escaping () -> Void) {
+        guard !closing else { return }
+        guard !reduceMotion else { finish(); return }
+        closing = true
+        withAnimation(ReffiMotion.exit) { shown = false }
+        DispatchQueue.main.asyncAfter(deadline: .now() + ReffiMotion.dur1) { finish() }
     }
 
     private var card: some View {
@@ -829,19 +877,19 @@ private struct DecisionCover: View {
     private func outcomeButtons(size: CGFloat, placement: PaperIconLabel.Placement) -> some View {
         PaperIconButton(icon: ReffiIcon.toss, label: "Tossed", intent: .soft,
                         size: size, seed: 0, placement: placement,
-                        capsLabelWidth: false) { onCommit(false) }
+                        capsLabelWidth: false) { close { onCommit(false) } }
         if showFreeze {
             PaperIconButton(icon: ReffiIcon.freeze, label: "Freeze", intent: .neutral,
                             size: size, seed: 2, placement: placement,
-                            capsLabelWidth: false) { onFreeze() }
+                            capsLabelWidth: false) { close(onFreeze) }
         }
         PaperIconButton(icon: ReffiIcon.ate, label: "Ate", intent: .primary,
                         size: size, seed: 1, placement: placement,
-                        capsLabelWidth: false) { onCommit(true) }
+                        capsLabelWidth: false) { close { onCommit(true) } }
     }
 
     private var keepIt: some View {
-        Button { onCancel() } label: {
+        Button { close(onCancel) } label: {
             Text("Keep it")
                 .reffiType(.caption)
                 .foregroundStyle(ReffiColor.ink2)

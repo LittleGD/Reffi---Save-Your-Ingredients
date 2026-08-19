@@ -355,18 +355,37 @@ struct RecipeMemoCarousel: View {
             return
         }
         let mag = max(1, hypot(p.width, p.height))
-        let target = CGSize(width: p.width / mag * 640, height: p.height / mag * 640)
-        // 날려보낸 **그 티켓**을 기억해 두고, 0.18초 뒤에도 여전히 맨 앞일 때만 덱을 돌린다.
+        let target = CGSize(width: p.width / mag * Self.flyDistance, height: p.height / mag * Self.flyDistance)
+        // **커밋은 속도로 판정하는데 연출만 고정 0.2초**였다 — 손목으로 튕긴 티켓과 임계선을 겨우
+        // 넘긴 티켓이 똑같은 속도로 빠져나가니, 세게 던진 손이 만든 운동량이 화면에서 끊겼다.
+        // 같은 `predictedEndTranslation`이 곧 속도의 대리값이므로(변위 + 감속 예측), 그 크기로
+        // 이탈 시간을 정한다. 클램프 밖은 둘 다 못 쓴다: 너무 빠르면 카드가 사라진 줄 모르고,
+        // 너무 느리면 던진 힘이 허공에서 멎는다.
+        let fly = min(Self.flyMax, max(Self.flyMin, Self.flyDistance / mag * Self.flyFactor))
+        // 날려보낸 **그 티켓**을 기억해 두고, 이탈이 거의 끝난 뒤에도 여전히 맨 앞일 때만 덱을 돌린다.
         // 그 사이에 다른 경로(접근성 "Next ticket" 액션, 날아가는 카드 위에서 시작된 새 플릭)가
         // 이미 덱을 돌렸으면 여기서 한 번 더 돌게 되고, 사용자가 보지도 못한 티켓이 조용히 넘어간다
         // (그 카드가 제스처를 쥔 채 뒤로 밀리면 onEnded가 오지 않아 축 잠금까지 남는다).
         let flicked = deck.first
-        withAnimation(.easeOut(duration: 0.2)) { dragOffset = target }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
+        withAnimation(ReffiMotion.easeOut(duration: fly)) { dragOffset = target }
+        DispatchQueue.main.asyncAfter(deadline: .now() + fly * Self.flySwapRatio) {
             guard deck.first == flicked else { return }
             advance()
         }
     }
+
+    /// 플릭 이탈 — 카드가 날아가는 거리(pt)와, 던진 세기를 시간으로 바꾸는 상수들.
+    ///
+    /// `flyFactor`는 "예측 변위가 mag이면 640pt를 이만큼에 지난다"의 근사다: 임계선을 살짝 넘긴
+    /// 커밋(mag ≈ 180)이 상한 0.28에, 손목으로 튕긴 것(mag ≳ 420)이 하한(dur-1)에 붙는다.
+    /// 하한은 §7.1 마이크로 듀레이션 그대로고, 상한만 면 전환(dur-3)보다 살짝 길다 — 화면 밖으로
+    /// 나가는 거리라 dur-3에 맞추면 느린 플릭이 뚝 끊긴다.
+    private static let flyDistance: CGFloat = 640
+    private static let flyFactor: Double = 0.08
+    private static let flyMin: Double = ReffiMotion.dur1
+    private static let flyMax: Double = 0.28
+    /// 덱 회전 시점 — 이탈이 거의 끝난 지점(옛 0.2초 연출의 0.18초와 같은 비율).
+    private static let flySwapRatio: Double = 0.9
 
     /// 맨 앞 티켓을 덱 뒤로 — 다음 티켓이 스프링으로 올라온다.
     private func advance() {

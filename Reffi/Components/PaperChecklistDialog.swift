@@ -54,7 +54,9 @@ struct PaperChecklistDialog: View {
                 // 딤은 시각 요소다 — 라벨을 달면 VoiceOver에 정체불명의 요소가 하나 늘어난다.
                 .accessibilityHidden(true)
             card
-                .scaleEffect(shown ? 1 : 0.85)
+                // 진입 하한 0.95(§7.1) — `PaperDialog`·판정 커버와 같은 값이다(셋이 갈리면
+                // 같은 문법의 종이가 화면마다 다른 거리에서 날아온다).
+                .scaleEffect(shown ? 1 : 0.95)
                 .opacity(shown ? 1 : 0)
         }
         // 뜬 동안 뒤 화면(티켓 덱)을 VoiceOver에서 가린다 — 훑을 수 있으면 모달이 아니다.
