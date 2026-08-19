@@ -59,6 +59,9 @@ struct MainView: View {
     /// 필드 실측 폭 — `fieldRestHeight`의 한 줄 하한이 칩 변(폭 파생)을 알아야 해서 잰다.
     /// 첫 레이아웃 전(0)에는 행 공식만 쓰고, 폭이 잡히면 같은 프레임에 하한이 따라온다.
     @State private var fieldWidth: CGFloat = 0
+    /// 드래그 진행 중 — 씬의 존 표시/숨김 신호(`onDragActive`)를 받아 필드에 조작 여유를 연다.
+    /// 정지 캡은 더미를 껴안는 게 맞지만, 잡는 순간에는 들어 올릴 하늘이 있어야 한다(§13.4).
+    @State private var dragHeadroom = false
     /// 직전 렌더의 뱃지 id — 이번에 **새로 들어온 뱃지**를 가려내 등장 스태거를 매기는 기준이다.
     @State private var knownBadgeIDs: Set<Ingredient.ID> = []
 
@@ -157,6 +160,9 @@ struct MainView: View {
                 physicsField(counter)
                     .onGeometryChange(for: CGFloat.self, of: { $0.size.width }) { fieldWidth = $0 }
                     .frame(maxWidth: .infinity, maxHeight: fieldRestHeight(counter))
+                    // 드래그 여유의 개폐만 부드럽게 — 바닥 정렬이라 위로만 자라고, 배경이 투명해
+                    // 보이는 변화는 존이 제 위치(더미 위)로 올라서는 것뿐이다.
+                    .animation(ReffiMotion.gated(ReffiMotion.standard, reduce: reduceMotion), value: dragHeadroom)
                     // 남는 공백은 **전부 위로** 몬다 — 더미가 뱃지 바로 위에 내려앉는다.
                     // 가운데 정렬이던 시절엔 필드 상자 자체가 화면 중앙에 떠서, 칩이 상자 바닥에
                     // 정확히 붙어 있는데도 "바닥에 안 붙는다"로 읽혔다(-physLab 오버레이로 확인).
@@ -697,7 +703,10 @@ struct MainView: View {
         guard !counter.items.isEmpty else { return .infinity }   // 빈 작업대(카피·CTA)는 캡 대상이 아니다
         let rows = 96 * ceil(CGFloat(counter.items.count) / 3) + 28
         guard fieldWidth > 0 else { return rows }
-        return max(rows, IngredientDropScene.minRestFieldHeight(width: fieldWidth))
+        let rest = max(rows, IngredientDropScene.minRestFieldHeight(width: fieldWidth))
+        // 드래그 중에만 조작 여유를 연다 — 클램프 상한·존이 더미 위로 올라와 "들어서 나른다"가
+        // 성립한다(`dragFieldHeadroom` 주석의 산술). 놓으면 도로 닫혀 정지 미학은 그대로다.
+        return dragHeadroom ? rest + IngredientDropScene.dragFieldHeadroom(width: fieldWidth) : rest
     }
 
     private func physicsField(_ counter: CounterDigest) -> some View {
@@ -736,6 +745,8 @@ struct MainView: View {
         scene.reduceMotion = reduceMotion
         scene.onRemove = { id in decide(id) }
         scene.onDecide = { id, wasted in gestureDecide(id, wasted: wasted) }
+        // 존 표시/숨김 = 드래그 수명주기. 같은 값 재통지가 올 수 있어(벽 재생성 복원 경로) 비교 후 대입.
+        scene.onDragActive = { active in if dragHeadroom != active { dragHeadroom = active } }
         scene.externallyPaused = scenePaused
         scene.sync(liveCounter)
     }

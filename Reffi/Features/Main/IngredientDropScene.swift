@@ -139,6 +139,10 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     var onRemove: ((UUID) -> Void)?
     /// 제스처 판정(§13.6 B) — 칩을 존에 끌어다 놓으면 (id, wasted). 탭 오버레이는 접근성 경로로 유지.
     var onDecide: ((UUID, Bool) -> Void)?
+    /// 드래그 시작/종료(= 판정 존 표시/숨김) 신호. 홈이 이 순간에만 필드를 `dragFieldHeadroom`만큼
+    /// 열어 준다 — 정지 캡(감사 R3-4)은 더미를 껴안는 게 맞지만, 그 상자 그대로는 잡은 칩을 더미
+    /// 위로 들 수 없고(클램프 상한이 더미 상단보다 낮다) 존이 더미 위에 얹힌다(2026-08-19 실기 제보).
+    var onDragActive: ((Bool) -> Void)?
     /// Reduce Motion이면 기울임 중력을 끄고 상수 중력으로 되돌린다(예측 불가한 화면 움직임 제거, §7.4).
     var reduceMotion = false {
         didSet { if reduceMotion != oldValue { syncMotionUpdates(); wake() } }
@@ -197,6 +201,15 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     /// 바닥·헤드룸 28을 얹는다. 칩 기하의 정본이 씬이라 이 식도 씬에 산다.
     static func minRestFieldHeight(width: CGFloat) -> CGFloat {
         chipSideFor(CGSize(width: width, height: 0)) * (maxBodyHeightRatio / 0.9) + 28
+    }
+
+    /// 드래그 중 필드가 추가로 여는 높이 — 정지 캡은 더미를 껴안지만(감사 R3-4), 그 상자 그대로는
+    /// **조작이 안 된다**: 더미 상단이 캡 −13pt까지 오는데 드래그 클램프 상한은 캡 −(벽 인셋 + 0.42s)
+    /// ≈ 캡 −86pt라, 잡은 칩의 중심이 더미 상단보다 ~73pt 아래에 묶여 더미를 뚫고 밀 수밖에 없고,
+    /// 존(캡 −55pt)은 더미 위에 얹힌다. 0.75s(≈127pt @402pt 폭)를 열면 클램프 상한이 더미 위로
+    /// ~45pt, 존은 ~72pt 올라와 "들어서 나른다"가 성립한다. 놓으면 도로 닫힌다(캡의 미학은 정지 상태의 것).
+    static func dragFieldHeadroom(width: CGFloat) -> CGFloat {
+        chipSideFor(CGSize(width: width, height: 0)) * 0.75
     }
     private var floorY: CGFloat { max(6, size.height * 0.03) }
 
@@ -1099,6 +1112,10 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
             tossZone?.setScale(1)
             ateZone?.setScale(1)
         }
+        // 드래그 수명주기의 단일 깔때기 — 모든 시작/종료/취소 경로가 이 함수를 지난다.
+        // 홈은 이 신호로 필드에 **드래그 여유**를 연다(`dragFieldHeadroom`). 같은 값 재통지는
+        // 상태 대입이라 무해하고, `buildWalls`의 복원 호출(visible 그대로)도 그래서 안전하다.
+        onDragActive?(visible)
     }
 
     private func highlight(_ zone: SKSpriteNode?, hovering: Bool) {
