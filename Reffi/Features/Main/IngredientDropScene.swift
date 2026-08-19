@@ -139,13 +139,15 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     var onRemove: ((UUID) -> Void)?
     /// 제스처 판정(§13.6 B) — 칩을 존에 끌어다 놓으면 (id, wasted). 탭 오버레이는 접근성 경로로 유지.
     var onDecide: ((UUID, Bool) -> Void)?
-    /// 드래그 시작/종료(= 판정 존 표시/숨김) 신호. 홈이 이 순간에만 필드를 `dragFieldHeadroom`만큼
-    /// 열어 준다 — 정지 캡(감사 R3-4)은 더미를 껴안는 게 맞지만, 그 상자 그대로는 잡은 칩을 더미
-    /// 위로 들 수 없고(클램프 상한이 더미 상단보다 낮다) 존이 더미 위에 얹힌다(2026-08-19 실기 제보).
-    var onDragActive: ((Bool) -> Void)?
-    /// 씬 상단에서 존을 이만큼 내려 앵커한다 — 드래그 하늘이 상태 카드 **뒤**까지 열릴 때(오너 결정:
-    /// "카드가 앞, 그 뒤에 공간"), 존은 카드 밴드 아래 제자리에 남는다. 0이면 종전과 동일(상단 −55).
-    var zoneTopInset: CGFloat = 0
+    /// 하늘의 세 단 — 닫힘(정지 캡) < 드래그(카드 뒤 밴드까지) < 스폰(화면 최상단 밖까지).
+    /// 스폰이 가장 높은 이유: 칩은 "화면 위에서" 떨어져 들어와야 하는데(§13), 닫힌 상자에선
+    /// 상자 윗변(화면 중앙쯤)에서 갑자기 나타났다(실기 제보). Comparable은 높이 순.
+    enum Sky: Comparable { case closed, drag, spawn }
+    /// 하늘 개폐 신호 — 홈이 이 신호로 필드(SpriteView) 높이를 바꾼다. 같은 값 재통지는 하지 않는다.
+    var onSkyChange: ((Sky) -> Void)?
+    /// 정지 캡 높이(홈의 레이아웃 슬롯 실측) — 존 앵커와 무관하게 하늘이 아무리 열려도
+    /// 존은 `restHeight + dragFieldHeadroom` 자리에 남는다(오너 결정: "존은 지금 위치가 좋다").
+    var restHeight: CGFloat = 0
     /// Reduce Motion이면 기울임 중력을 끄고 상수 중력으로 되돌린다(예측 불가한 화면 움직임 제거, §7.4).
     var reduceMotion = false {
         didSet { if reduceMotion != oldValue { syncMotionUpdates(); wake() } }
@@ -630,6 +632,15 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         if ceilingSealed { tuckStraysUnderCeiling() }
         layoutZones()
         wake()   // 리사이즈로 레이아웃이 바뀌었으니 한 번 굴려 재안착
+        // 하늘이 열리길 기다리던 스폰 — 커진 높이가 착지했으니 이제 낳는다(sync 유예 주석).
+        if spawnDeferred {
+            spawnDeferred = false
+            spawnDeferredAt = 0
+            #if DEBUG
+            Logger(subsystem: "com.reffi.app", category: "scene").debug("sky: resize landed (h=\(self.size.height)), spawning deferred")
+            #endif
+            sync(pending)
+        }
     }
 
     /// 드래그 중인 재료를 손가락 쪽으로 **스프링처럼 끌어당긴다**(텔레포트 아님).
@@ -647,7 +658,20 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         if Self.physLab { physLabTick(currentTime) }
         #endif
         maintainCeiling(currentTime)   // 낙하 끝나면 밀폐, 위쪽에 갇힌 칩은 회수(§13.4 컨테인먼트)
-        closeHeadroomIfArmed(now: currentTime)   // 안착이 늦어도 1.5초 백스톱으로 하늘을 닫는다
+        closeHeadroomIfArmed(now: currentTime)   // 안착이 늦어도 백스톱(드래그 1.5초/스폰 sealTimeout)으로 닫는다
+        // 스폰 유예 백스톱 — 예고된 리사이즈가 안 오면(슬롯 미실측 등) 0.5초 뒤 그냥 그 자리에서 낳는다.
+        // 칩을 영영 안 낳는 것보다 상자 윗변 진입이 낫다.
+        if spawnDeferred {
+            if spawnDeferredAt == 0 { spawnDeferredAt = currentTime }
+            else if currentTime - spawnDeferredAt > 0.5 {
+                spawnDeferred = false
+                spawnDeferredAt = 0
+                #if DEBUG
+                Logger(subsystem: "com.reffi.app", category: "scene").debug("sky: deferral backstop fired — resize never landed (h=\(self.size.height))")
+                #endif
+                sync(pending)
+            }
+        }
         if let node = dragged, let body = node.physicsBody {
             // 마그네틱 캡처 — 손가락이 바스켓 근처면 추종 목표가 바스켓 중심으로 스냅되어
             // 재료가 자석처럼 끌려 들어간다. 손가락이 벗어나면 다시 손가락을 따른다.
@@ -1109,8 +1133,12 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         if tossZone == nil { let z = makeZone(toss: true); tossZone = z; addChild(z) }
         if ateZone == nil { let z = makeZone(toss: false); ateZone = z; addChild(z) }
         // 상단 모서리 — 더미(바닥)와 겹치지 않고, 들어 올려서 넣는 제스처가 자연스럽다.
-        // `zoneTopInset` 위쪽은 상태 카드 뒤 밴드 — 존이 카드에 가려지면 안 되니 그 아래에 선다.
-        let y = size.height - zoneTopInset - zoneSide * 0.5 - 12
+        // 앵커는 하늘 높이가 아니라 **정지 캡 + 드래그 여유**다 — 하늘이 카드 뒤·최상단까지 열려도
+        // 존은 제자리에 남는다(오너 결정). restHeight 미실측(0)이면 종전대로 씬 상단 기준.
+        let anchorTop = restHeight > 0
+            ? min(size.height, restHeight + Self.dragFieldHeadroom(width: size.width))
+            : size.height
+        let y = anchorTop - zoneSide * 0.5 - 12
         let toss = CGPoint(x: zoneSide * 0.5 + 14, y: y)
         let ate  = CGPoint(x: size.width - zoneSide * 0.5 - 14, y: y)
         // 보이는 중의 재배치(드래그 여유 개방으로 천장이 오를 때)는 점프 대신 짧게 미끄러진다 —
@@ -1152,28 +1180,59 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     // **닫기는 더미가 안착한 뒤**(settleToIdle, 백스톱 1.5초)로 갈랐다 — 여닫는 프레임에
     // 움직이는 것이 없어야 리사이즈가 보이지 않는다.
 
-    private var headroomOpen = false
-    private var headroomArmedAt: TimeInterval = 0   // 0 = 닫기 예약 없음
+    private var dragSkyOpen = false
+    private var spawnSkyOpen = false
+    private var skyArmedAt: TimeInterval = 0   // 0 = 닫기 예약 없음
+    private var notifiedSky: Sky = .closed
+    /// 스폰 유예 — 하늘이 열리는 리사이즈가 착지한 뒤(didChangeSize) pending을 다시 태운다.
+    private var spawnDeferred = false
+    private var spawnDeferredAt: TimeInterval = 0
+
+    private var currentSky: Sky { spawnSkyOpen ? .spawn : dragSkyOpen ? .drag : .closed }
+
+    private func notifySkyIfChanged() {
+        let s = currentSky
+        guard s != notifiedSky else { return }
+        notifiedSky = s
+        onSkyChange?(s)
+    }
 
     private func openHeadroom() {
-        headroomArmedAt = 0
-        guard !headroomOpen else { return }
-        headroomOpen = true
-        onDragActive?(true)
+        skyArmedAt = 0
+        guard !dragSkyOpen else { return }
+        dragSkyOpen = true
+        notifySkyIfChanged()
+    }
+
+    /// 스폰 낙하를 위해 하늘을 최상단까지 연다. 반환값 = **리사이즈가 실제로 올 것인가**
+    /// (신호가 상태를 바꿨고 받는 쪽이 있을 때만) — 참이면 호출부는 스폰을 유예해야 한다.
+    private func openSpawnSky() -> Bool {
+        skyArmedAt = lastUpdateTime > 0 ? lastUpdateTime : 1   // 열자마자 예약 — 안착하면 닫힌다
+        guard onSkyChange != nil else { return false }         // 신호 못 받는 호스트(테스트)면 그 자리 스폰
+        guard !spawnSkyOpen else { return false }              // 이미 열려 있으면 크기도 이미 크다
+        spawnSkyOpen = true
+        notifySkyIfChanged()
+        #if DEBUG
+        Logger(subsystem: "com.reffi.app", category: "scene").debug("sky: spawn open, resize expected (size=\(self.size.height))")
+        #endif
+        return true
     }
 
     /// 드래그가 끝났다 — 바로 닫지 않고 안착(idle)이나 백스톱 타임아웃에 닫는다.
     private func armHeadroomClose() {
-        guard headroomOpen else { return }
-        headroomArmedAt = lastUpdateTime > 0 ? lastUpdateTime : 1
+        guard dragSkyOpen || spawnSkyOpen else { return }
+        skyArmedAt = lastUpdateTime > 0 ? lastUpdateTime : 1
     }
 
     private func closeHeadroomIfArmed(force: Bool = false, now: TimeInterval = 0) {
-        guard headroomOpen, headroomArmedAt > 0, dragTouch == nil else { return }
-        guard force || (now > 0 && now - headroomArmedAt > 1.5) else { return }
-        headroomOpen = false
-        headroomArmedAt = 0
-        onDragActive?(false)
+        guard dragSkyOpen || spawnSkyOpen, skyArmedAt > 0, dragTouch == nil else { return }
+        // 스폰 하늘은 캐스케이드 전체를 담아야 한다 — 드래그(1.5초)보다 긴 sealTimeout을 백스톱으로.
+        let backstop: TimeInterval = spawnSkyOpen ? sealTimeout : 1.5
+        guard force || (now > 0 && now - skyArmedAt > backstop) else { return }
+        dragSkyOpen = false
+        spawnSkyOpen = false
+        skyArmedAt = 0
+        notifySkyIfChanged()
     }
 
     private func highlight(_ zone: SKSpriteNode?, hovering: Bool) {
@@ -1340,6 +1399,19 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     func sync(_ ingredients: [Ingredient]) {
         pending = ingredients
         guard size.width > 1 else { return }
+        // 새로 떨어질 칩이 있으면 **하늘부터 연다** — 닫힌 상자에서 스폰하면 칩이 상자 윗변
+        // (화면 중앙쯤)에서 갑자기 나타난다. 리사이즈가 올 예정이면 스폰을 유예하고,
+        // didChangeSize가 커진 높이에서 pending을 다시 태운다(스폰 사다리가 씬 상단 기준이라
+        // 그때 낳아야 최상단 밖에서 진입한다). Reduce Motion은 낙하가 없으니 해당 없음.
+        let willDrop = !reduceMotion && ingredients.contains { ing in
+            guard let node = chips[ing.id] else { return true }
+            return (node.userData?["name"] as? String) != ing.name
+        }
+        if willDrop, openSpawnSky() {
+            spawnDeferred = true
+            spawnDeferredAt = 0
+            return
+        }
         wake()   // 재료 추가·제거·재생성은 새 물리 이벤트 — 휴면이면 깨운다
         let ids = Set(ingredients.map(\.id))
         // 빠진 재료는 뿅 사라짐(스프링 팝). 새 재료는 추가.
@@ -1831,7 +1903,7 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         dragMoved = false
         dragStart = loc
         dragTarget = clampToBox(loc)
-        headroomArmedAt = 0   // 닫기 예약 중 재파지 — 열린 하늘을 그대로 잇는다
+        skyArmedAt = 0   // 닫기 예약 중 재파지 — 열린 하늘을 그대로 잇는다
         dragGrabOffset = CGPoint(x: loc.x - node.position.x, y: loc.y - node.position.y)
         setZones(visible: true)
         node.removeAction(forKey: "squash")   // 잡는 순간 눌림 연출은 끊고 배율 원복

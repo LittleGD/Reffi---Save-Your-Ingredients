@@ -64,9 +64,12 @@ struct MainView: View {
     /// 상태 카드(발주 진행/알림 배너)의 실측 높이(+상단 s3) — 드래그 하늘이 이 카드 **뒤까지** 닿는다.
     /// 카드가 없으면 0: 하늘은 카드가 있던 선(슬롯 위 dragFieldHeadroom)에서 멈춘다.
     @State private var statusCardOverhang: CGFloat = 0
-    /// 드래그 진행 중 — 씬의 존 표시/숨김 신호(`onDragActive`)를 받아 필드에 조작 여유를 연다.
-    /// 정지 캡은 더미를 껴안는 게 맞지만, 잡는 순간에는 들어 올릴 하늘이 있어야 한다(§13.4).
-    @State private var dragHeadroom = false
+    /// 하늘 상태 — 씬의 `onSkyChange`를 받아 필드(SpriteView) 실높이를 바꾼다.
+    /// 정지 캡은 더미를 껴안는 게 맞지만, 잡는 순간에는 들어 올릴 하늘이(드래그),
+    /// 낳는 순간에는 떨어져 들어올 하늘이(스폰 = 화면 최상단 밖) 있어야 한다(§13.4).
+    @State private var sky: IngredientDropScene.Sky = .closed
+    /// 슬롯 상단의 화면 기준 y — 스폰 하늘이 "화면 최상단 밖"까지 열리는 데 필요한 거리.
+    @State private var fieldSlotGlobalTop: CGFloat = 0
     /// 직전 렌더의 뱃지 id — 이번에 **새로 들어온 뱃지**를 가려내 등장 스태거를 매기는 기준이다.
     @State private var knownBadgeIDs: Set<Ingredient.ID> = []
 
@@ -167,18 +170,20 @@ struct MainView: View {
                     .zIndex(1)
 
                 physicsField(counter)
-                    // 씬의 실높이: 평소엔 슬롯과 같고, 드래그 중엔 하늘(dragFieldHeadroom)과
-                    // 상태 카드 밴드(statusCardOverhang)만큼 **위로 넘친다** — SwiftUI 프레임은
-                    // 클립하지 않으므로 SKView 자체가 카드 뒤까지 올라선다. 레이아웃 슬롯(아래
+                    // 씬의 실높이: 평소엔 슬롯과 같고, 하늘이 열리면 **위로 넘친다** — 드래그는
+                    // 상태 카드 뒤 밴드까지, 스폰(낙하 진입)은 화면 최상단 밖까지. SwiftUI 프레임은
+                    // 클립하지 않으므로 SKView 자체가 카드·헤더 뒤로 올라선다. 레이아웃 슬롯(아래
                     // maxHeight 프레임)은 개폐와 무관하게 고정이라 형제들이 미동도 하지 않는다.
                     // 개폐는 **즉시** — 여닫는 프레임엔 씬이 움직이는 것을 두지 않는다(열기=끌기
                     // 시작, 닫기=안착 후). 프레임을 애니메이션하면 스트리밍 리사이즈가 매 프레임
                     // 벽 재구성·wake를 부르며 "지직"으로 읽혔다(실기 제보).
                     .frame(height: fieldSceneHeight(counter), alignment: .bottom)
                     .frame(maxWidth: .infinity, maxHeight: fieldRestHeight(counter), alignment: .bottom)
-                    .onGeometryChange(for: CGSize.self, of: { $0.size }) { s in
-                        fieldWidth = s.width
-                        fieldSlotHeight = s.height
+                    .onGeometryChange(for: CGRect.self, of: { $0.frame(in: .global) }) { r in
+                        fieldWidth = r.width
+                        fieldSlotHeight = r.height
+                        fieldSlotGlobalTop = r.minY
+                        scene.restHeight = r.height   // 존 앵커의 정본 — 하늘과 무관하게 제자리
                     }
                     // 남는 공백은 **전부 위로** 몬다 — 더미가 뱃지 바로 위에 내려앉는다.
                     // 가운데 정렬이던 시절엔 필드 상자 자체가 화면 중앙에 떠서, 칩이 상자 바닥에
@@ -734,12 +739,18 @@ struct MainView: View {
     }
 
     /// 씬(SpriteView)의 실높이 — 슬롯 실측 전(0)엔 유연하게 두고, 이후엔 슬롯에 고정하되
-    /// 드래그 중에만 하늘(dragFieldHeadroom) + 상태 카드 밴드만큼 키운다. 존은 카드 밴드
-    /// **아래**에 앵커된다(`zoneTopInset`) — 하늘은 카드 뒤까지, 존은 제자리(오너 결정).
+    /// 하늘 상태에 따라 위로 키운다: 드래그 = 하늘(dragFieldHeadroom) + 상태 카드 밴드까지,
+    /// 스폰 = 화면 최상단 밖까지(슬롯 상단의 화면 y + 여유). 존은 하늘과 무관하게
+    /// `restHeight + dragFieldHeadroom`에 앵커된다(씬 layoutZones) — 존은 제자리(오너 결정).
     private func fieldSceneHeight(_ counter: CounterDigest) -> CGFloat? {
         guard fieldSlotHeight > 0, !counter.items.isEmpty else { return nil }
-        guard dragHeadroom else { return fieldSlotHeight }
-        return fieldSlotHeight + IngredientDropScene.dragFieldHeadroom(width: fieldWidth) + statusCardOverhang
+        let dragExtra = IngredientDropScene.dragFieldHeadroom(width: fieldWidth) + statusCardOverhang
+        switch sky {
+        case .closed: return fieldSlotHeight
+        case .drag:   return fieldSlotHeight + dragExtra
+        // 스폰 하늘은 드래그 하늘보다 낮아지면 안 된다(캐스케이드 중 잡아 끄는 경우) — max로 보증.
+        case .spawn:  return fieldSlotHeight + max(dragExtra, fieldSlotGlobalTop + 24)
+        }
     }
 
     private func physicsField(_ counter: CounterDigest) -> some View {
@@ -753,12 +764,7 @@ struct MainView: View {
                 SpriteView(scene: scene, options: [.allowsTransparency],
                            debugOptions: physLabDebugOptions)
                     .onAppear { configureScene(size: geo.size) }
-                    .onChange(of: geo.size) { _, s in
-                        // 존 앵커를 먼저 — didChangeSize의 layoutZones가 새 인셋으로 자리를 잡는다.
-                        // 하늘이 열리면 씬 상단은 카드 뒤인데, 존은 카드 밴드 아래 제자리에 남는다.
-                        scene.zoneTopInset = dragHeadroom ? statusCardOverhang : 0
-                        scene.size = s
-                    }
+                    .onChange(of: geo.size) { _, s in scene.size = s }
                     .onChange(of: sceneSyncKey(counter)) { _, _ in scene.sync(counter.items) }
                     .onChange(of: reduceMotion) { _, v in scene.reduceMotion = v }
                     .onChange(of: scenePaused) { _, p in scene.externallyPaused = p }
@@ -783,8 +789,9 @@ struct MainView: View {
         scene.reduceMotion = reduceMotion
         scene.onRemove = { id in decide(id) }
         scene.onDecide = { id, wasted in gestureDecide(id, wasted: wasted) }
-        // 존 표시/숨김 = 드래그 수명주기. 같은 값 재통지가 올 수 있어(벽 재생성 복원 경로) 비교 후 대입.
-        scene.onDragActive = { active in if dragHeadroom != active { dragHeadroom = active } }
+        // 하늘 개폐 = 드래그·스폰 수명주기. 씬이 같은 값은 재통지하지 않지만 방어적으로 비교 후 대입.
+        scene.onSkyChange = { s in if sky != s { sky = s } }
+        scene.restHeight = fieldSlotHeight
         scene.externallyPaused = scenePaused
         scene.sync(liveCounter)
     }
