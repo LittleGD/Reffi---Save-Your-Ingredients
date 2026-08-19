@@ -211,6 +211,15 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     static func dragFieldHeadroom(width: CGFloat) -> CGFloat {
         chipSideFor(CGSize(width: width, height: 0)) * 0.75
     }
+
+    /// 재료 ≥2의 정지 하한 — 행 피치(96)는 **눕고 맞물린** 더미의 실측이라, 칩이 칩 위에 **선** 채
+    /// 안착하는 실배치(2026-08-19 실기: 버섯 위에 우유가 서서 상단 잘림)를 못 담는다. 2단 탑의
+    /// 상계 = 아래 칩 바디(≤ maxBodyHeightRatio×s) + 위 칩의 그려지는 높이(바디/0.9) + 바닥·헤드룸 28.
+    /// 작업대 상한이 6이라 행은 최대 2 — 이 하한이 곧 다행(多行) 캡의 정본이다.
+    static func stackedRestFieldHeight(width: CGFloat) -> CGFloat {
+        let s = chipSideFor(CGSize(width: width, height: 0))
+        return s * maxBodyHeightRatio + s * (maxBodyHeightRatio / 0.9) + 28
+    }
     private var floorY: CGFloat { max(6, size.height * 0.03) }
 
     // MARK: - 컨테인먼트 경계 (§13.4)
@@ -635,6 +644,7 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         if Self.physLab { physLabTick(currentTime) }
         #endif
         maintainCeiling(currentTime)   // 낙하 끝나면 밀폐, 위쪽에 갇힌 칩은 회수(§13.4 컨테인먼트)
+        closeHeadroomIfArmed(now: currentTime)   // 안착이 늦어도 1.5초 백스톱으로 하늘을 닫는다
         if let node = dragged, let body = node.physicsBody {
             // 마그네틱 캡처 — 손가락이 바스켓 근처면 추종 목표가 바스켓 중심으로 스냅되어
             // 재료가 자석처럼 끌려 들어간다. 손가락이 벗어나면 다시 손가락을 따른다.
@@ -1008,6 +1018,9 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
 
     /// 정착 → idle. 정밀 충돌은 '움직일 가능성이 있는 동안'만이라 여기서 전부 내린다(B6).
     private func settleToIdle() {
+        // 안착이 곧 닫을 시점이다 — 모든 칩이 바닥 더미로 돌아온 프레임이라 천장이 내려와도
+        // 회수(순간이동)할 것이 없다. idle로 잠들기 전에 닫아야 한다(잠들면 update()가 멈춘다).
+        closeHeadroomIfArmed(force: true)
         for node in chips.values {
             node.physicsBody?.usesPreciseCollisionDetection = false
             // 스쿼시 액션이 남은 채 pause되면 눌린 모양으로 얼어붙는다 — 여기서 끊고 배율을 1로 굳힌다.
@@ -1094,8 +1107,21 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         if ateZone == nil { let z = makeZone(toss: false); ateZone = z; addChild(z) }
         // 상단 모서리 — 더미(바닥)와 겹치지 않고, 들어 올려서 넣는 제스처가 자연스럽다.
         let y = size.height - zoneSide * 0.5 - 12
-        tossZone?.position = CGPoint(x: zoneSide * 0.5 + 14, y: y)
-        ateZone?.position = CGPoint(x: size.width - zoneSide * 0.5 - 14, y: y)
+        let toss = CGPoint(x: zoneSide * 0.5 + 14, y: y)
+        let ate  = CGPoint(x: size.width - zoneSide * 0.5 - 14, y: y)
+        // 보이는 중의 재배치(드래그 여유 개방으로 천장이 오를 때)는 점프 대신 짧게 미끄러진다 —
+        // 순간이동은 "지직"으로 읽힌다. 숨어 있으면 즉시 좌표만 갱신.
+        for (zone, target) in [(tossZone, toss), (ateZone, ate)] {
+            guard let zone else { continue }
+            if zone.alpha > 0.01 {
+                let move = SKAction.move(to: target, duration: ReffiJudgeZone.fade)
+                move.timingMode = .easeOut
+                zone.run(move, withKey: "relayout")
+            } else {
+                zone.removeAction(forKey: "relayout")
+                zone.position = target
+            }
+        }
         #if DEBUG
         // `-zoneLab`은 재생성(다크 전환 리틴트) 뒤에도 계속 보여야 하므로 여기서 알파를 되돌린다.
         if zoneLab { tossZone?.alpha = ReffiJudgeZone.alpha; ateZone?.alpha = ReffiJudgeZone.alpha }
@@ -1112,10 +1138,38 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
             tossZone?.setScale(1)
             ateZone?.setScale(1)
         }
-        // 드래그 수명주기의 단일 깔때기 — 모든 시작/종료/취소 경로가 이 함수를 지난다.
-        // 홈은 이 신호로 필드에 **드래그 여유**를 연다(`dragFieldHeadroom`). 같은 값 재통지는
-        // 상태 대입이라 무해하고, `buildWalls`의 복원 호출(visible 그대로)도 그래서 안전하다.
-        onDragActive?(visible)
+    }
+
+    // MARK: - 드래그 여유 개폐 (§13.4)
+    //
+    // 처음엔 존 표시/숨김에 신호를 묶었는데 두 가지가 화면에서 "지직"으로 읽혔다(실기 제보):
+    // ① 탭에도 존이 떴다 사라지며 상자가 여닫혔고, ② 놓는 순간 닫으면 아직 낙하 중인 칩이
+    // 내려오는 천장에 회수(순간이동)됐다. 그래서 **열기는 진짜 드래그가 시작될 때**(dragMoved 전이),
+    // **닫기는 더미가 안착한 뒤**(settleToIdle, 백스톱 1.5초)로 갈랐다 — 여닫는 프레임에
+    // 움직이는 것이 없어야 리사이즈가 보이지 않는다.
+
+    private var headroomOpen = false
+    private var headroomArmedAt: TimeInterval = 0   // 0 = 닫기 예약 없음
+
+    private func openHeadroom() {
+        headroomArmedAt = 0
+        guard !headroomOpen else { return }
+        headroomOpen = true
+        onDragActive?(true)
+    }
+
+    /// 드래그가 끝났다 — 바로 닫지 않고 안착(idle)이나 백스톱 타임아웃에 닫는다.
+    private func armHeadroomClose() {
+        guard headroomOpen else { return }
+        headroomArmedAt = lastUpdateTime > 0 ? lastUpdateTime : 1
+    }
+
+    private func closeHeadroomIfArmed(force: Bool = false, now: TimeInterval = 0) {
+        guard headroomOpen, headroomArmedAt > 0, dragTouch == nil else { return }
+        guard force || (now > 0 && now - headroomArmedAt > 1.5) else { return }
+        headroomOpen = false
+        headroomArmedAt = 0
+        onDragActive?(false)
     }
 
     private func highlight(_ zone: SKSpriteNode?, hovering: Bool) {
@@ -1773,6 +1827,7 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         dragMoved = false
         dragStart = loc
         dragTarget = clampToBox(loc)
+        headroomArmedAt = 0   // 닫기 예약 중 재파지 — 열린 하늘을 그대로 잇는다
         dragGrabOffset = CGPoint(x: loc.x - node.position.x, y: loc.y - node.position.y)
         setZones(visible: true)
         node.removeAction(forKey: "squash")   // 잡는 순간 눌림 연출은 끊고 배율 원복
@@ -1789,7 +1844,10 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         guard let t = dragTouch, touches.contains(t), dragged != nil else { return }
         let raw = t.location(in: self)
         // 탭/드래그 판정은 시작점 기준 **누적** 이동 — 아무리 천천히 끌어도 탭으로 오판하지 않는다.
-        if hypot(raw.x - dragStart.x, raw.y - dragStart.y) > 8 { dragMoved = true }
+        if !dragMoved, hypot(raw.x - dragStart.x, raw.y - dragStart.y) > 8 {
+            dragMoved = true
+            openHeadroom()   // 탭은 하늘을 열지 않는다 — 진짜 끌기 시작에서만
+        }
         dragTarget = clampToBox(raw)   // 상자 밖으론 못 끌게 → 새지 않음. 실제 추종은 update()의 스프링.
     }
 
@@ -1807,11 +1865,12 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         // 아래 `defer`는 설치조차 되지 않아(Swift defer는 실행이 그 줄에 닿아야 등록된다) 판정
         // 블롭이 판정 존 알파로 화면에 남았다 — 다음 드래그가 정상 종료될 때까지 지워지지 않는다.
         // 반대로 "다른 손가락이 떨어진 경우"는 그대로 무시한다(진행 중인 드래그의 예고를 지우면 안 된다).
-        guard let t = dragTouch else { setZones(visible: false); return }
+        guard let t = dragTouch else { setZones(visible: false); armHeadroomClose(); return }
         guard touches.contains(t) else { return }
         defer {
             restoreChipZ(dragged)   // 승격 해제 — 스폰 때 정한 고정값으로 되돌린다(결정적)
             dragTouch = nil; dragged = nil; setZones(visible: false)
+            armHeadroomClose()   // 하늘은 바로 닫지 않는다 — 안착(idle) 또는 1.5초 백스톱에
         }
         guard let node = dragged, let body = node.physicsBody else { return }
         body.affectedByGravity = true   // 놓으면 중력 복귀 — 현재 속도 그대로 자연스럽게 던져짐
@@ -1838,12 +1897,13 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     }
 
     override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
-        guard let t = dragTouch else { setZones(visible: false); return }   // touchesEnded와 같은 이유
+        guard let t = dragTouch else { setZones(visible: false); armHeadroomClose(); return }   // touchesEnded와 같은 이유
         guard touches.contains(t) else { return }
         dragged?.physicsBody?.affectedByGravity = true
         restoreChipZ(dragged)
         dragTouch = nil
         dragged = nil
         setZones(visible: false)
+        armHeadroomClose()
     }
 }

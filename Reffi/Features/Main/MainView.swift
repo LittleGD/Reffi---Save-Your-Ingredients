@@ -159,10 +159,11 @@ struct MainView: View {
 
                 physicsField(counter)
                     .onGeometryChange(for: CGFloat.self, of: { $0.size.width }) { fieldWidth = $0 }
+                    // 드래그 여유 개폐는 **즉시** — 상자는 투명하고, 여닫는 프레임엔 씬이 움직이는 것을
+                    // 두지 않는다(열기=끌기 시작, 닫기=안착 후). 프레임을 애니메이션하면 스트리밍
+                    // 리사이즈가 매 프레임 벽 재구성·wake를 부르며 "지직"으로 읽혔다(실기 제보).
+                    // 존의 이동만 씬 안에서 짧게 미끄러진다(layoutZones).
                     .frame(maxWidth: .infinity, maxHeight: fieldRestHeight(counter))
-                    // 드래그 여유의 개폐만 부드럽게 — 바닥 정렬이라 위로만 자라고, 배경이 투명해
-                    // 보이는 변화는 존이 제 위치(더미 위)로 올라서는 것뿐이다.
-                    .animation(ReffiMotion.gated(ReffiMotion.standard, reduce: reduceMotion), value: dragHeadroom)
                     // 남는 공백은 **전부 위로** 몬다 — 더미가 뱃지 바로 위에 내려앉는다.
                     // 가운데 정렬이던 시절엔 필드 상자 자체가 화면 중앙에 떠서, 칩이 상자 바닥에
                     // 정확히 붙어 있는데도 "바닥에 안 붙는다"로 읽혔다(-physLab 오버레이로 확인).
@@ -703,9 +704,13 @@ struct MainView: View {
         guard !counter.items.isEmpty else { return .infinity }   // 빈 작업대(카피·CTA)는 캡 대상이 아니다
         let rows = 96 * ceil(CGFloat(counter.items.count) / 3) + 28
         guard fieldWidth > 0 else { return rows }
-        let rest = max(rows, IngredientDropScene.minRestFieldHeight(width: fieldWidth))
-        // 드래그 중에만 조작 여유를 연다 — 클램프 상한·존이 더미 위로 올라와 "들어서 나른다"가
-        // 성립한다(`dragFieldHeadroom` 주석의 산술). 놓으면 도로 닫혀 정지 미학은 그대로다.
+        // 정지 캡: 한 개면 칩 하나의 키, 둘부터는 2단 탑(칩 위에 선 칩)의 키가 하한이다 —
+        // 행 피치(96)는 눕고 맞물린 더미의 실측이라 선 채 안착한 실배치를 못 담았다(실기 잘림 2건).
+        let rest = counter.items.count == 1
+            ? max(rows, IngredientDropScene.minRestFieldHeight(width: fieldWidth))
+            : max(rows, IngredientDropScene.stackedRestFieldHeight(width: fieldWidth))
+        // 드래그가 시작되면 조작 여유를 연다 — 클램프 상한·존이 더미 위로 올라와 "들어서 나른다"가
+        // 성립한다(`dragFieldHeadroom` 주석의 산술). 닫기는 씬이 안착을 확인한 뒤에만 신호를 보낸다.
         return dragHeadroom ? rest + IngredientDropScene.dragFieldHeadroom(width: fieldWidth) : rest
     }
 
