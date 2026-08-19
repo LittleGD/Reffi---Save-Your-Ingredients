@@ -1182,7 +1182,10 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
 
     private var dragSkyOpen = false
     private var spawnSkyOpen = false
-    private var skyArmedAt: TimeInterval = 0   // 0 = 닫기 예약 없음
+    /// 닫기 예약 시각. nil = 예약 없음, 0 = **다음 update 프레임에 시각을 기록**하라는 표식.
+    /// update의 currentTime은 시스템 업타임이라, 첫 프레임 전(lastUpdateTime == 0)에 임의 상수를
+    /// 넣으면 첫 프레임에서 백스톱이 즉시 발동해 하늘이 캐스케이드 도중 닫힌다(실기 제보의 뿌리).
+    private var skyArmedAt: TimeInterval?
     private var notifiedSky: Sky = .closed
     /// 스폰 유예 — 하늘이 열리는 리사이즈가 착지한 뒤(didChangeSize) pending을 다시 태운다.
     private var spawnDeferred = false
@@ -1198,7 +1201,7 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     }
 
     private func openHeadroom() {
-        skyArmedAt = 0
+        skyArmedAt = nil
         guard !dragSkyOpen else { return }
         dragSkyOpen = true
         notifySkyIfChanged()
@@ -1207,8 +1210,8 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     /// 스폰 낙하를 위해 하늘을 최상단까지 연다. 반환값 = **리사이즈가 실제로 올 것인가**
     /// (신호가 상태를 바꿨고 받는 쪽이 있을 때만) — 참이면 호출부는 스폰을 유예해야 한다.
     private func openSpawnSky() -> Bool {
-        skyArmedAt = lastUpdateTime > 0 ? lastUpdateTime : 1   // 열자마자 예약 — 안착하면 닫힌다
         guard onSkyChange != nil else { return false }         // 신호 못 받는 호스트(테스트)면 그 자리 스폰
+        defer { armHeadroomClose() }   // 연 하늘엔 항상 닫기 예약 — 재스폰이면 시계만 리셋
         guard !spawnSkyOpen else { return false }              // 이미 열려 있으면 크기도 이미 크다
         spawnSkyOpen = true
         notifySkyIfChanged()
@@ -1218,21 +1221,26 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         return true
     }
 
-    /// 드래그가 끝났다 — 바로 닫지 않고 안착(idle)이나 백스톱 타임아웃에 닫는다.
+    /// 하늘 닫기 예약 — 바로 닫지 않고 안착(idle)이나 백스톱 타임아웃에 닫는다.
+    /// 첫 프레임 전이면 시각을 모르므로 0을 표식으로 두고 update가 자기 시계로 채운다.
     private func armHeadroomClose() {
         guard dragSkyOpen || spawnSkyOpen else { return }
-        skyArmedAt = lastUpdateTime > 0 ? lastUpdateTime : 1
+        skyArmedAt = lastUpdateTime > 0 ? lastUpdateTime : 0
     }
 
     private func closeHeadroomIfArmed(force: Bool = false, now: TimeInterval = 0) {
-        guard dragSkyOpen || spawnSkyOpen, skyArmedAt > 0, dragTouch == nil else { return }
+        guard dragSkyOpen || spawnSkyOpen, var armed = skyArmedAt, dragTouch == nil else { return }
+        if armed == 0, now > 0 { armed = now; skyArmedAt = now }   // 첫 프레임 — 이제부터 잰다
         // 스폰 하늘은 캐스케이드 전체를 담아야 한다 — 드래그(1.5초)보다 긴 sealTimeout을 백스톱으로.
         let backstop: TimeInterval = spawnSkyOpen ? sealTimeout : 1.5
-        guard force || (now > 0 && now - skyArmedAt > backstop) else { return }
+        guard force || (armed > 0 && now > 0 && now - armed > backstop) else { return }
         dragSkyOpen = false
         spawnSkyOpen = false
-        skyArmedAt = 0
+        skyArmedAt = nil
         notifySkyIfChanged()
+        #if DEBUG
+        Logger(subsystem: "com.reffi.app", category: "scene").debug("sky: closed (force=\(force))")
+        #endif
     }
 
     private func highlight(_ zone: SKSpriteNode?, hovering: Bool) {
@@ -1903,7 +1911,7 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         dragMoved = false
         dragStart = loc
         dragTarget = clampToBox(loc)
-        skyArmedAt = 0   // 닫기 예약 중 재파지 — 열린 하늘을 그대로 잇는다
+        skyArmedAt = nil   // 닫기 예약 중 재파지 — 열린 하늘을 그대로 잇는다
         dragGrabOffset = CGPoint(x: loc.x - node.position.x, y: loc.y - node.position.y)
         setZones(visible: true)
         node.removeAction(forKey: "squash")   // 잡는 순간 눌림 연출은 끊고 배율 원복
