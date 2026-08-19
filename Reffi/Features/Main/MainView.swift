@@ -746,6 +746,11 @@ private struct DecisionCover: View {
     /// (72도 §7.3 최소 터치 타깃 44를 크게 웃돈다). 두 버튼 경로는 88×2 + s6 = 204라 그대로 둔다.
     private var blobSide: CGFloat { showFreeze ? 72 : 88 }
 
+    /// 세로 폴백의 블롭 한 변 — 행이 최대 셋 쌓이므로 가로 폼보다 작게 잡는다(56 × 3 + s3 × 2 = 192).
+    /// 큰 글자에서 제목·문구가 이미 세로를 크게 먹는 커버라, 블롭을 그대로 두면 카드가 화면을 넘긴다.
+    /// 56도 §7.3 최소 터치 타깃 44를 넘고, 행 전체가 타깃이라 실제로 눌리는 면은 더 넓다.
+    private static let stackedBlobSide: CGFloat = 56
+
     var body: some View {
         ZStack {
             ReffiColor.scrim.ignoresSafeArea()
@@ -779,24 +784,8 @@ private struct DecisionCover: View {
                 Text("Did you eat it, or toss it?")
                     .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
             }
-            HStack(spacing: showFreeze ? ReffiSpace.s4 : ReffiSpace.s6) {
-                PaperIconButton(icon: ReffiIcon.toss, label: "Tossed", intent: .soft,
-                                size: blobSide, seed: 0) { onCommit(false) }
-                if showFreeze {
-                    PaperIconButton(icon: ReffiIcon.freeze, label: "Freeze", intent: .neutral,
-                                    size: blobSide, seed: 2) { onFreeze() }
-                }
-                PaperIconButton(icon: ReffiIcon.ate, label: "Ate", intent: .primary,
-                                size: blobSide, seed: 1) { onCommit(true) }
-            }
-            Button { onCancel() } label: {
-                Text("Keep it")
-                    .reffiType(.caption)
-                    .foregroundStyle(ReffiColor.ink2)
-                    .frame(minWidth: 44, minHeight: 44)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.reffiPress)
+            outcomeRow
+            keepIt
         }
         .padding(.horizontal, ReffiSpace.s6)
         .padding(.top, ReffiSpace.s6)
@@ -807,5 +796,47 @@ private struct DecisionCover: View {
         }
         .reffiShadow1()
         .padding(.horizontal, ReffiSpace.s7)
+    }
+
+    /// 판정 버튼들 — 가로 한 줄이 **들어가면** 지금 그대로, 안 들어가면 세로 세 행으로 접는다.
+    /// 큰 글자에서 'Tossed'가 'To…'로 잘리던 자리다(1라운드 이연분): 라벨을 2줄로 풀면 버튼마다
+    /// 줄 수가 갈려 블롭 세로 정렬이 어긋나므로, 줄을 늘리는 대신 **배치를 통째로 바꾼다**.
+    /// 세로 폼은 블롭 좌 · 라벨 우의 행이라 라벨이 폭을 다투지 않고, 읽는 순서도 그대로 남는다.
+    private var outcomeRow: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: showFreeze ? ReffiSpace.s4 : ReffiSpace.s6) {
+                outcomeButtons(size: blobSide, placement: .below)
+            }
+            VStack(spacing: ReffiSpace.s3) {
+                outcomeButtons(size: Self.stackedBlobSide, placement: .trailing)
+            }
+        }
+    }
+
+    /// 두 배치가 **같은 버튼 셋**을 같은 순서로 세운다 — 손으로 두 번 쓰면 한쪽만 조용히 어긋난다.
+    @ViewBuilder
+    private func outcomeButtons(size: CGFloat, placement: PaperIconLabel.Placement) -> some View {
+        PaperIconButton(icon: ReffiIcon.toss, label: "Tossed", intent: .soft,
+                        size: size, seed: 0, placement: placement,
+                        capsLabelWidth: false) { onCommit(false) }
+        if showFreeze {
+            PaperIconButton(icon: ReffiIcon.freeze, label: "Freeze", intent: .neutral,
+                            size: size, seed: 2, placement: placement,
+                            capsLabelWidth: false) { onFreeze() }
+        }
+        PaperIconButton(icon: ReffiIcon.ate, label: "Ate", intent: .primary,
+                        size: size, seed: 1, placement: placement,
+                        capsLabelWidth: false) { onCommit(true) }
+    }
+
+    private var keepIt: some View {
+        Button { onCancel() } label: {
+            Text("Keep it")
+                .reffiType(.caption)
+                .foregroundStyle(ReffiColor.ink2)
+                .frame(minWidth: 44, minHeight: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.reffiPress)
     }
 }

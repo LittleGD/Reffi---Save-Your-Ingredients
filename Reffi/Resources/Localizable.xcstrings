@@ -2641,6 +2641,16 @@
         }
       }
     },
+    "Show %lld more" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld개 더 보기"
+          }
+        }
+      }
+    },
     "Sign up" : {
       "localizations" : {
         "ko" : {

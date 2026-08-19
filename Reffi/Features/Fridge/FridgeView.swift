@@ -713,29 +713,45 @@ enum FridgeSort: String, CaseIterable, Identifiable {
 }
 
 /// 간편보기 행 — 겹침 없는 납작한 흰 영수증 조각. 실루엣 + 이름 + 수량 + D-day.
+///
+/// **큰 글자에선 한 줄을 두 단으로 접는다.** AX 크기에서는 냉장고가 이 행으로 자동 전환되는데
+/// (`FridgeView.showsCompactList`), 같은 줄에 이름·수량·D-day가 나란히 서면 이름 몫으로 남는 폭이
+/// 없어 'Spinach'가 'Spi…'로 잘렸다 — 재료 이름은 이 행이 존재하는 이유라 가장 먼저 온전해야 한다.
 struct FridgeCompactRow: View {
     let ingredient: Ingredient
+
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         let f = ingredient.freshness
         return HStack(spacing: ReffiSpace.s3) {
             PaperSilhouette(glyph: ingredient.glyph, fresh: f)
                 .frame(width: ReffiFoodIcon.row, height: ReffiFoodIcon.row)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(verbatim: ingredient.displayName)
-                    .reffiType(.checklistItem)
-                    .foregroundStyle(ReffiColor.ink).lineLimit(1)
-                Text(verbatim: ingredient.quantityText)
-                    .reffiType(.caption).foregroundStyle(ReffiColor.ink2).lineLimit(1)
+            if typeSize.isAccessibilitySize {
+                // 이름은 위층에 통째로(2줄까지), 나머지 메타는 아래층 한 줄로. 세로로 자라는 대신
+                // 이름이 잘리지 않는다 — 이 행은 어차피 세로 리스트라 높이엔 여유가 있다.
+                VStack(alignment: .leading, spacing: ReffiSpace.s1) {
+                    nameText.lineLimit(2)
+                    // 아래층엔 **빈 자리를 두지 않는다**(기본 크기 행의 `Spacer`와 다른 점): AX 크기에선
+                    // 수량과 D-day가 남는 폭을 거의 다 쓰는데, 그 사이에 `Spacer`를 끼우면 빈 자리가 먼저
+                    // 폭을 집어가 '300 g'이 '30…'으로 잘렸다(실측 — `layoutPriority`를 내려도 같았다).
+                    // 오른쪽 끝 정렬보다 두 값이 온전한 쪽이 크다. 색이 이미 둘을 갈라 준다(§2.6 dark).
+                    HStack(spacing: ReffiSpace.s2) {
+                        quantityText
+                        frozenStamp
+                        dDayText
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                VStack(alignment: .leading, spacing: 1) {
+                    nameText.lineLimit(1)
+                    quantityText
+                }
+                Spacer(minLength: ReffiSpace.s2)
+                frozenStamp
+                dDayText
             }
-            Spacer(minLength: ReffiSpace.s2)
-            if ingredient.isFrozen {
-                DDayStamp(text: String(localized: "FROZEN"), color: ReffiColor.blueDark, size: 10)
-            }
-            Text(ingredient.dDayText)
-                .font(.reffiNum(.body))
-                .foregroundStyle(f.dark)   // §2.6 캔버스/종이 위 색-텍스트는 dark
-                .accessibilityLabel(ingredient.dDayAccessibilityText)
         }
         .padding(.horizontal, ReffiSpace.s4)
         .padding(.vertical, ReffiSpace.s3)
@@ -746,6 +762,32 @@ struct FridgeCompactRow: View {
         }
         .reffiShadowCardCompact()   // 한 화면에 여러 장 반복되는 납작한 행
         .accessibilityElement(children: .combine)
+    }
+
+    // 두 배치가 **같은 조각**을 다르게 앉힐 뿐이라, 글자 역할·잉크는 한 곳에서만 정한다.
+    private var nameText: some View {
+        Text(verbatim: ingredient.displayName)
+            .reffiType(.checklistItem)
+            .foregroundStyle(ReffiColor.ink)
+    }
+
+    private var quantityText: some View {
+        Text(verbatim: ingredient.quantityText)
+            .reffiType(.caption).foregroundStyle(ReffiColor.ink2).lineLimit(1)
+    }
+
+    @ViewBuilder
+    private var frozenStamp: some View {
+        if ingredient.isFrozen {
+            DDayStamp(text: String(localized: "FROZEN"), color: ReffiColor.blueDark, size: 10)
+        }
+    }
+
+    private var dDayText: some View {
+        Text(ingredient.dDayText)
+            .font(.reffiNum(.body))
+            .foregroundStyle(ingredient.freshness.dark)   // §2.6 캔버스/종이 위 색-텍스트는 dark
+            .accessibilityLabel(ingredient.dDayAccessibilityText)
     }
 }
 
