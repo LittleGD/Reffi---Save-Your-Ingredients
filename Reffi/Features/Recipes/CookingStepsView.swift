@@ -226,7 +226,7 @@ struct CookingStepsView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.reffiPress)
-        .accessibilityLabel(Text("\(ing.displayName)"))
+        .accessibilityLabel(Text(verbatim: ing.displayName))   // 재료명은 데이터 — 번역 키가 아니다(§i18n)
         .accessibilityValue(left ? Text("Some left") : Text("Used it all"))
         .accessibilityHint(Text("Toggles whether some is left over"))
     }

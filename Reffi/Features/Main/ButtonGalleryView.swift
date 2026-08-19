@@ -5,7 +5,8 @@ struct ButtonGalleryView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: ReffiSpace.s7) {
-                Text("Paper buttons").reffiType(.heading).foregroundStyle(ReffiColor.ink)
+                // QA 갤러리 크롬은 번역 대상이 아니다(카탈로그에 짝 없는 키를 남기지 않게 verbatim).
+                Text(verbatim: "Paper buttons").reffiType(.heading).foregroundStyle(ReffiColor.ink)
 
                 group("Reference — Tossed · Ate") {
                     HStack(spacing: ReffiSpace.s7) {

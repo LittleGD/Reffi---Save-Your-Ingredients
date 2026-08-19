@@ -3635,7 +3635,7 @@
         }
       }
     },
-    "Started %@. %lld reserved. Undo available." : {
+    "Started %@. %lld ingredients reserved. Undo available." : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {
@@ -3645,7 +3645,7 @@
         }
       }
     },
-    "Finished %@. %lld logged. Undo available." : {
+    "Finished %@. %lld ingredients logged. Undo available." : {
       "localizations" : {
         "ko" : {
           "stringUnit" : {

@@ -36,7 +36,9 @@ struct IngredientBadge: View {
         }
         .buttonStyle(.paperPress)
         // 화면의 "3d"는 뱃지 폭에 맞춘 축약이라 소리로는 뜻이 서지 않는다 — 읽을 때는 풀어 쓴다.
-        .accessibilityLabel(Text("\(ingredient.displayName), \(ingredient.dDayAccessibilityText)"))
+        // 데이터(이름·기한 문구)를 잇는 문장이라 `verbatim` — 보간을 그냥 `Text(_:)`에 넣으면
+        // "%@, %@"라는 키로 카탈로그를 뒤지고, 없어서 폴백으로만 맞는 자리가 된다(§i18n).
+        .accessibilityLabel(Text(verbatim: "\(ingredient.displayName), \(ingredient.dDayAccessibilityText)"))
         .accessibilityHint(Text("Decide: eaten or tossed?"))
     }
 
