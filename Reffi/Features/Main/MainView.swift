@@ -59,6 +59,11 @@ struct MainView: View {
     /// 필드 실측 폭 — `fieldRestHeight`의 한 줄 하한이 칩 변(폭 파생)을 알아야 해서 잰다.
     /// 첫 레이아웃 전(0)에는 행 공식만 쓰고, 폭이 잡히면 같은 프레임에 하한이 따라온다.
     @State private var fieldWidth: CGFloat = 0
+    /// 필드가 실제로 받은 레이아웃 슬롯 — 드래그 하늘은 이 슬롯을 **바꾸지 않고** 위로 넘친다.
+    @State private var fieldSlotHeight: CGFloat = 0
+    /// 상태 카드(발주 진행/알림 배너)의 실측 높이(+상단 s3) — 드래그 하늘이 이 카드 **뒤까지** 닿는다.
+    /// 카드가 없으면 0: 하늘은 카드가 있던 선(슬롯 위 dragFieldHeadroom)에서 멈춘다.
+    @State private var statusCardOverhang: CGFloat = 0
     /// 드래그 진행 중 — 씬의 존 표시/숨김 신호(`onDragActive`)를 받아 필드에 조작 여유를 연다.
     /// 정지 캡은 더미를 껴안는 게 맞지만, 잡는 순간에는 들어 올릴 하늘이 있어야 한다(§13.4).
     @State private var dragHeadroom = false
@@ -156,14 +161,25 @@ struct MainView: View {
                 .layoutPriority(-1)   // 아래 필드와 같은 이유로 **남는 것을 받는** 자리다
             } else {
                 statusBlock(counter)
+                    // 종이 카드가 **앞**, 그 뒤가 하늘 — 드래그 오버행(아래 필드의 위로 넘친 몫)이
+                    // 배너 카드 밑으로 미끄러져 들어간다. 순서상 필드가 나중이라 zIndex 없이는
+                    // 넘친 씬이 카드를 덮는다.
+                    .zIndex(1)
 
                 physicsField(counter)
-                    .onGeometryChange(for: CGFloat.self, of: { $0.size.width }) { fieldWidth = $0 }
-                    // 드래그 여유 개폐는 **즉시** — 상자는 투명하고, 여닫는 프레임엔 씬이 움직이는 것을
-                    // 두지 않는다(열기=끌기 시작, 닫기=안착 후). 프레임을 애니메이션하면 스트리밍
-                    // 리사이즈가 매 프레임 벽 재구성·wake를 부르며 "지직"으로 읽혔다(실기 제보).
-                    // 존의 이동만 씬 안에서 짧게 미끄러진다(layoutZones).
-                    .frame(maxWidth: .infinity, maxHeight: fieldRestHeight(counter))
+                    // 씬의 실높이: 평소엔 슬롯과 같고, 드래그 중엔 하늘(dragFieldHeadroom)과
+                    // 상태 카드 밴드(statusCardOverhang)만큼 **위로 넘친다** — SwiftUI 프레임은
+                    // 클립하지 않으므로 SKView 자체가 카드 뒤까지 올라선다. 레이아웃 슬롯(아래
+                    // maxHeight 프레임)은 개폐와 무관하게 고정이라 형제들이 미동도 하지 않는다.
+                    // 개폐는 **즉시** — 여닫는 프레임엔 씬이 움직이는 것을 두지 않는다(열기=끌기
+                    // 시작, 닫기=안착 후). 프레임을 애니메이션하면 스트리밍 리사이즈가 매 프레임
+                    // 벽 재구성·wake를 부르며 "지직"으로 읽혔다(실기 제보).
+                    .frame(height: fieldSceneHeight(counter), alignment: .bottom)
+                    .frame(maxWidth: .infinity, maxHeight: fieldRestHeight(counter), alignment: .bottom)
+                    .onGeometryChange(for: CGSize.self, of: { $0.size }) { s in
+                        fieldWidth = s.width
+                        fieldSlotHeight = s.height
+                    }
                     // 남는 공백은 **전부 위로** 몬다 — 더미가 뱃지 바로 위에 내려앉는다.
                     // 가운데 정렬이던 시절엔 필드 상자 자체가 화면 중앙에 떠서, 칩이 상자 바닥에
                     // 정확히 붙어 있는데도 "바닥에 안 붙는다"로 읽혔다(-physLab 오버레이로 확인).
@@ -456,15 +472,20 @@ struct MainView: View {
             .padding(.top, ReffiSpace.s5)
 
         // 발주 진행 카드(§13.6 C) — 헤더 아래 죽은 공간이 상태 표면이 된다.
+        // 높이 실측은 드래그 하늘의 "카드 뒤 밴드" 몫(statusCardOverhang) — 카드가 사라지면 0.
         if let cook = store.activeCook {
             cookingNowCard(cook)
                 .padding(.horizontal, margin)
                 .padding(.top, ReffiSpace.s3)
+                .onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { statusCardOverhang = $0 }
+                .onDisappear { statusCardOverhang = 0 }
                 .transition(.move(edge: .top).combined(with: .opacity))
         } else if showAlertPrompt(counter) {
             alertPromptCard
                 .padding(.horizontal, margin)
                 .padding(.top, ReffiSpace.s3)
+                .onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { statusCardOverhang = $0 }
+                .onDisappear { statusCardOverhang = 0 }
                 .transition(.move(edge: .top).combined(with: .opacity))
         }
     }
@@ -709,9 +730,16 @@ struct MainView: View {
         let rest = counter.items.count == 1
             ? max(rows, IngredientDropScene.minRestFieldHeight(width: fieldWidth))
             : max(rows, IngredientDropScene.stackedRestFieldHeight(width: fieldWidth))
-        // 드래그가 시작되면 조작 여유를 연다 — 클램프 상한·존이 더미 위로 올라와 "들어서 나른다"가
-        // 성립한다(`dragFieldHeadroom` 주석의 산술). 닫기는 씬이 안착을 확인한 뒤에만 신호를 보낸다.
-        return dragHeadroom ? rest + IngredientDropScene.dragFieldHeadroom(width: fieldWidth) : rest
+        return rest
+    }
+
+    /// 씬(SpriteView)의 실높이 — 슬롯 실측 전(0)엔 유연하게 두고, 이후엔 슬롯에 고정하되
+    /// 드래그 중에만 하늘(dragFieldHeadroom) + 상태 카드 밴드만큼 키운다. 존은 카드 밴드
+    /// **아래**에 앵커된다(`zoneTopInset`) — 하늘은 카드 뒤까지, 존은 제자리(오너 결정).
+    private func fieldSceneHeight(_ counter: CounterDigest) -> CGFloat? {
+        guard fieldSlotHeight > 0, !counter.items.isEmpty else { return nil }
+        guard dragHeadroom else { return fieldSlotHeight }
+        return fieldSlotHeight + IngredientDropScene.dragFieldHeadroom(width: fieldWidth) + statusCardOverhang
     }
 
     private func physicsField(_ counter: CounterDigest) -> some View {
@@ -725,7 +753,12 @@ struct MainView: View {
                 SpriteView(scene: scene, options: [.allowsTransparency],
                            debugOptions: physLabDebugOptions)
                     .onAppear { configureScene(size: geo.size) }
-                    .onChange(of: geo.size) { _, s in scene.size = s }
+                    .onChange(of: geo.size) { _, s in
+                        // 존 앵커를 먼저 — didChangeSize의 layoutZones가 새 인셋으로 자리를 잡는다.
+                        // 하늘이 열리면 씬 상단은 카드 뒤인데, 존은 카드 밴드 아래 제자리에 남는다.
+                        scene.zoneTopInset = dragHeadroom ? statusCardOverhang : 0
+                        scene.size = s
+                    }
                     .onChange(of: sceneSyncKey(counter)) { _, _ in scene.sync(counter.items) }
                     .onChange(of: reduceMotion) { _, v in scene.reduceMotion = v }
                     .onChange(of: scenePaused) { _, p in scene.externallyPaused = p }

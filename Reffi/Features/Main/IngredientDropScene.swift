@@ -143,6 +143,9 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     /// 열어 준다 — 정지 캡(감사 R3-4)은 더미를 껴안는 게 맞지만, 그 상자 그대로는 잡은 칩을 더미
     /// 위로 들 수 없고(클램프 상한이 더미 상단보다 낮다) 존이 더미 위에 얹힌다(2026-08-19 실기 제보).
     var onDragActive: ((Bool) -> Void)?
+    /// 씬 상단에서 존을 이만큼 내려 앵커한다 — 드래그 하늘이 상태 카드 **뒤**까지 열릴 때(오너 결정:
+    /// "카드가 앞, 그 뒤에 공간"), 존은 카드 밴드 아래 제자리에 남는다. 0이면 종전과 동일(상단 −55).
+    var zoneTopInset: CGFloat = 0
     /// Reduce Motion이면 기울임 중력을 끄고 상수 중력으로 되돌린다(예측 불가한 화면 움직임 제거, §7.4).
     var reduceMotion = false {
         didSet { if reduceMotion != oldValue { syncMotionUpdates(); wake() } }
@@ -1106,7 +1109,8 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         if tossZone == nil { let z = makeZone(toss: true); tossZone = z; addChild(z) }
         if ateZone == nil { let z = makeZone(toss: false); ateZone = z; addChild(z) }
         // 상단 모서리 — 더미(바닥)와 겹치지 않고, 들어 올려서 넣는 제스처가 자연스럽다.
-        let y = size.height - zoneSide * 0.5 - 12
+        // `zoneTopInset` 위쪽은 상태 카드 뒤 밴드 — 존이 카드에 가려지면 안 되니 그 아래에 선다.
+        let y = size.height - zoneTopInset - zoneSide * 0.5 - 12
         let toss = CGPoint(x: zoneSide * 0.5 + 14, y: y)
         let ate  = CGPoint(x: size.width - zoneSide * 0.5 - 14, y: y)
         // 보이는 중의 재배치(드래그 여유 개방으로 천장이 오를 때)는 점프 대신 짧게 미끄러진다 —
