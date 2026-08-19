@@ -33,9 +33,15 @@ struct RootTabView: View {
         ZStack(alignment: .bottom) {
             // 세 탭 공존(pane) 유지 — switch 전환은 메인 물리 더미·undo 상태를 파괴한다.
             // 프로필 탭은 PR #4의 ProfileView(계정·취향·리포트)로 교체.
+            //
+            // **공존은 상태를 살리기 위한 것이지 그리기까지 살리자는 뜻이 아니다.** 세 뷰가 전부
+            // store를 보므로 판정 한 번에 세 화면분 body가 돌고, 가려진 둘도 리퀴드글래스와 종이
+            // 카드를 그대로 다시 그렸다. 그래서 셋 다 `isActive`를 받아 **비활성이면 본문을 세우지
+            // 않는다** — @State·@AppStorage·시트는 뷰가 살아 있는 한 그대로다(메인의 물리 씬은
+            // 여전히 여기서 일시정지된다).
             pane(MainView(isActive: tab == .home, onOpenToBuy: { openFridge(.toBuy) }), visible: tab == .home)
-            pane(FridgeView(pendingPane: $fridgePane), visible: tab == .fridge)
-            pane(ProfileView(), visible: tab == .profile)
+            pane(FridgeView(isActive: tab == .fridge, pendingPane: $fridgePane), visible: tab == .fridge)
+            pane(ProfileView(isActive: tab == .profile), visible: tab == .profile)
 
             CapsuleNav(tab: $tab, onAdd: { showAdd = true })
         }

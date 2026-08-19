@@ -79,6 +79,11 @@ struct HistoryContent: View {
             .padding(.horizontal, ReffiGrid.margin)
             .padding(.bottom, bottomPadding)
         }
+        // 이력이 바뀌면 타임라인 상한을 **첫 페이지로 되돌린다**. "더 보기"는 지금 이 목록을 더
+        // 보겠다는 뜻이지 앞으로 쌓일 것까지 미리 세우라는 뜻이 아니다 — 판정·되돌리기가 들어올
+        // 때마다 예전 상한이 그대로 살아 있으면, History를 켜 둔 채 판정을 반복한 사람만 조용히
+        // 수백 행짜리 첫 프레임을 다시 세우게 된다(상한을 둔 이유가 정확히 그것이다).
+        .onChange(of: logs.count) { _, _ in timelineShown = Self.timelinePage }
     }
 
     /// 패인 헤드라인 — To buy의 `Grocery memo`와 **같은 문법**(카드/밴드 밖, `heading` 24, leading 마진,

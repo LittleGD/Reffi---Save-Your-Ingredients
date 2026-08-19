@@ -61,16 +61,48 @@ struct MainView: View {
 
     private let margin = ReffiGrid.margin
 
-    private var counter: [Ingredient] { store.counterIngredients }
+    /// 이 프레임의 작업대 — **body 진입부에서 한 번만** 뽑아 아래로 흘린다.
+    /// `store.counterIngredients`는 호출마다 재료 사전을 새로 만들고 전체를 다시 정렬하는데,
+    /// 예전엔 헤더 문구·배경 어컨트·필드 캡·뱃지 행·씬 동기화 키가 각자 그것을 불러
+    /// 한 body에 열 번 넘게 같은 정렬을 돌렸다(store가 바뀔 때마다, 즉 판정 한 번에 여러 번).
+    /// 파생값(수·맨 앞 신선도·id 배열)도 여기서 함께 굳혀 하위가 다시 훑지 않게 한다.
+    private struct CounterDigest {
+        let items: [Ingredient]
+        /// 뱃지 행의 ForEach·전환 트리거가 쓰는 id 배열 — 세 곳이 각자 map 하지 않게 한 번만.
+        let ids: [Ingredient.ID]
+        /// 맨 앞(가장 임박) 재료의 신선도 — 배경 색면의 어컨트.
+        let topFreshness: Freshness
+        let urgent: Int
+        let soon: Int
+
+        init(_ items: [Ingredient]) {
+            self.items = items
+            ids = items.map(\.id)
+            topFreshness = items.first?.freshness ?? .fresh
+            var urgent = 0
+            var soon = 0
+            for item in items {
+                switch item.freshness {
+                case .urgent: urgent += 1
+                case .soon:   soon += 1
+                case .fresh:  break
+                }
+            }
+            self.urgent = urgent
+            self.soon = soon
+        }
+    }
+
+    /// **이벤트 시점**의 작업대 — 탭·제스처·발주가 도착한 그 순간을 읽는다.
+    /// body가 쓰는 `CounterDigest`와 갈라 둔 것은 의도다: 판정은 커버가 열려 있던 동안 바뀐 재고를
+    /// 봐야 하고, 그리기는 이 프레임의 한 장을 봐야 한다(둘을 하나로 묶으면 한쪽이 조용히 낡는다).
+    private var liveCounter: [Ingredient] { store.counterIngredients }
     private var carouselResults: [RecipeRecommender.Result] {
         // 소비 후보 = 전체 가용 재고(예약 제외) — 티켓이 쓰는 재료가 작업대 밖에 있어도
         // 함께 소비 처리돼 '실제로 썼는데 재고에 남는' 유령 재고가 생기지 않는다.
         // 프로필 취향(§5.2)을 랭킹에 실배선 — 알레르기 하드 필터·선호/기피/요리스타일 보정.
         Array(store.rankedRecipes(preferences: RecipePreferences(profile: profile)).prefix(3))
     }
-    private var topF: Freshness { counter.first?.freshness ?? .fresh }
-    private var urgentCount: Int { counter.lazy.filter { $0.freshness == .urgent }.count }
-    private var soonCount: Int { counter.lazy.filter { $0.freshness == .soon }.count }
     /// 씬 일시정지 — 다른 탭, 그리고 씬을 완전히 덮는 **풀스크린 커버**(캐러셀·조리 화면·판정)에
     /// 가려진 동안은 물리 렌더와 60Hz 모션 갱신을 멈춘다. 조리 화면(`showSteps`)은 불투명 커버라
     /// 여기서 빠지면 안 보이는 씬이 계속 돌고 손 움직임이 그 씬을 다시 깨운다.
@@ -82,13 +114,16 @@ struct MainView: View {
         !isActive || scenePhase == .background || showCarousel || showSteps || deciding != nil
     }
     /// 씬 동기화 트리거 — id·이름·글리프·신선도 어느 것이 바뀌어도 칩이 따라간다.
-    private var sceneSyncKey: [String] {
-        counter.map { "\($0.id.uuidString)#\($0.name)#\($0.glyph.rawValue)#\($0.freshness)" }
+    private func sceneSyncKey(_ counter: CounterDigest) -> [String] {
+        counter.items.map { "\($0.id.uuidString)#\($0.name)#\($0.glyph.rawValue)#\($0.freshness)" }
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            header
+        // 이 프레임의 작업대를 여기서 **한 번만** 뽑는다(위 `CounterDigest` 주석) — 아래 조각들은
+        // 전부 이 한 장을 받아 쓴다. 예전엔 조각마다 store를 다시 불러 같은 정렬이 반복됐다.
+        let counter = CounterDigest(store.counterIngredients)
+        return VStack(spacing: 0) {
+            header(counter)
                 .padding(.horizontal, margin)
                 // **세 루트 페이지의 제목이 같은 높이에서 시작한다**(23차). 냉장고·프로필이 둘 다
                 // `s5`인데 홈만 `s2`라 탭을 오갈 때 제목이 16pt 튀었다(실측: 홈 78.3pt vs 나머지 94.5pt).
@@ -102,24 +137,24 @@ struct MainView: View {
                     .padding(.horizontal, margin)
                     .padding(.top, ReffiSpace.s3)
                     .transition(.move(edge: .top).combined(with: .opacity))
-            } else if showAlertPrompt {
+            } else if showAlertPrompt(counter) {
                 alertPromptCard
                     .padding(.horizontal, margin)
                     .padding(.top, ReffiSpace.s3)
                     .transition(.move(edge: .top).combined(with: .opacity))
             }
 
-            physicsField
+            physicsField(counter)
                 .onGeometryChange(for: CGFloat.self, of: { $0.size.width }) { fieldWidth = $0 }
-                .frame(maxWidth: .infinity, maxHeight: fieldRestHeight)
+                .frame(maxWidth: .infinity, maxHeight: fieldRestHeight(counter))
                 // 남는 공백은 **전부 위로** 몬다 — 더미가 뱃지 바로 위에 내려앉는다.
                 // 가운데 정렬이던 시절엔 필드 상자 자체가 화면 중앙에 떠서, 칩이 상자 바닥에
                 // 정확히 붙어 있는데도 "바닥에 안 붙는다"로 읽혔다(-physLab 오버레이로 확인).
                 // 중력 방향(아래)과 더미가 앉는 자리가 어긋나면 물리가 거짓말하는 것처럼 보인다.
                 .frame(maxHeight: .infinity, alignment: .bottom)
 
-            if !counter.isEmpty {
-                badgeScroll
+            if !counter.items.isEmpty {
+                badgeScroll(counter)
                     .padding(.bottom, ReffiSpace.s2)
                     .id(dayTick)   // 자정 경과 시 D-day·신선도색 재계산
             }
@@ -131,25 +166,10 @@ struct MainView: View {
                 // 바닥 여백과 같은 값을 본다. 홈만 자기 상수(86)를 들고 있어 네비 높이를 건드리면
                 // 여기만 조용히 어긋났다.
                 .padding(.bottom, ReffiChrome.navReserve)
-                .disabled(counter.isEmpty)   // 디밍은 PaperButton이 §7.2로 처리 — 여기서 겹치면 곱해진다.
+                .disabled(counter.items.isEmpty)   // 디밍은 PaperButton이 §7.2로 처리 — 여기서 겹치면 곱해진다.
         }
         .animation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion), value: store.activeCook)
-        .background {
-            ZStack {
-                LiquidGlassBackground(accent: topF.main, accentDeep: topF.dark)
-                // 긴급도 연출(F) — 오늘 만료가 있으면 상단에 옅은 웜톤 시노.
-                if urgentCount > 0 {
-                    LinearGradient(colors: [ReffiColor.urgent.opacity(0.14), .clear],
-                                   startPoint: .top, endPoint: .center)
-                        .ignoresSafeArea()
-                        .allowsHitTesting(false)
-                }
-            }
-            // 배경 색면은 §7.1 밖 유일한 예외 길이(`ambient`, 0.5s)를 쓴다 — 화면을 통째로 덮은
-            // 색이 dur3로 갈아타면 "깜빡"으로 읽힌다(토큰 정의 주석 참조).
-            .animation(ReffiMotion.gated(ReffiMotion.ambient, reduce: reduceMotion), value: topF)
-            .animation(ReffiMotion.gated(ReffiMotion.ambient, reduce: reduceMotion), value: urgentCount > 0)
-        }
+        .background { background(counter) }
         .sensoryFeedback(.impact(weight: .medium), trigger: fireHaptic)
         .sensoryFeedback(.impact(weight: .light), trigger: decisionHaptic)
         .fullScreenCover(isPresented: $showCarousel, onDismiss: {
@@ -204,9 +224,11 @@ struct MainView: View {
             AddIngredientSheet()   // presentationDetents는 시트 내부에서 적용(중복 방지)
         }
         // 자정 경과 — D-day·신선도 파생 UI와 씬 라벨 점을 다시 계산한다.
+        // 씬에 넘기는 목록은 **그때의 재고**다(`liveCounter`) — 이 클로저는 마지막 body의 digest를
+        // 붙들고 있어서, 자정이 그 뒤라면 digest는 이미 어제의 한 장이다.
         .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged)) { _ in
             dayTick += 1
-            scene.sync(counter)
+            scene.sync(liveCounter)
         }
         #if DEBUG
         // `-tiltLab` — 기울기 QA용 하단 오버레이. overlay라 헤더·배너·뱃지 행·CTA 레이아웃은 그대로다.
@@ -370,9 +392,37 @@ struct MainView: View {
     }
     #endif
 
+    // MARK: - Background
+
+    /// 배경 색면 — 신선도 어컨트 한 장 + 긴급 시노.
+    ///
+    /// **어컨트 색 자체를 애니메이션하지 않는다.** `LiquidGlassBackground`는 blur(80~90)를 태운
+    /// 블롭 세 장인데, 색을 보간하면 그 세 장의 필터 입력이 매 프레임 바뀌어 **프레임마다 블러가
+    /// 다시 구워진다**(0.5초짜리 ambient라 그 비용이 30프레임 넘게 이어졌다). 대신 신선도마다
+    /// 배경을 **다른 뷰로 세우고**(`.id`) 두 장을 불투명도로만 교차시킨다 — 각 장의 내용은 상수라
+    /// 블러가 한 번만 구워지고, 도는 것은 합성 알파뿐이다. 길이는 그대로 `ambient`(§7.1 유일 예외)로,
+    /// 화면을 통째로 덮은 색이 dur3로 갈아타면 "깜빡"으로 읽힌다는 그 규칙은 변하지 않았다.
+    @ViewBuilder private func background(_ counter: CounterDigest) -> some View {
+        let top = counter.topFreshness
+        ZStack {
+            LiquidGlassBackground(accent: top.main, accentDeep: top.dark)
+                .id(top)
+                .transition(.opacity)
+            // 긴급도 연출(F) — 오늘 만료가 있으면 상단에 옅은 웜톤 시노.
+            if counter.urgent > 0 {
+                LinearGradient(colors: [ReffiColor.urgent.opacity(0.14), .clear],
+                               startPoint: .top, endPoint: .center)
+                    .ignoresSafeArea()
+                    .allowsHitTesting(false)
+            }
+        }
+        .animation(ReffiMotion.gated(ReffiMotion.ambient, reduce: reduceMotion), value: top)
+        .animation(ReffiMotion.gated(ReffiMotion.ambient, reduce: reduceMotion), value: counter.urgent > 0)
+    }
+
     // MARK: - Header
 
-    private var header: some View {
+    private func header(_ counter: CounterDigest) -> some View {
         VStack(alignment: .leading, spacing: ReffiSpace.s1) {
             HStack(alignment: .center) {
                 Text(verbatim: "Reffi").reffiType(.display).foregroundStyle(ReffiColor.ink)
@@ -384,16 +434,16 @@ struct MainView: View {
                 }
             }
             // 미션 헤더(D) — 오늘의 상태를 한 문장으로. 누계(Ate/Tossed)는 MyPage가 맡는다.
-            missionText
+            missionText(counter)
                 .reffiType(.caption)
-                .foregroundStyle(urgentCount > 0 ? ReffiColor.urgentDark : ReffiColor.ink2)
+                .foregroundStyle(counter.urgent > 0 ? ReffiColor.urgentDark : ReffiColor.ink2)
         }
     }
 
-    private var missionText: Text {
-        if counter.isEmpty { return Text("Fill the counter, then cook") }
-        if urgentCount > 0 { return Text("\(urgentCount) at risk today. Cook one?") }
-        if soonCount > 0 { return Text("\(soonCount) to eat soon. Plan tonight?") }
+    private func missionText(_ counter: CounterDigest) -> Text {
+        if counter.items.isEmpty { return Text("Fill the counter, then cook") }
+        if counter.urgent > 0 { return Text("\(counter.urgent) at risk today. Cook one?") }
+        if counter.soon > 0 { return Text("\(counter.soon) to eat soon. Plan tonight?") }
         // 임박이 없을 때도 **다음 한 걸음**을 지목한다 — "미리 해치우라"는 재촉만 남기면
         // 무엇부터인지가 없어 행동으로 이어지지 않는다(냉장고 정렬 기본값과 같은 순서를 말한다).
         return Text("All fresh. Cook the oldest one first.")
@@ -402,8 +452,8 @@ struct MainView: View {
     // MARK: - 알림 유도 배너 (프리퍼미션)
 
     /// 임박 재료가 있고 알림이 꺼져 있고 아직 제안 안 했을 때 한 번만.
-    private var showAlertPrompt: Bool {
-        !alertsEnabled && !alertPromptSeen && (urgentCount + soonCount) > 0
+    private func showAlertPrompt(_ counter: CounterDigest) -> Bool {
+        !alertsEnabled && !alertPromptSeen && (counter.urgent + counter.soon) > 0
     }
 
     /// 미니 영수증 스트립(Cooking now와 같은 자리·같은 언어) — 켜기 / 나중에.
@@ -526,14 +576,14 @@ struct MainView: View {
     /// 일러스트 상단만 프레임 경계에서 수평으로 잘렸다(2026-08-18 실기 재현: milk 게이블 소실).
     /// 그래서 행 공식 위에 씬이 계산한 한 줄 하한(`minRestFieldHeight`)을 깐다 — 칩 기하의 정본은 씬이다.
     /// 여유를 "전 행"에 얹으면 `sealedCeiling`이 함께 올라가 더미가 40pt 더 쌓인다(실측) — 그건 여전히 하지 않는다.
-    private var fieldRestHeight: CGFloat {
-        guard !counter.isEmpty else { return .infinity }   // 빈 작업대(카피·CTA)는 캡 대상이 아니다
-        let rows = 96 * ceil(CGFloat(counter.count) / 3) + 28
+    private func fieldRestHeight(_ counter: CounterDigest) -> CGFloat {
+        guard !counter.items.isEmpty else { return .infinity }   // 빈 작업대(카피·CTA)는 캡 대상이 아니다
+        let rows = 96 * ceil(CGFloat(counter.items.count) / 3) + 28
         guard fieldWidth > 0 else { return rows }
         return max(rows, IngredientDropScene.minRestFieldHeight(width: fieldWidth))
     }
 
-    private var physicsField: some View {
+    private func physicsField(_ counter: CounterDigest) -> some View {
         GeometryReader { geo in
             ZStack {
                 // 주의: SpriteView(isPaused:)는 초기화 시점에 멈춰 첫 프레임이 안 그려질 수 있다(회색).
@@ -545,10 +595,10 @@ struct MainView: View {
                            debugOptions: physLabDebugOptions)
                     .onAppear { configureScene(size: geo.size) }
                     .onChange(of: geo.size) { _, s in scene.size = s }
-                    .onChange(of: sceneSyncKey) { _, _ in scene.sync(counter) }
+                    .onChange(of: sceneSyncKey(counter)) { _, _ in scene.sync(counter.items) }
                     .onChange(of: reduceMotion) { _, v in scene.reduceMotion = v }
                     .onChange(of: scenePaused) { _, p in scene.externallyPaused = p }
-                if counter.isEmpty { emptyField }
+                if counter.items.isEmpty { emptyField }
             }
             .frame(width: geo.size.width, height: geo.size.height)
         }
@@ -570,12 +620,12 @@ struct MainView: View {
         scene.onRemove = { id in decide(id) }
         scene.onDecide = { id, wasted in gestureDecide(id, wasted: wasted) }
         scene.externallyPaused = scenePaused
-        scene.sync(counter)
+        scene.sync(liveCounter)
     }
 
     /// 제스처 판정(§13.6 B) — 존에 끌어다 놓으면 오버레이 없이 바로 확정. undo 토스트가 안전망.
     private func gestureDecide(_ id: UUID, wasted: Bool) {
-        guard let ing = counter.first(where: { $0.id == id }) else { return }
+        guard let ing = liveCounter.first(where: { $0.id == id }) else { return }
         decisionHaptic += 1
         withAnimation(ReffiMotion.gated(ReffiMotion.pop, reduce: reduceMotion)) {
             if wasted { store.toss(ing) } else { store.eat(ing) }
@@ -622,14 +672,14 @@ struct MainView: View {
 
     /// 뱃지 행 — 긴급도순 가로 스크롤(가장 임박이 맨 앞). 끝에 ＋추가.
     /// (신선도 점 행은 뱃지의 인디케이터 바·D-N과 중복이라 제거 — §13.6 E)
-    private var badgeScroll: some View {
+    private func badgeScroll(_ counter: CounterDigest) -> some View {
         // 이번 렌더에서 **새로** 들어온 뱃지들 — 아직 `knownBadgeIDs`에 없는 것이 이번 진입분이다.
         // 영수증 스캔·샘플 냉장고처럼 한 번에 여럿이 들어오는 경로가 있어, 순서를 알아야 스태거를
         // 매길 수 있다(하나만 들어오면 목록도 하나라 지연은 0이다).
-        let entering = counter.map(\.id).filter { !knownBadgeIDs.contains($0) }
+        let entering = counter.ids.filter { !knownBadgeIDs.contains($0) }
         return ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: ReffiSpace.s2) {
-                ForEach(Array(counter.enumerated()), id: \.element.id) { i, ing in
+                ForEach(Array(counter.items.enumerated()), id: \.element.id) { i, ing in
                     IngredientBadge(ingredient: ing, seed: i) { decide(ing.id) }
                         // **진입과 이탈은 다른 사건이다.** 대칭(.scale 1.3)이면 새 뱃지가 130%에서
                         // 쪼그라들며 나타나 "방금 지운 것이 되돌아왔나"로 읽힌다. 진입은 §7.1대로
@@ -640,15 +690,15 @@ struct MainView: View {
                                                              reduce: reduceMotion)),
                             removal: .scale(scale: 1.3, anchor: .center).combined(with: .opacity)))   // 뿅 사라짐
                 }
-                AddBadge(seed: counter.count) { showAdd = true }
+                AddBadge(seed: counter.items.count) { showAdd = true }
             }
             .padding(.horizontal, margin)
             .padding(.vertical, ReffiSpace.s1)   // 그림자 여유
         }
-        .animation(ReffiMotion.gated(ReffiMotion.pop, reduce: reduceMotion), value: counter.map(\.id))
+        .animation(ReffiMotion.gated(ReffiMotion.pop, reduce: reduceMotion), value: counter.ids)
         // 진입분 판정 기준을 다음 변화로 넘긴다. `initial: true`로 첫 표시에서 채워 두지 않으면,
         // 나중에 한 개를 더해도 화면에 있던 전부가 "새로 들어온 것"으로 읽혀 엉뚱한 지연을 받는다.
-        .onChange(of: counter.map(\.id), initial: true) { _, now in knownBadgeIDs = Set(now) }
+        .onChange(of: counter.ids, initial: true) { _, now in knownBadgeIDs = Set(now) }
     }
 
     /// 여럿이 한꺼번에 들어올 때의 등장 지연(초) — 한 덩어리가 통째로 커지는 대신 하나씩 놓인다.
@@ -667,7 +717,7 @@ struct MainView: View {
 
     /// 재료 탭 → "먹었나 버렸나" 묻기. 커버 자체의 슬라이드 애니메이션은 끄고 카드가 pop-in 한다.
     private func decide(_ id: UUID) {
-        guard let ing = counter.first(where: { $0.id == id }) else { return }
+        guard let ing = liveCounter.first(where: { $0.id == id }) else { return }
         var t = Transaction(); t.disablesAnimations = true
         withTransaction(t) { deciding = ing }
     }
@@ -714,7 +764,7 @@ struct MainView: View {
     }
 
     private func cook() {
-        guard !counter.isEmpty else { return }
+        guard !liveCounter.isEmpty else { return }
         snapshotCarousel()   // 발주로 store가 바뀌어도 커버 입력은 고정(재랭크 방지)
         firedTicket = false
         coverGeneration += 1                 // 이전 발주의 지연 닫기 타이머 무효화

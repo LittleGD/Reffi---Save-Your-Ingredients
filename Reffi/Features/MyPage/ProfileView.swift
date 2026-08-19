@@ -5,6 +5,12 @@ import UserNotifications
 /// 구성은 Main의 리퀴드글래스 배경 + Fridge의 "흰 영수증 더미" 문법(톱니+점선+틸트·슬립)을 그대로 따른다.
 /// 흰 종이 면은 그레인 없이 깨끗하게 — 그레인은 채도 버튼 면 전용(PaperButton 문법).
 struct ProfileView: View {
+    /// 현재 탭으로 표시 중인지 — 아니면 본문을 세우지 않는다(`MainView(isActive:)`·`FridgeView` 선례).
+    /// 루트가 세 패인을 모두 살려 두는 대가로, 가려진 이 화면도 store 변이마다 body가 다시 돌아
+    /// 리퀴드글래스 블롭 세 장과 영수증 일곱 장을 보이지도 않는 채로 다시 그렸다.
+    /// 상태(`@AppStorage`·시트 선택)와 시트 프레젠테이션은 그대로 살고, 그리는 것만 끊는다.
+    var isActive: Bool = true
+
     @Environment(FridgeStore.self) private var store
     @Environment(ProfileStore.self) private var profile
     @Environment(AuthStore.self) private var auth
@@ -41,22 +47,26 @@ struct ProfileView: View {
         @Bindable var profile = profile
         ScrollViewReader { proxy in
         ScrollView {
-            VStack(alignment: .leading, spacing: ReffiSpace.s5) {
-                header
-                // 영수증 스택 — 설정 화면이라 기울임 없이 정돈된 정렬(질서 있는 영수증 문법).
-                // 무낭비 리포트는 냉장고 페이지 History(No-waste report)로 이동.
-                tasteReceipt
-                householdReceipt
-                notifyReceipt
-                recipesReceipt
-                languageReceipt
-                dataReceipt
-                accountReceipt
-                Color.clear.frame(height: 1).id(Anchor.bottom)   // 스크롤 하단 앵커(QA 스크린샷)
+            // 가려진 동안은 **아무것도 세우지 않는다**(위 `isActive` 주석) — 상태는 그대로 살아 있고,
+            // 활성화되는 프레임에 이 서브트리가 통째로 다시 선다(포기하는 것은 스크롤 위치 하나다).
+            if isActive {
+                VStack(alignment: .leading, spacing: ReffiSpace.s5) {
+                    header
+                    // 영수증 스택 — 설정 화면이라 기울임 없이 정돈된 정렬(질서 있는 영수증 문법).
+                    // 무낭비 리포트는 냉장고 페이지 History(No-waste report)로 이동.
+                    tasteReceipt
+                    householdReceipt
+                    notifyReceipt
+                    recipesReceipt
+                    languageReceipt
+                    dataReceipt
+                    accountReceipt
+                    Color.clear.frame(height: 1).id(Anchor.bottom)   // 스크롤 하단 앵커(QA 스크린샷)
+                }
+                .padding(.horizontal, ReffiGrid.margin + receiptInset)
+                .padding(.top, ReffiSpace.s5)
+                .padding(.bottom, ReffiChrome.navClearance)   // 떠 있는 캡슐 네비 위로 스크롤 여유
             }
-            .padding(.horizontal, ReffiGrid.margin + receiptInset)
-            .padding(.top, ReffiSpace.s5)
-            .padding(.bottom, ReffiChrome.navClearance)   // 떠 있는 캡슐 네비 위로 스크롤 여유
         }
         #if DEBUG
         // 스크린샷·QA용 — 하단 섹션(Data·Account)까지 스크롤(-fridgeTab 선례).
@@ -70,7 +80,9 @@ struct ProfileView: View {
         #endif
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(LiquidGlassBackground(accent: accent))
+        // 배경도 게이트 안쪽이다 — 블롭 세 장 + 글래스 프로스트가 가려진 채로 서 있을 이유가 없고,
+        // `accent`가 읽는 `store.sorted`(전체 정렬)도 비활성 프레임에서는 돌지 않는다.
+        .background { if isActive { LiquidGlassBackground(accent: accent) } }
         .sheet(item: $sheet) { which in
             switch which {
             case .nickname:  NicknameEditSheet().presentationDetents([.height(260)])

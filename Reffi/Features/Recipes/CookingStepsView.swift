@@ -87,6 +87,11 @@ struct CookingStepsView: View {
     /// 가로 모드나 iPad를 지원하게 되면 여기도 `geo.safeAreaInsets.leading/.trailing`을 빼야 한다.
     private let ticketInset = ReffiGrid.margin + 8
 
+    /// 공유 카드를 굽기까지의 유예(초) — 풀스크린 커버 전환(§7.1 dur-3, 0.24s)이 끝나고도 한 박자
+    /// 남는 값이다. 짧게 잡으면 전환 마지막 프레임과 겹치고, 길게 잡으면 공유를 바로 누른 손이
+    /// 비활성 플레이스홀더를 본다(카드 한 장 렌더는 그 뒤 곧바로 끝난다).
+    private static let shareBakeDelay: Double = 0.5
+
     var body: some View {
         // 히어로 아이콘 크기가 **영수증 폭에 비례**하므로 컨테이너 폭을 실측해야 한다.
         // GeometryReader는 ScrollView **바깥**에 둔다 — 안에 두면 스크롤 콘텐츠 높이가 무너진다.
@@ -104,7 +109,15 @@ struct CookingStepsView: View {
                     }
                     // 공유 카드에 인쇄되는 값(메뉴명·예약 재료 이름·시간·개수)이 바뀔 때만 다시 렌더한다.
                     // 새 세션은 물론, 조리 중 예약 재료가 사라지는 경우까지 이 키가 덮는다.
+                    //
+                    // **전환이 끝난 뒤에 굽는다.** `ImageRenderer(scale: 3)`는 카드 한 장을 통째로
+                    // 레이아웃하고 래스터라이즈하는 동기 작업인데, `.task`는 커버가 올라오는 그
+                    // 프레임에 붙어 있어 발주 → 조리 화면 전환 한복판에서 메인 스레드를 물었다
+                    // (공유는 이 화면의 보조 행동이고, 도달까지는 최소 한 번의 탭이 더 남아 있다).
+                    // 재료를 지우는 등으로 키가 바뀌면 이 대기부터 다시 시작한다 — 취소가 곧 최신화다.
                     .task(id: shareCardKey(for: cook)) {
+                        try? await Task.sleep(for: .seconds(Self.shareBakeDelay))
+                        guard !Task.isCancelled else { return }
                         shareImage = renderShareImage(for: cook, icon: heroIcon(for: cook))
                     }
                 }
@@ -394,7 +407,11 @@ struct CookingStepsView: View {
                                    icon: icon)
             .environment(\.colorScheme, .light)
         let renderer = ImageRenderer(content: card)
-        renderer.scale = 3   // 레티나
+        // 레티나 3x. **2로 내리지 않는다**(2026-08 재검토): 카드 폭이 340pt라 3x는 1020px인데,
+        // 받는 쪽은 메시지 앱에서 이 이미지를 화면 폭으로 연다 — 3x 아이폰의 세로 폭이 1170~1290px라
+        // 2x(680px)면 그 자리에서 곧장 확대돼 톱니와 모노 라벨이 뭉갠다. 비용 쪽 걱정은 스케일이
+        // 아니라 **타이밍**이었고, 그건 위 `.task`의 유예가 가져갔다.
+        renderer.scale = 3
         guard let uiImage = renderer.uiImage else { return nil }
         return Image(uiImage: uiImage)
     }
