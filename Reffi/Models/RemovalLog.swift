@@ -33,9 +33,11 @@ struct RemovalLog: Identifiable, Codable {
     /// 재료 동일성 키 — 표기 무관(Ingredient.matchKey와 같은 규칙). 쇼핑리스트 그룹핑·재입고 조회의 기준.
     var matchKey: String { canonicalID ?? name.lowercased() }
 
-    /// 화면에 그릴 이름 — `Ingredient.displayName`과 같은 규칙(캐논 ID가 있으면 사전에서 재해석).
+    /// 화면에 그릴 이름 — `Ingredient.displayName`과 **같은 함수**를 탄다(앱 전역 단일 정책).
+    /// 이력 로그의 `name`은 영수증·자유 입력 원문을 그대로 싣는 줄이 흔해, 캐논만 보고 덮으면
+    /// History 타임라인이 사용자가 산 물건 이름을 지운다 — 사전 표제어일 때만 재해석한다.
     var displayName: String {
-        canonicalID.flatMap { IngredientLexicon.shared.entry(id: $0)?.displayName } ?? name
+        IngredientLexicon.shared.displayName(stored: name, canonicalID: canonicalID)
     }
 
     /// 처리 후 경과 일수(자정 기준).

@@ -662,7 +662,7 @@ final class FridgeStore {
 
     /// 자주 쓰는데(이력에 있는데) 지금 냉장고엔 없는 = 사야 할 식재료 **제안**. 빈도 많은 순.
     /// 비교는 전부 matchKey(캐논 ID 우선) — 표기(Milk/milk, 양파/onion)가 달라도 한 품목으로 묶인다.
-    /// 표시는 최근 로그의 표기를 `displayName(stored:canonicalID:)`로 한 번 거른 값(로케일 박제 방지).
+    /// 표시는 최근 로그의 `displayName`(로케일 박제 방지 + 사용자 표기 보존, 전역 단일 정책).
     private var derivedToBuy: [(name: String, glyph: FoodGlyph, key: String)] {
         let inStock = Set(ingredients.map(\.matchKey))
         let dismissed = Set(dismissedToBuy.map(dismissKey))
@@ -672,8 +672,7 @@ final class FridgeStore {
                 guard let first = logs.first,   // history는 최신이 앞 → 최근 표기
                       !inStock.contains(key),
                       !dismissed.contains(key) else { return nil }
-                return (name: Self.displayName(stored: first.name, canonicalID: first.canonicalID),
-                        glyph: first.glyph, key: key, count: logs.count)
+                return (name: first.displayName, glyph: first.glyph, key: key, count: logs.count)
             }
             .sorted { $0.count != $1.count ? $0.count > $1.count : $0.name < $1.name }
             .map { (name: $0.name, glyph: $0.glyph, key: $0.key) }
@@ -693,32 +692,16 @@ final class FridgeStore {
                           .map { (name: $0.name, glyph: $0.glyph, manual: false, key: $0.key) }
     }
 
-    /// 수동 항목 한 줄의 **표시 이름** — "데이터는 캐논으로, 표시만 로컬라이즈"를 이 한 곳에서 지킨다.
+    /// 수동 항목 한 줄의 **표시 이름** — `Ingredient`·`RemovalLog`와 **같은 함수**를 탄다
+    /// (`IngredientLexicon.displayName(stored:canonicalID:)`, 앱 전역 단일 정책).
     ///
-    /// 저장된 `name`은 담을 때의 표기 스냅샷이라 로케일이 박제된다: 한국어 기기에서 사전 타일로
-    /// 담은 "양파"는 앱 언어를 영어로 바꿔도 "양파"로 남고, 같은 시트의 타일은 "Onion"으로 떠
-    /// 한 화면 건너 표기가 갈렸다. 캐논이 있으면 지금 로케일의 표제어로 다시 그린다.
-    ///
-    /// 다만 **캐논만 보고 무조건 덮지 않는다** — 저장된 표기가 사전 표제어(en/ko)와 실제로
-    /// 일치할 때만 바꾼다. FREQUENT 칩은 이력 로그의 원문("서울우유1L")을 이름으로 싣고 캐논은
-    /// `milk`라, 무조건 덮으면 사용자가 적은 그 표기를 잃는다(`ManualBuyItem` 주석의 전제).
+    /// 이 줄이 특히 예민한 이유: 저장된 `name`은 담을 때의 표기 스냅샷이라 한국어 기기에서 사전
+    /// 타일로 담은 "양파"는 언어를 바꿔도 "양파"로 남는데, 같은 시트의 타일은 "Onion"으로 떠
+    /// 한 화면 건너 표기가 갈린다. 반대로 FREQUENT 칩은 이력 원문("서울우유1L")을 이름으로 싣고
+    /// 캐논만 `milk`라, 무조건 덮으면 사용자가 적은 그 표기를 잃는다(`ManualBuyItem` 주석의 전제).
+    /// 가드형은 두 요구를 동시에 만족시키는 유일한 답이다.
     static func displayName(for item: ManualBuyItem) -> String {
-        displayName(stored: item.name, canonicalID: item.canonicalID)
-    }
-
-    /// 위 규칙의 본체 — `(저장 표기, 캐논)` 한 쌍이면 어디서든 같은 답을 낸다.
-    /// **이력에서 파생하는 줄**(To buy 제안·FREQUENT 칩)도 같은 문제를 안고 있어 같은 가드를 태운다:
-    /// 로그의 `name`은 처리하던 순간의 표기라, 한국어로 담아 먹은 재료가 언어를 바꿔도 계속 한국어로
-    /// 남는다. `RemovalLog.displayName`(무조건 재해석)이 아니라 이 가드를 쓰는 이유는 위 문단 그대로다 —
-    /// 이력 로그는 영수증·자유 입력 원문("서울우유1L")을 그대로 싣고 캐논만 `milk`인 줄이 흔하다.
-    static func displayName(stored: String, canonicalID: String?) -> String {
-        guard let id = canonicalID, let entry = IngredientLexicon.shared.entry(id: id) else {
-            return stored
-        }
-        let normalized = IngredientLexicon.norm(stored)
-        let lexiconForms = (entry.names.en + entry.names.ko).map(IngredientLexicon.norm)
-        guard lexiconForms.contains(normalized) else { return stored }   // 사용자 표기 — 그대로 둔다
-        return entry.displayName
+        IngredientLexicon.shared.displayName(stored: item.name, canonicalID: item.canonicalID)
     }
 
     /// 지금 **메모에 떠 있는** 품목 키 — 검색 시트의 '이미 담김' 도장이 읽는다(행마다 재계산 방지).
@@ -747,8 +730,7 @@ final class FridgeStore {
         let ranked = Dictionary(grouping: history) { $0.matchKey }
             .compactMap { key, logs -> (name: String, glyph: FoodGlyph, key: String, count: Int)? in
                 guard let first = logs.first else { return nil }   // history는 최신이 앞 → 최근 표기
-                return (name: Self.displayName(stored: first.name, canonicalID: first.canonicalID),
-                        glyph: first.glyph, key: key, count: logs.count)
+                return (name: first.displayName, glyph: first.glyph, key: key, count: logs.count)
             }
             .sorted { $0.count != $1.count ? $0.count > $1.count : $0.name < $1.name }
             .prefix(limit)
