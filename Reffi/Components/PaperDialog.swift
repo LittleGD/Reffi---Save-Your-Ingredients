@@ -167,7 +167,9 @@ private struct PaperDialogModifier: ViewModifier {
                 }
             }
             // 딤의 등장·소멸만 여기서(카드의 팝은 다이얼로그가 스스로 한다). 이탈은 §7대로 더 빠르게.
-            .animation(ReffiMotion.gated(.easeOut(duration: ReffiMotion.dur2), reduce: reduceMotion),
+            // 커브는 `ReffiMotion.easeOut`이다 — 콜사이트에서 그냥 `.easeOut`이라 쓰면 SwiftUI 기본
+            // 커브(0,0,0.58,1)가 잡혀 §7.1 진입 커브(0.23,1,0.32,1)와 다른 시계로 돈다.
+            .animation(ReffiMotion.gated(ReffiMotion.easeOut(duration: ReffiMotion.dur2), reduce: reduceMotion),
                        value: isPresented)
     }
 

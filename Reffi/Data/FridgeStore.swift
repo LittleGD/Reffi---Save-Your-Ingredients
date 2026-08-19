@@ -79,7 +79,10 @@ final class FridgeStore {
     private let snapshotRetentionDays = 60
 
     static let currentSchemaVersion = 2
-    static let log = Logger(subsystem: "com.reffi.app", category: "store")
+    /// `nonisolated`인 이유: 이 클래스는 `@MainActor`라 static 프로퍼티도 메인 격리를 물려받는데,
+    /// 영속화 쓰기는 `ioQueue`(비격리 Sendable 클로저)에서 실패를 남긴다. `Logger`는 Sendable이므로
+    /// 격리를 벗기는 것이 맞다 — 안 벗기면 그 자리가 경고로 남고, 다음 사람이 로그를 지워서 지운다.
+    nonisolated static let log = Logger(subsystem: "com.reffi.app", category: "store")
 
     // MARK: - Init / 영속화
 

@@ -634,6 +634,11 @@
 ---
 
 ## 12. 통합 토큰 (`:root`) — 정본
+
+> **`design-system.html`과 1:1이다** — 세 구획(`:root` · `@media (prefers-color-scheme: dark)`의 `:root:not([data-theme="light"])` · `:root[data-theme="dark"]`)의 커스텀 프로퍼티가 이름·값 모두 같아야 한다(둘이 어긋난 채로 작업을 끝내지 않는다, CLAUDE.md).
+>
+> **단 하나의 예외는 `--chrome-blue` · `--chrome-blue-deep` · `--chrome-blue-tint`다.** 쇼케이스 **페이지 자신의** 네비·히어로가 쓰는 브랜드 표지 색이라 앱 토큰이 아니고, 그래서 여기 정본에는 없다(HTML 쪽 선언부에도 "앱 토큰 아님"이라 적어 두었다). 다크에서도 브랜드 블루 크롬을 유지해야 해 적응형 `--color-blue*`를 쓰지 않는 것이지 §2.8을 어기는 것이 아니다. 대조 스크립트를 돌릴 때 HTML에만 있는 이 셋이 나오면 정상이고, **그 밖에 한 줄이라도 더 나오면 어긋난 것이다.**
+
 ```css
 :root {
   /* ---- Brand · Fresh / Soon / Urgent (파스텔) + Blue (Reffi) ---- */

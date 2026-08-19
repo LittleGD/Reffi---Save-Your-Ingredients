@@ -255,7 +255,9 @@ private struct PaperChecklistDialogModifier: ViewModifier {
                         .transition(.opacity)
                 }
             }
-            .animation(ReffiMotion.gated(.easeOut(duration: ReffiMotion.dur2), reduce: reduceMotion),
+            // 커브는 `PaperDialog`와 같은 `ReffiMotion.easeOut`이다(같은 문법의 딤이다) — 콜사이트에서
+            // 그냥 `.easeOut`이라 쓰면 SwiftUI 기본 커브가 잡혀 둘이 다른 시계로 돈다.
+            .animation(ReffiMotion.gated(ReffiMotion.easeOut(duration: ReffiMotion.dur2), reduce: reduceMotion),
                        value: isPresented)
     }
 

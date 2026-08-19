@@ -271,7 +271,7 @@ struct RecipeMemoCarousel: View {
         .padding(.top, topInset)
         .opacity(live ? ReffiJudgeZone.alpha : 0)   // 완전 불투명이 아닌 0.96 — 홈 존과 같은 토큰
         // 등장·소멸(홈 `SKAction.fadeAlpha` 대응). 놓는 순간 축이 풀려 커밋 여부와 무관하게 사라진다.
-        .animation(ReffiMotion.gated(.easeOut(duration: ReffiJudgeZone.fade), reduce: reduceMotion),
+        .animation(ReffiMotion.gated(ReffiMotion.easeOut(duration: ReffiJudgeZone.fade), reduce: reduceMotion),
                    value: live)
         .allowsHitTesting(false)
         .accessibilityHidden(true)
@@ -288,7 +288,7 @@ struct RecipeMemoCarousel: View {
         }
         .frame(width: zoneSide, height: zoneSide)
         .scaleEffect(hot ? ReffiJudgeZone.hotScale : 1)
-        .animation(ReffiMotion.gated(.easeOut(duration: ReffiJudgeZone.hotDuration), reduce: reduceMotion),
+        .animation(ReffiMotion.gated(ReffiMotion.easeOut(duration: ReffiJudgeZone.hotDuration), reduce: reduceMotion),
                    value: hot)
     }
 
