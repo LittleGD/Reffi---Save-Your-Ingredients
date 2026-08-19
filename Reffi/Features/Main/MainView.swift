@@ -14,6 +14,9 @@ struct MainView: View {
     /// 앱이 백그라운드로 내려가면 씬을 확실히 멈춘다(아래 scenePaused). `.inactive`는 **일부러 뺐다** —
     /// 앱 전환기·알림 배너 같은 잠깐의 상태에서도 씬이 멈춰 첫 프레임이 회색으로 남는다.
     @Environment(\.scenePhase) private var scenePhase
+    /// 큰 글자에서 상단 블록의 배치를 가른다(아래 body) — 그 크기에선 헤더와 상태 카드만으로
+    /// 뷰포트를 넘겨, 물리 필드가 자리를 다 내주고도 글자가 잘렸다.
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     // 알림 유도(프리퍼미션) — 첫 임박 재료가 생긴 순간이 가치가 증명되는 순간이다.
     // 알림은 기본 OFF + 스위치가 MyPage에만 있어, 여기서 한 번 제안하지 않으면 발견되지 않는다.
@@ -123,41 +126,52 @@ struct MainView: View {
         // 전부 이 한 장을 받아 쓴다. 예전엔 조각마다 store를 다시 불러 같은 정렬이 반복됐다.
         let counter = CounterDigest(store.counterIngredients)
         return VStack(spacing: 0) {
-            header(counter)
-                .padding(.horizontal, margin)
-                // **세 루트 페이지의 제목이 같은 높이에서 시작한다**(23차). 냉장고·프로필이 둘 다
-                // `s5`인데 홈만 `s2`라 탭을 오갈 때 제목이 16pt 튀었다(실측: 홈 78.3pt vs 나머지 94.5pt).
-                // 남는 세로 공간은 아래 `physicsField`가 `maxHeight: .infinity` + 바닥 정렬로 흡수하므로
-                // 더미가 앉는 자리는 그대로다(필드는 `fieldRestHeight`로 이미 캡이 걸려 있다).
-                .padding(.top, ReffiSpace.s5)
+            if typeSize.isAccessibilitySize {
+                // **큰 글자에선 상단 블록이 스크롤한다.** 헤더(워드마크+날짜+미션)와 상태 카드만으로
+                // 뷰포트를 넘겨서, 아래 필드가 자리를 0까지 내주고도 날짜·미션·배너가 한 줄씩으로
+                // 깎였다(AX5 실측). 그 크기에서 필드를 물리는 것은 손해가 아니다: SpriteKit 노드라
+                // 접근성 트리에 없는 표면이고, 거기서만 되는 일(끌어서 판정)도 바로 아래 뱃지 탭이
+                // 그대로 연다 — 큰 글자를 켠 사람에게 잘린 글자 대신 온전한 글자를 준다.
+                // 필드가 있던 자리를 그대로 물려받으므로(같은 위치·같은 흡수 역할) 뱃지 행과 CTA는
+                // 두 배치에서 같은 자리에 못 박혀 있다. AX 크기 전환은 이 앱의 기존 처세와 같은 문법이다
+                // (캡슐 네비=아이콘만, 냉장고=간편 목록).
+                ScrollView {
+                    VStack(spacing: 0) {
+                        statusBlock(counter)
+                        // 작업대가 비면 필드가 그리던 안내를 여기서 그대로 세운다 — 그릴 칩이 없는
+                        // 씬은 배경일 뿐이라, 안내만 옮겨도 잃는 것이 없다. 옮기지 않으면 이 안내는
+                        // 필드가 받은 몫 안에서 짓눌려 CTA 위로 겹쳐 흘렀다(AX5 실측).
+                        if counter.items.isEmpty {
+                            emptyField
+                                .padding(.horizontal, margin)
+                                .padding(.top, ReffiSpace.s6)
+                        }
+                    }
+                }
+                // 내용이 뷰포트 안에 들어오면 튕기지 않는다 — 스크롤이 생겼다는 신호는 넘칠 때만.
+                .scrollBounceBehavior(.basedOnSize)
+                .layoutPriority(-1)   // 아래 필드와 같은 이유로 **남는 것을 받는** 자리다
+            } else {
+                statusBlock(counter)
 
-            // 발주 진행 카드(§13.6 C) — 헤더 아래 죽은 공간이 상태 표면이 된다.
-            if let cook = store.activeCook {
-                cookingNowCard(cook)
-                    .padding(.horizontal, margin)
-                    .padding(.top, ReffiSpace.s3)
-                    .transition(.move(edge: .top).combined(with: .opacity))
-            } else if showAlertPrompt(counter) {
-                alertPromptCard
-                    .padding(.horizontal, margin)
-                    .padding(.top, ReffiSpace.s3)
-                    .transition(.move(edge: .top).combined(with: .opacity))
+                physicsField(counter)
+                    .onGeometryChange(for: CGFloat.self, of: { $0.size.width }) { fieldWidth = $0 }
+                    .frame(maxWidth: .infinity, maxHeight: fieldRestHeight(counter))
+                    // 남는 공백은 **전부 위로** 몬다 — 더미가 뱃지 바로 위에 내려앉는다.
+                    // 가운데 정렬이던 시절엔 필드 상자 자체가 화면 중앙에 떠서, 칩이 상자 바닥에
+                    // 정확히 붙어 있는데도 "바닥에 안 붙는다"로 읽혔다(-physLab 오버레이로 확인).
+                    // 중력 방향(아래)과 더미가 앉는 자리가 어긋나면 물리가 거짓말하는 것처럼 보인다.
+                    .frame(maxHeight: .infinity, alignment: .bottom)
+                    // **필드는 남는 것을 받는 자리지, 먼저 가져가는 자리가 아니다.** VStack은 같은
+                    // 우선순위의 자식들에게 "남은 높이 ÷ 남은 개수"를 차례로 제안하는데,
+                    // `maxHeight: .infinity`인 이 상자는 제안받은 몫을 통째로 삼킨다 — 그래서 자리가
+                    // 빠듯해지면 헤더 문장이 먼저 깎였다. 순위를 낮춰 **맨 마지막에** 세우면 헤더와
+                    // 상태 카드가 제 높이를 먼저 가져가고 필드가 그 나머지를 받는다(넉넉한 기본
+                    // 크기에선 순서만 바뀔 뿐 값이 같다 — 픽셀 대조 완료).
+                    .layoutPriority(-1)
             }
 
-            physicsField(counter)
-                .onGeometryChange(for: CGFloat.self, of: { $0.size.width }) { fieldWidth = $0 }
-                .frame(maxWidth: .infinity, maxHeight: fieldRestHeight(counter))
-                // 남는 공백은 **전부 위로** 몬다 — 더미가 뱃지 바로 위에 내려앉는다.
-                // 가운데 정렬이던 시절엔 필드 상자 자체가 화면 중앙에 떠서, 칩이 상자 바닥에
-                // 정확히 붙어 있는데도 "바닥에 안 붙는다"로 읽혔다(-physLab 오버레이로 확인).
-                // 중력 방향(아래)과 더미가 앉는 자리가 어긋나면 물리가 거짓말하는 것처럼 보인다.
-                .frame(maxHeight: .infinity, alignment: .bottom)
-
-            if !counter.items.isEmpty {
-                badgeScroll(counter)
-                    .padding(.bottom, ReffiSpace.s2)
-                    .id(dayTick)   // 자정 경과 시 D-day·신선도색 재계산
-            }
+            badgeRow(counter)
 
             PaperButton(title: "Start cooking") { cook() }
                 .padding(.horizontal, margin)
@@ -420,23 +434,78 @@ struct MainView: View {
         .animation(ReffiMotion.gated(ReffiMotion.ambient, reduce: reduceMotion), value: counter.urgent > 0)
     }
 
+    // MARK: - 상단 블록 · 뱃지 행 (두 배치가 함께 쓰는 조각)
+
+    /// 헤더 + 상태 카드 — 못 박힌 배치(기본 크기)와 스크롤 배치(큰 글자)가 **같은 한 장**을 본다.
+    /// 손으로 두 번 쓰면 한쪽만 조용히 어긋난다(판정 커버 `outcomeButtons`와 같은 이유).
+    @ViewBuilder private func statusBlock(_ counter: CounterDigest) -> some View {
+        header(counter)
+            .padding(.horizontal, margin)
+            // **세 루트 페이지의 제목이 같은 높이에서 시작한다**(23차). 냉장고·프로필이 둘 다
+            // `s5`인데 홈만 `s2`라 탭을 오갈 때 제목이 16pt 튀었다(실측: 홈 78.3pt vs 나머지 94.5pt).
+            // 남는 세로 공간은 이 블록 **아래에 오는 상자**가 흡수한다(기본 크기=`physicsField`의
+            // `maxHeight: .infinity` + 바닥 정렬, 큰 글자=그 자리를 물려받은 스크롤 상자) — 그래서
+            // 더미가 앉는 자리는 그대로다(필드는 `fieldRestHeight`로 이미 캡이 걸려 있다).
+            .padding(.top, ReffiSpace.s5)
+
+        // 발주 진행 카드(§13.6 C) — 헤더 아래 죽은 공간이 상태 표면이 된다.
+        if let cook = store.activeCook {
+            cookingNowCard(cook)
+                .padding(.horizontal, margin)
+                .padding(.top, ReffiSpace.s3)
+                .transition(.move(edge: .top).combined(with: .opacity))
+        } else if showAlertPrompt(counter) {
+            alertPromptCard
+                .padding(.horizontal, margin)
+                .padding(.top, ReffiSpace.s3)
+                .transition(.move(edge: .top).combined(with: .opacity))
+        }
+    }
+
+    @ViewBuilder private func badgeRow(_ counter: CounterDigest) -> some View {
+        if !counter.items.isEmpty {
+            badgeScroll(counter)
+                .padding(.bottom, ReffiSpace.s2)
+                .id(dayTick)   // 자정 경과 시 D-day·신선도색 재계산
+        }
+    }
+
     // MARK: - Header
 
     private func header(_ counter: CounterDigest) -> some View {
         VStack(alignment: .leading, spacing: ReffiSpace.s1) {
-            HStack(alignment: .center) {
-                Text(verbatim: "Reffi").reffiType(.display).foregroundStyle(ReffiColor.ink)
-                Spacer()
-                // 날짜는 분 단위 타임라인으로 갱신 — 자정이 지나도 어제 날짜가 남지 않는다.
-                TimelineView(.everyMinute) { ctx in
-                    Text(ctx.date.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))
-                        .font(.reffiNum(.meta)).foregroundStyle(ReffiColor.ink2)
+            // 워드마크와 날짜는 **한 줄이 들어갈 때만** 한 줄이다. 큰 글자에선 둘이 같은 줄에서 폭을
+            // 다투다 날짜가 'Wednesday…'로 잘렸는데(AX5 실측), 날짜는 잘리면 요일·월·일 중 뒤 둘이
+            // 통째로 사라지는 쪽이라 축약이 답이 아니다. 라벨을 줄이는 대신 **배치를 바꾼다** —
+            // 판정 커버(`outcomeRow`)와 같은 처방이고, 한 줄이 들어가는 크기에선 렌더가 그대로다.
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .center) {
+                    wordmark
+                    Spacer(minLength: ReffiSpace.s3)
+                    todayStamp
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    wordmark
+                    todayStamp
                 }
             }
             // 미션 헤더(D) — 오늘의 상태를 한 문장으로. 누계(Ate/Tossed)는 MyPage가 맡는다.
             missionText(counter)
                 .reffiType(.caption)
                 .foregroundStyle(counter.urgent > 0 ? ReffiColor.urgentDark : ReffiColor.ink2)
+        }
+    }
+
+    /// 브랜드 워드마크 — 비번역 라틴(Story Script). 두 배치가 같은 한 장을 본다(손으로 두 번 쓰면 어긋난다).
+    private var wordmark: some View {
+        Text(verbatim: "Reffi").reffiType(.display).foregroundStyle(ReffiColor.ink)
+    }
+
+    /// 오늘 날짜 — 분 단위 타임라인으로 갱신해 자정이 지나도 어제 날짜가 남지 않는다.
+    private var todayStamp: some View {
+        TimelineView(.everyMinute) { ctx in
+            Text(ctx.date.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))
+                .font(.reffiNum(.meta)).foregroundStyle(ReffiColor.ink2)
         }
     }
 
@@ -457,43 +526,25 @@ struct MainView: View {
     }
 
     /// 미니 영수증 스트립(Cooking now와 같은 자리·같은 언어) — 켜기 / 나중에.
+    ///
+    /// 아이브로+문구 | 켜기 | 나중에 **3열 고정**이던 자리다. 큰 글자에선 셋이 한 줄에서 폭을 나눠
+    /// 가지느라 전부 잘렸다(AX5 실측: 'MOR NIN…' · 'Kno…' · 'Tur n…') — 하나를 줄여 봐야 그 하나만
+    /// 죽으므로 **배치를 통째로 접는다**: 문구 블록 위, 버튼 행 아래. 한 줄이 들어가는 크기에선
+    /// 첫 후보가 그대로 뽑혀 렌더가 변하지 않는다(§3.3, 판정 커버 `outcomeRow`와 같은 처방).
     private var alertPromptCard: some View {
-        HStack(spacing: ReffiSpace.s3) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(verbatim: "MORNING ALERTS")
-                    .reffiType(.monoEyebrow).foregroundStyle(ReffiColor.blueDark)
-                Text("Know before food turns")
-                    .reffiType(.badgeLabel)
-                    .foregroundStyle(ReffiColor.ink).lineLimit(1)
-                    .minimumScaleFactor(0.8)
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: ReffiSpace.s3) {
+                alertPromptCopy
+                Spacer(minLength: ReffiSpace.s2)
+                alertPromptActions
             }
-            Spacer(minLength: ReffiSpace.s2)
-            Button { enableAlerts() } label: {
-                Text("Turn on")
-                    .reffiType(.pillLabel)
-                    .foregroundStyle(ReffiColor.blueDark)
-                    .padding(.horizontal, ReffiSpace.s3 + 2)
-                    .padding(.vertical, ReffiSpace.s1 + 2)
-                    // §13.1 종이컷 8각형(캡슐 금지) — 바로 아래 Start cooking(PaperButton)과 같은 재질 언어.
-                    // 다만 면은 채우지 않는다: blue 솔리드 면은 한 화면에 하나(Start cooking)뿐이어야
-                    // 부차 액션이 F패턴 #1을 가져가지 않는다(§2.4 5% 강조 배분, 감사 R3-1).
-                    .background {
-                        let s = PaperCutRect(seed: 3)
-                        s.fill(ReffiColor.sub)
-                            .paperEdge(s, tint: ReffiColor.blueDark.opacity(0.38), width: 1.2)
-                    }
-                    .frame(minHeight: ReffiChrome.tapMin)
-                    .contentShape(Rectangle())
+            VStack(alignment: .leading, spacing: ReffiSpace.s1) {
+                alertPromptCopy
+                HStack(spacing: ReffiSpace.s3) {
+                    alertPromptActions
+                    Spacer(minLength: 0)
+                }
             }
-            .buttonStyle(.reffiPress)
-            Button { withAnimation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion)) { alertPromptSeen = true } } label: {
-                Text("Later")
-                    .reffiType(.pillLabel)
-                    .foregroundStyle(ReffiColor.ink2)
-                    .frame(minWidth: ReffiChrome.tapMin, minHeight: ReffiChrome.tapMin)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.reffiPress)
         }
         .padding(.horizontal, ReffiSpace.s4)
         .padding(.vertical, ReffiSpace.s1)
@@ -503,6 +554,50 @@ struct MainView: View {
             shape.fill(ReffiColor.paper).paperEdge(shape)
         }
         .reffiShadow1()
+    }
+
+    /// 두 배치가 **같은 문구 블록**을 본다 — 손으로 두 번 쓰면 한쪽만 조용히 어긋난다.
+    /// 한 줄 제한을 두지 않는 것이 세로 폴백의 전부다: 접힌 뒤에는 폭이 온전하니 잘릴 이유가 없고,
+    /// 가로 후보의 **이상 폭**은 줄 수와 무관하므로(한 줄 기준) 어느 배치를 고를지는 그대로다.
+    private var alertPromptCopy: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(verbatim: "MORNING ALERTS")
+                .reffiType(.monoEyebrow).foregroundStyle(ReffiColor.blueDark)
+            Text("Know before food turns")
+                .reffiType(.badgeLabel)
+                .foregroundStyle(ReffiColor.ink)
+                .minimumScaleFactor(0.8)
+        }
+    }
+
+    /// 켜기 · 나중에 — 두 배치가 같은 순서로 세운다(위 `alertPromptCopy`와 같은 이유).
+    @ViewBuilder private var alertPromptActions: some View {
+        Button { enableAlerts() } label: {
+            Text("Turn on")
+                .reffiType(.pillLabel)
+                .foregroundStyle(ReffiColor.blueDark)
+                .padding(.horizontal, ReffiSpace.s3 + 2)
+                .padding(.vertical, ReffiSpace.s1 + 2)
+                // §13.1 종이컷 8각형(캡슐 금지) — 바로 아래 Start cooking(PaperButton)과 같은 재질 언어.
+                // 다만 면은 채우지 않는다: blue 솔리드 면은 한 화면에 하나(Start cooking)뿐이어야
+                // 부차 액션이 F패턴 #1을 가져가지 않는다(§2.4 5% 강조 배분, 감사 R3-1).
+                .background {
+                    let s = PaperCutRect(seed: 3)
+                    s.fill(ReffiColor.sub)
+                        .paperEdge(s, tint: ReffiColor.blueDark.opacity(0.38), width: 1.2)
+                }
+                .frame(minHeight: ReffiChrome.tapMin)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.reffiPress)
+        Button { withAnimation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion)) { alertPromptSeen = true } } label: {
+            Text("Later")
+                .reffiType(.pillLabel)
+                .foregroundStyle(ReffiColor.ink2)
+                .frame(minWidth: ReffiChrome.tapMin, minHeight: ReffiChrome.tapMin)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.reffiPress)
     }
 
     /// 켜기 — 시스템 권한 요청 후 성공 시 즉시 스케줄. 거부해도 다시 조르지 않는다(seen 처리).
@@ -531,13 +626,18 @@ struct MainView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(verbatim: "COOKING NOW")
                         .reffiType(.monoEyebrow).foregroundStyle(ReffiColor.blueDark)
-                    HStack(spacing: 6) {
-                        Text(verbatim: cook.recipeName)
-                            .reffiType(.badgeLabel)
-                            .foregroundStyle(ReffiColor.ink).lineLimit(1)
-                        Text(cook.startedAt, style: .relative)
-                            .reffiType(.metaText)
-                            .foregroundStyle(ReffiColor.ink2)
+                    // 요리명과 경과 시간도 알림 배너와 같은 고정 2열이었다 — 큰 글자에선 둘이 남은
+                    // 폭을 나눠 갖느라 이름이 먼저 잘리고 경과가 그 뒤를 따랐다. 한 줄이 들어갈 때만
+                    // 한 줄로 두고, 안 들어가면 아래로 접는다(이름이 폭을 다투지 않고 순서도 그대로).
+                    ViewThatFits(in: .horizontal) {
+                        HStack(spacing: 6) {
+                            cookName(cook)
+                            cookElapsed(cook)
+                        }
+                        VStack(alignment: .leading, spacing: 2) {
+                            cookName(cook)
+                            cookElapsed(cook)
+                        }
                     }
                 }
                 Spacer(minLength: ReffiSpace.s2)
@@ -558,6 +658,23 @@ struct MainView: View {
         }
         .buttonStyle(.paperPress)
         .accessibilityLabel(Text("Continue cooking \(cook.recipeName)"))
+    }
+
+    /// 두 배치가 같은 이름 한 장을 본다. 두 줄까지 푸는 것은 접힌 뒤의 이야기다 — 가로 후보는
+    /// **한 줄 이상 폭**으로 재므로(줄 수와 무관) 어느 배치를 고를지는 그대로고, 세로로 접힌 다음엔
+    /// 폭이 온전하니 긴 요리명이 잘릴 이유가 없다(판정 커버의 재료명과 같은 처방).
+    private func cookName(_ cook: FridgeStore.CookSession) -> some View {
+        Text(verbatim: cook.recipeName)
+            .reffiType(.badgeLabel)
+            .foregroundStyle(ReffiColor.ink)
+            .lineLimit(2)
+            .minimumScaleFactor(0.8)
+    }
+
+    private func cookElapsed(_ cook: FridgeStore.CookSession) -> some View {
+        Text(cook.startedAt, style: .relative)
+            .reffiType(.metaText)
+            .foregroundStyle(ReffiColor.ink2)
     }
 
     // MARK: - Physics field (real engine, persistent pile)
