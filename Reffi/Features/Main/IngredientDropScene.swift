@@ -186,8 +186,18 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     private let spinArm: CGFloat = 0.25
     private let spinCap: CGFloat = 6
 
-    private var chipSide: CGFloat { chipSideFor(size) }
-    private func chipSideFor(_ s: CGSize) -> CGFloat { min(max(124, s.width * 0.42), 188) }
+    private var chipSide: CGFloat { Self.chipSideFor(size) }
+    private static func chipSideFor(_ s: CGSize) -> CGFloat { min(max(124, s.width * 0.42), 188) }
+
+    /// 정지 필드가 **한 줄 더미를 자르지 않기 위한 최소 높이** — 홈의 `fieldRestHeight` 캡이 이 하한을 존중한다.
+    /// 캡 공식(96×행+28)은 여러 행이 눕고 맞물리는 더미의 실측 피치인데, 한 줄(재료 ≤3)에서는 상자가 124pt로
+    /// 떨어져 **칩 하나의 그려지는 높이보다 작아진다** — 밀폐 천장은 칩 "중심"만 지키므로 정착은 정상 처리되고
+    /// 일러스트 상단만 조용히 잘렸다(2026-08 실기 재현: milk 게이블이 수평으로 삭제). 그려지는 최대 높이 =
+    /// 알파 bbox = 바디/0.9(`bodyMetrics` 계약) → side × maxBodyHeightRatio / 0.9, 여기에 캡 공식과 같은
+    /// 바닥·헤드룸 28을 얹는다. 칩 기하의 정본이 씬이라 이 식도 씬에 산다.
+    static func minRestFieldHeight(width: CGFloat) -> CGFloat {
+        chipSideFor(CGSize(width: width, height: 0)) * (maxBodyHeightRatio / 0.9) + 28
+    }
     private var floorY: CGFloat { max(6, size.height * 0.03) }
 
     // MARK: - 컨테인먼트 경계 (§13.4)
@@ -587,7 +597,7 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         super.didChangeSize(oldSize)
         guard size.width > 1 else { return }
         // 칩 변이 실제로 달라졌으면 텍스처 캐시를 버린다(캐시 키에 side가 박혀 있음).
-        if chipSideFor(oldSize) != chipSide { textureCache.removeAll() }
+        if Self.chipSideFor(oldSize) != chipSide { textureCache.removeAll() }
         buildWalls()
         // 천장이 내려오면 그 위에 남은 칩은 즉시 회수(스스로 못 들어온다). 단 **밀폐 상태일 때만** —
         // 낙하 캐스케이드 중(천장 열림) 리플로우가 오면, 정상 낙하 중인 칩을 순간이동시키게 된다.

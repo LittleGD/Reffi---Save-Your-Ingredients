@@ -53,6 +53,9 @@ struct MainView: View {
     @State private var pendingToBuyJump = false
     @State private var fireHaptic = 0
     @State private var decisionHaptic = 0
+    /// 필드 실측 폭 — `fieldRestHeight`의 한 줄 하한이 칩 변(폭 파생)을 알아야 해서 잰다.
+    /// 첫 레이아웃 전(0)에는 행 공식만 쓰고, 폭이 잡히면 같은 프레임에 하한이 따라온다.
+    @State private var fieldWidth: CGFloat = 0
 
     private let margin = ReffiGrid.margin
 
@@ -105,6 +108,7 @@ struct MainView: View {
             }
 
             physicsField
+                .onGeometryChange(for: CGFloat.self, of: { $0.size.width }) { fieldWidth = $0 }
                 .frame(maxWidth: .infinity, maxHeight: fieldRestHeight)
                 // 남는 공백은 **전부 위로** 몬다 — 더미가 뱃지 바로 위에 내려앉는다.
                 // 가운데 정렬이던 시절엔 필드 상자 자체가 화면 중앙에 떠서, 칩이 상자 바닥에
@@ -507,15 +511,20 @@ struct MainView: View {
     /// 빈 띠로 남아, 배너와 더미 사이가 뷰포트의 4분의 1이 됐다(감사 R3-4).
     /// 낙하 스폰은 씬 바깥 절대 좌표(`size.height + 700`)라 드라마는 이 캡과 무관하다.
     /// 칩은 화면 폭에서 3열로 눕으므로 행 수 = ⌈n/3⌉, 행 피치·바닥 여유는 실측값이다.
-    /// **스프라이트 몫을 더 얹지 않는다(2026-08 실측으로 기각).** 칩 스프라이트는 `chipSide` 정사각인데
-    /// 충돌 바디는 그 높이의 0.28~0.71뿐이라 "그림이 캡 위로 잘리는 것 아닌가"를 의심할 만하지만,
-    /// 실제로 그려지는 건 스프라이트가 아니라 **알파 bbox**(바디 = bbox × 0.9)다. `-physLab` 5회 실측에서
-    /// 안착 상태의 그림 최상단은 캡을 **11~13pt 밑돌았다**(잘림 0건). 캡 위로 잘려 보이는 칩은 아직
-    /// **낙하 중인** 칩이고, 그건 스폰 천장이 씬 바깥(`size.height + chipSide`)이라 설계대로다.
-    /// 여유를 얹으면 `sealedCeiling`이 함께 올라가 더미가 40pt 더 쌓인다(실측) — 안 그래야 할 변경이다.
+    /// **스프라이트 몫을 더 얹지 않는다(2026-08 실측으로 기각) — 단, 한 줄에는 예외가 실재했다.**
+    /// 칩 스프라이트는 `chipSide` 정사각인데 충돌 바디는 그 높이의 0.28~0.71뿐이라 "그림이 캡 위로
+    /// 잘리는 것 아닌가"를 의심할 만하고, `-physLab` 5회 실측(여러 행 더미)에서는 안착 그림 최상단이
+    /// 캡을 11~13pt 밑돌았다(잘림 0건). 그러나 그 실측은 **행이 눕고 맞물리는 더미**의 이야기다 —
+    /// 재료 ≤3이면 캡이 124pt로 떨어지는데 키 큰 글리프의 그려지는 높이(알파 bbox ≈ 0.78×칩 변,
+    /// 402pt 폭에서 ≈131pt)가 그보다 크다. 밀폐 천장은 칩 **중심**만 지키므로 정착은 정상으로 끝나고
+    /// 일러스트 상단만 프레임 경계에서 수평으로 잘렸다(2026-08-18 실기 재현: milk 게이블 소실).
+    /// 그래서 행 공식 위에 씬이 계산한 한 줄 하한(`minRestFieldHeight`)을 깐다 — 칩 기하의 정본은 씬이다.
+    /// 여유를 "전 행"에 얹으면 `sealedCeiling`이 함께 올라가 더미가 40pt 더 쌓인다(실측) — 그건 여전히 하지 않는다.
     private var fieldRestHeight: CGFloat {
         guard !counter.isEmpty else { return .infinity }   // 빈 작업대(카피·CTA)는 캡 대상이 아니다
-        return 96 * ceil(CGFloat(counter.count) / 3) + 28
+        let rows = 96 * ceil(CGFloat(counter.count) / 3) + 28
+        guard fieldWidth > 0 else { return rows }
+        return max(rows, IngredientDropScene.minRestFieldHeight(width: fieldWidth))
     }
 
     private var physicsField: some View {
