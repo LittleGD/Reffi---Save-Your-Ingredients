@@ -736,6 +736,12 @@ private struct DecisionCover: View {
     /// Freeze 노출 조건 — 오늘 만료(urgent) + 재냉동 아님(1회 제한). '미루기 버튼' 방지.
     private var showFreeze: Bool { ingredient.freshness == .urgent && ingredient.canFreeze }
 
+    /// 판정 블롭 한 변 — 버튼이 셋이면 72, 둘이면 기본 88.
+    /// 가장 좁은 지원 기기(375) 기준 가용 폭은 375 − 외곽 s7×2(64) − 카드 s6×2(56) = **255**인데,
+    /// 88×3 + s4×2 = 296이라 41pt가 종이 밖으로 새어 나갔다. 72×3 + s4×2 = 248 ≤ 255로 들어온다
+    /// (72도 §7.3 최소 터치 타깃 44를 크게 웃돈다). 두 버튼 경로는 88×2 + s6 = 204라 그대로 둔다.
+    private var blobSide: CGFloat { showFreeze ? 72 : 88 }
+
     var body: some View {
         ZStack {
             ReffiColor.scrim.ignoresSafeArea()
@@ -759,16 +765,25 @@ private struct DecisionCover: View {
     private var card: some View {
         VStack(spacing: ReffiSpace.s5) {
             VStack(spacing: 2) {
+                // 바깥 s7 마진은 카드에 **제안**으로만 전해진다 — 제안을 무시하는 자식(고정 frame·끊기지
+                // 않는 긴 낱말)만이 종이를 마진 밖으로 밀어낼 수 있다. 블롭은 위 `blobSide`가 잡았고,
+                // 남은 하나가 이 이름이다(냉장고 카드·간편 행도 같은 이유로 이름을 한 줄로 묶는다).
                 Text(verbatim: ingredient.displayName).reffiType(.heading).foregroundStyle(ReffiColor.ink)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.8)
+                    .multilineTextAlignment(.center)
                 Text("Did you eat it, or toss it?")
                     .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
             }
             HStack(spacing: showFreeze ? ReffiSpace.s4 : ReffiSpace.s6) {
-                PaperIconButton(icon: ReffiIcon.toss, label: "Tossed", intent: .soft, seed: 0) { onCommit(false) }
+                PaperIconButton(icon: ReffiIcon.toss, label: "Tossed", intent: .soft,
+                                size: blobSide, seed: 0) { onCommit(false) }
                 if showFreeze {
-                    PaperIconButton(icon: ReffiIcon.freeze, label: "Freeze", intent: .neutral, seed: 2) { onFreeze() }
+                    PaperIconButton(icon: ReffiIcon.freeze, label: "Freeze", intent: .neutral,
+                                    size: blobSide, seed: 2) { onFreeze() }
                 }
-                PaperIconButton(icon: ReffiIcon.ate, label: "Ate", intent: .primary, seed: 1) { onCommit(true) }
+                PaperIconButton(icon: ReffiIcon.ate, label: "Ate", intent: .primary,
+                                size: blobSide, seed: 1) { onCommit(true) }
             }
             Button { onCancel() } label: {
                 Text("Keep it")

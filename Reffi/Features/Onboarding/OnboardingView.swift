@@ -101,27 +101,43 @@ struct OnboardingView: View {
 
     private func valuePage<H: View>(@ViewBuilder hero: () -> H,
                                     title: LocalizedStringKey, body copy: LocalizedStringKey) -> some View {
-        VStack(alignment: .center, spacing: ReffiSpace.s5) {
-            Spacer(minLength: 0)
-            hero()
-                .frame(maxWidth: .infinity)
-                .frame(height: 292)               // 고정 히어로 슬롯 — 3페이지 타이틀·본문 위치를 동일하게 고정
-                .padding(.bottom, ReffiSpace.s4)
+        // 페이저 안이라 넘친 콘텐츠를 되찾을 길이 없다 — `TabView(.page)`는 자기 경계로 잘라내고,
+        // 스와이프는 옆 장으로 갈 뿐 잘린 글자를 데려오지 않는다. 큰 글씨에서 타이틀·본문이 자라면
+        // 세로로 흐르게 두고 스크롤로 닿게 한다. 점·CTA는 이 밖(부모 VStack)에 고정이라 그대로 남는다.
+        // 히어로는 `GeometryReader`(이탈 클로저)에 들어가기 전에 값으로 받아 둔다 — 빌더 인자는 non-escaping이다.
+        let heroView = hero()
+        return GeometryReader { geo in
+            ScrollView {
+                VStack(alignment: .center, spacing: ReffiSpace.s5) {
+                    Spacer(minLength: 0)
+                    heroView
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 292)       // 고정 히어로 슬롯 — 3페이지 타이틀·본문 위치를 동일하게 고정
+                        // 히어로는 **장식**(미니 영수증·티켓 소품)이라 글자 상한을 건다: 고정 폭 소품(250·272)이
+                        // AX에서 슬롯 292 밖으로 터져 나온다. 아래 타이틀·본문은 정보라 상한 없이 다 자란다.
+                        .dynamicTypeSize(...DynamicTypeSize.accessibility1)
+                        .padding(.bottom, ReffiSpace.s4)
 
-            // 영문 디스플레이 = Story Script(§3.1 브랜드 모먼트 — 워드마크·온보딩 타이틀). 인트로 카피는 가운데 정렬.
-            Text(title)
-                .reffiType(.display)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: .infinity)
-                .foregroundStyle(ReffiColor.ink)
-            Text(copy)
-                .reffiType(.body)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: .infinity)
-                .foregroundStyle(ReffiColor.ink2)
-            Spacer(minLength: 0)
+                    // 영문 디스플레이 = Story Script(§3.1 브랜드 모먼트 — 워드마크·온보딩 타이틀). 인트로 카피는 가운데 정렬.
+                    Text(title)
+                        .reffiType(.display)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
+                        .foregroundStyle(ReffiColor.ink)
+                    Text(copy)
+                        .reffiType(.body)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
+                        .foregroundStyle(ReffiColor.ink2)
+                    Spacer(minLength: 0)
+                }
+                // 컨테이너 높이를 바닥으로 깔아 기본 크기에서는 지금처럼 세로 가운데에 서고,
+                // 콘텐츠가 그보다 커질 때만 스크롤이 생긴다(위아래 Spacer가 남는 높이를 나눠 갖는다).
+                .frame(maxWidth: .infinity, minHeight: geo.size.height)
+                .padding(.horizontal, ReffiGrid.margin + ReffiSpace.s2)
+            }
+            .scrollBounceBehavior(.basedOnSize)
         }
-        .padding(.horizontal, ReffiGrid.margin + ReffiSpace.s2)
     }
 
     // MARK: 히어로 3종 — 각 페이지 카피를 시각적으로 재연(설명 일치)

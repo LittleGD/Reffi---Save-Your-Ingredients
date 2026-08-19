@@ -16,6 +16,7 @@ struct FridgeView: View {
 
     @Environment(FridgeStore.self) private var store
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     @Namespace private var ns
     @State private var selectedID: Ingredient.ID?
@@ -48,10 +49,19 @@ struct FridgeView: View {
     @State private var knownIDs: Set<Ingredient.ID> = []
 
     private let cardHeight: CGFloat = 170   // 길게 늘려 슬립·틸트로 생기는 측면 빈틈을 덮음
-    private let overlap: CGFloat = -60   // advance(=높이+겹침)=110 유지 → 이름 안전 구간 불변
+    private let overlap: CGFloat = -60   // advance(=높이+겹침)=110 — 이름 안전 구간은 기본~xxxLarge 한정(AX는 `showsCompactList`)
     private let cardInset: CGFloat = 18   // 페이지 마진 위 추가 인셋 — 영수증 폭 좁힘(가운데)
 
     private var sort: FridgeSort { FridgeSort(rawValue: sortRaw) ?? .expiry }
+
+    /// 접힌 스택 대신 간편 행으로 가야 하는가 — 사용자 토글 **또는** 접근성 글자 크기.
+    ///
+    /// 스택은 카드 한 장의 전진량이 110pt(높이 170 + 겹침 -60)로 **고정**인데, 그 안의 두 줄
+    /// (D-day 도장 행 + 이름 행)은 글자 크기를 따라 자란다. 기본 크기에서 이름 행은 y≈60~106에
+    /// 앉아 4pt 여유로 안전하지만 AX1부터 110을 넘겨 **이름이 다음 카드 밑으로 들어간다**.
+    /// 전진량을 글자에 맞춰 키우면 카드 한 장이 화면을 다 먹어 "쌓인 더미"라는 메타포 자체가 없어지므로,
+    /// 접근성 크기에서는 겹침을 포기하고 겹치지 않는 간편 행(§7.3 잘림 금지)으로 간다.
+    private var showsCompactList: Bool { compact || typeSize.isAccessibilitySize }
 
     /// 표시 순서 — 기본은 임박순(§8.1). 동률은 이름순으로 결정적. 필터 이전의 전체 재고다
     /// (칩 카운트·"in stock" 숫자는 항상 이 목록 기준 — 필터를 켜도 재고 총량은 변하지 않는다).
@@ -299,7 +309,7 @@ struct FridgeView: View {
                 if items.isEmpty {
                     emptyState
                 } else {
-                    if compact {
+                    if showsCompactList {
                         compactList
                     } else {
                         VStack(spacing: overlap) {
@@ -447,7 +457,10 @@ struct FridgeView: View {
             if categoryCounts.count > 1 { categoryMenu }
             Spacer(minLength: ReffiSpace.s2)
             sortMenu
-            viewToggle
+            // 접근성 글자 크기에서는 목록이 항상 간편 행이라(`showsCompactList`) 이 토글이 아무것도
+            // 바꾸지 못한다 — 눌러도 화면이 그대로인 컨트롤은 두지 않는다(동작 없는 UI 금지).
+            // 저장된 `compact` 값은 손대지 않으므로, 글자 크기를 되돌리면 사용자의 선택이 그대로 돌아온다.
+            if !typeSize.isAccessibilitySize { viewToggle }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }

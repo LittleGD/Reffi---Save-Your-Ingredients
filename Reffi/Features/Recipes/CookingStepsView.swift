@@ -21,6 +21,11 @@ struct CookingStepsView: View {
     @State private var showCancelConfirm = false
     @State private var leftovers: Set<UUID> = []   // '조금 남았어요'로 표시한 재료
     @State private var shareImage: Image?   // 공유 카드 오프스크린 렌더 결과 — 아래 ShareCardKey가 바뀔 때만 갱신
+    /// 커버 헤더의 실측 높이 — 티켓 상단 여백이 여기서 파생된다(형제 `RecipeMemoCarousel`과 같은 규칙).
+    /// 기본 글자 크기의 `CoverHeader`는 s4(16) + 44 + s1(6) + 경과 시간 한 줄(≈16) + s3(12) ≈ 94이라
+    /// 초기값도 94지만, 큰 글씨에서 타이틀이 두 줄로 접히면 그만큼 자란다 — 고정값으로 두면 헤더가
+    /// 티켓의 크라운·메뉴명을 덮고, 그 둘은 티켓 최상단이라 스크롤로도 되돌릴 수 없다.
+    @State private var headerHeight: CGFloat = 94
 
     /// 예약된 재료(아직 냉장고에 있는 것) — 완료 확인 시트의 목록.
     private var reservedIngredients: [Ingredient] {
@@ -93,7 +98,8 @@ struct CookingStepsView: View {
                     ScrollView {
                         ticket(cook, ticketWidth: max(0, geo.size.width - ticketInset * 2))
                             .padding(.horizontal, ticketInset)
-                            .padding(.top, 104)
+                            // 헤더 아래 s5 — 냉장고 화면의 "헤더 ↔ 콘텐츠" 경계와 같은 값(고정값 금지).
+                            .padding(.top, headerHeight + ReffiSpace.s5)
                             .padding(.bottom, ReffiSpace.s6)
                     }
                     // 공유 카드에 인쇄되는 값(메뉴명·예약 재료 이름·시간·개수)이 바뀔 때만 다시 렌더한다.
@@ -242,6 +248,8 @@ struct CookingStepsView: View {
                 .reffiType(.metaText).foregroundStyle(ReffiColor.ink2)
             }
         }
+        // 헤더가 실제로 차지한 높이를 티켓 상단 여백으로 되돌린다(`headerHeight` 주석 참고).
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { headerHeight = $0 }
     }
 
     // MARK: - 조리 티켓

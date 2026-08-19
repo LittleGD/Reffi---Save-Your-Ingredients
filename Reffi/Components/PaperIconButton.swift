@@ -66,9 +66,15 @@ struct PaperIconLabel: View {
             .frame(width: size, height: size)
             .reffiShadow1()
             if let label {
+                // 라벨은 블롭의 형제라 위 `frame(width:height:)` 밖에 있다 — 폭을 블롭에 묶지 않으면
+                // 긴 라벨(또는 큰 글자)이 버튼 고유 폭을 밀어, 버튼 여러 개가 선 행이 부모를 넘긴다
+                // (판정 커버 3버튼에서 실측: 88 블롭인데 행 고유 폭이 296까지 벌어졌다).
                 Text(label)
                     .reffiType(.badgeLabel)
                     .foregroundStyle(ReffiColor.ink)
+                    .frame(maxWidth: size)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
             }
         }
     }
