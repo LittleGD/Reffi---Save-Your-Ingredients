@@ -74,7 +74,7 @@ struct PaperDialog: View {
         .padding(ReffiSpace.s5)
         .background {
             let shape = PaperRect(cornerRadius: ReffiRadius.xl, seed: seed)
-            shape.fill(ReffiColor.paper).paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
+            shape.fill(ReffiColor.paper).paperEdge(shape)
         }
         .reffiShadow1()
         // 접근성 글자는 accessibility3까지만 따라 키운다 — 카드에는 스크롤이 없어서, 그 위 단계는

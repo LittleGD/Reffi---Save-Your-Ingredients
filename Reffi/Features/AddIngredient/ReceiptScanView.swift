@@ -130,6 +130,7 @@ struct ReceiptScanView: View {
                         ForEach(candidates) { c in
                             candidateRow(c)
                                 .listRowBackground(Color.clear)
+                                // 행 구분선은 §6.1 소관이라 종이 단면(`paperEdge`)이 아니다 — 알파가 같아도 역할이 다르다.
                                 .listRowSeparatorTint(ReffiColor.ink.opacity(0.06))
                         }
                     } footer: {

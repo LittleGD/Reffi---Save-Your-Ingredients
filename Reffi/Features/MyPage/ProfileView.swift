@@ -172,9 +172,10 @@ struct ProfileView: View {
         Button { sheet = .nickname } label: {
             HStack(spacing: ReffiSpace.s4) {
                 // 아바타 — 닉네임 이니셜(워드마크 서체, 한글은 Pretendard). 빈 닉네임은 아이콘 폴백.
+                // 잉크는 blueDark다 — blue는 흰 글자를 받는 면 색이라 blue-light 종이 위에서 대비가 안 선다(§2.2).
                 Group {
                     if avatarInitial.isEmpty {
-                        ReffiIcon.profile.reffi(30).foregroundStyle(ReffiColor.blue)
+                        ReffiIcon.profile.reffi(30).foregroundStyle(ReffiColor.blueDark)
                     } else {
                         Text(avatarInitial)
                             .font(avatarInitial.hasHangul
@@ -182,13 +183,13 @@ struct ProfileView: View {
                                   : .custom("StoryScript-Regular", size: 30, relativeTo: .title))
                             // 한글 아바타는 디스플레이 role(34) 재사용 + 28pt로 축소(전용 사이즈 신설 금지, 시각 동일).
                             .scaleEffect(avatarInitial.hasHangul ? 28.0 / 34.0 : 1, anchor: .center)
-                            .foregroundStyle(ReffiColor.blue)
+                            .foregroundStyle(ReffiColor.blueDark)
                     }
                 }
                 .frame(width: 64, height: 64)
                 .background {
                     let s = PaperBlob(sides: 9, seed: 2)
-                    s.fill(ReffiColor.blueLight).paperEdge(s, tint: ReffiColor.ink.opacity(0.06))
+                    s.fill(ReffiColor.blueLight).paperEdge(s)
                 }
                 VStack(alignment: .leading, spacing: 2) {
                     // 한글 닉네임은 Story Script(한글 미지원) 대신 Pretendard Bold 폴백(§3.1).
@@ -444,7 +445,7 @@ struct ReceiptCard<Content: View>: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.bottom, ReffiSpace.s2 + toothH)
         .background(paper, in: shape)
-        .paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
+        .paperEdge(shape)
         .reffiShadowCardCompact()   // 스택 카드와 같은 얕은 단(Fridge와 동일)
     }
 }

@@ -47,7 +47,7 @@ struct PaperDropdown<Value: Hashable>: View {
         .background {
             shape.fill(ReffiColor.paper)
                 .overlay(PaperGrain(seed: UInt64(seed) &+ 11, strength: 0.6).clipShape(shape))   // 옅은 질감
-                .paperEdge(shape, tint: ReffiColor.ink.opacity(0.08))
+                .paperEdge(shape)
                 .compositingGroup()
                 .reffiShadow1()
         }

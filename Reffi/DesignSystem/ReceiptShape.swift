@@ -96,7 +96,7 @@ private struct ReceiptSurface: ViewModifier {
             .padding(.vertical, ReffiSpace.s5 + tooth)   // 톱니 인셋 보정
             .frame(maxWidth: .infinity, alignment: alignment)
             .background(ReffiColor.receipt, in: shape)
-            .paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
+            .paperEdge(shape)
 
         switch lift {
         case .flat:     surface

@@ -443,7 +443,7 @@ struct RecipeMemoCarousel: View {
         .background {
             let shape = PaperRect(cornerRadius: ReffiRadius.sm, seed: 5)
             shape.fill(ReffiColor.paper)
-                .paperEdge(shape, tint: ReffiColor.ink.opacity(0.08))
+                .paperEdge(shape)
         }
         .padding(.horizontal, ReffiGrid.margin + 8)
         // 실측 높이를 카드 예산으로 되돌린다 — 고정값으로 잡으면 큰 글씨에서 카드 머리를 덮는다.

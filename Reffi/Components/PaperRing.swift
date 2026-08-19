@@ -123,7 +123,7 @@ struct PaperRing<Center: View>: View {
         ZStack {
             band(PaperRingArc(start: 0, end: 1, thickness: thickness, seed: seed),
                  fill: ReffiColor.sub,
-                 edge: ReffiColor.ink.opacity(0.07),
+                 edge: ReffiColor.paperEdge,
                  grain: seed &+ 1)
             if value > 0 {
                 band(PaperRingArc(start: 0, end: value, thickness: thickness, seed: seed),

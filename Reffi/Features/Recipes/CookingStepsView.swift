@@ -335,7 +335,7 @@ struct CookingStepsView: View {
         .padding(.horizontal, ReffiSpace.s5)
         .padding(.vertical, ReffiSpace.s5 + 2)
         .background(ReceiptShape(tooth: ReffiTooth.ticket).fill(ReffiColor.paper))
-        .overlay(ReceiptShape(tooth: ReffiTooth.ticket).stroke(ReffiColor.ink.opacity(0.07), lineWidth: 1))
+        .overlay(ReceiptShape(tooth: ReffiTooth.ticket).stroke(ReffiColor.paperEdge, lineWidth: 1))
         .reffiShadow1()
     }
 

@@ -224,7 +224,7 @@ struct ShoppingListContent: View {
                     .padding(.vertical, ReffiSpace.s1 + 1)
                     .background {
                         let s = PaperRect(cornerRadius: ReffiRadius.pill, seed: 1)
-                        s.fill(ReffiColor.blueLight).paperEdge(s, tint: ReffiColor.ink.opacity(0.06))
+                        s.fill(ReffiColor.blueLight).paperEdge(s)
                     }
                     .frame(minHeight: 44)
                     .contentShape(Rectangle())
@@ -247,7 +247,7 @@ struct ShoppingListContent: View {
                 .frame(width: Self.revealWidth - ReffiSpace.s2, height: 44)
                 .background {
                     let s = PaperRect(cornerRadius: ReffiRadius.md, seed: 7)
-                    s.fill(ReffiColor.urgentLight).paperEdge(s, tint: ReffiColor.ink.opacity(0.06))
+                    s.fill(ReffiColor.urgentLight).paperEdge(s)
                 }
                 .contentShape(Rectangle())
         }
@@ -438,7 +438,7 @@ private struct ToBuySearchSheet: View {
             // 매끈하면 같은 시트 안에서 인풋만 다른 재질(플라스틱)로 읽힌다.
             s.fill(ReffiColor.receipt)
                 .overlay(PaperGrain(seed: 6, strength: 0.5).clipShape(s))
-                .paperEdge(s, tint: ReffiColor.ink.opacity(0.1))
+                .paperEdge(s, tint: ReffiColor.paperEdgeField)
                 .compositingGroup()
         }
     }
@@ -499,7 +499,7 @@ private struct ToBuySearchSheet: View {
                 let s = PaperRect(cornerRadius: ReffiRadius.md, seed: 7)
                 s.fill(ReffiColor.receipt)
                     .overlay(PaperGrain(seed: 7, strength: 0.6).clipShape(s))
-                    .paperEdge(s, tint: ReffiColor.ink.opacity(0.06))
+                    .paperEdge(s)
                     .compositingGroup()
             }
             .contentShape(Rectangle())
@@ -614,7 +614,7 @@ private struct ToBuySearchSheet: View {
                 s.fill(ReffiColor.receipt)
                     // 반복되는 소형 면이라 옅게(§13.5 — 드롭다운 0.6·냉장고 카드 0.7과 같은 대역).
                     .overlay(PaperGrain(seed: h, strength: 0.6).clipShape(s))
-                    .paperEdge(s, tint: ReffiColor.ink.opacity(0.06))
+                    .paperEdge(s)
                     .compositingGroup()   // overlay 블렌드 그레인을 타일 경계에 가둔다
             }
             .overlay(alignment: .topTrailing) {

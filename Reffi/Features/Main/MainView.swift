@@ -306,7 +306,7 @@ struct MainView: View {
             .padding(.vertical, ReffiSpace.s2)
             .background {
                 let shape = PaperRect(cornerRadius: ReffiRadius.md)
-                shape.fill(ReffiColor.paper).paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
+                shape.fill(ReffiColor.paper).paperEdge(shape)
             }
             .reffiShadow1()
             .padding(.horizontal, margin)
@@ -438,7 +438,7 @@ struct MainView: View {
         .frame(minHeight: 44)
         .background {
             let shape = ReceiptShape(tooth: ReffiTooth.chip)
-            shape.fill(ReffiColor.paper).paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
+            shape.fill(ReffiColor.paper).paperEdge(shape)
         }
         .reffiShadow1()
     }
@@ -488,7 +488,7 @@ struct MainView: View {
                 let s = PaperCutRect(seed: 5)                      // 메인 CTA(PaperButton)와 같은 8각형
                 s.fill(ReffiColor.paper)
                     .overlay(PaperGrain(seed: 27, strength: 0.7).clipShape(s))   // 옅은 질감
-                    .paperEdge(s, tint: ReffiColor.ink.opacity(0.06), width: 1)
+                    .paperEdge(s)
                     .compositingGroup()
                     .reffiShadow1()
             }
@@ -586,9 +586,10 @@ struct MainView: View {
                         store.loadSampleData()
                     }
                 } label: {
+                    // 캔버스 위 링크 잉크는 blueDark — 면 색인 blue는 다크 캔버스에서 대비가 무너진다(§2.2).
                     Text("Or try a sample fridge")
                         .reffiType(.caption)
-                        .foregroundStyle(ReffiColor.blue)
+                        .foregroundStyle(ReffiColor.blueDark)
                         .underline()
                         .frame(minHeight: 44)
                         .contentShape(Rectangle())
@@ -783,7 +784,7 @@ private struct DecisionCover: View {
         .padding(.bottom, ReffiSpace.s3)
         .background {
             let shape = PaperRect(cornerRadius: ReffiRadius.xl)
-            shape.fill(ReffiColor.canvas).paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
+            shape.fill(ReffiColor.canvas).paperEdge(shape)
         }
         .reffiShadow1()
         .padding(.horizontal, ReffiSpace.s7)

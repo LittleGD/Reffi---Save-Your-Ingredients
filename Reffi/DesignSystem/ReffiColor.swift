@@ -40,6 +40,8 @@ enum ReffiColor {
 
     /// 브랜드 · 레시피/AI · 기본 액션 — L .514/.134/249.8 · D .56/.115/250
     /// 다크 L 상한은 .565다(PaperButton primary가 흰 글자 → white on blue 4.5:1). .58은 4.27로 미달.
+    /// **면(fill) 전용이다** — 흰 글자를 받는 채운 면의 색이라, 종이·캔버스 위에 얹는 잉크(글자·아이콘)는
+    /// 언제나 `blueDark`를 쓴다. 다크에서 blue는 면으로 밝아지는 쪽이라 잉크로 쓰면 대비가 무너진다.
     static let blue        = dynamic(light: (0.514, 0.134, 249.8), dark: (0.56, 0.115, 250))
     /// blueDark — L .40/.12/250 · D .76/.095/250
     static let blueDark    = dynamic(light: (0.40, 0.12, 250),  dark: (0.76, 0.095, 250))
@@ -53,8 +55,13 @@ enum ReffiColor {
     static let ink    = dynamic(light: (0.25, 0.012, 80),  dark: (0.93, 0.010, 85))
     /// neutral-700 · 보조/캡션 — L .43/.014/80 · D .76/.012/82
     static let ink2   = dynamic(light: (0.43, 0.014, 80),  dark: (0.76, 0.012, 82))
-    /// neutral-500 · 약한/placeholder — L .56/.013/80 · D .60/.012/80
-    static let muted  = dynamic(light: (0.56, 0.013, 80),  dark: (0.60, 0.012, 80))
+    /// neutral-500 · 약한/placeholder — L .51/.013/80 · D .71/.012/80
+    /// (라이트 .56→.51 · 다크 .60→.71: 옛 값은 종이 면 위에서 라이트 4.53 / 다크 3.04였다.
+    ///  약해 보이라는 뜻이지 작으라는 뜻이 아니라 이 램프도 본문 크기로 쓰인다 — 요건은 4.5다.
+    ///  새 값은 paper/receipt/canvas/paperPass/sub 다섯 면 위에서 라이트 5.59~4.75 · 다크 6.81~4.66.
+    ///  통과 구간의 ink2 반대편 끝(라이트 L≤.52 · 다크 L≥.702)에서 한 눈금만 들여 잡았다 —
+    ///  여유는 그 한 눈금이면 되고, 더 밀면 ink(.25/.93)→ink2(.43/.76)→muted 3단 위계가 두 단으로 붙는다)
+    static let muted  = dynamic(light: (0.51, 0.013, 80),  dark: (0.71, 0.012, 80))
     /// neutral-200 · 서브 면 — L .935/.008/85 · D .32/.008/80
     /// (다크 L .30→.32: 캔버스 위 면 대비 1.29→1.38. secondary 버튼 면이라 이 값이 그대로 CTA 대비다)
     static let sub    = dynamic(light: (0.935, 0.008, 85), dark: (0.32, 0.008, 80))
@@ -76,6 +83,12 @@ enum ReffiColor {
     ///  캔버스 위 1.24→1.46. 라이트에서 paper보다 살짝 눌린 관계를 다크에선 뒤집어 유지한다)
     static let receipt   = dynamic(light: (0.985, 0.004, 90), dark: (0.335, 0.007, 83))
 
+    /// 밝은 종이 면의 단면 헤어라인 — ink α 0.06. 면을 나누는 보더가 아니라 "종이 두께"다(§13.1).
+    /// `ink`가 다크에서 크림으로 뒤집혀 헤어라인도 밝아지는 건 의도된 반전이다(§2.8).
+    static let paperEdge       = ink.opacity(0.06)
+    /// 입력 필드 단면 — 같은 헤어라인이지만 ink α 0.10. 필드는 "여기에 쓴다"를 형태로 말해야 해
+    /// 종이 카드보다 한 단 진하다(카드는 그림자가 경계를 만들지만 필드는 면 안에 눌러 앉아 있다).
+    static let paperEdgeField  = ink.opacity(0.10)
     /// 채도 면(버튼) 위 흰 종이 헤어라인 — L white 0.14 · D white 0.10
     static let paperEdgeOnFill = dynamic(light: (1, 0, 0), lightAlpha: 0.14,
                                          dark:  (1, 0, 0), darkAlpha:  0.10)

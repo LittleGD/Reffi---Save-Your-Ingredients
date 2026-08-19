@@ -28,7 +28,7 @@
   /* ---- Neutral (5) · Reffi 고유 ---- */
   --neutral-900: oklch(25% 0.012 80);
   --neutral-700: oklch(43% 0.014 80);
-  --neutral-500: oklch(56% 0.013 80);
+  --neutral-500: oklch(51% 0.013 80);
   --neutral-200: oklch(93.5% 0.008 85);
   --neutral-50:  oklch(97% 0.012 90);
 
@@ -75,7 +75,8 @@
   /* ---- Paper / Glass (§13) ---- */
   --paper-surface:     oklch(99% 0.006 90);          /* 밝은 종이 면 — 뱃지·티켓·글리프 타일 */
   --paper-pass:        oklch(95% 0.016 90);          /* 따뜻한 주방 패스 종이 — 캐러셀 배경 */
-  --paper-edge:        oklch(25% 0.012 80 / 0.07);   /* 종이 단면 헤어라인(캔버스 위 면, 분리 보더 아님) */
+  --paper-edge:        oklch(25% 0.012 80 / 0.06);   /* 종이 단면 헤어라인(캔버스 위 면, 분리 보더 아님) */
+  --paper-edge-field:  oklch(25% 0.012 80 / 0.10);   /* 입력 필드 단면 — 같은 헤어라인 한 단 진하게 */
   --paper-edge-onfill: oklch(100% 0 0 / 0.14);       /* 채도 면(버튼) 위 흰 종이 헤어라인 */
   --bg-sheen:          oklch(100% 0 0 / 0.22);        /* 메인 배경(리퀴드글래스) 상단 흰 시노 */
   --glass-tint:        oklch(85% 0.04 242 / 0.30);    /* 네이티브 글래스 틴트(네비) */
@@ -143,12 +144,13 @@
     --color-blue-light:   oklch(30%   0.045 250);
     --neutral-900: oklch(93%   0.010 85);
     --neutral-700: oklch(76%   0.012 82);
-    --neutral-500: oklch(60%   0.012 80);
+    --neutral-500: oklch(71%   0.012 80);
     --neutral-200: oklch(32%   0.008 80);
     --neutral-50:  oklch(21.5% 0.010 78);
     --paper-surface:     oklch(33%   0.008 82);
     --paper-pass:        oklch(24%   0.010 84);
-    --paper-edge:        oklch(93% 0.010 85 / 0.07);
+    --paper-edge:        oklch(93% 0.010 85 / 0.06);
+    --paper-edge-field:  oklch(93% 0.010 85 / 0.10);
     --paper-edge-onfill: oklch(100% 0 0 / 0.10);
     --bg-sheen:          oklch(100% 0 0 / 0.045);
     --receipt:           oklch(33.5% 0.007 83);
@@ -179,12 +181,13 @@
   --color-blue-light:   oklch(30%   0.045 250);
   --neutral-900: oklch(93%   0.010 85);
   --neutral-700: oklch(76%   0.012 82);
-  --neutral-500: oklch(60%   0.012 80);
+  --neutral-500: oklch(71%   0.012 80);
   --neutral-200: oklch(32%   0.008 80);
   --neutral-50:  oklch(21.5% 0.010 78);
   --paper-surface:     oklch(33%   0.008 82);
   --paper-pass:        oklch(24%   0.010 84);
-  --paper-edge:        oklch(93% 0.010 85 / 0.07);
+  --paper-edge:        oklch(93% 0.010 85 / 0.06);
+  --paper-edge-field:  oklch(93% 0.010 85 / 0.10);
   --paper-edge-onfill: oklch(100% 0 0 / 0.10);
   --bg-sheen:          oklch(100% 0 0 / 0.045);
   --receipt:           oklch(33.5% 0.007 83);
@@ -976,6 +979,7 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
             <div class="swatch__meta"><span class="role">neutral-50</span><code>Canvas · 크림 배경</code></div>
           </div>
         </div>
+        <div class="note" style="margin-top:var(--space-4)"><strong><code class="inline">muted</code>는 "약해 보이라"는 뜻이지 "작으라"는 뜻이 아니다.</strong> placeholder·메타 줄도 본문 크기로 앉으므로 요건은 ≥4.5다. 옛 값(라이트 56% / 다크 60%)은 캔버스 위만 통과하고 종이 면에선 라이트 4.53 · <strong>다크 3.04</strong>로 무너져, 라이트 <strong>51%</strong> / 다크 <strong>71%</strong> 로 내리고 올렸다(아래 다크 대비 실측표). 두 값 모두 통과 구간(라이트 L≤.52 · 다크 L≥.702)의 <code class="inline">ink2</code> 반대편 끝에서 한 눈금만 들여 잡은 것이다 — 더 밀면 ink → ink2 → muted 3단 위계가 두 단으로 붙는다.</div>
 
         <p class="subhead text">60 : 30 : 5 : 5 운용 비율 (페이지당)</p>
         <div class="ratio">
@@ -1027,6 +1031,7 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
           </tbody>
         </table>
         <div class="note" style="margin-top:var(--space-4)"><strong>파스텔 면 위 글자는 ink, Blue 면 위는 white.</strong> 파스텔은 크림 캔버스와 명도차(1.4~2.2:1)가 작아 면 경계는 색이 아니라 카드 스택 그림자·여백으로 만든다. 불투명도로 글자색을 만들지 않는다(neutral-700 솔리드).</div>
+        <div class="note" style="margin-top:var(--space-3)"><strong><code class="inline">blue</code>는 면(fill) 전용이다.</strong> 종이·캔버스 위에 얹는 잉크(글자·아이콘·밑줄 링크)는 언제나 <code class="inline">blue-dark</code>다. <code class="inline">blue</code>는 흰 글자를 받는 채운 면의 색이라 잉크로 쓰면 라이트에서도 빠듯하고(캔버스 5.18 · <code class="inline">blue-light</code> 면 4.59) 다크에선 면 쪽으로 밝아져 무너진다(3.78 · <strong>2.93</strong>). <code class="inline">blue-dark</code>는 같은 자리에서 6.37~8.42다.</div>
 
         <p class="subhead text" id="dark">2.8 다크 모드 — "밤의 주방 패스"</p>
         <p class="t-body text" style="color:var(--color-ink-2);margin-bottom:var(--space-4)">라이트를 반전한 흑백이 아니라, 조명 낮은 주방에서 보이는 <strong>웜 차콜</strong>(hue 78~90 유지)이다. <strong>순검정은 쓰지 않는다</strong> — 예외는 그림자(<code class="inline">shadowTint</code>)와 모달 딤(<code class="inline">scrim</code>)뿐, 둘 다 "빛이 없는" 레이어라 온기가 필요 없다. 시맨틱 토큰만 적응하고 <strong>일러스트(FoodGlyph) 팔레트는 스킴 불변 고정색</strong>이다(§13.3) — 재료 식별이 스킴에 흔들리면 안 된다. 신선도에 따른 시듦(Wilt)도 같은 원칙 — 채도·명도 배수와 재질별 형태 값은 스킴과 무관한 순수 상수라 라이트·다크에서 동일하게 적용된다. 공유 카드(<code class="inline">RecipeShareCard</code>)는 항상 라이트로 굽는다. 그림자는 항상 <code class="inline">shadowTint</code>(<code class="inline">ink</code> 금지 — 다크에서 크림으로 뒤집혀 밝은 글로우가 된다). <code class="inline">paperEdge</code> 헤어라인의 다크 반전은 "종이 두께" 표현으로 의도적으로 둔다. <strong>다크에선 면 밝기가 그림자의 일을 대신한다</strong> — 카드·CTA 면(<code class="inline">paper</code>·<code class="inline">receipt</code>·<code class="inline">sub</code>)은 바탕과 1.35~1.5:1을 지키고, 커버의 바탕(<code class="inline">paperPass</code>)은 반대로 한 단 내려 그 위 카드가 같은 요건을 넘게 한다(아래 면 분리표).</p>
@@ -1063,7 +1068,9 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
             <tr><td>ink on paper</td><td>≥7.0</td><td class="num pass">15.56</td><td class="num pass">9.94</td></tr>
             <tr><td>ink on receipt</td><td>≥7.0</td><td class="num pass">15.33</td><td class="num pass">9.75</td></tr>
             <tr><td>ink2 on canvas</td><td>≥4.5</td><td class="num pass">7.44</td><td class="num pass">8.16</td></tr>
-            <tr><td>muted on canvas</td><td>≥3.0</td><td class="num pass">4.27</td><td class="num pass">4.44</td></tr>
+            <tr><td>muted on canvas</td><td>≥4.5</td><td class="num pass">5.28</td><td class="num pass">6.81</td></tr>
+            <tr><td>muted on paper</td><td>≥4.5</td><td class="num pass">5.59</td><td class="num pass">4.75</td></tr>
+            <tr><td>muted on paperPass</td><td>≥4.5</td><td class="num pass">4.97</td><td class="num pass">6.39</td></tr>
             <tr><td>soonDark on canvas</td><td>≥4.5</td><td class="num pass">4.96</td><td class="num pass">8.64</td></tr>
             <tr><td>soonDark on soonLight</td><td>≥4.5</td><td class="num pass">4.67</td><td class="num pass">6.51</td></tr>
             <tr><td>urgentDark on canvas</td><td>≥4.5</td><td class="num pass">5.43</td><td class="num pass">7.23</td></tr>
@@ -1074,7 +1081,8 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
             <tr><td>(참고) white on toast</td><td>≥4.5</td><td class="num pass">16.01</td><td class="num pass">10.02</td></tr>
             <tr><td>(참고) ink on sub</td><td>≥7.0</td><td class="num pass">13.22</td><td class="num pass">10.33</td></tr>
             <tr><td>(참고) ink2 on receipt</td><td>≥4.5</td><td class="num pass">7.77</td><td class="num pass">5.58</td></tr>
-            <tr><td>(참고) muted on receipt</td><td>≥3.0</td><td class="num pass">4.46</td><td class="num pass">3.04</td></tr>
+            <tr><td>(참고) muted on receipt</td><td>≥4.5</td><td class="num pass">5.51</td><td class="num pass">4.66</td></tr>
+            <tr><td>(참고) muted on sub</td><td>≥4.5</td><td class="num pass">4.75</td><td class="num pass">4.93</td></tr>
           </tbody>
         </table>
         <p class="t-caption text" style="color:var(--color-ink-2);margin:var(--space-5) 0 var(--space-3)">면 분리 실측표(다크 전용 요건) — 라이트에서 종이 한 장을 세우는 건 그림자지만, 다크에선 그 그림자가 거의 보이지 않아 <strong>면 밝기가 그 일을 혼자 짊어진다</strong>. 그래서 콘텐츠 카드·행동 표면 면은 그 화면의 바탕과 <strong>1.35~1.5:1</strong>을 지킨다(상한도 요건 — 넘기면 밤의 주방 패스 톤이 깨진다). 라이트 열은 참고값이며 이 요건의 대상이 아니다.</p>
@@ -1487,7 +1495,8 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
         <span class="section__num num">11</span>
         <h2 class="text">종이 · 글래스 · 모션 <span class="t-caption" style="color:var(--color-muted)">— MD §13</span></h2>
         <p class="section__lead text">메인 플로우의 <strong>행동 표면</strong>(재료·버튼·티켓)에 입히는 한 겹: 손으로 자른 종이 + 리퀴드글래스 + 일러스트 실루엣 + 통통 튀는 모션. 정보 표면(§02~§09)의 규율은 그대로 둔다.</p>
-        <div class="note"><strong>칩·필도 예외가 아니다 — 소형 면의 정본은 <code class="inline">PaperCutRect</code>다.</strong> D-day 칩·상태 칩·추정 기한 배지·취향 칩·알림 배너 액션처럼 작고 반복되는 행동 표면 면은 <code class="inline">Capsule()</code>이 아니라 <code class="inline">PaperCutRect(seed:)</code>를 쓴다. 예외는 글래스 캡슐 네비와 잉크 토스트 두 곳뿐 — 둘 다 종이가 아닌 재질이라 이 규칙 밖이다.</div>
+        <div class="note"><strong>종이 단면은 토큰 셋이 전부다 — <code class="inline">--paper-edge</code> · <code class="inline">--paper-edge-field</code> · <code class="inline">--paper-edge-onfill</code>.</strong> 면과 같은 톤의 ~1px 헤어라인을 면 위에 겹쳐 "종이 두께"를 표현한다. 캔버스 위 밝은 면은 잉크 톤(<strong>α 0.06</strong>), 입력 필드는 한 단 진하게(<strong>α 0.10</strong> — 카드는 그림자가 경계를 만들지만 필드는 면 안에 눌러 앉아 있어 "여기에 쓴다"를 단면이 혼자 말한다), 채도 면(버튼)은 흰 톤(α 0.14)이다. 0.06은 <strong>코드 실사용 수렴값</strong> — 앱에는 0.06/0.07/0.08이 섞여 있었고 그중 0.06이 압도적 다수였다. 헤어라인에서 0.01~0.02 알파 차는 눈에 잡히지 않으니 문서를 코드의 최다수 쪽으로 맞추고 갈래를 두 토큰으로 닫았다. <strong>§6.1의 분리용 보더가 아니다</strong> — 리스트 행 구분선처럼 실제로 면을 나누는 선은 알파가 같아도 이 토큰을 쓰지 않는다.</div>
+        <div class="note" style="margin-top:var(--space-3)"><strong>칩·필도 예외가 아니다 — 소형 면의 정본은 <code class="inline">PaperCutRect</code>다.</strong> D-day 칩·상태 칩·추정 기한 배지·취향 칩·알림 배너 액션처럼 작고 반복되는 행동 표면 면은 <code class="inline">Capsule()</code>이 아니라 <code class="inline">PaperCutRect(seed:)</code>를 쓴다. 예외는 글래스 캡슐 네비와 잉크 토스트 두 곳뿐 — 둘 다 종이가 아닌 재질이라 이 규칙 밖이다.</div>
         <div class="note" style="margin-top:var(--space-3)"><strong><code class="inline">PaperRect</code>가 그 규율을 스스로 지킨다(프리미티브 가드).</strong> 호출부 규약만으로는 앱 전역이 새기 때문에 셰이프 자체가 두 가지를 보장한다. ① <strong>pill 스케일 라우팅</strong> — 네 코너가 전부 <code class="inline">min(w,h)/2</code>로 클램프되는 크기(= 캡슐 퇴화)면 <code class="inline">PaperRect</code>가 <code class="inline">PaperCutRect</code>의 8각 패스를 대신 그린다. <code class="inline">ReffiRadius.pill</code>을 넘겨도 완벽한 캡슐이 나오지 않는다. ② <strong>지각되는 변 휨</strong> — 변 휨은 그 변의 직선 구간 길이에 비례하고(가위질이 길수록 선이 더 흔들린다) 편차 1.4~4pt로 클램프된다. 예전 값(하한 1.5를 2차 베지어의 컨트롤 오프셋에 그대로 적용 → 실제 편차 0.5pt)은 44pt 컨트롤에서 3x 렌더로도 보이지 않아, 코드는 종이인데 화면은 스톡 iOS였다. <strong>상한은 짧은 변에도 건다</strong> — 긴 변 기준만 두면 폭은 넓고 높이는 낮은 면(재료 뱃지 ≈150×40)의 위·아래 변이 상한 4pt를 그대로 받아 높이의 10%가 출렁이고, 위아래가 반대로 휘면 실루엣이 20%까지 일그러진다. 손으로 자른 종이도 얇은 조각의 가장자리는 그만큼 크게 흔들리지 않는다 — 흔들림의 폭은 가위질 길이뿐 아니라 <strong>조각의 두께</strong>에도 매인다. 그래서 편차 상한은 <code class="inline">min(4pt, 짧은 변 × 0.05)</code>이고, 짧은 변이 80pt를 넘는 큰 카드는 4pt 그대로다.</div>
 
         <div class="paper-demo">

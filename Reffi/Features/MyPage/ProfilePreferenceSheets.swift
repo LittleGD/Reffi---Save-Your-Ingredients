@@ -52,7 +52,7 @@ struct NicknameEditSheet: View {
                     .padding(.vertical, ReffiSpace.s3)
                     .background {
                         let s = PaperRect(cornerRadius: ReffiRadius.md, seed: 2)
-                        s.fill(ReffiColor.paper).paperEdge(s, tint: ReffiColor.ink.opacity(0.1))
+                        s.fill(ReffiColor.paper).paperEdge(s, tint: ReffiColor.paperEdgeField)
                     }
                     .submitLabel(.done)
                     .onSubmit(commit)
@@ -127,7 +127,7 @@ struct TagEditorSheet: View {
                         .padding(.vertical, ReffiSpace.s3)
                         .background {
                             let s = PaperRect(cornerRadius: ReffiRadius.md, seed: 2)
-                            s.fill(ReffiColor.paper).paperEdge(s, tint: ReffiColor.ink.opacity(0.1))
+                            s.fill(ReffiColor.paper).paperEdge(s, tint: ReffiColor.paperEdgeField)
                         }
                         .submitLabel(.done)
                         .onSubmit(add)

@@ -146,7 +146,7 @@ struct PaperCutRect: Shape {
 
 extension View {
     /// 종이 단면 — 얇은 외곽선(잘린 가장자리). 면 위에 겹쳐 종이 두께감을 준다.
-    func paperEdge<S: Shape>(_ shape: S, tint: Color = ReffiColor.ink.opacity(0.07), width: CGFloat = 1) -> some View {
+    func paperEdge<S: Shape>(_ shape: S, tint: Color = ReffiColor.paperEdge, width: CGFloat = 1) -> some View {
         overlay(shape.stroke(tint, lineWidth: width))
     }
 }

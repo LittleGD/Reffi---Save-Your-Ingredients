@@ -291,7 +291,7 @@ struct OnboardingView: View {
         .padding(.vertical, ReffiSpace.s3)
         .frame(width: 250)
         .background(shape.fill(ReffiColor.paper))
-        .overlay(shape.stroke(ReffiColor.ink.opacity(0.07), lineWidth: 1))
+        .overlay(shape.stroke(ReffiColor.paperEdge, lineWidth: 1))
         .reffiShadow1()
         .clipped()   // 데이터 길이 방어(리뷰 P2-2) — 레시피명 2줄 등으로 늘어나도 카드 밖으로 넘치지 않게
     }
@@ -370,7 +370,7 @@ struct OnboardingView: View {
             .padding(.vertical, ReffiSpace.s4 + ReffiTooth.chip)
             .frame(width: 272)
             .background(ReffiColor.receipt, in: shape)
-            .paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
+            .paperEdge(shape)
             .reffiShadow1()
             .rotationEffect(.degrees(seed % 2 == 0 ? -2 : 2))
     }

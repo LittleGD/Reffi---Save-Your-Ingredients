@@ -43,7 +43,7 @@ struct IngredientBadge: View {
         let shape = PaperRect(cornerRadius: ReffiRadius.md, seed: seed)
         return shape
             .fill(ReffiColor.paper)
-            .paperEdge(shape, tint: ReffiColor.ink.opacity(0.08))
+            .paperEdge(shape)
             .reffiShadow1()
     }
 }

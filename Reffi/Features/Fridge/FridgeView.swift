@@ -699,7 +699,7 @@ struct FridgeCompactRow: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background {
             let s = PaperRect(cornerRadius: ReffiRadius.md, seed: ingredient.daysLeft &+ 3)
-            s.fill(ReffiColor.receipt).paperEdge(s, tint: ReffiColor.ink.opacity(0.06))
+            s.fill(ReffiColor.receipt).paperEdge(s)
         }
         .reffiShadowCardCompact()   // 한 화면에 여러 장 반복되는 납작한 행
         .accessibilityElement(children: .combine)
@@ -746,7 +746,7 @@ struct FridgeCard: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .frame(height: height)
         .background(paper, in: shape)
-        .paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
+        .paperEdge(shape)
         .reffiShadowCardCompact()   // 겹쳐 쌓이는 카드라 얕은 단
     }
 }
@@ -811,7 +811,7 @@ struct ExpandedFridgeCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.bottom, toothH)
         .background(paper, in: shape)
-        .paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
+        .paperEdge(shape)
         .reffiShadowCard()
     }
 

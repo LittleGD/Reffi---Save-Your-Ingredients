@@ -144,7 +144,7 @@ struct AuthView: View {
             .frame(minHeight: 44)   // §7.3
             .background {
                 let s = PaperRect(cornerRadius: ReffiRadius.md, seed: focused == .email ? 2 : 3)
-                s.fill(ReffiColor.canvas).paperEdge(s, tint: ReffiColor.ink.opacity(0.1))
+                s.fill(ReffiColor.canvas).paperEdge(s, tint: ReffiColor.paperEdgeField)
             }
     }
 
@@ -158,7 +158,7 @@ struct AuthView: View {
             .frame(minHeight: 44)
             .background {
                 let s = PaperRect(cornerRadius: ReffiRadius.md, seed: 3)
-                s.fill(ReffiColor.canvas).paperEdge(s, tint: ReffiColor.ink.opacity(0.1))
+                s.fill(ReffiColor.canvas).paperEdge(s, tint: ReffiColor.paperEdgeField)
             }
     }
 
@@ -225,7 +225,7 @@ struct AuthView: View {
                 s.fill(fill)
                     .overlay(PaperGrain(seed: UInt64(seed) &+ 11).clipShape(s))
                     .paperEdge(s, tint: fill == ReffiColor.paper
-                               ? ReffiColor.ink.opacity(0.1) : ReffiColor.paperEdgeOnFill, width: 1)
+                               ? ReffiColor.paperEdgeField : ReffiColor.paperEdgeOnFill)
             }
             .compositingGroup()
             .reffiShadow1()
