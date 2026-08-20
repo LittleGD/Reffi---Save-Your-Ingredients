@@ -117,9 +117,23 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     private var clatterThrottle = ClatterThrottle()
     /// 임펄스·재료 → 촉감(세기·날카로움·감쇠 꼬리) 변환 규칙. 순수 계산기라 씬 없이 테스트된다.
     private let clatterRule = ClatterFeelRule()
+    /// 물리량 → 구름 텍스처(HD Rumble의 구슬 시그니처) 변환 규칙. 역시 순수 계산기.
+    private let rollRule = RollTextureRule()
+    /// 지속 촉감의 개폐 히스테리시스 — **한 채널**이다. 드래그 중엔 호버, 아니면 구름이 쓰는데
+    /// `update`가 드래그 분기에서 곧장 반환하므로 두 용도는 구조적으로 배타적이다.
+    private var textureGate = TextureGate()
+    /// 마지막으로 낸 구름 텍스처 — 관문 유예 중 한 프레임짜리 dip을 메운다.
+    private var lastRollTexture: RollTexture?
+    /// 마그네틱 캡처 스냅의 에지 검출 — 존이 **바뀌는** 순간에만 친다.
+    private weak var lastCapturedZone: SKSpriteNode?
+    /// 캡처 스냅 쿨다운(초) — 반경 경계에서 손가락이 떨면 진입/이탈이 연타된다.
+    private let captureSnapCooldown: TimeInterval = 0.18
+    private var lastCaptureSnapAt: TimeInterval = -1
     /// 스로틀 판정용 현재 시각 — `didBegin`엔 시간 인자가 없어 update에서 받아 둔다.
     private var lastUpdateTime: TimeInterval = 0
     /// QA 계측용 — 햅틱이 실제로 발화할 때마다 호출된다(TILT LAB 카운터).
+    /// **충돌 달그락만 센다** — 이 카운터의 계약은 "달그락 발화율"이고, 텍스처·제스처 액센트까지
+    /// 얹으면 지금까지 잡아 온 기준선과 갈린다(발화율 튜닝 기록이 전부 이 축에 매달려 있다).
     var onClatter: (() -> Void)?
 
     /// 충돌 카테고리 — 접촉 콜백을 받으려면 마스크가 필요하다. collisionBitMask는 기본값(전체)을
@@ -339,6 +353,8 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         // 살아 있다(다음 didMove의 syncMotionUpdates가 다시 켠다).
         clatter.stop()
         clatterThrottle.reset()
+        textureGate.reset()
+        lastCapturedZone = nil
         if let o = foregroundObserver {
             NotificationCenter.default.removeObserver(o)
             foregroundObserver = nil
@@ -413,6 +429,10 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         } else {
             clatter.stop()
             clatterThrottle.reset()
+            // 지속 촉감은 **상태**라 씬이 멈추면 스스로 끝나지 않는다 — 관문까지 닫아 두지 않으면
+            // 돌아왔을 때 유예가 남은 채 이어져 정지한 화면에서 텍스처가 한 박자 더 울린다.
+            textureGate.reset()
+            lastCapturedZone = nil
         }
     }
 
@@ -660,8 +680,25 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
                                      dy: v.dy + (vy - v.dy) * inertia)
             highlight(tossZone, hovering: captured === tossZone)
             highlight(ateZone, hovering: captured === ateZone)
+            // 자석에 **막 붙은** 순간의 스냅(§13.4 · 리뷰 F50) — 판정이 확정될 자리에 들어왔다는
+            // 촉각 확정이다. 에지에서만 치고, 반경 경계에서 손이 떨 때의 연타는 쿨다운이 막는다.
+            if captured !== lastCapturedZone {
+                if captured != nil, currentTime - lastCaptureSnapAt >= captureSnapCooldown {
+                    clatter.play(ClatterAccent.captureSnap)
+                    lastCaptureSnapAt = currentTime
+                }
+                lastCapturedZone = captured
+            }
+            // 붙들려 있는 동안의 미세 텍스처 — 자석이 잡고 있다는 지속 신호. 구름과 같은 채널이라
+            // 관문도 같은 것을 쓴다(드래그 중엔 아래 구름 스캔이 아예 돌지 않는다).
+            let holding = textureGate.update(level: captured != nil ? 1 : 0, now: currentTime)
+            clatter.setTexture(holding ? ClatterAccent.hover : nil)
             return   // 드래그 중엔 절대 휴면 안 함
         }
+        lastCapturedZone = nil
+        // 구름 텍스처의 대표 칩 — 가장 세게 구르는 하나가 채널을 가져간다. 액추에이터가 하나뿐이라
+        // 여러 칩의 결을 합치면 그냥 '웅'이 된다(조이콘처럼 좌·우로 나눌 수도 없다).
+        var rollBest: (level: Float, node: SKSpriteNode)?
         // 잔여 운동 능동 감쇠 — 강한 중력의 접촉 해소 임펄스가 남기는 미세 요동만 죽인다.
         // 판정은 저속 플로어(`jitterFloor`) 하나: 그 미만이면 지터, 이상이면 진짜 움직임이라
         // 절대 건드리지 않는다. 기울임 굴림·킥·낙하가 감쇠에 먹히지 않으므로 유예 카운터가
@@ -672,6 +709,11 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         for node in chips.values {
             guard let b = node.physicsBody, !b.isResting else { continue }
             let v = hypot(b.velocity.dx, b.velocity.dy)
+            // 구름 신호는 **이미 읽은 속도·각속도**로 잰다 — 이 루프가 매 프레임 도는 유일한 물리
+            // 스캔이라, 새 상시 계산을 만들지 않고 여기 얹는다. 감쇠 게이트보다 **앞**이어야 한다:
+            // 아래 `guard v < jitterFloor`는 진짜 움직임을 걸러 내보내는데, 구름은 바로 그쪽이다.
+            let level = rollRule.level(speed: v, spin: b.angularVelocity)
+            if level > (rollBest?.level ?? 0) { rollBest = (level, node) }
             guard v < jitterFloor else { continue }   // 진짜 움직임(굴림·킥·낙하) — 절대 안 건드린다
             if v >= jitterRestFloor {
                 b.velocity = CGVector(dx: b.velocity.dx * jitterDamp, dy: b.velocity.dy * jitterDamp)
@@ -679,6 +721,22 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
             if abs(b.angularVelocity) >= jitterRestSpin {
                 b.angularVelocity *= jitterDamp
             }
+        }
+        // 구름 텍스처 — HD Rumble의 구슬 시그니처. 신호가 관문을 열면 재생을 **끊지 않고** 세기·
+        // 날카로움만 실시간으로 갈아 끼운다(끊었다 켜면 그건 질감이 아니라 스위치 소리다).
+        // 관문은 켬 0.20 / 끔 0.09 + 유예 0.14s — 문턱이 하나면 경계에서 지직거리며 여닫힌다.
+        let rolling = textureGate.update(level: rollBest?.level ?? 0, now: currentTime)
+        if rolling {
+            // 유예 중(신호가 잠깐 꺼진 프레임)에는 **직전 값을 그대로** 다시 낸다. 여기서 0을 보내면
+            // 관문이 열려 있는 의미가 없어진다 — 한 프레임 dip에 텍스처가 끊기는 게 유예를 둔 이유다.
+            if let best = rollBest {
+                lastRollTexture = rollRule.texture(level: best.level,
+                                                   material: Self.clatterMaterial(of: best.node))
+            }
+            clatter.setTexture(lastRollTexture)
+        } else {
+            lastRollTexture = nil
+            clatter.setTexture(nil)
         }
         // 드래그가 없을 때만 정착 판정 — 지터 때문에 '완전 정지'는 영원히 안 오므로,
         // calm 창(전 칩 v<calmSpeed 연속 0.5s) + 변위 검증(<settleDrift)으로 안착을 판정한다.
@@ -1345,7 +1403,9 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         node.name = nil          // 사라지는 중엔 히트 대상에서 제외
         node.physicsBody = nil   // 물리 정지(충돌에서 제외)
         node.zPosition = Self.zPopOut
-        if node === dragged { dragged = nil; dragTouch = nil }
+        // 잡고 있던 칩이 사라지면 드래그도 끝난 것이다 — 호버 텍스처를 끊지 않으면 손가락이
+        // 존 위에 남아 있는 동안 "붙들려 있다"는 촉감만 주인 없이 계속 울린다.
+        if node === dragged { dragged = nil; dragTouch = nil; endDragTexture() }
 
         if reduceMotion {
             node.run(.sequence([.fadeOut(withDuration: 0.12), .removeFromParent()]))
@@ -1543,30 +1603,54 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         var sharpness: Float = 0.5
         /// 달그락 햅틱의 세기 배율 — 여린 재료(잎·두부)는 같은 임펄스라도 약하게 친다.
         var hapticScale: Float = 0.8
+        /// 달그락 햅틱의 **감쇠 속도** 0...1 — 재질 공명 프로필의 셋째 축(§7.6). 1이면 잔향 없이
+        /// 즉시 끊기고(단단한 껍질·여린 잎), 0이면 길게 끌린다(물먹은 덩어리). 0.5가 중립이라
+        /// 값을 안 주는 `standard`는 예전 꼬리 길이 그대로다.
+        var hapticDecay: Float = 0.5
+
+        /// 촉감 계산기(`ClatterFeelRule`·`RollTextureRule`)가 읽는 축만 추린 것. 변환을 여기 한 곳에
+        /// 모아 두면 물리 축(마찰·각감쇠·반발)이 촉감 규칙으로 새어 들 통로가 애초에 없다.
+        var clatter: ClatterMaterial {
+            ClatterMaterial(sharpness: sharpness, scale: hapticScale, decay: hapticDecay)
+        }
 
         /// 기본 — 대부분의 채소·과일. **기존 값 그대로**라 표에 없는 글리프는 완전한 무변화다.
         static let standard = ChipMaterial(mass: 0.70, restitution: 0.12, friction: 0.55,
                                            angularDamping: 0.85)
         /// 가벼움 — 잎채소·해조·버섯·빵. 살짝 더 통통 튀고 잘 미끄러지지 않는다.
-        /// 촉감: 여린 '틱' — 잎사귀가 스치는 정도라 세기를 크게 낮춘다.
+        /// 촉감: 여린 '틱' — 잎사귀가 스치는 정도라 세기를 크게 낮추고, 잔향은 거의 없다(감쇠 0.80).
         static let light = ChipMaterial(mass: 0.40, restitution: 0.13, friction: 0.66,
-                                        angularDamping: 0.90, sharpness: 0.55, hapticScale: 0.42)
+                                        angularDamping: 0.90, sharpness: 0.55,
+                                        hapticScale: 0.42, hapticDecay: 0.80)
         /// 잘 구름 — 계란·토마토·사과처럼 둥글고 매끈한 것. 마찰·각감쇠가 낮아 기울이면 데굴데굴 굴러간다.
-        /// 촉감: 또각 — 단단한 껍질이 부딪히는 중간 날카로움.
+        /// 촉감: 또각 — 단단한 껍질이 부딪히는 중간 날카로움에 짧은 감쇠(0.70).
         static let rolling = ChipMaterial(mass: 0.80, restitution: 0.14, friction: 0.30,
-                                          angularDamping: 0.78, sharpness: 0.68, hapticScale: 0.85)
+                                          angularDamping: 0.78, sharpness: 0.68,
+                                          hapticScale: 0.85, hapticDecay: 0.70)
         /// 묵직함 — 소고기·연어 등 덩어리 단백질. 안 튀고, 기울여도 굼뜨게 미끄러지며 가벼운 재료를 밀어낸다.
-        /// 촉감: 둔탁한 '툭' — 살덩이가 떨어지는 소리. 세기는 크되 날카로움은 최소.
+        /// 촉감: 둔탁한 '툭' — 살덩이가 떨어지는 소리. 세기는 크되 날카로움은 최소이고 길게 끌린다(0.22).
         static let heavy = ChipMaterial(mass: 1.40, restitution: 0.11, friction: 0.70,
-                                        angularDamping: 0.96, sharpness: 0.18, hapticScale: 1.0)
+                                        angularDamping: 0.96, sharpness: 0.18,
+                                        hapticScale: 1.0, hapticDecay: 0.22)
         /// 용기 — 우유갑·소스병·캔. 표면이 매끈해 잘 미끄러진다.
-        /// 촉감: 쨍한 '클링' — 캔·유리병끼리 부딪히는 금속성. 이 계열이 달그락의 주인공이다.
+        /// 촉감: 쨍한 '클링' — 캔·유리병끼리 부딪히는 금속성. 이 계열이 달그락의 주인공이고,
+        /// 딱 끊기는 짧은 감쇠(0.85)가 '클링'을 '웅'과 가른다.
         static let container = ChipMaterial(mass: 1.15, restitution: 0.12, friction: 0.46,
-                                            angularDamping: 0.92, sharpness: 0.95, hapticScale: 1.0)
+                                            angularDamping: 0.92, sharpness: 0.95,
+                                            hapticScale: 1.0, hapticDecay: 0.85)
         /// 물렁함 — 두부·밥·면·만두. 닿은 자리에 착 붙어 거의 안 구른다.
-        /// 촉감: 퍽 — 물먹은 덩어리라 거의 촉감이 없다(가장 약하고 가장 뭉툭).
+        /// 촉감: 퍽 — 물먹은 덩어리라 거의 촉감이 없다(가장 약하고 가장 뭉툭하며 가장 길게 끌린다).
         static let soft = ChipMaterial(mass: 0.75, restitution: 0.11, friction: 0.82,
-                                       angularDamping: 0.98, sharpness: 0.10, hapticScale: 0.50)
+                                       angularDamping: 0.98, sharpness: 0.10,
+                                       hapticScale: 0.50, hapticDecay: 0.10)
+    }
+
+    /// 노드 하나의 촉감 물성 — 구름 텍스처가 대표 칩에서 뽑아 쓴다.
+    /// 글리프를 못 읽으면 중립(스폰 직후·userData가 비어 있는 예외 경로에서도 무음이 되지 않게).
+    private static func clatterMaterial(of node: SKNode) -> ClatterMaterial {
+        guard let raw = node.userData?["glyph"] as? String,
+              let glyph = FoodGlyph(rawValue: raw) else { return .neutral }
+        return material(for: glyph).clatter
     }
 
     /// 글리프 → 물성. 53종을 하나씩 손으로 매기면 유지도 안 되고 의도도 흐려져,
@@ -1718,8 +1802,7 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         // 변주 시드는 **발화 순번**이다(allow가 방금 올렸다) — 같은 충돌 시퀀스면 같은 촉감이라
         // 튜닝 비교와 계측 QA가 실행마다 흔들리지 않는다.
         clatter.play(clatterRule.feel(impulse: impulse,
-                                      material: ClatterMaterial(sharpness: mat.sharpness,
-                                                                scale: mat.hapticScale),
+                                      material: mat.clatter,
                                       sequence: clatterThrottle.fireCount))
         onClatter?()
     }
@@ -1820,6 +1903,11 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
             body.angularVelocity = 0
             body.usesPreciseCollisionDetection = true   // 던지기 터널링 방지(안착하면 다시 자동 false)
         }
+        // 잡히는 순간의 가벼운 '집혔다'. 물리 사건이라 §7.6 의미 매핑이 아니라 물리 질감 계열이고,
+        // 터치 시작은 그 자체로 빈도가 묶여 있어 스로틀을 태울 필요가 없다.
+        clatter.play(ClatterAccent.pick)
+        // 구르던 텍스처는 여기서 끊는다 — 손이 개입한 순간의 채널 주인은 드래그다.
+        endDragTexture()
     }
 
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
@@ -1850,6 +1938,7 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         guard touches.contains(t) else { return }
         defer {
             restoreChipZ(dragged)   // 승격 해제 — 스폰 때 정한 고정값으로 되돌린다(결정적)
+            endDragTexture()        // 호버 텍스처는 손을 떼는 즉시 끊는다(유예 없이)
             dragTouch = nil; dragged = nil; setZones(visible: false)
         }
         guard let node = dragged, let body = node.physicsBody else { return }
@@ -1877,12 +1966,22 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     }
 
     override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
-        guard let t = dragTouch else { setZones(visible: false); return }   // touchesEnded와 같은 이유
+        guard let t = dragTouch else { setZones(visible: false); endDragTexture(); return }   // touchesEnded와 같은 이유
         guard touches.contains(t) else { return }
         dragged?.physicsBody?.affectedByGravity = true
         restoreChipZ(dragged)
+        endDragTexture()
         dragTouch = nil
         dragged = nil
         setZones(visible: false)
+    }
+
+    /// 드래그가 끝날 때의 지속 촉감 정리 — 관문을 유예 없이 닫고 채널을 비운다.
+    /// 손을 뗀 뒤에도 호버 텍스처가 0.14초 더 울리면 그건 "붙들려 있다"는 거짓말이다.
+    private func endDragTexture() {
+        textureGate.reset()
+        lastRollTexture = nil
+        lastCapturedZone = nil
+        clatter.stopTexture()
     }
 }
