@@ -501,6 +501,16 @@
         }
       }
     },
+    "Add by hand": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "직접 입력"
+          }
+        }
+      }
+    },
     "Add ingredients": {
       "localizations": {
         "ko": {
@@ -3310,6 +3320,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "알림 켜고 시작하기"
+          }
+        }
+      }
+    },
+    "Type it in yourself": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "직접 입력할게요"
           }
         }
       }
