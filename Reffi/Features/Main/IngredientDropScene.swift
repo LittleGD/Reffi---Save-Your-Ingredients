@@ -164,6 +164,11 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     /// 사용자 선택이다** — 둘 중 하나만 꺼도 자이로는 멈추고 상수 중력으로 되돌아간다(§7.4 · §13.4).
     /// 끄면 센서 갱신 자체를 내려 배터리도 아낀다(`syncMotionUpdates` → `stopMotionUpdates`).
     ///
+    /// **흔들기 킥도 함께 멈춘다** — `applyShake`는 같은 `deviceMotion` 콜백에서 갈라져 나오므로
+    /// (`startMotionUpdates`의 클로저) 스트림을 내리면 `userAcceleration`도 오지 않는다. 기울임과
+    /// 흔들기는 한 센서 스트림의 두 소비처라 분리하려면 스트림을 계속 돌려야 하고, 그러면 이 토글이
+    /// 약속한 배터리 절약이 사라진다. 의도된 결합이고 §13.4에 그대로 적어 뒀다.
+    ///
     /// 초기값을 저장소에서 **직접** 읽는다 — 뷰 주입(`configureScene`)은 `didMove` 뒤에 올 수도 있어,
     /// 기본값 true로 서면 꺼 둔 사람도 홈에 들어서는 한 프레임 동안 센서가 돌아 버린다.
     var tiltEnabled = ReffiFeedback.tiltEnabled {
