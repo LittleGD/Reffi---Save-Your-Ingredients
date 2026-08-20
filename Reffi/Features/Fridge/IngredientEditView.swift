@@ -69,7 +69,7 @@ struct IngredientEditView: View {
         .presentationDragIndicator(.visible)
         .presentationBackground(ReffiColor.canvas)
         .interactiveDismissDisabled(isDirty)
-        .sensoryFeedback(.warning, trigger: deleteHaptic)
+        .reffiFeedback(.warning, trigger: deleteHaptic)
         .confirmationDialog(Text("Delete this ingredient?"), isPresented: $showDeleteConfirm,
                             titleVisibility: .visible) {
             Button("Delete", role: .destructive) {

@@ -22,6 +22,10 @@ struct ProfileView: View {
     @AppStorage(ExpiryNotifier.enabledKey) private var alertsEnabled = false
     @AppStorage(ExpiryNotifier.hourKey) private var alertHour = ExpiryNotifier.defaultHour
 
+    // 감각 SSOT — 같은 키를 홈(MainView)과 모든 햅틱 호출부(`.reffiFeedback`)가 함께 읽는다.
+    @AppStorage(ReffiFeedback.hapticsKey) private var hapticsEnabled = true
+    @AppStorage(ReffiFeedback.tiltKey) private var tiltEnabled = true
+
     @State private var sheet: Sheet?
     @State private var showLogout = false
     @State private var showDelete = false
@@ -57,6 +61,7 @@ struct ProfileView: View {
                     tasteReceipt
                     householdReceipt
                     notifyReceipt
+                    feelReceipt
                     recipesReceipt
                     languageReceipt
                     dataReceipt
@@ -158,7 +163,7 @@ struct ProfileView: View {
         } message: {
             Text("Ingredients and history will be deleted. This can't be undone.")
         }
-        .sensoryFeedback(.warning, trigger: destructiveHaptic)
+        .reffiFeedback(.warning, trigger: destructiveHaptic)
         // 시스템 설정에서 권한을 나중에 회수한 경우 — 토글이 켜진 채 조용히 실패하지 않게 동기화.
         .task { await syncAuthorization() }
         .onChange(of: scenePhase) { _, phase in
@@ -279,17 +284,10 @@ struct ProfileView: View {
     // MARK: - 알림 영수증 — ExpiryNotifier 실배선(토글=권한요청·롤백, 시각=스케줄 반영).
     private var notifyReceipt: some View {
         ReceiptCard(title: String(localized: "Notifications")) {
-            Toggle(isOn: $alertsEnabled) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Expiry alerts").reffiType(.body).foregroundStyle(ReffiColor.ink)
-                    Text("A morning reminder for what expires today and tomorrow")
-                        .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
-                }
-            }
-            .tint(ReffiColor.blue)
-            .accessibilityLabel("Expiry alerts")
-            .padding(.horizontal, ReffiSpace.s5)
-            .padding(.vertical, ReffiSpace.s4)
+            // 감각 영수증과 같은 토글 행 문법(SettingsToggle) — 여백·타이포·VoiceOver 처리를 공유한다.
+            SettingsToggle(title: "Expiry alerts",
+                           caption: "A morning reminder for what expires today and tomorrow",
+                           isOn: $alertsEnabled)
             .onChange(of: alertsEnabled) { _, on in
                 if on {
                     // 켤 때만 권한 요청 — 거부되면 토글을 되돌리고 안내(§소프트 애스크).
@@ -321,6 +319,22 @@ struct ProfileView: View {
 
     /// 알림 시각 표시 — 정시(:00) 라벨.
     private var alertHourText: String { NotifyTimeSheet.hourLabel(alertHour) }
+
+    // MARK: - 감각 영수증 — 홈 물리 필드의 촉각·기울임 실배선(§7.6 · §13.4).
+    // 두 스위치 모두 **시스템 접근성 설정 위에 얹히는 선택**이다: Reduce Motion이 켜져 있으면
+    // 기울임은 이 토글과 무관하게 꺼지고(시스템 우선), 토글은 Reduce Motion을 쓰지 않는 사람이
+    // "그래도 폰이 흔들리는 건 싫다"고 말하는 자리다.
+    private var feelReceipt: some View {
+        ReceiptCard(title: String(localized: "Feel")) {
+            SettingsToggle(title: "Collision haptics",
+                           caption: "Feel ingredients knock into each other on the counter",
+                           isOn: $hapticsEnabled)
+            ReceiptRule()
+            SettingsToggle(title: "Tilt gravity",
+                           caption: "Tilt your phone and the ingredients roll that way",
+                           isOn: $tiltEnabled)
+        }
+    }
 
     // MARK: - 내 레시피 영수증 (커스텀 — 추천 풀에 합류)
     private var recipesReceipt: some View {
@@ -467,6 +481,33 @@ struct ReceiptCard<Content: View>: View {
 struct ReceiptRule: View {
     var body: some View {
         ReffiRule(.receipt).padding(.horizontal, ReffiSpace.s5)
+    }
+}
+
+/// 설정 토글 행 — 제목 + 한 줄 설명 + 스위치. 여백·타이포는 `SettingsRow`와 같은 문법이라
+/// 한 영수증 안에서 두 행이 섞여도 줄 높이가 어긋나지 않는다.
+///
+/// VoiceOver는 **제목을 라벨로, 설명을 힌트로** 읽는다 — 두 줄을 한 라벨로 이어 붙이면
+/// 스위치를 훑는 동안 행마다 설명 문장이 통째로 낭독돼 목록을 지나가기가 어려워진다.
+/// 상태(켬/끔)와 조작은 SwiftUI Toggle 기본 동작 그대로다.
+struct SettingsToggle: View {
+    let title: LocalizedStringKey
+    let caption: LocalizedStringKey
+    @Binding var isOn: Bool
+
+    var body: some View {
+        Toggle(isOn: $isOn) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).reffiType(.body).foregroundStyle(ReffiColor.ink)
+                Text(caption).reffiType(.caption).foregroundStyle(ReffiColor.ink2)
+            }
+        }
+        .tint(ReffiColor.blue)
+        .accessibilityLabel(title)
+        .accessibilityHint(caption)
+        .padding(.horizontal, ReffiSpace.s5)
+        .padding(.vertical, ReffiSpace.s4)
+        .frame(minHeight: ReffiChrome.tapMin)   // 히트 타깃 하한(§7.3) — 두 줄이라 이미 넘지만 계약은 명시한다
     }
 }
 

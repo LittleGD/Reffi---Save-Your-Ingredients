@@ -23,6 +23,11 @@ struct MainView: View {
     @AppStorage(ExpiryNotifier.enabledKey) private var alertsEnabled = false
     @AppStorage("expiryAlertPromptSeen") private var alertPromptSeen = false
 
+    // 프로필 "감각" 토글 — 씬이 이미 떠 있는 상태에서 바꿔도 다음 프레임부터 반영된다(아래 onChange).
+    // 시스템 Reduce Motion이 우선이고, 이 둘은 그 위에 얹히는 사용자 선택이다(§7.4 · `ReffiFeedback`).
+    @AppStorage(ReffiFeedback.hapticsKey) private var hapticsEnabled = true
+    @AppStorage(ReffiFeedback.tiltKey) private var tiltEnabled = true
+
     /// 현재 탭으로 표시 중인지 — 아닐 때 물리 씬을 일시정지한다(배터리).
     var isActive: Bool = true
     /// 냉장고의 To buy 패인으로 데려가 달라 — 덱의 담기 흐름이 "보기"로 끝날 때 루트가 받는다.
@@ -207,8 +212,8 @@ struct MainView: View {
         }
         .animation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion), value: store.activeCook)
         .background { background(counter) }
-        .sensoryFeedback(.impact(weight: .medium), trigger: fireHaptic)
-        .sensoryFeedback(.impact(weight: .light), trigger: decisionHaptic)
+        .reffiFeedback(.impact(weight: .medium), trigger: fireHaptic)
+        .reffiFeedback(.impact(weight: .light), trigger: decisionHaptic)
         .fullScreenCover(isPresented: $showCarousel, onDismiss: {
             // 덱이 사라졌으면 그 위에 뜬 것도 없다 — 신호가 true로 굳으면 **다음 발주의 지연 닫기가
             // 영영 미뤄진다**(팝업엔 해체 완료 훅이 없어 극단 타이밍에서 실제로 굳을 수 있다).
@@ -755,6 +760,10 @@ struct MainView: View {
                     .onChange(of: sceneSyncKey(counter)) { _, _ in scene.sync(counter.items) }
                     .onChange(of: reduceMotion) { _, v in scene.reduceMotion = v }
                     .onChange(of: scenePaused) { _, p in scene.externallyPaused = p }
+                    // 프로필에서 토글하고 홈으로 돌아오면 씬은 이미 서 있다 — 값만 흘려 넣으면
+                    // 씬이 센서·햅틱 엔진 수명주기를 스스로 다시 파생시킨다(재시작 불요).
+                    .onChange(of: tiltEnabled) { _, v in scene.tiltEnabled = v }
+                    .onChange(of: hapticsEnabled) { _, v in scene.hapticsEnabled = v }
                 if counter.items.isEmpty { emptyField }
             }
             .frame(width: geo.size.width, height: geo.size.height)
@@ -774,6 +783,8 @@ struct MainView: View {
         scene.scaleMode = .resizeFill
         scene.size = size
         scene.reduceMotion = reduceMotion
+        scene.tiltEnabled = tiltEnabled
+        scene.hapticsEnabled = hapticsEnabled
         scene.onRemove = { id in decide(id) }
         scene.onDecide = { id, wasted in gestureDecide(id, wasted: wasted) }
         // 하늘 개폐 = 드래그·스폰 수명주기. 씬이 같은 값은 재통지하지 않지만 방어적으로 비교 후 대입.

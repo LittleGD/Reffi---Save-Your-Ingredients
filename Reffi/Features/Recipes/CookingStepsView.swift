@@ -127,7 +127,7 @@ struct CookingStepsView: View {
         // 확정 액션은 티켓 안이 아니라 화면 하단에 도킹한다(§13.6) — 티켓이 짧아도 CTA가 화면 중턱에
         // 뜨지 않고, 메인·시트의 하단 CTA 관례와 같은 자리에서 엄지로 닿는다. 본문(티켓)만 스크롤한다.
         .dockedCTA(over: ReffiColor.paperPass) { bottomBar }
-        .sensoryFeedback(.success, trigger: finishHaptic)
+        .reffiFeedback(.success, trigger: finishHaptic)
         // 완료·취소(또는 발주 undo)로 세션이 사라지면 자동으로 닫힌다.
         .onChange(of: store.activeCook == nil) { _, gone in
             if gone { onClose() }

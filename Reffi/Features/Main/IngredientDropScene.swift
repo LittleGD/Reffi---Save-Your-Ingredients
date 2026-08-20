@@ -160,6 +160,21 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     var reduceMotion = false {
         didSet { if reduceMotion != oldValue { syncMotionUpdates(); wake() } }
     }
+    /// 프로필 "기울임 중력" 토글(`ReffiFeedback.tiltKey`). **시스템 Reduce Motion이 우선이고 이건 그 위의
+    /// 사용자 선택이다** — 둘 중 하나만 꺼도 자이로는 멈추고 상수 중력으로 되돌아간다(§7.4 · §13.4).
+    /// 끄면 센서 갱신 자체를 내려 배터리도 아낀다(`syncMotionUpdates` → `stopMotionUpdates`).
+    ///
+    /// 초기값을 저장소에서 **직접** 읽는다 — 뷰 주입(`configureScene`)은 `didMove` 뒤에 올 수도 있어,
+    /// 기본값 true로 서면 꺼 둔 사람도 홈에 들어서는 한 프레임 동안 센서가 돌아 버린다.
+    var tiltEnabled = ReffiFeedback.tiltEnabled {
+        didSet { if tiltEnabled != oldValue { syncMotionUpdates(); wake() } }
+    }
+    /// 프로필 "충돌 진동" 토글(`ReffiFeedback.hapticsKey`). 달그락 엔진까지 내린다 —
+    /// 무음으로 켜 둔 CHHapticEngine은 배터리만 먹는다. 켜면 다음 프레임부터 곧장 되돌아온다.
+    /// 초기값을 저장소에서 직접 읽는 이유는 `tiltEnabled`와 같다(엔진이 한 프레임 서지 않게).
+    var hapticsEnabled = ReffiFeedback.hapticsEnabled {
+        didSet { if hapticsEnabled != oldValue { syncClatterEngine() } }
+    }
 
     // 판정 바스켓 — 드래그 중에만 나타나는 휴지통(좌상)·냄비(우상) 종이 블롭.
     // 손가락이 근처에 오면 재료가 자석처럼 끌려 들어간다(마그네틱 캡처).
@@ -402,29 +417,36 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     }
     #endif
 
-    /// 모션 갱신 on/off를 씬 상태에서 **파생**시킨다 — 표시 중 + 안 가려짐 + Reduce Motion 아님 + 기기 지원.
+    /// 모션 갱신 on/off를 씬 상태에서 **파생**시킨다 — 표시 중 + 안 가려짐 + Reduce Motion 아님
+    /// + 프로필 토글 켬 + 기기 지원.
     /// 조건이 하나라도 깨지면 즉시 멈춘다(시뮬레이터는 deviceMotion 미지원 → 항상 상수 중력).
     private func syncMotionUpdates() {
         #if DEBUG
         // -tiltLab 주입이 정본 — 센서를 끄고 주입값을 **다시 적용**한다. 여기서 그냥 넘어가면
         // didMove의 `gravity = fallback`이 주입을 덮은 채로 남는다(프레젠트 전에 주입된 경우:
         // 슬라이더 표시값은 y=+1인데 더미는 아래로 떨어지던 버그).
-        if let d = debugTilt {
+        // 다만 프로필 토글(`tiltEnabled`)은 실험실보다 위다 — 시뮬레이터엔 자이로가 없어
+        // 토글의 실동작을 눈으로 확인할 수 있는 경로가 이 주입뿐이다(끄면 상수 중력으로 되돌아간다).
+        if let d = debugTilt, tiltEnabled {
             applyDebugTilt(d)
             syncClatterEngine()
             return
         }
         #endif
-        let wanted = view != nil && !externallyPaused && !reduceMotion && tilt.isAvailable
+        let wanted = view != nil && !externallyPaused && !reduceMotion && tiltEnabled && tilt.isAvailable
         if wanted { startMotionUpdates() } else { stopMotionUpdates() }
         syncClatterEngine()
     }
 
-    /// 달그락 엔진 수명주기도 같은 자리에서 파생시킨다(별도 채널을 만들지 않는다). 다만 조건은
-    /// **보이는 씬**까지만 — Reduce Motion은 시각 배려지 촉각 배려가 아니고(§7.4), 자이로가 없는
-    /// 시뮬레이터·구형 기기에서도 던져서 부딪히는 충돌은 그대로 일어난다. 안 보이는 씬에서만 내린다.
+    /// 달그락 엔진 수명주기도 같은 자리에서 파생시킨다(별도 채널을 만들지 않는다). 조건은
+    /// **보이는 씬 + 프로필 햅틱 토글**이다 — Reduce Motion은 시각 배려지 촉각 배려가 아니고(§7.4),
+    /// 자이로가 없는 시뮬레이터·구형 기기에서도 던져서 부딪히는 충돌은 그대로 일어난다.
+    /// 안 보이는 씬에서, 그리고 사용자가 진동을 껐을 때만 내린다.
     private func syncClatterEngine() {
-        if view != nil, !externallyPaused {
+        // 재생기 자체의 스위치도 여기서 맞춘다 — 사건(`play`)·텍스처(`setTexture`) 양쪽 가드가
+        // 이 플래그를 보므로, 엔진을 내리는 것만으로는 남은 호출이 조용히 되살릴 수 있다.
+        clatter.isEnabled = hapticsEnabled
+        if hapticsEnabled, view != nil, !externallyPaused {
             clatter.start()
         } else {
             clatter.stop()
@@ -1804,7 +1826,9 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         clatter.play(clatterRule.feel(impulse: impulse,
                                       material: mat.clatter,
                                       sequence: clatterThrottle.fireCount))
-        onClatter?()
+        // 계측 카운터도 함께 침묵한다 — 아무것도 울리지 않는데 TILT LAB의 "HAPTIC n/s"가 올라가면
+        // 유일한 관측 수단이 거짓말을 한다. 스로틀(발화 순번)은 그대로 돌아 튜닝 기준선은 안 흔들린다.
+        if hapticsEnabled { onClatter?() }
     }
 
     /// 이 접촉이 '착지'인가 — 접촉 법선이 **그 시점 중력**과 얼마나 나란한지로 판정한다.

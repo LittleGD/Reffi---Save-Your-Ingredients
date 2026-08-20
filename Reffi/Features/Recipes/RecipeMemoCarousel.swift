@@ -118,7 +118,7 @@ struct RecipeMemoCarousel: View {
                      backdropDismisses: true,   // 질문형 — 바깥 탭 = 취소(실수로 이동시키지 않는다)
                      primary: PaperDialogAction("View") { endAddFlow(openToBuy: true) },
                      secondary: PaperDialogAction("Cancel") { endAddFlow() })
-        .sensoryFeedback(.success, trigger: addHaptic)   // 목록에 담김 = 성공 완료(§7.6)
+        .reffiFeedback(.success, trigger: addHaptic)   // 목록에 담김 = 성공 완료(§7.6)
     }
 
     // MARK: - 담기 3단 팝업

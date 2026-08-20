@@ -928,6 +928,16 @@
         }
       }
     },
+    "Collision haptics": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "부딪힘 진동"
+          }
+        }
+      }
+    },
     "Confirm & finish": {
       "localizations": {
         "ko": {
@@ -1416,6 +1426,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "즐겨찾기"
+          }
+        }
+      }
+    },
+    "Feel": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "감각"
+          }
+        }
+      }
+    },
+    "Feel ingredients knock into each other on the counter": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "작업대에서 재료가 부딪히는 순간을 손끝으로 느껴요"
           }
         }
       }
@@ -3140,6 +3170,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "아직 지원하지 않는 로그인 방식이에요."
+          }
+        }
+      }
+    },
+    "Tilt gravity": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기울임 중력"
+          }
+        }
+      }
+    },
+    "Tilt your phone and the ingredients roll that way": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "폰을 기울이면 재료가 그쪽으로 굴러가요"
           }
         }
       }

@@ -73,7 +73,7 @@ struct RootTabView: View {
         // 트랜지션이 자기 커브를 들고 있으므로 여기서는 **창이 열리고 닫히는 트랜잭션만** 연다
         // (Reduce Motion이면 nil이라 토스트가 즉시 서고 즉시 사라진다, §7.4).
         .animation(ReffiMotion.gated(ReffiMotion.enter, reduce: reduceMotion), value: store.pendingUndo)
-        .sensoryFeedback(.success, trigger: undoHaptic)
+        .reffiFeedback(.success, trigger: undoHaptic)
         // 판정·삭제는 뱃지·카드를 화면에서 지우고 토스트만 남긴다 — 그 토스트는 포커스를 가져가지
         // 않으므로, 고지가 없으면 보조기술 사용자는 무엇이 사라졌는지도 되돌릴 수 있다는 것도 모른다.
         // **토스트를 띄우는 이 자리가 고지 자리**다(FridgeStore는 순수 데이터라 보조기술을 볼 수 없다).

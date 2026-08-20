@@ -372,7 +372,8 @@ enum ClatterAccent {
 ///   ② **상태**(`setTexture`): 구름/호버 질감. 루프하는 advanced 플레이어 하나를 켜 두고
 ///      `sendParameters`로 세기·날카로움만 실시간 변조한다 — 매번 다시 재생하면 이음매가 들린다.
 ///
-/// 이 앱의 기존 햅틱은 전부 SwiftUI `.sensoryFeedback`(§7.6 의미별 매핑)인데, 여기선 쓸 수 없다.
+/// 이 앱의 기존 햅틱은 전부 SwiftUI `.sensoryFeedback`(§7.6 의미별 매핑, 래퍼는 `.reffiFeedback`)인데,
+/// 여기선 쓸 수 없다.
 ///   ① 세기·날카로움 파라미터가 없어 **재료별 촉감**을 만들 수 없다.
 ///   ② trigger 값 변경 구동이라 초당 20회 발화하면 그만큼 SwiftUI가 뷰를 다시 그린다(물리 필드까지).
 /// 그래서 이 촉감 계열만 CoreHaptics를 직접 쓴다. §7.6의 **의미별 매핑은 그대로 두고**(판정·성공·파괴),
@@ -387,13 +388,16 @@ final class IngredientClatterHaptics {
     /// 기기에 햅틱 액추에이터가 있나. 시뮬레이터·비지원 기기는 false.
     private let supportsHaptics = CHHapticEngine.capabilitiesForHardware().supportsHaptics
 
-    /// 물리 질감 햅틱 전체 스위치. 기본 켬 — **다음 단계의 프로필 토글이 배선만 하면 되도록** 둔 자리다.
-    /// 끄면 엔진까지 내린다(켜 둔 채 무음으로 두면 배터리만 먹는다). 시스템 설정의 진동 끔은
-    /// CoreHaptics가 알아서 존중하므로 여기서 따로 읽지 않는다.
+    /// 물리 질감 햅틱 전체 스위치. 프로필의 "충돌 진동" 토글이 씬을 거쳐 여기로 내려온다
+    /// (`ReffiFeedback.hapticsKey`). 끄면 엔진까지 내린다 — 켜 둔 채 무음으로 두면 배터리만 먹는다.
+    /// 시스템 설정의 진동 끔은 CoreHaptics가 알아서 존중하므로 여기서 따로 읽지 않는다.
+    ///
+    /// **켜는 쪽은 자동으로 기동하지 않는다** — 화면에 없는 씬에서 토글이 켜지면 보이지도 않는
+    /// 엔진이 한 번 서는 낭비가 된다. 기동 조건(표시 중 + 안 가려짐)은 소유자(씬)가 안다.
     var isEnabled = true {
         didSet {
-            guard oldValue != isEnabled else { return }
-            if isEnabled { start() } else { stop() }
+            guard oldValue != isEnabled, !isEnabled else { return }
+            stop()
         }
     }
 

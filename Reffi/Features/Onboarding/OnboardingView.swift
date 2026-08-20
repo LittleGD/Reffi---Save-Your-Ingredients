@@ -622,7 +622,7 @@ struct OnboardingView: View {
         }
         // §7.6 — 이 순간의 의미는 "셋업 저장 완료"라 성공 완료(`.success`)다. 앱에서 유일했던
         // `.impact(.heavy)`는 매핑 표에도 예외(SpriteKit 물리 텍스처)에도 근거가 없는 오프맵이었다.
-        .sensoryFeedback(.success, trigger: stamping)
+        .reffiFeedback(.success, trigger: stamping)
         .onAppear {
             // 오버슈트 = 쾅(§7.5 slam). Reduce Motion이면 도장은 연출 없이 그 자리에 찍혀 있다
             // (§7.4 — 줄이면 짧은 페이드로 갈아타는 게 아니라 애니메이션을 없앤다).

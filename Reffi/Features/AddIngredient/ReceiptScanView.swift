@@ -41,7 +41,7 @@ struct ReceiptScanView: View {
         .presentationDetents([.large])
         .presentationDragIndicator(.visible)
         .presentationBackground(ReffiColor.canvas)
-        .sensoryFeedback(.success, trigger: addedHaptic)
+        .reffiFeedback(.success, trigger: addedHaptic)
         .fullScreenCover(isPresented: $showCamera) {
             DocumentCameraView { images in
                 showCamera = false

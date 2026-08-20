@@ -263,7 +263,7 @@ struct FridgeView: View {
                 }
             }
         }
-        .sensoryFeedback(.impact(weight: .light), trigger: decisionHaptic)
+        .reffiFeedback(.impact(weight: .light), trigger: decisionHaptic)
         // 필터 안전장치 — 판정은 전부 `FridgeCategoryFilter.resolved`(순수 함수, 유닛 테스트 대상)가 하고
         // 여기선 상태만 옮긴다. 카테고리가 비었을 때뿐 아니라 **필터 밖 재료가 새로 들어왔을 때**도
         // 전체로 풀어, 추가한 결과가 화면에서 사라지는 일이 없게 한다.
