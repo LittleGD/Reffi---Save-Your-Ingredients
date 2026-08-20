@@ -63,11 +63,8 @@ struct MainView: View {
     @State private var fieldSlotHeight: CGFloat = 0
     /// 상태 카드(발주 진행/알림 배너)의 실측 높이(+상단 s3) — 드래그 하늘이 이 카드 **뒤까지** 닿는다.
     /// 카드가 없으면 0: 하늘은 카드가 있던 선(슬롯 위 dragFieldHeadroom)에서 멈춘다.
-    @State private var statusCardOverhang: CGFloat = 0
-    /// 하늘 상태 — 씬의 `onSkyChange`를 받아 필드(SpriteView) 실높이를 바꾼다.
     /// 정지 캡은 더미를 껴안는 게 맞지만, 잡는 순간에는 들어 올릴 하늘이(드래그),
     /// 낳는 순간에는 떨어져 들어올 하늘이(스폰 = 화면 최상단 밖) 있어야 한다(§13.4).
-    @State private var sky: IngredientDropScene.Sky = .closed
     /// 슬롯 상단의 화면 기준 y — 스폰 하늘이 "화면 최상단 밖"까지 열리는 데 필요한 거리.
     @State private var fieldSlotGlobalTop: CGFloat = 0
     /// 직전 렌더의 뱃지 id — 이번에 **새로 들어온 뱃지**를 가려내 등장 스태거를 매기는 기준이다.
@@ -170,13 +167,11 @@ struct MainView: View {
                     .zIndex(1)
 
                 physicsField(counter)
-                    // 씬의 실높이: 평소엔 슬롯과 같고, 하늘이 열리면 **위로 넘친다** — 드래그는
-                    // 상태 카드 뒤 밴드까지, 스폰(낙하 진입)은 화면 최상단 밖까지. SwiftUI 프레임은
-                    // 클립하지 않으므로 SKView 자체가 카드·헤더 뒤로 올라선다. 레이아웃 슬롯(아래
-                    // maxHeight 프레임)은 개폐와 무관하게 고정이라 형제들이 미동도 하지 않는다.
-                    // 개폐는 **즉시** — 여닫는 프레임엔 씬이 움직이는 것을 두지 않는다(열기=끌기
-                    // 시작, 닫기=안착 후). 프레임을 애니메이션하면 스트리밍 리사이즈가 매 프레임
-                    // 벽 재구성·wake를 부르며 "지직"으로 읽혔다(실기 제보).
+                    // 씬의 실높이 = **항상 화면 최상단까지**(오너 결정: 물리 천장은 폰 화면 끝
+                    // 가장자리 고정, 가변 금지 — 여닫는 하늘은 자이로에 안 열리고 열림도 비일관이라
+                    // 걷어냈다). SwiftUI 프레임은 클립하지 않으므로 SKView가 카드·헤더 뒤로 올라서고,
+                    // 레이아웃 슬롯(아래 maxHeight 프레임)은 고정이라 형제들은 미동도 하지 않는다.
+                    // 리사이즈는 재료 수가 바뀔 때뿐 — 드래그·자이로·스폰이 같은 천장을 쓴다.
                     .frame(height: fieldSceneHeight(counter), alignment: .bottom)
                     .frame(maxWidth: .infinity, maxHeight: fieldRestHeight(counter), alignment: .bottom)
                     .onGeometryChange(for: CGRect.self, of: { $0.frame(in: .global) }) { r in
@@ -477,20 +472,15 @@ struct MainView: View {
             .padding(.top, ReffiSpace.s5)
 
         // 발주 진행 카드(§13.6 C) — 헤더 아래 죽은 공간이 상태 표면이 된다.
-        // 높이 실측은 드래그 하늘의 "카드 뒤 밴드" 몫(statusCardOverhang) — 카드가 사라지면 0.
         if let cook = store.activeCook {
             cookingNowCard(cook)
                 .padding(.horizontal, margin)
                 .padding(.top, ReffiSpace.s3)
-                .onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { statusCardOverhang = $0 }
-                .onDisappear { statusCardOverhang = 0 }
                 .transition(.move(edge: .top).combined(with: .opacity))
         } else if showAlertPrompt(counter) {
             alertPromptCard
                 .padding(.horizontal, margin)
                 .padding(.top, ReffiSpace.s3)
-                .onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { statusCardOverhang = $0 }
-                .onDisappear { statusCardOverhang = 0 }
                 .transition(.move(edge: .top).combined(with: .opacity))
         }
     }
@@ -738,19 +728,16 @@ struct MainView: View {
         return rest
     }
 
-    /// 씬(SpriteView)의 실높이 — 슬롯 실측 전(0)엔 유연하게 두고, 이후엔 슬롯에 고정하되
-    /// 하늘 상태에 따라 위로 키운다: 드래그 = 하늘(dragFieldHeadroom) + 상태 카드 밴드까지,
-    /// 스폰 = 화면 최상단 밖까지(슬롯 상단의 화면 y + 여유). 존은 하늘과 무관하게
-    /// `restHeight + dragFieldHeadroom`에 앵커된다(씬 layoutZones) — 존은 제자리(오너 결정).
+    /// 씬(SpriteView)의 실높이 — **항상 화면 최상단까지**(오너 결정: 물리 천장은 폰 화면 끝
+    /// 가장자리 고정, 가변 금지). 슬롯(레이아웃)은 그대로 두고 위로만 넘치므로 형제 배치는 불변이고,
+    /// 여닫음 자체가 없어 리사이즈 아티팩트도 없다. 자이로·드래그·스폰이 같은 천장을 쓴다.
+    /// 존은 `restHeight + dragFieldHeadroom`에 앵커된다(씬 layoutZones) — 존은 제자리(오너 결정).
     private func fieldSceneHeight(_ counter: CounterDigest) -> CGFloat? {
         guard fieldSlotHeight > 0, !counter.items.isEmpty else { return nil }
-        let dragExtra = IngredientDropScene.dragFieldHeadroom(width: fieldWidth) + statusCardOverhang
-        switch sky {
-        case .closed: return fieldSlotHeight
-        case .drag:   return fieldSlotHeight + dragExtra
-        // 스폰 하늘은 드래그 하늘보다 낮아지면 안 된다(캐스케이드 중 잡아 끄는 경우) — max로 보증.
-        case .spawn:  return fieldSlotHeight + max(dragExtra, fieldSlotGlobalTop + 24)
-        }
+        // 슬롯 상단→화면 상단 거리만큼 위로. 실측 전(0)엔 드래그 여유만큼이라도 열어 둔다.
+        let toScreenTop = fieldSlotGlobalTop > 0 ? fieldSlotGlobalTop
+                                                 : IngredientDropScene.dragFieldHeadroom(width: fieldWidth)
+        return fieldSlotHeight + toScreenTop
     }
 
     private func physicsField(_ counter: CounterDigest) -> some View {
@@ -790,7 +777,6 @@ struct MainView: View {
         scene.onRemove = { id in decide(id) }
         scene.onDecide = { id, wasted in gestureDecide(id, wasted: wasted) }
         // 하늘 개폐 = 드래그·스폰 수명주기. 씬이 같은 값은 재통지하지 않지만 방어적으로 비교 후 대입.
-        scene.onSkyChange = { s in if sky != s { sky = s } }
         scene.restHeight = fieldSlotHeight
         scene.externallyPaused = scenePaused
         scene.sync(liveCounter)
@@ -813,6 +799,16 @@ struct MainView: View {
                 VStack(spacing: ReffiSpace.s1) {
                     Text("What's in your fridge?").reffiType(.subhead).foregroundStyle(ReffiColor.ink)
                     Text("Add a few ingredients. Reffi tells you\nwhat to cook before they turn.")
+                        .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
+                        .multilineTextAlignment(.center)
+                }
+            } else if !store.ingredients.isEmpty {
+                // 재고는 있는데 작업대 후보가 없는 상태(전부 냉동 유예·조리 예약) — "없다"고만 하면
+                // 냉장고 탭과 어긋나 보인다(실기 제보: In stock엔 있는데 홈엔 아무것도 없다).
+                // 왜 비었는지와 어디서 볼 수 있는지를 말해 준다.
+                VStack(spacing: ReffiSpace.s1) {
+                    Text("Counter is clear").reffiType(.subhead).foregroundStyle(ReffiColor.ink)
+                    Text("Stock is waiting in the freezer or reserved for cooking. Check the Fridge tab.")
                         .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
                         .multilineTextAlignment(.center)
                 }

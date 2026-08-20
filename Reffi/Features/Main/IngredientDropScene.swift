@@ -139,12 +139,6 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     var onRemove: ((UUID) -> Void)?
     /// 제스처 판정(§13.6 B) — 칩을 존에 끌어다 놓으면 (id, wasted). 탭 오버레이는 접근성 경로로 유지.
     var onDecide: ((UUID, Bool) -> Void)?
-    /// 하늘의 세 단 — 닫힘(정지 캡) < 드래그(카드 뒤 밴드까지) < 스폰(화면 최상단 밖까지).
-    /// 스폰이 가장 높은 이유: 칩은 "화면 위에서" 떨어져 들어와야 하는데(§13), 닫힌 상자에선
-    /// 상자 윗변(화면 중앙쯤)에서 갑자기 나타났다(실기 제보). Comparable은 높이 순.
-    enum Sky: Comparable { case closed, drag, spawn }
-    /// 하늘 개폐 신호 — 홈이 이 신호로 필드(SpriteView) 높이를 바꾼다. 같은 값 재통지는 하지 않는다.
-    var onSkyChange: ((Sky) -> Void)?
     /// 정지 캡 높이(홈의 레이아웃 슬롯 실측) — 존 앵커와 무관하게 하늘이 아무리 열려도
     /// 존은 `restHeight + dragFieldHeadroom` 자리에 남는다(오너 결정: "존은 지금 위치가 좋다").
     var restHeight: CGFloat = 0
@@ -632,15 +626,6 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         if ceilingSealed { tuckStraysUnderCeiling() }
         layoutZones()
         wake()   // 리사이즈로 레이아웃이 바뀌었으니 한 번 굴려 재안착
-        // 하늘이 열리길 기다리던 스폰 — 커진 높이가 착지했으니 이제 낳는다(sync 유예 주석).
-        if spawnDeferred {
-            spawnDeferred = false
-            spawnDeferredAt = 0
-            #if DEBUG
-            Logger(subsystem: "com.reffi.app", category: "scene").debug("sky: resize landed (h=\(self.size.height)), spawning deferred")
-            #endif
-            sync(pending)
-        }
     }
 
     /// 드래그 중인 재료를 손가락 쪽으로 **스프링처럼 끌어당긴다**(텔레포트 아님).
@@ -658,20 +643,6 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         if Self.physLab { physLabTick(currentTime) }
         #endif
         maintainCeiling(currentTime)   // 낙하 끝나면 밀폐, 위쪽에 갇힌 칩은 회수(§13.4 컨테인먼트)
-        closeHeadroomIfArmed(now: currentTime)   // 안착이 늦어도 백스톱(드래그 1.5초/스폰 sealTimeout)으로 닫는다
-        // 스폰 유예 백스톱 — 예고된 리사이즈가 안 오면(슬롯 미실측 등) 0.5초 뒤 그냥 그 자리에서 낳는다.
-        // 칩을 영영 안 낳는 것보다 상자 윗변 진입이 낫다.
-        if spawnDeferred {
-            if spawnDeferredAt == 0 { spawnDeferredAt = currentTime }
-            else if currentTime - spawnDeferredAt > 0.5 {
-                spawnDeferred = false
-                spawnDeferredAt = 0
-                #if DEBUG
-                Logger(subsystem: "com.reffi.app", category: "scene").debug("sky: deferral backstop fired — resize never landed (h=\(self.size.height))")
-                #endif
-                sync(pending)
-            }
-        }
         if let node = dragged, let body = node.physicsBody {
             // 마그네틱 캡처 — 손가락이 바스켓 근처면 추종 목표가 바스켓 중심으로 스냅되어
             // 재료가 자석처럼 끌려 들어간다. 손가락이 벗어나면 다시 손가락을 따른다.
@@ -1047,7 +1018,6 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     private func settleToIdle() {
         // 안착이 곧 닫을 시점이다 — 모든 칩이 바닥 더미로 돌아온 프레임이라 천장이 내려와도
         // 회수(순간이동)할 것이 없다. idle로 잠들기 전에 닫아야 한다(잠들면 update()가 멈춘다).
-        closeHeadroomIfArmed(force: true)
         for node in chips.values {
             node.physicsBody?.usesPreciseCollisionDetection = false
             // 스쿼시 액션이 남은 채 pause되면 눌린 모양으로 얼어붙는다 — 여기서 끊고 배율을 1로 굳힌다.
@@ -1180,68 +1150,6 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     // **닫기는 더미가 안착한 뒤**(settleToIdle, 백스톱 1.5초)로 갈랐다 — 여닫는 프레임에
     // 움직이는 것이 없어야 리사이즈가 보이지 않는다.
 
-    private var dragSkyOpen = false
-    private var spawnSkyOpen = false
-    /// 닫기 예약 시각. nil = 예약 없음, 0 = **다음 update 프레임에 시각을 기록**하라는 표식.
-    /// update의 currentTime은 시스템 업타임이라, 첫 프레임 전(lastUpdateTime == 0)에 임의 상수를
-    /// 넣으면 첫 프레임에서 백스톱이 즉시 발동해 하늘이 캐스케이드 도중 닫힌다(실기 제보의 뿌리).
-    private var skyArmedAt: TimeInterval?
-    private var notifiedSky: Sky = .closed
-    /// 스폰 유예 — 하늘이 열리는 리사이즈가 착지한 뒤(didChangeSize) pending을 다시 태운다.
-    private var spawnDeferred = false
-    private var spawnDeferredAt: TimeInterval = 0
-
-    private var currentSky: Sky { spawnSkyOpen ? .spawn : dragSkyOpen ? .drag : .closed }
-
-    private func notifySkyIfChanged() {
-        let s = currentSky
-        guard s != notifiedSky else { return }
-        notifiedSky = s
-        onSkyChange?(s)
-    }
-
-    private func openHeadroom() {
-        skyArmedAt = nil
-        guard !dragSkyOpen else { return }
-        dragSkyOpen = true
-        notifySkyIfChanged()
-    }
-
-    /// 스폰 낙하를 위해 하늘을 최상단까지 연다. 반환값 = **리사이즈가 실제로 올 것인가**
-    /// (신호가 상태를 바꿨고 받는 쪽이 있을 때만) — 참이면 호출부는 스폰을 유예해야 한다.
-    private func openSpawnSky() -> Bool {
-        guard onSkyChange != nil else { return false }         // 신호 못 받는 호스트(테스트)면 그 자리 스폰
-        defer { armHeadroomClose() }   // 연 하늘엔 항상 닫기 예약 — 재스폰이면 시계만 리셋
-        guard !spawnSkyOpen else { return false }              // 이미 열려 있으면 크기도 이미 크다
-        spawnSkyOpen = true
-        notifySkyIfChanged()
-        #if DEBUG
-        Logger(subsystem: "com.reffi.app", category: "scene").debug("sky: spawn open, resize expected (size=\(self.size.height))")
-        #endif
-        return true
-    }
-
-    /// 하늘 닫기 예약 — 바로 닫지 않고 안착(idle)이나 백스톱 타임아웃에 닫는다.
-    /// 첫 프레임 전이면 시각을 모르므로 0을 표식으로 두고 update가 자기 시계로 채운다.
-    private func armHeadroomClose() {
-        guard dragSkyOpen || spawnSkyOpen else { return }
-        skyArmedAt = lastUpdateTime > 0 ? lastUpdateTime : 0
-    }
-
-    private func closeHeadroomIfArmed(force: Bool = false, now: TimeInterval = 0) {
-        guard dragSkyOpen || spawnSkyOpen, var armed = skyArmedAt, dragTouch == nil else { return }
-        if armed == 0, now > 0 { armed = now; skyArmedAt = now }   // 첫 프레임 — 이제부터 잰다
-        // 스폰 하늘은 캐스케이드 전체를 담아야 한다 — 드래그(1.5초)보다 긴 sealTimeout을 백스톱으로.
-        let backstop: TimeInterval = spawnSkyOpen ? sealTimeout : 1.5
-        guard force || (armed > 0 && now > 0 && now - armed > backstop) else { return }
-        dragSkyOpen = false
-        spawnSkyOpen = false
-        skyArmedAt = nil
-        notifySkyIfChanged()
-        #if DEBUG
-        Logger(subsystem: "com.reffi.app", category: "scene").debug("sky: closed (force=\(force))")
-        #endif
-    }
 
     private func highlight(_ zone: SKSpriteNode?, hovering: Bool) {
         guard let z = zone else { return }
@@ -1407,19 +1315,6 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     func sync(_ ingredients: [Ingredient]) {
         pending = ingredients
         guard size.width > 1 else { return }
-        // 새로 떨어질 칩이 있으면 **하늘부터 연다** — 닫힌 상자에서 스폰하면 칩이 상자 윗변
-        // (화면 중앙쯤)에서 갑자기 나타난다. 리사이즈가 올 예정이면 스폰을 유예하고,
-        // didChangeSize가 커진 높이에서 pending을 다시 태운다(스폰 사다리가 씬 상단 기준이라
-        // 그때 낳아야 최상단 밖에서 진입한다). Reduce Motion은 낙하가 없으니 해당 없음.
-        let willDrop = !reduceMotion && ingredients.contains { ing in
-            guard let node = chips[ing.id] else { return true }
-            return (node.userData?["name"] as? String) != ing.name
-        }
-        if willDrop, openSpawnSky() {
-            spawnDeferred = true
-            spawnDeferredAt = 0
-            return
-        }
         wake()   // 재료 추가·제거·재생성은 새 물리 이벤트 — 휴면이면 깨운다
         let ids = Set(ingredients.map(\.id))
         // 빠진 재료는 뿅 사라짐(스프링 팝). 새 재료는 추가.
@@ -1905,13 +1800,16 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         wake()
         guard dragTouch == nil, let t = touches.first else { return }   // 이미 드래그 중이면 추가 손가락 무시
         let loc = t.location(in: self)
+        #if DEBUG
+        Logger(subsystem: "com.reffi.app", category: "scene")
+            .debug("touch: loc=(\(loc.x),\(loc.y)) scene=\(self.size.width)x\(self.size.height) chips=\(self.chips.count) hit=\(self.chip(at: loc) != nil)")
+        #endif
         guard let node = chip(at: loc) else { return }
         dragTouch = t
         dragged = node
         dragMoved = false
         dragStart = loc
         dragTarget = clampToBox(loc)
-        skyArmedAt = nil   // 닫기 예약 중 재파지 — 열린 하늘을 그대로 잇는다
         dragGrabOffset = CGPoint(x: loc.x - node.position.x, y: loc.y - node.position.y)
         setZones(visible: true)
         node.removeAction(forKey: "squash")   // 잡는 순간 눌림 연출은 끊고 배율 원복
@@ -1930,7 +1828,6 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         // 탭/드래그 판정은 시작점 기준 **누적** 이동 — 아무리 천천히 끌어도 탭으로 오판하지 않는다.
         if !dragMoved, hypot(raw.x - dragStart.x, raw.y - dragStart.y) > 8 {
             dragMoved = true
-            openHeadroom()   // 탭은 하늘을 열지 않는다 — 진짜 끌기 시작에서만
         }
         dragTarget = clampToBox(raw)   // 상자 밖으론 못 끌게 → 새지 않음. 실제 추종은 update()의 스프링.
     }
@@ -1949,12 +1846,11 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         // 아래 `defer`는 설치조차 되지 않아(Swift defer는 실행이 그 줄에 닿아야 등록된다) 판정
         // 블롭이 판정 존 알파로 화면에 남았다 — 다음 드래그가 정상 종료될 때까지 지워지지 않는다.
         // 반대로 "다른 손가락이 떨어진 경우"는 그대로 무시한다(진행 중인 드래그의 예고를 지우면 안 된다).
-        guard let t = dragTouch else { setZones(visible: false); armHeadroomClose(); return }
+        guard let t = dragTouch else { setZones(visible: false); return }
         guard touches.contains(t) else { return }
         defer {
             restoreChipZ(dragged)   // 승격 해제 — 스폰 때 정한 고정값으로 되돌린다(결정적)
             dragTouch = nil; dragged = nil; setZones(visible: false)
-            armHeadroomClose()   // 하늘은 바로 닫지 않는다 — 안착(idle) 또는 1.5초 백스톱에
         }
         guard let node = dragged, let body = node.physicsBody else { return }
         body.affectedByGravity = true   // 놓으면 중력 복귀 — 현재 속도 그대로 자연스럽게 던져짐
@@ -1981,13 +1877,12 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     }
 
     override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
-        guard let t = dragTouch else { setZones(visible: false); armHeadroomClose(); return }   // touchesEnded와 같은 이유
+        guard let t = dragTouch else { setZones(visible: false); return }   // touchesEnded와 같은 이유
         guard touches.contains(t) else { return }
         dragged?.physicsBody?.affectedByGravity = true
         restoreChipZ(dragged)
         dragTouch = nil
         dragged = nil
         setZones(visible: false)
-        armHeadroomClose()
     }
 }
