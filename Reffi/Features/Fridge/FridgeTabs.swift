@@ -104,7 +104,7 @@ struct FridgeTabBar: View {
             .foregroundStyle(on ? ReffiColor.canvas : ReffiColor.ink)
             .padding(.horizontal, ReffiSpace.s3)
             .padding(.vertical, ReffiSpace.s2)
-            .frame(maxWidth: .infinity, minHeight: 44)   // 균등 3등분 + §7.3 터치 타깃
+            .frame(maxWidth: .infinity, minHeight: ReffiChrome.tapMin)   // 균등 3등분 + §7.3 터치 타깃
             .background { surface(on: on, seed: tab.seed) }
             .contentShape(Rectangle())
         }

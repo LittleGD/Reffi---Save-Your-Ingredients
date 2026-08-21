@@ -21,6 +21,11 @@ struct CookingStepsView: View {
     @State private var showCancelConfirm = false
     @State private var leftovers: Set<UUID> = []   // '조금 남았어요'로 표시한 재료
     @State private var shareImage: Image?   // 공유 카드 오프스크린 렌더 결과 — 아래 ShareCardKey가 바뀔 때만 갱신
+    /// 커버 헤더의 실측 높이 — 티켓 상단 여백이 여기서 파생된다(형제 `RecipeMemoCarousel`과 같은 규칙).
+    /// 기본 글자 크기의 `CoverHeader`는 s4(16) + 44 + s1(6) + 경과 시간 한 줄(≈16) + s3(12) ≈ 94이라
+    /// 초기값도 94지만, 큰 글씨에서 타이틀이 두 줄로 접히면 그만큼 자란다 — 고정값으로 두면 헤더가
+    /// 티켓의 크라운·메뉴명을 덮고, 그 둘은 티켓 최상단이라 스크롤로도 되돌릴 수 없다.
+    @State private var headerHeight: CGFloat = 94
 
     /// 예약된 재료(아직 냉장고에 있는 것) — 완료 확인 시트의 목록.
     private var reservedIngredients: [Ingredient] {
@@ -82,6 +87,11 @@ struct CookingStepsView: View {
     /// 가로 모드나 iPad를 지원하게 되면 여기도 `geo.safeAreaInsets.leading/.trailing`을 빼야 한다.
     private let ticketInset = ReffiGrid.margin + 8
 
+    /// 공유 카드를 굽기까지의 유예(초) — 풀스크린 커버 전환(§7.1 dur-3, 0.24s)이 끝나고도 한 박자
+    /// 남는 값이다. 짧게 잡으면 전환 마지막 프레임과 겹치고, 길게 잡으면 공유를 바로 누른 손이
+    /// 비활성 플레이스홀더를 본다(카드 한 장 렌더는 그 뒤 곧바로 끝난다).
+    private static let shareBakeDelay: Double = 0.5
+
     var body: some View {
         // 히어로 아이콘 크기가 **영수증 폭에 비례**하므로 컨테이너 폭을 실측해야 한다.
         // GeometryReader는 ScrollView **바깥**에 둔다 — 안에 두면 스크롤 콘텐츠 높이가 무너진다.
@@ -93,12 +103,21 @@ struct CookingStepsView: View {
                     ScrollView {
                         ticket(cook, ticketWidth: max(0, geo.size.width - ticketInset * 2))
                             .padding(.horizontal, ticketInset)
-                            .padding(.top, 104)
+                            // 헤더 아래 s5 — 냉장고 화면의 "헤더 ↔ 콘텐츠" 경계와 같은 값(고정값 금지).
+                            .padding(.top, headerHeight + ReffiSpace.s5)
                             .padding(.bottom, ReffiSpace.s6)
                     }
                     // 공유 카드에 인쇄되는 값(메뉴명·예약 재료 이름·시간·개수)이 바뀔 때만 다시 렌더한다.
                     // 새 세션은 물론, 조리 중 예약 재료가 사라지는 경우까지 이 키가 덮는다.
+                    //
+                    // **전환이 끝난 뒤에 굽는다.** `ImageRenderer(scale: 3)`는 카드 한 장을 통째로
+                    // 레이아웃하고 래스터라이즈하는 동기 작업인데, `.task`는 커버가 올라오는 그
+                    // 프레임에 붙어 있어 발주 → 조리 화면 전환 한복판에서 메인 스레드를 물었다
+                    // (공유는 이 화면의 보조 행동이고, 도달까지는 최소 한 번의 탭이 더 남아 있다).
+                    // 재료를 지우는 등으로 키가 바뀌면 이 대기부터 다시 시작한다 — 취소가 곧 최신화다.
                     .task(id: shareCardKey(for: cook)) {
+                        try? await Task.sleep(for: .seconds(Self.shareBakeDelay))
+                        guard !Task.isCancelled else { return }
                         shareImage = renderShareImage(for: cook, icon: heroIcon(for: cook))
                     }
                 }
@@ -108,7 +127,7 @@ struct CookingStepsView: View {
         // 확정 액션은 티켓 안이 아니라 화면 하단에 도킹한다(§13.6) — 티켓이 짧아도 CTA가 화면 중턱에
         // 뜨지 않고, 메인·시트의 하단 CTA 관례와 같은 자리에서 엄지로 닿는다. 본문(티켓)만 스크롤한다.
         .dockedCTA(over: ReffiColor.paperPass) { bottomBar }
-        .sensoryFeedback(.success, trigger: finishHaptic)
+        .reffiFeedback(.success, trigger: finishHaptic)
         // 완료·취소(또는 발주 undo)로 세션이 사라지면 자동으로 닫힌다.
         .onChange(of: store.activeCook == nil) { _, gone in
             if gone { onClose() }
@@ -158,7 +177,7 @@ struct CookingStepsView: View {
                     Text("Cancel cooking, put ingredients back")
                         .reffiType(.caption)
                         .foregroundStyle(ReffiColor.ink2)
-                        .frame(maxWidth: .infinity, minHeight: 44)
+                        .frame(maxWidth: .infinity, minHeight: ReffiChrome.tapMin)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.reffiPress)
@@ -216,11 +235,11 @@ struct CookingStepsView: View {
             }
             .padding(.horizontal, ReffiSpace.s3)
             .padding(.vertical, ReffiSpace.s2)
-            .frame(minHeight: 44)
+            .frame(minHeight: ReffiChrome.tapMin)
             .contentShape(Rectangle())
         }
         .buttonStyle(.reffiPress)
-        .accessibilityLabel(Text("\(ing.displayName)"))
+        .accessibilityLabel(Text(verbatim: ing.displayName))   // 재료명은 데이터 — 번역 키가 아니다(§i18n)
         .accessibilityValue(left ? Text("Some left") : Text("Used it all"))
         .accessibilityHint(Text("Toggles whether some is left over"))
     }
@@ -242,6 +261,8 @@ struct CookingStepsView: View {
                 .reffiType(.metaText).foregroundStyle(ReffiColor.ink2)
             }
         }
+        // 헤더가 실제로 차지한 높이를 티켓 상단 여백으로 되돌린다(`headerHeight` 주석 참고).
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { headerHeight = $0 }
     }
 
     // MARK: - 조리 티켓
@@ -335,7 +356,7 @@ struct CookingStepsView: View {
         .padding(.horizontal, ReffiSpace.s5)
         .padding(.vertical, ReffiSpace.s5 + 2)
         .background(ReceiptShape(tooth: ReffiTooth.ticket).fill(ReffiColor.paper))
-        .overlay(ReceiptShape(tooth: ReffiTooth.ticket).stroke(ReffiColor.ink.opacity(0.07), lineWidth: 1))
+        .overlay(ReceiptShape(tooth: ReffiTooth.ticket).stroke(ReffiColor.paperEdge, lineWidth: 1))
         .reffiShadow1()
     }
 
@@ -358,7 +379,7 @@ struct CookingStepsView: View {
                 let shape = PaperCutRect(seed: 3)
                 shape.fill(ReffiColor.urgentLight)
                     .overlay(PaperGrain(seed: 14).clipShape(shape))
-                    .paperEdge(shape, tint: ReffiColor.urgentDark.opacity(0.18))
+                    .paperEdge(shape, tint: ReffiColor.paperEdgeAccent(ReffiColor.urgentDark))
                     .compositingGroup()
                     .reffiShadow1()
             }
@@ -386,7 +407,11 @@ struct CookingStepsView: View {
                                    icon: icon)
             .environment(\.colorScheme, .light)
         let renderer = ImageRenderer(content: card)
-        renderer.scale = 3   // 레티나
+        // 레티나 3x. **2로 내리지 않는다**(2026-08 재검토): 카드 폭이 340pt라 3x는 1020px인데,
+        // 받는 쪽은 메시지 앱에서 이 이미지를 화면 폭으로 연다 — 3x 아이폰의 세로 폭이 1170~1290px라
+        // 2x(680px)면 그 자리에서 곧장 확대돼 톱니와 모노 라벨이 뭉갠다. 비용 쪽 걱정은 스케일이
+        // 아니라 **타이밍**이었고, 그건 위 `.task`의 유예가 가져갔다.
+        renderer.scale = 3
         guard let uiImage = renderer.uiImage else { return nil }
         return Image(uiImage: uiImage)
     }

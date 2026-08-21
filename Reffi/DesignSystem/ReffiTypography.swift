@@ -49,12 +49,42 @@ extension ReffiTextRole {
         }
         return font
     }
+
+    /// **표시될 문자열에 맞춘** 폰트 — Display에 한글이 섞이면 위 폴백으로 내려간다(§3.1).
+    /// 번역되는 Display 텍스트(냉장고 타이틀·온보딩 타이틀·단계 표기·닉네임)는 전부 이 문을 지나야 한다:
+    /// `.custom()`에는 폰트 스택이 없어, 폴백을 배선하지 않으면 누락 글리프가 Pretendard가 아니라
+    /// **시스템 한글 서체**로 조용히 캐스케이드된다 — 브랜드 밖 서체가 한국어에만 나타난다.
+    /// Display가 아닌 role은 이미 Pretendard라 그대로다.
+    func font(for text: String) -> Font {
+        text.hasHangul ? koreanDisplayFont : font
+    }
+}
+
+extension String {
+    /// 한글 포함 여부 — Story Script·Google Sans Flex는 한글 미지원(§3.1)이라 폴백 판별에 쓴다.
+    var hasHangul: Bool {
+        unicodeScalars.contains {
+            (0xAC00...0xD7A3).contains($0.value)      // 완성형
+            || (0x1100...0x11FF).contains($0.value)   // 자모
+            || (0x3130...0x318F).contains($0.value)   // 호환 자모
+        }
+    }
 }
 
 extension View {
     /// Reffi 타이포 위계 적용(폰트+자간+행간). 색은 면에 따라(§2.6) 별도로 준다.
+    /// **비번역 라틴(워드마크 등) 전용**이다 — 번역되는 Display 텍스트는 아래 `reffiType(_:for:)`를 쓴다.
     func reffiType(_ role: ReffiTextRole) -> some View {
         self.font(role.font)
+            .tracking(role.tracking)
+            .lineSpacing(role.lineSpacing)
+    }
+
+    /// 같은 위계에 **스크립트 폴백**까지 — 실제로 그려질 문자열을 넘겨 폰트를 고른다(§3.1).
+    /// 문자열을 따로 받는 이유: SwiftUI는 `Text`가 들고 있는 `LocalizedStringKey`의 해석 결과를
+    /// 밖으로 내주지 않아, 호출부가 `String(localized:)`로 한 번 풀어 같은 값을 둘에 함께 넘겨야 한다.
+    func reffiType(_ role: ReffiTextRole, for text: String) -> some View {
+        self.font(role.font(for: text))
             .tracking(role.tracking)
             .lineSpacing(role.lineSpacing)
     }

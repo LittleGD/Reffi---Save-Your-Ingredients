@@ -117,9 +117,23 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     private var clatterThrottle = ClatterThrottle()
     /// 임펄스·재료 → 촉감(세기·날카로움·감쇠 꼬리) 변환 규칙. 순수 계산기라 씬 없이 테스트된다.
     private let clatterRule = ClatterFeelRule()
+    /// 물리량 → 구름 텍스처(HD Rumble의 구슬 시그니처) 변환 규칙. 역시 순수 계산기.
+    private let rollRule = RollTextureRule()
+    /// 지속 촉감의 개폐 히스테리시스 — **한 채널**이다. 드래그 중엔 호버, 아니면 구름이 쓰는데
+    /// `update`가 드래그 분기에서 곧장 반환하므로 두 용도는 구조적으로 배타적이다.
+    private var textureGate = TextureGate()
+    /// 마지막으로 낸 구름 텍스처 — 관문 유예 중 한 프레임짜리 dip을 메운다.
+    private var lastRollTexture: RollTexture?
+    /// 마그네틱 캡처 스냅의 에지 검출 — 존이 **바뀌는** 순간에만 친다.
+    private weak var lastCapturedZone: SKSpriteNode?
+    /// 캡처 스냅 쿨다운(초) — 반경 경계에서 손가락이 떨면 진입/이탈이 연타된다.
+    private let captureSnapCooldown: TimeInterval = 0.18
+    private var lastCaptureSnapAt: TimeInterval = -1
     /// 스로틀 판정용 현재 시각 — `didBegin`엔 시간 인자가 없어 update에서 받아 둔다.
     private var lastUpdateTime: TimeInterval = 0
     /// QA 계측용 — 햅틱이 실제로 발화할 때마다 호출된다(TILT LAB 카운터).
+    /// **충돌 달그락만 센다** — 이 카운터의 계약은 "달그락 발화율"이고, 텍스처·제스처 액센트까지
+    /// 얹으면 지금까지 잡아 온 기준선과 갈린다(발화율 튜닝 기록이 전부 이 축에 매달려 있다).
     var onClatter: (() -> Void)?
 
     /// 충돌 카테고리 — 접촉 콜백을 받으려면 마스크가 필요하다. collisionBitMask는 기본값(전체)을
@@ -139,9 +153,32 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     var onRemove: ((UUID) -> Void)?
     /// 제스처 판정(§13.6 B) — 칩을 존에 끌어다 놓으면 (id, wasted). 탭 오버레이는 접근성 경로로 유지.
     var onDecide: ((UUID, Bool) -> Void)?
+    /// 정지 캡 높이(홈의 레이아웃 슬롯 실측) — 존 앵커와 무관하게 하늘이 아무리 열려도
+    /// 존은 `restHeight + dragFieldHeadroom` 자리에 남는다(오너 결정: "존은 지금 위치가 좋다").
+    var restHeight: CGFloat = 0
     /// Reduce Motion이면 기울임 중력을 끄고 상수 중력으로 되돌린다(예측 불가한 화면 움직임 제거, §7.4).
     var reduceMotion = false {
         didSet { if reduceMotion != oldValue { syncMotionUpdates(); wake() } }
+    }
+    /// 프로필 "기울임 중력" 토글(`ReffiFeedback.tiltKey`). **시스템 Reduce Motion이 우선이고 이건 그 위의
+    /// 사용자 선택이다** — 둘 중 하나만 꺼도 자이로는 멈추고 상수 중력으로 되돌아간다(§7.4 · §13.4).
+    /// 끄면 센서 갱신 자체를 내려 배터리도 아낀다(`syncMotionUpdates` → `stopMotionUpdates`).
+    ///
+    /// **흔들기 킥도 함께 멈춘다** — `applyShake`는 같은 `deviceMotion` 콜백에서 갈라져 나오므로
+    /// (`startMotionUpdates`의 클로저) 스트림을 내리면 `userAcceleration`도 오지 않는다. 기울임과
+    /// 흔들기는 한 센서 스트림의 두 소비처라 분리하려면 스트림을 계속 돌려야 하고, 그러면 이 토글이
+    /// 약속한 배터리 절약이 사라진다. 의도된 결합이고 §13.4에 그대로 적어 뒀다.
+    ///
+    /// 초기값을 저장소에서 **직접** 읽는다 — 뷰 주입(`configureScene`)은 `didMove` 뒤에 올 수도 있어,
+    /// 기본값 true로 서면 꺼 둔 사람도 홈에 들어서는 한 프레임 동안 센서가 돌아 버린다.
+    var tiltEnabled = ReffiFeedback.tiltEnabled {
+        didSet { if tiltEnabled != oldValue { syncMotionUpdates(); wake() } }
+    }
+    /// 프로필 "충돌 진동" 토글(`ReffiFeedback.hapticsKey`). 달그락 엔진까지 내린다 —
+    /// 무음으로 켜 둔 CHHapticEngine은 배터리만 먹는다. 켜면 다음 프레임부터 곧장 되돌아온다.
+    /// 초기값을 저장소에서 직접 읽는 이유는 `tiltEnabled`와 같다(엔진이 한 프레임 서지 않게).
+    var hapticsEnabled = ReffiFeedback.hapticsEnabled {
+        didSet { if hapticsEnabled != oldValue { syncClatterEngine() } }
     }
 
     // 판정 바스켓 — 드래그 중에만 나타나는 휴지통(좌상)·냄비(우상) 종이 블롭.
@@ -186,8 +223,36 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     private let spinArm: CGFloat = 0.25
     private let spinCap: CGFloat = 6
 
-    private var chipSide: CGFloat { chipSideFor(size) }
-    private func chipSideFor(_ s: CGSize) -> CGFloat { min(max(124, s.width * 0.42), 188) }
+    private var chipSide: CGFloat { Self.chipSideFor(size) }
+    private static func chipSideFor(_ s: CGSize) -> CGFloat { min(max(124, s.width * 0.42), 188) }
+
+    /// 정지 필드가 **한 줄 더미를 자르지 않기 위한 최소 높이** — 홈의 `fieldRestHeight` 캡이 이 하한을 존중한다.
+    /// 캡 공식(96×행+28)은 여러 행이 눕고 맞물리는 더미의 실측 피치인데, 한 줄(재료 ≤3)에서는 상자가 124pt로
+    /// 떨어져 **칩 하나의 그려지는 높이보다 작아진다** — 밀폐 천장은 칩 "중심"만 지키므로 정착은 정상 처리되고
+    /// 일러스트 상단만 조용히 잘렸다(2026-08 실기 재현: milk 게이블이 수평으로 삭제). 그려지는 최대 높이 =
+    /// 알파 bbox = 바디/0.9(`bodyMetrics` 계약) → side × maxBodyHeightRatio / 0.9, 여기에 캡 공식과 같은
+    /// 바닥·헤드룸 28을 얹는다. 칩 기하의 정본이 씬이라 이 식도 씬에 산다.
+    static func minRestFieldHeight(width: CGFloat) -> CGFloat {
+        chipSideFor(CGSize(width: width, height: 0)) * (maxBodyHeightRatio / 0.9) + 28
+    }
+
+    /// 드래그 중 필드가 추가로 여는 높이 — 정지 캡은 더미를 껴안지만(감사 R3-4), 그 상자 그대로는
+    /// **조작이 안 된다**: 더미 상단이 캡 −13pt까지 오는데 드래그 클램프 상한은 캡 −(벽 인셋 + 0.42s)
+    /// ≈ 캡 −86pt라, 잡은 칩의 중심이 더미 상단보다 ~73pt 아래에 묶여 더미를 뚫고 밀 수밖에 없고,
+    /// 존(캡 −55pt)은 더미 위에 얹힌다. 0.75s(≈127pt @402pt 폭)를 열면 클램프 상한이 더미 위로
+    /// ~45pt, 존은 ~72pt 올라와 "들어서 나른다"가 성립한다. 놓으면 도로 닫힌다(캡의 미학은 정지 상태의 것).
+    static func dragFieldHeadroom(width: CGFloat) -> CGFloat {
+        chipSideFor(CGSize(width: width, height: 0)) * 0.75
+    }
+
+    /// 재료 ≥2의 정지 하한 — 행 피치(96)는 **눕고 맞물린** 더미의 실측이라, 칩이 칩 위에 **선** 채
+    /// 안착하는 실배치(2026-08-19 실기: 버섯 위에 우유가 서서 상단 잘림)를 못 담는다. 2단 탑의
+    /// 상계 = 아래 칩 바디(≤ maxBodyHeightRatio×s) + 위 칩의 그려지는 높이(바디/0.9) + 바닥·헤드룸 28.
+    /// 작업대 상한이 6이라 행은 최대 2 — 이 하한이 곧 다행(多行) 캡의 정본이다.
+    static func stackedRestFieldHeight(width: CGFloat) -> CGFloat {
+        let s = chipSideFor(CGSize(width: width, height: 0))
+        return s * maxBodyHeightRatio + s * (maxBodyHeightRatio / 0.9) + 28
+    }
     private var floorY: CGFloat { max(6, size.height * 0.03) }
 
     // MARK: - 컨테인먼트 경계 (§13.4)
@@ -308,6 +373,8 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         // 살아 있다(다음 didMove의 syncMotionUpdates가 다시 켠다).
         clatter.stop()
         clatterThrottle.reset()
+        textureGate.reset()
+        lastCapturedZone = nil
         if let o = foregroundObserver {
             NotificationCenter.default.removeObserver(o)
             foregroundObserver = nil
@@ -355,33 +422,44 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     }
     #endif
 
-    /// 모션 갱신 on/off를 씬 상태에서 **파생**시킨다 — 표시 중 + 안 가려짐 + Reduce Motion 아님 + 기기 지원.
+    /// 모션 갱신 on/off를 씬 상태에서 **파생**시킨다 — 표시 중 + 안 가려짐 + Reduce Motion 아님
+    /// + 프로필 토글 켬 + 기기 지원.
     /// 조건이 하나라도 깨지면 즉시 멈춘다(시뮬레이터는 deviceMotion 미지원 → 항상 상수 중력).
     private func syncMotionUpdates() {
         #if DEBUG
         // -tiltLab 주입이 정본 — 센서를 끄고 주입값을 **다시 적용**한다. 여기서 그냥 넘어가면
         // didMove의 `gravity = fallback`이 주입을 덮은 채로 남는다(프레젠트 전에 주입된 경우:
         // 슬라이더 표시값은 y=+1인데 더미는 아래로 떨어지던 버그).
-        if let d = debugTilt {
+        // 다만 프로필 토글(`tiltEnabled`)은 실험실보다 위다 — 시뮬레이터엔 자이로가 없어
+        // 토글의 실동작을 눈으로 확인할 수 있는 경로가 이 주입뿐이다(끄면 상수 중력으로 되돌아간다).
+        if let d = debugTilt, tiltEnabled {
             applyDebugTilt(d)
             syncClatterEngine()
             return
         }
         #endif
-        let wanted = view != nil && !externallyPaused && !reduceMotion && tilt.isAvailable
+        let wanted = view != nil && !externallyPaused && !reduceMotion && tiltEnabled && tilt.isAvailable
         if wanted { startMotionUpdates() } else { stopMotionUpdates() }
         syncClatterEngine()
     }
 
-    /// 달그락 엔진 수명주기도 같은 자리에서 파생시킨다(별도 채널을 만들지 않는다). 다만 조건은
-    /// **보이는 씬**까지만 — Reduce Motion은 시각 배려지 촉각 배려가 아니고(§7.4), 자이로가 없는
-    /// 시뮬레이터·구형 기기에서도 던져서 부딪히는 충돌은 그대로 일어난다. 안 보이는 씬에서만 내린다.
+    /// 달그락 엔진 수명주기도 같은 자리에서 파생시킨다(별도 채널을 만들지 않는다). 조건은
+    /// **보이는 씬 + 프로필 햅틱 토글**이다 — Reduce Motion은 시각 배려지 촉각 배려가 아니고(§7.4),
+    /// 자이로가 없는 시뮬레이터·구형 기기에서도 던져서 부딪히는 충돌은 그대로 일어난다.
+    /// 안 보이는 씬에서, 그리고 사용자가 진동을 껐을 때만 내린다.
     private func syncClatterEngine() {
-        if view != nil, !externallyPaused {
+        // 재생기 자체의 스위치도 여기서 맞춘다 — 사건(`play`)·텍스처(`setTexture`) 양쪽 가드가
+        // 이 플래그를 보므로, 엔진을 내리는 것만으로는 남은 호출이 조용히 되살릴 수 있다.
+        clatter.isEnabled = hapticsEnabled
+        if hapticsEnabled, view != nil, !externallyPaused {
             clatter.start()
         } else {
             clatter.stop()
             clatterThrottle.reset()
+            // 지속 촉감은 **상태**라 씬이 멈추면 스스로 끝나지 않는다 — 관문까지 닫아 두지 않으면
+            // 돌아왔을 때 유예가 남은 채 이어져 정지한 화면에서 텍스처가 한 박자 더 울린다.
+            textureGate.reset()
+            lastCapturedZone = nil
         }
     }
 
@@ -587,7 +665,7 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         super.didChangeSize(oldSize)
         guard size.width > 1 else { return }
         // 칩 변이 실제로 달라졌으면 텍스처 캐시를 버린다(캐시 키에 side가 박혀 있음).
-        if chipSideFor(oldSize) != chipSide { textureCache.removeAll() }
+        if Self.chipSideFor(oldSize) != chipSide { textureCache.removeAll() }
         buildWalls()
         // 천장이 내려오면 그 위에 남은 칩은 즉시 회수(스스로 못 들어온다). 단 **밀폐 상태일 때만** —
         // 낙하 캐스케이드 중(천장 열림) 리플로우가 오면, 정상 낙하 중인 칩을 순간이동시키게 된다.
@@ -629,8 +707,25 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
                                      dy: v.dy + (vy - v.dy) * inertia)
             highlight(tossZone, hovering: captured === tossZone)
             highlight(ateZone, hovering: captured === ateZone)
+            // 자석에 **막 붙은** 순간의 스냅(§13.4 · 리뷰 F50) — 판정이 확정될 자리에 들어왔다는
+            // 촉각 확정이다. 에지에서만 치고, 반경 경계에서 손이 떨 때의 연타는 쿨다운이 막는다.
+            if captured !== lastCapturedZone {
+                if captured != nil, currentTime - lastCaptureSnapAt >= captureSnapCooldown {
+                    clatter.play(ClatterAccent.captureSnap)
+                    lastCaptureSnapAt = currentTime
+                }
+                lastCapturedZone = captured
+            }
+            // 붙들려 있는 동안의 미세 텍스처 — 자석이 잡고 있다는 지속 신호. 구름과 같은 채널이라
+            // 관문도 같은 것을 쓴다(드래그 중엔 아래 구름 스캔이 아예 돌지 않는다).
+            let holding = textureGate.update(level: captured != nil ? 1 : 0, now: currentTime)
+            clatter.setTexture(holding ? ClatterAccent.hover : nil)
             return   // 드래그 중엔 절대 휴면 안 함
         }
+        lastCapturedZone = nil
+        // 구름 텍스처의 대표 칩 — 가장 세게 구르는 하나가 채널을 가져간다. 액추에이터가 하나뿐이라
+        // 여러 칩의 결을 합치면 그냥 '웅'이 된다(조이콘처럼 좌·우로 나눌 수도 없다).
+        var rollBest: (level: Float, node: SKSpriteNode)?
         // 잔여 운동 능동 감쇠 — 강한 중력의 접촉 해소 임펄스가 남기는 미세 요동만 죽인다.
         // 판정은 저속 플로어(`jitterFloor`) 하나: 그 미만이면 지터, 이상이면 진짜 움직임이라
         // 절대 건드리지 않는다. 기울임 굴림·킥·낙하가 감쇠에 먹히지 않으므로 유예 카운터가
@@ -641,6 +736,11 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         for node in chips.values {
             guard let b = node.physicsBody, !b.isResting else { continue }
             let v = hypot(b.velocity.dx, b.velocity.dy)
+            // 구름 신호는 **이미 읽은 속도·각속도**로 잰다 — 이 루프가 매 프레임 도는 유일한 물리
+            // 스캔이라, 새 상시 계산을 만들지 않고 여기 얹는다. 감쇠 게이트보다 **앞**이어야 한다:
+            // 아래 `guard v < jitterFloor`는 진짜 움직임을 걸러 내보내는데, 구름은 바로 그쪽이다.
+            let level = rollRule.level(speed: v, spin: b.angularVelocity)
+            if level > (rollBest?.level ?? 0) { rollBest = (level, node) }
             guard v < jitterFloor else { continue }   // 진짜 움직임(굴림·킥·낙하) — 절대 안 건드린다
             if v >= jitterRestFloor {
                 b.velocity = CGVector(dx: b.velocity.dx * jitterDamp, dy: b.velocity.dy * jitterDamp)
@@ -648,6 +748,22 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
             if abs(b.angularVelocity) >= jitterRestSpin {
                 b.angularVelocity *= jitterDamp
             }
+        }
+        // 구름 텍스처 — HD Rumble의 구슬 시그니처. 신호가 관문을 열면 재생을 **끊지 않고** 세기·
+        // 날카로움만 실시간으로 갈아 끼운다(끊었다 켜면 그건 질감이 아니라 스위치 소리다).
+        // 관문은 켬 0.20 / 끔 0.09 + 유예 0.14s — 문턱이 하나면 경계에서 지직거리며 여닫힌다.
+        let rolling = textureGate.update(level: rollBest?.level ?? 0, now: currentTime)
+        if rolling {
+            // 유예 중(신호가 잠깐 꺼진 프레임)에는 **직전 값을 그대로** 다시 낸다. 여기서 0을 보내면
+            // 관문이 열려 있는 의미가 없어진다 — 한 프레임 dip에 텍스처가 끊기는 게 유예를 둔 이유다.
+            if let best = rollBest {
+                lastRollTexture = rollRule.texture(level: best.level,
+                                                   material: Self.clatterMaterial(of: best.node))
+            }
+            clatter.setTexture(lastRollTexture)
+        } else {
+            lastRollTexture = nil
+            clatter.setTexture(nil)
         }
         // 드래그가 없을 때만 정착 판정 — 지터 때문에 '완전 정지'는 영원히 안 오므로,
         // calm 창(전 칩 v<calmSpeed 연속 0.5s) + 변위 검증(<settleDrift)으로 안착을 판정한다.
@@ -985,6 +1101,8 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
 
     /// 정착 → idle. 정밀 충돌은 '움직일 가능성이 있는 동안'만이라 여기서 전부 내린다(B6).
     private func settleToIdle() {
+        // 안착이 곧 닫을 시점이다 — 모든 칩이 바닥 더미로 돌아온 프레임이라 천장이 내려와도
+        // 회수(순간이동)할 것이 없다. idle로 잠들기 전에 닫아야 한다(잠들면 update()가 멈춘다).
         for node in chips.values {
             node.physicsBody?.usesPreciseCollisionDetection = false
             // 스쿼시 액션이 남은 채 pause되면 눌린 모양으로 얼어붙는다 — 여기서 끊고 배율을 1로 굳힌다.
@@ -1070,9 +1188,27 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         if tossZone == nil { let z = makeZone(toss: true); tossZone = z; addChild(z) }
         if ateZone == nil { let z = makeZone(toss: false); ateZone = z; addChild(z) }
         // 상단 모서리 — 더미(바닥)와 겹치지 않고, 들어 올려서 넣는 제스처가 자연스럽다.
-        let y = size.height - zoneSide * 0.5 - 12
-        tossZone?.position = CGPoint(x: zoneSide * 0.5 + 14, y: y)
-        ateZone?.position = CGPoint(x: size.width - zoneSide * 0.5 - 14, y: y)
+        // 앵커는 하늘 높이가 아니라 **정지 캡 + 드래그 여유**다 — 하늘이 카드 뒤·최상단까지 열려도
+        // 존은 제자리에 남는다(오너 결정). restHeight 미실측(0)이면 종전대로 씬 상단 기준.
+        let anchorTop = restHeight > 0
+            ? min(size.height, restHeight + Self.dragFieldHeadroom(width: size.width))
+            : size.height
+        let y = anchorTop - zoneSide * 0.5 - 12
+        let toss = CGPoint(x: zoneSide * 0.5 + 14, y: y)
+        let ate  = CGPoint(x: size.width - zoneSide * 0.5 - 14, y: y)
+        // 보이는 중의 재배치(드래그 여유 개방으로 천장이 오를 때)는 점프 대신 짧게 미끄러진다 —
+        // 순간이동은 "지직"으로 읽힌다. 숨어 있으면 즉시 좌표만 갱신.
+        for (zone, target) in [(tossZone, toss), (ateZone, ate)] {
+            guard let zone else { continue }
+            if zone.alpha > 0.01 {
+                let move = SKAction.move(to: target, duration: ReffiJudgeZone.fade)
+                move.timingMode = .easeOut
+                zone.run(move, withKey: "relayout")
+            } else {
+                zone.removeAction(forKey: "relayout")
+                zone.position = target
+            }
+        }
         #if DEBUG
         // `-zoneLab`은 재생성(다크 전환 리틴트) 뒤에도 계속 보여야 하므로 여기서 알파를 되돌린다.
         if zoneLab { tossZone?.alpha = ReffiJudgeZone.alpha; ateZone?.alpha = ReffiJudgeZone.alpha }
@@ -1090,6 +1226,15 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
             ateZone?.setScale(1)
         }
     }
+
+    // MARK: - 드래그 여유 개폐 (§13.4)
+    //
+    // 처음엔 존 표시/숨김에 신호를 묶었는데 두 가지가 화면에서 "지직"으로 읽혔다(실기 제보):
+    // ① 탭에도 존이 떴다 사라지며 상자가 여닫혔고, ② 놓는 순간 닫으면 아직 낙하 중인 칩이
+    // 내려오는 천장에 회수(순간이동)됐다. 그래서 **열기는 진짜 드래그가 시작될 때**(dragMoved 전이),
+    // **닫기는 더미가 안착한 뒤**(settleToIdle, 백스톱 1.5초)로 갈랐다 — 여닫는 프레임에
+    // 움직이는 것이 없어야 리사이즈가 보이지 않는다.
+
 
     private func highlight(_ zone: SKSpriteNode?, hovering: Bool) {
         guard let z = zone else { return }
@@ -1285,7 +1430,9 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         node.name = nil          // 사라지는 중엔 히트 대상에서 제외
         node.physicsBody = nil   // 물리 정지(충돌에서 제외)
         node.zPosition = Self.zPopOut
-        if node === dragged { dragged = nil; dragTouch = nil }
+        // 잡고 있던 칩이 사라지면 드래그도 끝난 것이다 — 호버 텍스처를 끊지 않으면 손가락이
+        // 존 위에 남아 있는 동안 "붙들려 있다"는 촉감만 주인 없이 계속 울린다.
+        if node === dragged { dragged = nil; dragTouch = nil; endDragTexture() }
 
         if reduceMotion {
             node.run(.sequence([.fadeOut(withDuration: 0.12), .removeFromParent()]))
@@ -1483,30 +1630,54 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         var sharpness: Float = 0.5
         /// 달그락 햅틱의 세기 배율 — 여린 재료(잎·두부)는 같은 임펄스라도 약하게 친다.
         var hapticScale: Float = 0.8
+        /// 달그락 햅틱의 **감쇠 속도** 0...1 — 재질 공명 프로필의 셋째 축(§7.6). 1이면 잔향 없이
+        /// 즉시 끊기고(단단한 껍질·여린 잎), 0이면 길게 끌린다(물먹은 덩어리). 0.5가 중립이라
+        /// 값을 안 주는 `standard`는 예전 꼬리 길이 그대로다.
+        var hapticDecay: Float = 0.5
+
+        /// 촉감 계산기(`ClatterFeelRule`·`RollTextureRule`)가 읽는 축만 추린 것. 변환을 여기 한 곳에
+        /// 모아 두면 물리 축(마찰·각감쇠·반발)이 촉감 규칙으로 새어 들 통로가 애초에 없다.
+        var clatter: ClatterMaterial {
+            ClatterMaterial(sharpness: sharpness, scale: hapticScale, decay: hapticDecay)
+        }
 
         /// 기본 — 대부분의 채소·과일. **기존 값 그대로**라 표에 없는 글리프는 완전한 무변화다.
         static let standard = ChipMaterial(mass: 0.70, restitution: 0.12, friction: 0.55,
                                            angularDamping: 0.85)
         /// 가벼움 — 잎채소·해조·버섯·빵. 살짝 더 통통 튀고 잘 미끄러지지 않는다.
-        /// 촉감: 여린 '틱' — 잎사귀가 스치는 정도라 세기를 크게 낮춘다.
+        /// 촉감: 여린 '틱' — 잎사귀가 스치는 정도라 세기를 크게 낮추고, 잔향은 거의 없다(감쇠 0.80).
         static let light = ChipMaterial(mass: 0.40, restitution: 0.13, friction: 0.66,
-                                        angularDamping: 0.90, sharpness: 0.55, hapticScale: 0.42)
+                                        angularDamping: 0.90, sharpness: 0.55,
+                                        hapticScale: 0.42, hapticDecay: 0.80)
         /// 잘 구름 — 계란·토마토·사과처럼 둥글고 매끈한 것. 마찰·각감쇠가 낮아 기울이면 데굴데굴 굴러간다.
-        /// 촉감: 또각 — 단단한 껍질이 부딪히는 중간 날카로움.
+        /// 촉감: 또각 — 단단한 껍질이 부딪히는 중간 날카로움에 짧은 감쇠(0.70).
         static let rolling = ChipMaterial(mass: 0.80, restitution: 0.14, friction: 0.30,
-                                          angularDamping: 0.78, sharpness: 0.68, hapticScale: 0.85)
+                                          angularDamping: 0.78, sharpness: 0.68,
+                                          hapticScale: 0.85, hapticDecay: 0.70)
         /// 묵직함 — 소고기·연어 등 덩어리 단백질. 안 튀고, 기울여도 굼뜨게 미끄러지며 가벼운 재료를 밀어낸다.
-        /// 촉감: 둔탁한 '툭' — 살덩이가 떨어지는 소리. 세기는 크되 날카로움은 최소.
+        /// 촉감: 둔탁한 '툭' — 살덩이가 떨어지는 소리. 세기는 크되 날카로움은 최소이고 길게 끌린다(0.22).
         static let heavy = ChipMaterial(mass: 1.40, restitution: 0.11, friction: 0.70,
-                                        angularDamping: 0.96, sharpness: 0.18, hapticScale: 1.0)
+                                        angularDamping: 0.96, sharpness: 0.18,
+                                        hapticScale: 1.0, hapticDecay: 0.22)
         /// 용기 — 우유갑·소스병·캔. 표면이 매끈해 잘 미끄러진다.
-        /// 촉감: 쨍한 '클링' — 캔·유리병끼리 부딪히는 금속성. 이 계열이 달그락의 주인공이다.
+        /// 촉감: 쨍한 '클링' — 캔·유리병끼리 부딪히는 금속성. 이 계열이 달그락의 주인공이고,
+        /// 딱 끊기는 짧은 감쇠(0.85)가 '클링'을 '웅'과 가른다.
         static let container = ChipMaterial(mass: 1.15, restitution: 0.12, friction: 0.46,
-                                            angularDamping: 0.92, sharpness: 0.95, hapticScale: 1.0)
+                                            angularDamping: 0.92, sharpness: 0.95,
+                                            hapticScale: 1.0, hapticDecay: 0.85)
         /// 물렁함 — 두부·밥·면·만두. 닿은 자리에 착 붙어 거의 안 구른다.
-        /// 촉감: 퍽 — 물먹은 덩어리라 거의 촉감이 없다(가장 약하고 가장 뭉툭).
+        /// 촉감: 퍽 — 물먹은 덩어리라 거의 촉감이 없다(가장 약하고 가장 뭉툭하며 가장 길게 끌린다).
         static let soft = ChipMaterial(mass: 0.75, restitution: 0.11, friction: 0.82,
-                                       angularDamping: 0.98, sharpness: 0.10, hapticScale: 0.50)
+                                       angularDamping: 0.98, sharpness: 0.10,
+                                       hapticScale: 0.50, hapticDecay: 0.10)
+    }
+
+    /// 노드 하나의 촉감 물성 — 구름 텍스처가 대표 칩에서 뽑아 쓴다.
+    /// 글리프를 못 읽으면 중립(스폰 직후·userData가 비어 있는 예외 경로에서도 무음이 되지 않게).
+    private static func clatterMaterial(of node: SKNode) -> ClatterMaterial {
+        guard let raw = node.userData?["glyph"] as? String,
+              let glyph = FoodGlyph(rawValue: raw) else { return .neutral }
+        return material(for: glyph).clatter
     }
 
     /// 글리프 → 물성. 53종을 하나씩 손으로 매기면 유지도 안 되고 의도도 흐려져,
@@ -1658,10 +1829,11 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         // 변주 시드는 **발화 순번**이다(allow가 방금 올렸다) — 같은 충돌 시퀀스면 같은 촉감이라
         // 튜닝 비교와 계측 QA가 실행마다 흔들리지 않는다.
         clatter.play(clatterRule.feel(impulse: impulse,
-                                      material: ClatterMaterial(sharpness: mat.sharpness,
-                                                                scale: mat.hapticScale),
+                                      material: mat.clatter,
                                       sequence: clatterThrottle.fireCount))
-        onClatter?()
+        // 계측 카운터도 함께 침묵한다 — 아무것도 울리지 않는데 TILT LAB의 "HAPTIC n/s"가 올라가면
+        // 유일한 관측 수단이 거짓말을 한다. 스로틀(발화 순번)은 그대로 돌아 튜닝 기준선은 안 흔들린다.
+        if hapticsEnabled { onClatter?() }
     }
 
     /// 이 접촉이 '착지'인가 — 접촉 법선이 **그 시점 중력**과 얼마나 나란한지로 판정한다.
@@ -1740,6 +1912,10 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         wake()
         guard dragTouch == nil, let t = touches.first else { return }   // 이미 드래그 중이면 추가 손가락 무시
         let loc = t.location(in: self)
+        #if DEBUG
+        Logger(subsystem: "com.reffi.app", category: "scene")
+            .debug("touch: loc=(\(loc.x),\(loc.y)) scene=\(self.size.width)x\(self.size.height) chips=\(self.chips.count) hit=\(self.chip(at: loc) != nil)")
+        #endif
         guard let node = chip(at: loc) else { return }
         dragTouch = t
         dragged = node
@@ -1756,13 +1932,20 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
             body.angularVelocity = 0
             body.usesPreciseCollisionDetection = true   // 던지기 터널링 방지(안착하면 다시 자동 false)
         }
+        // 잡히는 순간의 가벼운 '집혔다'. 물리 사건이라 §7.6 의미 매핑이 아니라 물리 질감 계열이고,
+        // 터치 시작은 그 자체로 빈도가 묶여 있어 스로틀을 태울 필요가 없다.
+        clatter.play(ClatterAccent.pick)
+        // 구르던 텍스처는 여기서 끊는다 — 손이 개입한 순간의 채널 주인은 드래그다.
+        endDragTexture()
     }
 
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
         guard let t = dragTouch, touches.contains(t), dragged != nil else { return }
         let raw = t.location(in: self)
         // 탭/드래그 판정은 시작점 기준 **누적** 이동 — 아무리 천천히 끌어도 탭으로 오판하지 않는다.
-        if hypot(raw.x - dragStart.x, raw.y - dragStart.y) > 8 { dragMoved = true }
+        if !dragMoved, hypot(raw.x - dragStart.x, raw.y - dragStart.y) > 8 {
+            dragMoved = true
+        }
         dragTarget = clampToBox(raw)   // 상자 밖으론 못 끌게 → 새지 않음. 실제 추종은 update()의 스프링.
     }
 
@@ -1784,6 +1967,7 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         guard touches.contains(t) else { return }
         defer {
             restoreChipZ(dragged)   // 승격 해제 — 스폰 때 정한 고정값으로 되돌린다(결정적)
+            endDragTexture()        // 호버 텍스처는 손을 떼는 즉시 끊는다(유예 없이)
             dragTouch = nil; dragged = nil; setZones(visible: false)
         }
         guard let node = dragged, let body = node.physicsBody else { return }
@@ -1811,12 +1995,22 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     }
 
     override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
-        guard let t = dragTouch else { setZones(visible: false); return }   // touchesEnded와 같은 이유
+        guard let t = dragTouch else { setZones(visible: false); endDragTexture(); return }   // touchesEnded와 같은 이유
         guard touches.contains(t) else { return }
         dragged?.physicsBody?.affectedByGravity = true
         restoreChipZ(dragged)
+        endDragTexture()
         dragTouch = nil
         dragged = nil
         setZones(visible: false)
+    }
+
+    /// 드래그가 끝날 때의 지속 촉감 정리 — 관문을 유예 없이 닫고 채널을 비운다.
+    /// 손을 뗀 뒤에도 호버 텍스처가 0.14초 더 울리면 그건 "붙들려 있다"는 거짓말이다.
+    private func endDragTexture() {
+        textureGate.reset()
+        lastRollTexture = nil
+        lastCapturedZone = nil
+        clatter.stopTexture()
     }
 }

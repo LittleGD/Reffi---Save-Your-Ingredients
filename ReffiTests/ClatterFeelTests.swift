@@ -22,6 +22,16 @@ struct ClatterFeelTests {
         #expect(rule.tailOnset == 0.67)
         #expect(rule.tailShortest == 0.040)
         #expect(rule.tailLongest == 0.070)
+        #expect(rule.decaySwing == 0.35)
+        #expect(rule.tailLead == 0.012)
+        #expect(rule.tailSweep == 0.45)
+    }
+
+    /// 재료를 안 주면 예전 촉감 그대로여야 한다 — `decay` 기본값 0.5는 **중립**이라는 계약이다.
+    /// 이게 깨지면 표에 없는 글리프(= `.standard`)의 촉감이 소리 없이 달라진다.
+    @Test func neutralDecayLeavesDurationUnchanged() {
+        #expect(abs(rule.decayFactor(0.5) - 1) < 1e-9)
+        #expect(ClatterMaterial(sharpness: 0.5, scale: 1).decay == 0.5)
     }
 
     /// 세기 곡선의 시작점은 스로틀의 임펄스 관문과 **같은 값이어야** 한다. 어긋나면 관문을 갓 넘은
@@ -206,5 +216,97 @@ struct ClatterFeelTests {
         #expect(tail.intensity < feel.intensity * 0.5)
         #expect(tail.sharpness < feel.sharpness)
         #expect(tail.intensity >= 0 && tail.sharpness >= 0)
+    }
+
+    // MARK: - 재질 공명 (감쇠 곡선)
+
+    /// **같은 세기라도 재질이 다르면 다르게 죽는다** — HD Rumble의 "재질이 감쇠를 정한다".
+    /// 단단한 캔(감쇠 0.85)은 딱 끊기고, 물먹은 두부(0.10)는 길게 끌린다.
+    @Test func harderMaterialsRingShorter() {
+        let can = ClatterMaterial(sharpness: 0.95, scale: 1.0, decay: 0.85)
+        let tofu = ClatterMaterial(sharpness: 0.10, scale: 0.50, decay: 0.10)
+        let canTail = rule.feel(impulse: 90, material: can, sequence: 7).tail
+        let tofuTail = rule.feel(impulse: 90, material: tofu, sequence: 7).tail
+        #expect(canTail != nil && tofuTail != nil)
+        #expect((canTail?.duration ?? 0) < (tofuTail?.duration ?? 0))
+        // 폭은 ±35%가 상한 — 이보다 벌어지면 재질이 세기 곡선을 덮는다.
+        #expect((tofuTail?.duration ?? 0) / (canTail?.duration ?? 1) < 2.1)
+    }
+
+    /// 감쇠 배율은 단조 감소하고 중립(0.5)에서 정확히 1이다 — 클래스 값을 조정할 때 방향이 뒤집히지 않게.
+    @Test func decayFactorIsMonotonicAroundNeutral() {
+        var last = TimeInterval.greatestFiniteMagnitude
+        for d in stride(from: Float(0), through: 1, by: 0.05) {
+            let f = rule.decayFactor(d)
+            #expect(f < last)
+            last = f
+        }
+        #expect(rule.decayFactor(0) > rule.decayFactor(1))
+        // 범위 밖 입력도 안전(클램프) — 물성 표에 0..1 밖 값이 들어와도 길이가 음수가 되면 안 된다.
+        #expect(rule.decayFactor(-3) == rule.decayFactor(0))
+        #expect(rule.decayFactor(9) == rule.decayFactor(1))
+    }
+
+    // MARK: - 저/고역 동시 구동 (겹침 · 주파수 하강 스윕)
+
+    /// HD Rumble 근사의 핵심 — **강한 충돌일수록 꼬리가 어택 쪽으로 당겨져 겹친다.**
+    /// 겹치는 순간 저역 연속과 고역 transient가 하나의 파형으로 합성돼 "무게 있는 한 방"이 된다.
+    /// 약한 충돌은 그대로 12ms 뒤에 붙어 '툭 → 잔향'으로 읽힌다.
+    @Test func strongerHitsOverlapTheAttack() {
+        let onset = rule.minImpulse + (rule.ceilingImpulse - rule.minImpulse) * CGFloat(rule.tailOnset)
+        let weak = rule.feel(impulse: onset + 0.2, material: plain, sequence: 0).tail
+        let peak = rule.feel(impulse: 90, material: plain, sequence: 0).tail
+        #expect((weak?.lead ?? 0) > 0.010)          // 갓 임계 = 거의 그대로 뒤에 붙는다
+        #expect(abs(peak?.lead ?? 1) < 1e-9)        // 최대 충돌 = 정확히 동시(겹침)
+        // 그 사이는 단조 감소여야 한다 — 튀면 같은 세기 대역에서 감각이 갈린다.
+        var last = TimeInterval.greatestFiniteMagnitude
+        for impulse in stride(from: onset + 0.5, through: 90, by: 1) {
+            guard let t = rule.feel(impulse: impulse, material: plain, sequence: 0).tail else { continue }
+            #expect(t.lead <= last + 1e-12)
+            last = t.lead
+        }
+    }
+
+    /// **주파수 하강 스윕** — 실제 충돌은 고주파가 먼저 죽는다. 세게 칠수록 더 깊이 떨어지되
+    /// 시프트 범위(−1...1)를 넘지 않아야 한다(넘으면 CoreHaptics가 커브를 거부한다).
+    @Test func sweepDeepensWithImpact() {
+        let onset = rule.minImpulse + (rule.ceilingImpulse - rule.minImpulse) * CGFloat(rule.tailOnset)
+        let weak = rule.feel(impulse: onset + 0.2, material: plain, sequence: 0).tail
+        let peak = rule.feel(impulse: 90, material: plain, sequence: 0).tail
+        #expect((weak?.sweep ?? 0) > 0)
+        #expect((peak?.sweep ?? 0) > (weak?.sweep ?? 0))
+        #expect((peak?.sweep ?? 0) <= 1)
+        #expect(abs((peak?.sweep ?? 0) - rule.tailSweep) < 1e-6)   // 최대 충돌 = 규칙이 정한 최대 폭
+    }
+
+    /// 스윕은 꼬리를 **음의 시프트**로 밀어내므로, 시작 날카로움에서 뺀 값이 음수여도 상관없다
+    /// (하드웨어가 0에서 클램프한다). 다만 규칙이 내놓는 값 자체는 항상 유한하고 0 이상이어야 한다.
+    @Test func tailValuesStayFinite() {
+        for s in stride(from: Float(0), through: 1, by: 0.1) {
+            for d in stride(from: Float(0), through: 1, by: 0.25) {
+                for impulse in stride(from: CGFloat(20), through: 200, by: 20) {
+                    let mat = ClatterMaterial(sharpness: s, scale: 1, decay: d)
+                    guard let t = rule.feel(impulse: impulse, material: mat, sequence: 3).tail else { continue }
+                    #expect(t.duration > 0 && t.duration < 0.2)
+                    #expect(t.lead >= 0 && t.lead <= rule.tailLead)
+                    #expect(t.sweep >= 0 && t.sweep <= 1)
+                    #expect(t.intensity >= 0 && t.intensity <= 1)
+                    #expect(t.sharpness >= 0 && t.sharpness <= 1)
+                }
+            }
+        }
+    }
+
+    // MARK: - 제스처 액센트
+
+    /// 잡기·캡처 스냅은 물리에서 파생되지 않는 상수라, **의도한 위계**만 못박는다:
+    /// 캡처(판정 자리에 붙음)가 잡기보다 확실히 세고, 캡처만 저역 꼬리를 어택과 동시에 얹는다.
+    @Test func captureSnapOutweighsPick() {
+        #expect(ClatterAccent.captureSnap.intensity > ClatterAccent.pick.intensity)
+        #expect(ClatterAccent.pick.tail == nil)
+        #expect(ClatterAccent.captureSnap.tail?.lead == 0)
+        // 두 액센트 모두 충돌 최대치를 넘지 않는다 — 제스처가 물리보다 세면 위계가 뒤집힌다.
+        let hardest = rule.feel(impulse: 90, material: ClatterMaterial(sharpness: 0.95, scale: 1), sequence: 0)
+        #expect(ClatterAccent.captureSnap.intensity < hardest.intensity)
     }
 }

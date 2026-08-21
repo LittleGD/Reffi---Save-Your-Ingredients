@@ -1,8 +1,8 @@
 import SwiftUI
 import UserNotifications
 
-/// 온보딩 — [인트로] 가치 3장(기록→레시피→리포트): 하단 버튼 없이 스와이프, 마지막 장에서 "Let's Start" 등장.
-///        [셋업 시트] "Let's Start" → 하단에서 올라오는 시트에서 개인화(가구·취향) + 알림 프라이밍을 Next로 진행.
+/// 온보딩 — [인트로] 가치 3장(기록→레시피→리포트): 하단 버튼 없이 스와이프, 마지막 장에서 "Let's start" 등장.
+///        [셋업 시트] "Let's start" → 하단에서 올라오는 시트에서 개인화(가구·취향) + 알림 프라이밍을 Next로 진행.
 /// 인트로/셋업 각각 3점 인디케이터. 혜택 중심 카피, 언제든 건너뛰기, 답은 ProfileStore에 즉시 저장(가입 전이어도 로컬 유지).
 struct OnboardingView: View {
     @Environment(ProfileStore.self) private var profile
@@ -11,12 +11,12 @@ struct OnboardingView: View {
     let onFinish: () -> Void
 
     @State private var page = 0             // 인트로 페이지 0…introLast
-    @State private var showSetup = false    // "Let's Start" → 하단에서 올라오는 셋업 시트
+    @State private var showSetup = false    // "Let's start" → 하단에서 올라오는 셋업 시트
     @State private var setupPage = 0        // 셋업 시트 내 페이지 0…setupLast
     @State private var stamping = false     // 셋업 완료 시 "Start" 도장 슬램 연출
     @State private var stampScale: CGFloat = 2.4
     @State private var stampOpacity: Double = 0
-    private let introLast = 2               // 인트로 마지막 장(page 2) — 여기서 "Let's Start"로 셋업 시트를 연다
+    private let introLast = 2               // 인트로 마지막 장(page 2) — 여기서 "Let's start"로 셋업 시트를 연다
     private let setupLast = 2               // 셋업 3장(가구·취향·알림)의 마지막
 
     init(onFinish: @escaping () -> Void) {
@@ -66,7 +66,7 @@ struct OnboardingView: View {
                 bottomButton
             }
         }
-        // "Let's Start" → 하단에서 올라와 화면 전체를 덮는 셋업(개인화·알림). Start cooking과 동일한 풀스크린 커버.
+        // "Let's start" → 하단에서 올라와 화면 전체를 덮는 셋업(개인화·알림). Start cooking과 동일한 풀스크린 커버.
         .fullScreenCover(isPresented: $showSetup) {
             setupSheet
         }
@@ -81,7 +81,7 @@ struct OnboardingView: View {
         }
     }
     private var motion: Animation? {
-        ReffiMotion.gated(.easeOut(duration: 0.24), reduce: reduceMotion)
+        ReffiMotion.gated(ReffiMotion.enter, reduce: reduceMotion)   // 면 전환 = 진입(§7.1 dur-3 ease-out)
     }
 
     // MARK: 상단 — 워드마크(좌) + 건너뛰기(우)
@@ -99,29 +99,49 @@ struct OnboardingView: View {
 
     // MARK: 가치 페이지 — 히어로(텍스트를 그대로 시각화한 미니 영수증) + 한글 디스플레이(§3.1)
 
+    /// 타이틀만 `LocalizedStringResource`인 이유: Display 폰트를 고르려면 **해석된 문자열**이 필요한데
+    /// `LocalizedStringKey`는 그 결과를 밖으로 내주지 않는다(아래 스크립트 폴백 주석 참고).
     private func valuePage<H: View>(@ViewBuilder hero: () -> H,
-                                    title: LocalizedStringKey, body copy: LocalizedStringKey) -> some View {
-        VStack(alignment: .center, spacing: ReffiSpace.s5) {
-            Spacer(minLength: 0)
-            hero()
-                .frame(maxWidth: .infinity)
-                .frame(height: 292)               // 고정 히어로 슬롯 — 3페이지 타이틀·본문 위치를 동일하게 고정
-                .padding(.bottom, ReffiSpace.s4)
+                                    title: LocalizedStringResource, body copy: LocalizedStringKey) -> some View {
+        // 페이저 안이라 넘친 콘텐츠를 되찾을 길이 없다 — `TabView(.page)`는 자기 경계로 잘라내고,
+        // 스와이프는 옆 장으로 갈 뿐 잘린 글자를 데려오지 않는다. 큰 글씨에서 타이틀·본문이 자라면
+        // 세로로 흐르게 두고 스크롤로 닿게 한다. 점·CTA는 이 밖(부모 VStack)에 고정이라 그대로 남는다.
+        // 히어로는 `GeometryReader`(이탈 클로저)에 들어가기 전에 값으로 받아 둔다 — 빌더 인자는 non-escaping이다.
+        let heroView = hero()
+        let titleText = String(localized: title)
+        return GeometryReader { geo in
+            ScrollView {
+                VStack(alignment: .center, spacing: ReffiSpace.s5) {
+                    Spacer(minLength: 0)
+                    heroView
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 292)       // 고정 히어로 슬롯 — 3페이지 타이틀·본문 위치를 동일하게 고정
+                        // 히어로는 **장식**(미니 영수증·티켓 소품)이라 글자 상한을 건다: 고정 폭 소품(250·272)이
+                        // AX에서 슬롯 292 밖으로 터져 나온다. 아래 타이틀·본문은 정보라 상한 없이 다 자란다.
+                        .dynamicTypeSize(...DynamicTypeSize.accessibility1)
+                        .padding(.bottom, ReffiSpace.s4)
 
-            // 영문 디스플레이 = Story Script(§3.1 브랜드 모먼트 — 워드마크·온보딩 타이틀). 인트로 카피는 가운데 정렬.
-            Text(title)
-                .reffiType(.display)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: .infinity)
-                .foregroundStyle(ReffiColor.ink)
-            Text(copy)
-                .reffiType(.body)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: .infinity)
-                .foregroundStyle(ReffiColor.ink2)
-            Spacer(minLength: 0)
+                    // 영문 디스플레이 = Story Script(§3.1 브랜드 모먼트 — 워드마크·온보딩 타이틀). 인트로 카피는 가운데 정렬.
+                    // 세 장 다 번역되는 타이틀이라 스크립트 폴백을 경유한다(ko는 Pretendard Bold, §3.1).
+                    Text(verbatim: titleText)
+                        .reffiType(.display, for: titleText)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
+                        .foregroundStyle(ReffiColor.ink)
+                    Text(copy)
+                        .reffiType(.body)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
+                        .foregroundStyle(ReffiColor.ink2)
+                    Spacer(minLength: 0)
+                }
+                // 컨테이너 높이를 바닥으로 깔아 기본 크기에서는 지금처럼 세로 가운데에 서고,
+                // 콘텐츠가 그보다 커질 때만 스크롤이 생긴다(위아래 Spacer가 남는 높이를 나눠 갖는다).
+                .frame(maxWidth: .infinity, minHeight: geo.size.height)
+                .padding(.horizontal, ReffiGrid.margin + ReffiSpace.s2)
+            }
+            .scrollBounceBehavior(.basedOnSize)
         }
-        .padding(.horizontal, ReffiGrid.margin + ReffiSpace.s2)
     }
 
     // MARK: 히어로 3종 — 각 페이지 카피를 시각적으로 재연(설명 일치)
@@ -193,7 +213,7 @@ struct OnboardingView: View {
             .padding(-12))
         // 카메라 배지 — "찍는" 행위.
         .overlay(alignment: .bottomTrailing) {
-            ReffiIcon.camera.reffi(18, .fill).foregroundStyle(.white)
+            ReffiIcon.camera.reffi(18, .fill).foregroundStyle(ReffiColor.onAccent)   // blue 면 위(§2.7)
                 .frame(width: 40, height: 40)
                 .background(ReffiColor.blue, in: Circle())
                 .overlay(Circle().stroke(ReffiColor.paper, lineWidth: 2.5))
@@ -225,7 +245,11 @@ struct OnboardingView: View {
         ZStack(alignment: .topTrailing) {
             PaperSilhouette(glyph: .egg, fresh: .fresh)
                 .frame(width: 132, height: 132)
-            DDayStamp(text: String(localized: "Today"), color: ReffiColor.urgentDark, size: 15)
+            // 이 도장은 크롬 단어가 아니라 **D-day 표기**다(`Ingredient.dDayText`가 오늘에 내는 그 값) —
+            // 온보딩이 가르친 표기를 본 앱이 그대로 써야 하므로 캡스도 냉장고 도장과 같이 간다.
+            DDayStamp(text: Ingredient.dDayText(daysLeft: 0), color: ReffiColor.urgentDark, size: 15,
+                      caps: false,
+                      accessibilityLabel: Ingredient.dDayAccessibilityText(daysLeft: 0))
                 .offset(x: 14, y: -6)
         }
     }
@@ -276,7 +300,7 @@ struct OnboardingView: View {
             // Cook this 밴드(정적) — 실제 카드의 blue 발주 CTA를 종이컷+그레인으로 그대로 재연.
             Text("Cook this")
                 .font(ReffiTextRole.subhead.font).tracking(ReffiTextRole.subhead.tracking)
-                .foregroundStyle(.white)
+                .foregroundStyle(ReffiColor.onAccent)   // 실제 카드와 같은 blue 면 위 콘텐츠(§2.7)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, ReffiSpace.s2 + 1)
                 .background {
@@ -291,7 +315,7 @@ struct OnboardingView: View {
         .padding(.vertical, ReffiSpace.s3)
         .frame(width: 250)
         .background(shape.fill(ReffiColor.paper))
-        .overlay(shape.stroke(ReffiColor.ink.opacity(0.07), lineWidth: 1))
+        .overlay(shape.stroke(ReffiColor.paperEdge, lineWidth: 1))
         .reffiShadow1()
         .clipped()   // 데이터 길이 방어(리뷰 P2-2) — 레시피명 2줄 등으로 늘어나도 카드 밖으로 넘치지 않게
     }
@@ -327,9 +351,12 @@ struct OnboardingView: View {
     /// 시드 로드 실패(빈 카탈로그) 폴백: 히어로를 숨기지 않고 사전(IngredientLexicon) 첫 엔트리들로 구성해
     /// 어떤 경로에도 소스코드 리터럴 레시피명이 남지 않게 한다.
     private static func heroTicket() -> HeroTicket {
-        let dDayMeta: [(String, Color)] = [("Today", ReffiColor.urgentDark),
-                                            ("1d", ReffiColor.soonDark),
-                                            ("2d", ReffiColor.soonDark)]
+        // D-day 표기는 앱 유일의 정본 포매터를 탄다(`Ingredient.dDayText`) — 위 냉장고 영수증(receiptRows)과
+        // 같은 규칙이다. 리터럴로 적으면 ko 기기에서 이 히어로만 영어로 남는다. 올캡도 씌우지 않는다:
+        // 냉장고 카드의 도장이 `caps: false`로 찍는 그 값이라 여기서 대문자로 바꾸면 표기가 갈린다.
+        let dDayMeta: [(String, Color)] = [(Ingredient.dDayText(daysLeft: 0), ReffiColor.urgentDark),
+                                            (Ingredient.dDayText(daysLeft: 1), ReffiColor.soonDark),
+                                            (Ingredient.dDayText(daysLeft: 2), ReffiColor.soonDark)]
         let seed = RecipeCatalog.loadSeed()
         if let recipe = seed.first(where: { $0.id == "bibimbap" })
             ?? seed.first(where: { $0.cuisine == "korean" && $0.ingredients.count >= 2 })
@@ -370,7 +397,7 @@ struct OnboardingView: View {
             .padding(.vertical, ReffiSpace.s4 + ReffiTooth.chip)
             .frame(width: 272)
             .background(ReffiColor.receipt, in: shape)
-            .paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
+            .paperEdge(shape)
             .reffiShadow1()
             .rotationEffect(.degrees(seed % 2 == 0 ? -2 : 2))
     }
@@ -495,7 +522,7 @@ struct OnboardingView: View {
         HStack(spacing: 6) {
             ForEach(0...introLast, id: \.self) { i in
                 Circle()
-                    .fill(i == page ? ReffiColor.ink2 : ReffiColor.muted.opacity(0.3))
+                    .fill(i == page ? ReffiColor.ink2 : ReffiColor.muted.opacity(ReffiOpacity.inactive))
                     .frame(width: 7, height: 7)
             }
         }
@@ -505,7 +532,7 @@ struct OnboardingView: View {
         .accessibilityLabel("Intro \(page + 1) of \(introLast + 1)")
     }
 
-    /// 인트로 하단 — 마지막 장에서만 "Let's Start"(셋업 시트 오픈), 그 전엔 조용한 "Next".
+    /// 인트로 하단 — 마지막 장에서만 "Let's start"(셋업 시트 오픈), 그 전엔 조용한 "Next".
     ///
     /// 1~2장에 전진 액션이 하나도 없던 시절엔 앱의 첫 화면에서 **유일하게 보이는 버튼이 이탈 경로(Skip)**라
     /// 위계상 탈출구가 #1이었다(감사 R3-2). 슬롯 높이(52)는 원래 예약돼 있어 레이아웃 점프 없이 들어간다.
@@ -514,7 +541,7 @@ struct OnboardingView: View {
     @ViewBuilder private var bottomButton: some View {
         VStack(spacing: ReffiSpace.s1) {
             if page == introLast {
-                PaperButton(title: "Let's Start", seed: 2) {
+                PaperButton(title: "Let's start", seed: 2) {
                     showSetup = true
                 }
                 .transition(.opacity.combined(with: .move(edge: .bottom)))
@@ -533,7 +560,7 @@ struct OnboardingView: View {
         .animation(motion, value: page)
     }
 
-    // MARK: 셋업 시트 — "Let's Start"로 하단에서 올라오는 개인화(가구·취향) + 알림 프라이밍
+    // MARK: 셋업 시트 — "Let's start"로 하단에서 올라오는 개인화(가구·취향) + 알림 프라이밍
 
     private var setupSheet: some View {
         ZStack {
@@ -542,8 +569,10 @@ struct OnboardingView: View {
                 // 상단 — 디스플레이 폰트(Story Script)로 현재 단계를 가운데 표기.
                 // 줄 끝 숫자 잘림 주의 — SwiftUI Text는 마지막 글리프를 advance에서 클리핑한다(UILabel은 무사).
                 // StoryScript 숫자 advance는 폰트에서 잉크 폭만큼 패치됨(§Fonts/StoryScript — `-titleClipLab` 실험 근거).
-                Text("Step \(setupPage + 1)")
-                    .reffiType(.display)
+                // ko는 "N단계" — 번역되는 Display라 스크립트 폴백을 경유한다(§3.1).
+                let stepText = String(localized: "Step \(setupPage + 1)")
+                Text(verbatim: stepText)
+                    .reffiType(.display, for: stepText)
                     .multilineTextAlignment(.center)
                     .foregroundStyle(ReffiColor.ink)
                     .frame(maxWidth: .infinity)
@@ -582,8 +611,9 @@ struct OnboardingView: View {
     /// "Start" 도장 슬램 — 큰 상태에서 스프링으로 내려앉으며(오버슈트) 임팩트 햅틱.
     private var startStamp: some View {
         ZStack {
-            // 스크림은 양 모드 자연스러운 고정 검정 유지(순검정 딤).
-            Color.black.opacity(0.10).ignoresSafeArea()
+            // 모달 딤(`scrim`)이 아니라 **슬램 플래시**다 — 도장이 내려앉는 0.75초만 배경을 눌러
+            // 무게를 주는 조명이라, 손이 멈춰 있는 동안 서 있는 모달 딤과 역할이 갈린다(§2.7 `scrimFlash`).
+            ReffiColor.scrimFlash.ignoresSafeArea()
             DDayStamp(text: String(localized: "Start"), color: ReffiColor.blueDark, size: 46)
                 .scaleEffect(stampScale)
                 .opacity(stampOpacity)
@@ -592,12 +622,13 @@ struct OnboardingView: View {
         }
         // §7.6 — 이 순간의 의미는 "셋업 저장 완료"라 성공 완료(`.success`)다. 앱에서 유일했던
         // `.impact(.heavy)`는 매핑 표에도 예외(SpriteKit 물리 텍스처)에도 근거가 없는 오프맵이었다.
-        .sensoryFeedback(.success, trigger: stamping)
+        .reffiFeedback(.success, trigger: stamping)
         .onAppear {
-            let anim: Animation = reduceMotion
-                ? .easeOut(duration: 0.2)
-                : .spring(response: 0.26, dampingFraction: 0.5)   // 오버슈트 = 쾅
-            withAnimation(anim) { stampScale = 1; stampOpacity = 1 }
+            // 오버슈트 = 쾅(§7.5 slam). Reduce Motion이면 도장은 연출 없이 그 자리에 찍혀 있다
+            // (§7.4 — 줄이면 짧은 페이드로 갈아타는 게 아니라 애니메이션을 없앤다).
+            withAnimation(ReffiMotion.gated(ReffiMotion.slam, reduce: reduceMotion)) {
+                stampScale = 1; stampOpacity = 1
+            }
         }
     }
 
@@ -613,7 +644,7 @@ struct OnboardingView: View {
         HStack(spacing: 6) {
             ForEach(0...setupLast, id: \.self) { i in
                 Circle()
-                    .fill(i == setupPage ? ReffiColor.ink2 : ReffiColor.muted.opacity(0.3))
+                    .fill(i == setupPage ? ReffiColor.ink2 : ReffiColor.muted.opacity(ReffiOpacity.inactive))
                     .frame(width: 7, height: 7)
             }
         }
@@ -700,8 +731,8 @@ private struct HeroReveal: ViewModifier {
     private var animation: Animation {
         switch kind {
         case .pop: ReffiMotion.pop
-        case .stamp: .spring(response: 0.26, dampingFraction: 0.5)   // 오버슈트 = 쾅
-        case .riseUp: .spring(response: 0.55, dampingFraction: 0.72) // 스르륵 올라와 살짝 정착
+        case .stamp: ReffiMotion.slam      // 오버슈트 = 쾅(§7.5) — 셋업 Start 도장과 같은 토큰
+        case .riseUp: ReffiMotion.settle   // 스르륵 올라와 살짝 정착 = reflow와 같은 안착 스프링
         }
     }
 }
@@ -739,10 +770,13 @@ private struct FlashReveal: ViewModifier {
         token += 1
         let gen = token
         shown = false
-        withAnimation(.easeOut(duration: 0.42)) { shown = true }      // 페이드 인
+        // 들고 나는 것은 §7.1 그대로다 — 오브젝트가 뜨는 것은 **진입**(ease-out dur-3),
+        // 지는 것은 **이탈**(ease-in dur-1, 더 빠르게). 0.42/0.33은 어느 토큰에도 없던 길이라
+        // 이 연출만 다른 시계를 쓰고 있었다. 머무는 시간(hold)은 아래 0.9초가 그대로 잡는다.
+        withAnimation(ReffiMotion.enter) { shown = true }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) {
-            guard gen == token, active else { return }               // 최신 재생만 사라지게
-            withAnimation(.easeIn(duration: 0.33)) { shown = false }  // 페이드 아웃
+            guard gen == token, active else { return }   // 최신 재생만 사라지게
+            withAnimation(ReffiMotion.exit) { shown = false }
         }
     }
 }

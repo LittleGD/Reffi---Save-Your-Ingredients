@@ -79,7 +79,10 @@ final class FridgeStore {
     private let snapshotRetentionDays = 60
 
     static let currentSchemaVersion = 2
-    static let log = Logger(subsystem: "com.reffi.app", category: "store")
+    /// `nonisolated`인 이유: 이 클래스는 `@MainActor`라 static 프로퍼티도 메인 격리를 물려받는데,
+    /// 영속화 쓰기는 `ioQueue`(비격리 Sendable 클로저)에서 실패를 남긴다. `Logger`는 Sendable이므로
+    /// 격리를 벗기는 것이 맞다 — 안 벗기면 그 자리가 경고로 남고, 다음 사람이 로그를 지워서 지운다.
+    nonisolated static let log = Logger(subsystem: "com.reffi.app", category: "store")
 
     // MARK: - Init / 영속화
 
@@ -535,6 +538,13 @@ final class FridgeStore {
         var memoRestore: MemoRestore?              // memoRemoved 전용
     }
 
+    /// 되돌리기 창의 길이(초). 기본 6, **VoiceOver가 켜지면 UI 레이어가 늘려 준다**(`RootTabView`) —
+    /// 고지를 듣고 토스트로 포커스를 옮겨 Undo까지 가는 데 6초로는 닿지 못한다. 값만 받는 이유는
+    /// 이 클래스가 순수 데이터이기 때문이다: 여기서 `UIAccessibility`를 보면 스토어가 UI를 알게 된다.
+    var undoWindowSeconds: Double = FridgeStore.defaultUndoWindow
+    static let defaultUndoWindow: Double = 6
+    static let voiceOverUndoWindow: Double = 14
+
     private func beginUndo(_ kind: PendingUndo.Kind, logIDs: [UUID], counterSnapshot: [UUID],
                            leftoverSnapshots: [Ingredient] = [],
                            restoreSnapshots: [Ingredient] = [],
@@ -547,8 +557,10 @@ final class FridgeStore {
                                   restoreSnapshots: restoreSnapshots,
                                   previousSession: previousSession,
                                   memoRestore: memoRestore)
+        // 창 길이는 **열 때 정해진다** — 도중에 값이 바뀌어도 이미 뜬 토스트의 수명은 흔들리지 않는다.
+        let window = undoWindowSeconds
         Task { [weak self] in
-            try? await Task.sleep(for: .seconds(6))
+            try? await Task.sleep(for: .seconds(window))
             guard let self, self.pendingUndo?.token == token else { return }
             self.pendingUndo = nil
         }
@@ -650,7 +662,7 @@ final class FridgeStore {
 
     /// 자주 쓰는데(이력에 있는데) 지금 냉장고엔 없는 = 사야 할 식재료 **제안**. 빈도 많은 순.
     /// 비교는 전부 matchKey(캐논 ID 우선) — 표기(Milk/milk, 양파/onion)가 달라도 한 품목으로 묶인다.
-    /// 표시는 최근 로그의 원문.
+    /// 표시는 최근 로그의 `displayName`(로케일 박제 방지 + 사용자 표기 보존, 전역 단일 정책).
     private var derivedToBuy: [(name: String, glyph: FoodGlyph, key: String)] {
         let inStock = Set(ingredients.map(\.matchKey))
         let dismissed = Set(dismissedToBuy.map(dismissKey))
@@ -660,7 +672,7 @@ final class FridgeStore {
                 guard let first = logs.first,   // history는 최신이 앞 → 최근 표기
                       !inStock.contains(key),
                       !dismissed.contains(key) else { return nil }
-                return (name: first.name, glyph: first.glyph, key: key, count: logs.count)
+                return (name: first.displayName, glyph: first.glyph, key: key, count: logs.count)
             }
             .sorted { $0.count != $1.count ? $0.count > $1.count : $0.name < $1.name }
             .map { (name: $0.name, glyph: $0.glyph, key: $0.key) }
@@ -680,23 +692,16 @@ final class FridgeStore {
                           .map { (name: $0.name, glyph: $0.glyph, manual: false, key: $0.key) }
     }
 
-    /// 수동 항목 한 줄의 **표시 이름** — "데이터는 캐논으로, 표시만 로컬라이즈"를 이 한 곳에서 지킨다.
+    /// 수동 항목 한 줄의 **표시 이름** — `Ingredient`·`RemovalLog`와 **같은 함수**를 탄다
+    /// (`IngredientLexicon.displayName(stored:canonicalID:)`, 앱 전역 단일 정책).
     ///
-    /// 저장된 `name`은 담을 때의 표기 스냅샷이라 로케일이 박제된다: 한국어 기기에서 사전 타일로
-    /// 담은 "양파"는 앱 언어를 영어로 바꿔도 "양파"로 남고, 같은 시트의 타일은 "Onion"으로 떠
-    /// 한 화면 건너 표기가 갈렸다. 캐논이 있으면 지금 로케일의 표제어로 다시 그린다.
-    ///
-    /// 다만 **캐논만 보고 무조건 덮지 않는다** — 저장된 표기가 사전 표제어(en/ko)와 실제로
-    /// 일치할 때만 바꾼다. FREQUENT 칩은 이력 로그의 원문("서울우유1L")을 이름으로 싣고 캐논은
-    /// `milk`라, 무조건 덮으면 사용자가 적은 그 표기를 잃는다(`ManualBuyItem` 주석의 전제).
+    /// 이 줄이 특히 예민한 이유: 저장된 `name`은 담을 때의 표기 스냅샷이라 한국어 기기에서 사전
+    /// 타일로 담은 "양파"는 언어를 바꿔도 "양파"로 남는데, 같은 시트의 타일은 "Onion"으로 떠
+    /// 한 화면 건너 표기가 갈린다. 반대로 FREQUENT 칩은 이력 원문("서울우유1L")을 이름으로 싣고
+    /// 캐논만 `milk`라, 무조건 덮으면 사용자가 적은 그 표기를 잃는다(`ManualBuyItem` 주석의 전제).
+    /// 가드형은 두 요구를 동시에 만족시키는 유일한 답이다.
     static func displayName(for item: ManualBuyItem) -> String {
-        guard let id = item.canonicalID, let entry = IngredientLexicon.shared.entry(id: id) else {
-            return item.name
-        }
-        let stored = IngredientLexicon.norm(item.name)
-        let lexiconForms = (entry.names.en + entry.names.ko).map(IngredientLexicon.norm)
-        guard lexiconForms.contains(stored) else { return item.name }   // 사용자 표기 — 그대로 둔다
-        return entry.displayName
+        IngredientLexicon.shared.displayName(stored: item.name, canonicalID: item.canonicalID)
     }
 
     /// 지금 **메모에 떠 있는** 품목 키 — 검색 시트의 '이미 담김' 도장이 읽는다(행마다 재계산 방지).
@@ -725,7 +730,7 @@ final class FridgeStore {
         let ranked = Dictionary(grouping: history) { $0.matchKey }
             .compactMap { key, logs -> (name: String, glyph: FoodGlyph, key: String, count: Int)? in
                 guard let first = logs.first else { return nil }   // history는 최신이 앞 → 최근 표기
-                return (name: first.name, glyph: first.glyph, key: key, count: logs.count)
+                return (name: first.displayName, glyph: first.glyph, key: key, count: logs.count)
             }
             .sorted { $0.count != $1.count ? $0.count > $1.count : $0.name < $1.name }
             .prefix(limit)

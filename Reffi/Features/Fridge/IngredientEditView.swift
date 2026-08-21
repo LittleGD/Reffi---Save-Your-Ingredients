@@ -69,7 +69,7 @@ struct IngredientEditView: View {
         .presentationDragIndicator(.visible)
         .presentationBackground(ReffiColor.canvas)
         .interactiveDismissDisabled(isDirty)
-        .sensoryFeedback(.warning, trigger: deleteHaptic)
+        .reffiFeedback(.warning, trigger: deleteHaptic)
         .confirmationDialog(Text("Delete this ingredient?"), isPresented: $showDeleteConfirm,
                             titleVisibility: .visible) {
             Button("Delete", role: .destructive) {
@@ -106,9 +106,12 @@ struct IngredientEditView: View {
         }
     }
 
+    /// 진입 `.enter` / 이탈 `.exit`(§7.1) — 메뉴는 읽으러 여는 것이라 예산이 짧다.
+    /// `pop`(§7.5)은 종이컷 표면이 튀어 오르는 문법이라 340ms + 오버슈트로 그 예산을 깬다
+    /// (냉장고 정렬 메뉴와 같은 판단 — "탭 → 옵션 목록"은 앱 전체에서 한 문법이다).
     private func toggle(_ which: OpenDropdown) {
         let opening = openDropdown != which
-        withAnimation(ReffiMotion.gated(opening ? ReffiMotion.pop : ReffiMotion.exit,
+        withAnimation(ReffiMotion.gated(opening ? ReffiMotion.enter : ReffiMotion.exit,
                                         reduce: reduceMotion)) {
             openDropdown = opening ? which : nil
         }
@@ -156,10 +159,11 @@ struct IngredientEditView: View {
                     .frame(width: 64)
                 // 스톡 `.pickerStyle(.menu)`(흰 시스템 팝업) 대신 앱 커스텀 종이 드롭다운 —
                 // "탭 → 옵션 목록"이 앱 전체에서 한 문법이어야 한다(커먼 룰 H).
+                // 라벨이 현재 값까지 안고 간다 — 값 자리는 트리거가 펼침/접힘을 말하는 데 쓴다
+                // (정렬 칩의 "Filter: …"와 같은 문법).
                 PaperDropdownTrigger(label: draft.quantity.unit.label,
                                      isOpen: openDropdown == .unit, seed: 5) { toggle(.unit) }
-                    .accessibilityLabel(Text("Unit"))
-                    .accessibilityValue(Text(verbatim: draft.quantity.unit.label))
+                    .accessibilityLabel(Text("Unit: \(draft.quantity.unit.label)"))
             }
             .frame(minHeight: 40)
 
@@ -168,8 +172,11 @@ struct IngredientEditView: View {
             HStack {
                 Text("Where").reffiType(.body).foregroundStyle(ReffiColor.ink)
                 Spacer(minLength: ReffiSpace.s4)
-                TextField("Add place", text: $draft.place,
-                          prompt: Text("Add place").foregroundStyle(ReffiColor.ink2))
+                // 필드 이름은 왼쪽 행 라벨과 **같은 "Where"**다 — 라벨이 이미 무슨 칸인지 말했으므로
+                // 자리표시자까지 그 이름을 되풀이하면 한 줄에 같은 말이 두 번 선다. 자리표시자는
+                // **예시**를 맡는다(영수증 후보 편집 시트의 구매처 필드와 같은 짝).
+                TextField("Where", text: $draft.place,
+                          prompt: Text("e.g. Emart").foregroundStyle(ReffiColor.ink2))
                     .multilineTextAlignment(.trailing)
                     .reffiType(.body).foregroundStyle(ReffiColor.ink)
             }
@@ -183,8 +190,7 @@ struct IngredientEditView: View {
                 // 저장값은 영문 식별자 그대로, 표시만 로컬라이즈(`StorageLocation.label`).
                 PaperDropdownTrigger(label: draft.storage.label,
                                      isOpen: openDropdown == .storage, seed: 3) { toggle(.storage) }
-                    .accessibilityLabel(Text("Storage"))
-                    .accessibilityValue(Text(verbatim: draft.storage.label))
+                    .accessibilityLabel(Text("Storage: \(draft.storage.label)"))
             }
             .frame(minHeight: 40)
 
@@ -236,7 +242,7 @@ struct IngredientEditView: View {
                 .background {
                     // 조용한 종이 면 + urgent 틴트 헤어라인(보더 아님) — 그림자 없이 Save보다 잔잔하게.
                     let s = PaperRect(cornerRadius: ReffiRadius.md, seed: 9)
-                    s.fill(ReffiColor.paper).paperEdge(s, tint: ReffiColor.urgentDark.opacity(0.18))
+                    s.fill(ReffiColor.paper).paperEdge(s, tint: ReffiColor.paperEdgeAccent(ReffiColor.urgentDark))
                 }
             }
             .buttonStyle(.paperPress)

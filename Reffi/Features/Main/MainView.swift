@@ -14,11 +14,19 @@ struct MainView: View {
     /// 앱이 백그라운드로 내려가면 씬을 확실히 멈춘다(아래 scenePaused). `.inactive`는 **일부러 뺐다** —
     /// 앱 전환기·알림 배너 같은 잠깐의 상태에서도 씬이 멈춰 첫 프레임이 회색으로 남는다.
     @Environment(\.scenePhase) private var scenePhase
+    /// 큰 글자에서 상단 블록의 배치를 가른다(아래 body) — 그 크기에선 헤더와 상태 카드만으로
+    /// 뷰포트를 넘겨, 물리 필드가 자리를 다 내주고도 글자가 잘렸다.
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     // 알림 유도(프리퍼미션) — 첫 임박 재료가 생긴 순간이 가치가 증명되는 순간이다.
     // 알림은 기본 OFF + 스위치가 MyPage에만 있어, 여기서 한 번 제안하지 않으면 발견되지 않는다.
     @AppStorage(ExpiryNotifier.enabledKey) private var alertsEnabled = false
     @AppStorage("expiryAlertPromptSeen") private var alertPromptSeen = false
+
+    // 프로필 "감각" 토글 — 씬이 이미 떠 있는 상태에서 바꿔도 다음 프레임부터 반영된다(아래 onChange).
+    // 시스템 Reduce Motion이 우선이고, 이 둘은 그 위에 얹히는 사용자 선택이다(§7.4 · `ReffiFeedback`).
+    @AppStorage(ReffiFeedback.hapticsKey) private var hapticsEnabled = true
+    @AppStorage(ReffiFeedback.tiltKey) private var tiltEnabled = true
 
     /// 현재 탭으로 표시 중인지 — 아닐 때 물리 씬을 일시정지한다(배터리).
     var isActive: Bool = true
@@ -53,20 +61,64 @@ struct MainView: View {
     @State private var pendingToBuyJump = false
     @State private var fireHaptic = 0
     @State private var decisionHaptic = 0
+    /// 필드 실측 폭 — `fieldRestHeight`의 한 줄 하한이 칩 변(폭 파생)을 알아야 해서 잰다.
+    /// 첫 레이아웃 전(0)에는 행 공식만 쓰고, 폭이 잡히면 같은 프레임에 하한이 따라온다.
+    @State private var fieldWidth: CGFloat = 0
+    /// 필드가 실제로 받은 레이아웃 슬롯 — 드래그 하늘은 이 슬롯을 **바꾸지 않고** 위로 넘친다.
+    @State private var fieldSlotHeight: CGFloat = 0
+    /// 상태 카드(발주 진행/알림 배너)의 실측 높이(+상단 s3) — 드래그 하늘이 이 카드 **뒤까지** 닿는다.
+    /// 카드가 없으면 0: 하늘은 카드가 있던 선(슬롯 위 dragFieldHeadroom)에서 멈춘다.
+    /// 정지 캡은 더미를 껴안는 게 맞지만, 잡는 순간에는 들어 올릴 하늘이(드래그),
+    /// 낳는 순간에는 떨어져 들어올 하늘이(스폰 = 화면 최상단 밖) 있어야 한다(§13.4).
+    /// 슬롯 상단의 화면 기준 y — 스폰 하늘이 "화면 최상단 밖"까지 열리는 데 필요한 거리.
+    @State private var fieldSlotGlobalTop: CGFloat = 0
+    /// 직전 렌더의 뱃지 id — 이번에 **새로 들어온 뱃지**를 가려내 등장 스태거를 매기는 기준이다.
+    @State private var knownBadgeIDs: Set<Ingredient.ID> = []
 
     private let margin = ReffiGrid.margin
-    private let navClearance: CGFloat = 86
 
-    private var counter: [Ingredient] { store.counterIngredients }
+    /// 이 프레임의 작업대 — **body 진입부에서 한 번만** 뽑아 아래로 흘린다.
+    /// `store.counterIngredients`는 호출마다 재료 사전을 새로 만들고 전체를 다시 정렬하는데,
+    /// 예전엔 헤더 문구·배경 어컨트·필드 캡·뱃지 행·씬 동기화 키가 각자 그것을 불러
+    /// 한 body에 열 번 넘게 같은 정렬을 돌렸다(store가 바뀔 때마다, 즉 판정 한 번에 여러 번).
+    /// 파생값(수·맨 앞 신선도·id 배열)도 여기서 함께 굳혀 하위가 다시 훑지 않게 한다.
+    private struct CounterDigest {
+        let items: [Ingredient]
+        /// 뱃지 행의 ForEach·전환 트리거가 쓰는 id 배열 — 세 곳이 각자 map 하지 않게 한 번만.
+        let ids: [Ingredient.ID]
+        /// 맨 앞(가장 임박) 재료의 신선도 — 배경 색면의 어컨트.
+        let topFreshness: Freshness
+        let urgent: Int
+        let soon: Int
+
+        init(_ items: [Ingredient]) {
+            self.items = items
+            ids = items.map(\.id)
+            topFreshness = items.first?.freshness ?? .fresh
+            var urgent = 0
+            var soon = 0
+            for item in items {
+                switch item.freshness {
+                case .urgent: urgent += 1
+                case .soon:   soon += 1
+                case .fresh:  break
+                }
+            }
+            self.urgent = urgent
+            self.soon = soon
+        }
+    }
+
+    /// **이벤트 시점**의 작업대 — 탭·제스처·발주가 도착한 그 순간을 읽는다.
+    /// body가 쓰는 `CounterDigest`와 갈라 둔 것은 의도다: 판정은 커버가 열려 있던 동안 바뀐 재고를
+    /// 봐야 하고, 그리기는 이 프레임의 한 장을 봐야 한다(둘을 하나로 묶으면 한쪽이 조용히 낡는다).
+    private var liveCounter: [Ingredient] { store.counterIngredients }
     private var carouselResults: [RecipeRecommender.Result] {
         // 소비 후보 = 전체 가용 재고(예약 제외) — 티켓이 쓰는 재료가 작업대 밖에 있어도
         // 함께 소비 처리돼 '실제로 썼는데 재고에 남는' 유령 재고가 생기지 않는다.
         // 프로필 취향(§5.2)을 랭킹에 실배선 — 알레르기 하드 필터·선호/기피/요리스타일 보정.
         Array(store.rankedRecipes(preferences: RecipePreferences(profile: profile)).prefix(3))
     }
-    private var topF: Freshness { counter.first?.freshness ?? .fresh }
-    private var urgentCount: Int { counter.lazy.filter { $0.freshness == .urgent }.count }
-    private var soonCount: Int { counter.lazy.filter { $0.freshness == .soon }.count }
     /// 씬 일시정지 — 다른 탭, 그리고 씬을 완전히 덮는 **풀스크린 커버**(캐러셀·조리 화면·판정)에
     /// 가려진 동안은 물리 렌더와 60Hz 모션 갱신을 멈춘다. 조리 화면(`showSteps`)은 불투명 커버라
     /// 여기서 빠지면 안 보이는 씬이 계속 돌고 손 움직임이 그 씬을 다시 깨운다.
@@ -78,70 +130,90 @@ struct MainView: View {
         !isActive || scenePhase == .background || showCarousel || showSteps || deciding != nil
     }
     /// 씬 동기화 트리거 — id·이름·글리프·신선도 어느 것이 바뀌어도 칩이 따라간다.
-    private var sceneSyncKey: [String] {
-        counter.map { "\($0.id.uuidString)#\($0.name)#\($0.glyph.rawValue)#\($0.freshness)" }
+    private func sceneSyncKey(_ counter: CounterDigest) -> [String] {
+        counter.items.map { "\($0.id.uuidString)#\($0.name)#\($0.glyph.rawValue)#\($0.freshness)" }
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            header
-                .padding(.horizontal, margin)
-                // **세 루트 페이지의 제목이 같은 높이에서 시작한다**(23차). 냉장고·프로필이 둘 다
-                // `s5`인데 홈만 `s2`라 탭을 오갈 때 제목이 16pt 튀었다(실측: 홈 78.3pt vs 나머지 94.5pt).
-                // 남는 세로 공간은 아래 `physicsField`가 `maxHeight: .infinity` + 바닥 정렬로 흡수하므로
-                // 더미가 앉는 자리는 그대로다(필드는 `fieldRestHeight`로 이미 캡이 걸려 있다).
-                .padding(.top, ReffiSpace.s5)
+        // 이 프레임의 작업대를 여기서 **한 번만** 뽑는다(위 `CounterDigest` 주석) — 아래 조각들은
+        // 전부 이 한 장을 받아 쓴다. 예전엔 조각마다 store를 다시 불러 같은 정렬이 반복됐다.
+        let counter = CounterDigest(store.counterIngredients)
+        return VStack(spacing: 0) {
+            if typeSize.isAccessibilitySize {
+                // **큰 글자에선 상단 블록이 스크롤한다.** 헤더(워드마크+날짜+미션)와 상태 카드만으로
+                // 뷰포트를 넘겨서, 아래 필드가 자리를 0까지 내주고도 날짜·미션·배너가 한 줄씩으로
+                // 깎였다(AX5 실측). 그 크기에서 필드를 물리는 것은 손해가 아니다: SpriteKit 노드라
+                // 접근성 트리에 없는 표면이고, 거기서만 되는 일(끌어서 판정)도 바로 아래 뱃지 탭이
+                // 그대로 연다 — 큰 글자를 켠 사람에게 잘린 글자 대신 온전한 글자를 준다.
+                // 필드가 있던 자리를 그대로 물려받으므로(같은 위치·같은 흡수 역할) 뱃지 행과 CTA는
+                // 두 배치에서 같은 자리에 못 박혀 있다. AX 크기 전환은 이 앱의 기존 처세와 같은 문법이다
+                // (캡슐 네비=아이콘만, 냉장고=간편 목록).
+                ScrollView {
+                    VStack(spacing: 0) {
+                        statusBlock(counter)
+                        // 작업대가 비면 필드가 그리던 안내를 여기서 그대로 세운다 — 그릴 칩이 없는
+                        // 씬은 배경일 뿐이라, 안내만 옮겨도 잃는 것이 없다. 옮기지 않으면 이 안내는
+                        // 필드가 받은 몫 안에서 짓눌려 CTA 위로 겹쳐 흘렀다(AX5 실측).
+                        if counter.items.isEmpty {
+                            emptyField
+                                .padding(.horizontal, margin)
+                                .padding(.top, ReffiSpace.s6)
+                        }
+                    }
+                }
+                // 내용이 뷰포트 안에 들어오면 튕기지 않는다 — 스크롤이 생겼다는 신호는 넘칠 때만.
+                .scrollBounceBehavior(.basedOnSize)
+                .layoutPriority(-1)   // 아래 필드와 같은 이유로 **남는 것을 받는** 자리다
+            } else {
+                statusBlock(counter)
+                    // 종이 카드가 **앞**, 그 뒤가 하늘 — 드래그 오버행(아래 필드의 위로 넘친 몫)이
+                    // 배너 카드 밑으로 미끄러져 들어간다. 순서상 필드가 나중이라 zIndex 없이는
+                    // 넘친 씬이 카드를 덮는다.
+                    .zIndex(1)
 
-            // 발주 진행 카드(§13.6 C) — 헤더 아래 죽은 공간이 상태 표면이 된다.
-            if let cook = store.activeCook {
-                cookingNowCard(cook)
-                    .padding(.horizontal, margin)
-                    .padding(.top, ReffiSpace.s3)
-                    .transition(.move(edge: .top).combined(with: .opacity))
-            } else if showAlertPrompt {
-                alertPromptCard
-                    .padding(.horizontal, margin)
-                    .padding(.top, ReffiSpace.s3)
-                    .transition(.move(edge: .top).combined(with: .opacity))
+                physicsField(counter)
+                    // 씬의 실높이 = **항상 화면 최상단까지**(오너 결정: 물리 천장은 폰 화면 끝
+                    // 가장자리 고정, 가변 금지 — 여닫는 하늘은 자이로에 안 열리고 열림도 비일관이라
+                    // 걷어냈다). SwiftUI 프레임은 클립하지 않으므로 SKView가 카드·헤더 뒤로 올라서고,
+                    // 레이아웃 슬롯(아래 maxHeight 프레임)은 고정이라 형제들은 미동도 하지 않는다.
+                    // 리사이즈는 재료 수가 바뀔 때뿐 — 드래그·자이로·스폰이 같은 천장을 쓴다.
+                    .frame(height: fieldSceneHeight(counter), alignment: .bottom)
+                    .frame(maxWidth: .infinity, maxHeight: fieldRestHeight(counter), alignment: .bottom)
+                    .onGeometryChange(for: CGRect.self, of: { $0.frame(in: .global) }) { r in
+                        fieldWidth = r.width
+                        fieldSlotHeight = r.height
+                        fieldSlotGlobalTop = r.minY
+                        scene.restHeight = r.height   // 존 앵커의 정본 — 하늘과 무관하게 제자리
+                    }
+                    // 남는 공백은 **전부 위로** 몬다 — 더미가 뱃지 바로 위에 내려앉는다.
+                    // 가운데 정렬이던 시절엔 필드 상자 자체가 화면 중앙에 떠서, 칩이 상자 바닥에
+                    // 정확히 붙어 있는데도 "바닥에 안 붙는다"로 읽혔다(-physLab 오버레이로 확인).
+                    // 중력 방향(아래)과 더미가 앉는 자리가 어긋나면 물리가 거짓말하는 것처럼 보인다.
+                    .frame(maxHeight: .infinity, alignment: .bottom)
+                    // **필드는 남는 것을 받는 자리지, 먼저 가져가는 자리가 아니다.** VStack은 같은
+                    // 우선순위의 자식들에게 "남은 높이 ÷ 남은 개수"를 차례로 제안하는데,
+                    // `maxHeight: .infinity`인 이 상자는 제안받은 몫을 통째로 삼킨다 — 그래서 자리가
+                    // 빠듯해지면 헤더 문장이 먼저 깎였다. 순위를 낮춰 **맨 마지막에** 세우면 헤더와
+                    // 상태 카드가 제 높이를 먼저 가져가고 필드가 그 나머지를 받는다(넉넉한 기본
+                    // 크기에선 순서만 바뀔 뿐 값이 같다 — 픽셀 대조 완료).
+                    .layoutPriority(-1)
             }
 
-            physicsField
-                .frame(maxWidth: .infinity, maxHeight: fieldRestHeight)
-                // 남는 공백은 **전부 위로** 몬다 — 더미가 뱃지 바로 위에 내려앉는다.
-                // 가운데 정렬이던 시절엔 필드 상자 자체가 화면 중앙에 떠서, 칩이 상자 바닥에
-                // 정확히 붙어 있는데도 "바닥에 안 붙는다"로 읽혔다(-physLab 오버레이로 확인).
-                // 중력 방향(아래)과 더미가 앉는 자리가 어긋나면 물리가 거짓말하는 것처럼 보인다.
-                .frame(maxHeight: .infinity, alignment: .bottom)
-
-            if !counter.isEmpty {
-                badgeScroll
-                    .padding(.bottom, ReffiSpace.s2)
-                    .id(dayTick)   // 자정 경과 시 D-day·신선도색 재계산
-            }
+            badgeRow(counter)
 
             PaperButton(title: "Start cooking") { cook() }
                 .padding(.horizontal, margin)
                 .padding(.top, ReffiSpace.s3)
-                .padding(.bottom, navClearance)
-                .disabled(counter.isEmpty)   // 디밍은 PaperButton이 §7.2로 처리 — 여기서 겹치면 곱해진다.
+                // 스크롤이 아니라 화면에 못 박힌 CTA라 **자리 예약** 쪽이다(§9.3) — 냉장고 펼침의
+                // 바닥 여백과 같은 값을 본다. 홈만 자기 상수(86)를 들고 있어 네비 높이를 건드리면
+                // 여기만 조용히 어긋났다.
+                .padding(.bottom, ReffiChrome.navReserve)
+                .disabled(counter.items.isEmpty)   // 디밍은 PaperButton이 §7.2로 처리 — 여기서 겹치면 곱해진다.
         }
         .animation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion), value: store.activeCook)
-        .background {
-            ZStack {
-                LiquidGlassBackground(accent: topF.main, accentDeep: topF.dark)
-                // 긴급도 연출(F) — 오늘 만료가 있으면 상단에 옅은 웜톤 시노.
-                if urgentCount > 0 {
-                    LinearGradient(colors: [ReffiColor.urgent.opacity(0.14), .clear],
-                                   startPoint: .top, endPoint: .center)
-                        .ignoresSafeArea()
-                        .allowsHitTesting(false)
-                }
-            }
-            .animation(ReffiMotion.gated(.easeInOut(duration: 0.5), reduce: reduceMotion), value: topF)
-            .animation(ReffiMotion.gated(.easeInOut(duration: 0.5), reduce: reduceMotion), value: urgentCount > 0)
-        }
-        .sensoryFeedback(.impact(weight: .medium), trigger: fireHaptic)
-        .sensoryFeedback(.impact(weight: .light), trigger: decisionHaptic)
+        .background { background(counter) }
+        .reffiFeedback(.impact(weight: .medium), trigger: fireHaptic)
+        .reffiFeedback(.impact(weight: .light), trigger: decisionHaptic)
         .fullScreenCover(isPresented: $showCarousel, onDismiss: {
             // 덱이 사라졌으면 그 위에 뜬 것도 없다 — 신호가 true로 굳으면 **다음 발주의 지연 닫기가
             // 영영 미뤄진다**(팝업엔 해체 완료 훅이 없어 극단 타이밍에서 실제로 굳을 수 있다).
@@ -194,9 +266,11 @@ struct MainView: View {
             AddIngredientSheet()   // presentationDetents는 시트 내부에서 적용(중복 방지)
         }
         // 자정 경과 — D-day·신선도 파생 UI와 씬 라벨 점을 다시 계산한다.
+        // 씬에 넘기는 목록은 **그때의 재고**다(`liveCounter`) — 이 클로저는 마지막 body의 digest를
+        // 붙들고 있어서, 자정이 그 뒤라면 digest는 이미 어제의 한 장이다.
         .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged)) { _ in
             dayTick += 1
-            scene.sync(counter)
+            scene.sync(liveCounter)
         }
         #if DEBUG
         // `-tiltLab` — 기울기 QA용 하단 오버레이. overlay라 헤더·배너·뱃지 행·CTA 레이아웃은 그대로다.
@@ -291,7 +365,7 @@ struct MainView: View {
                     Button { scene.shakeBurst() } label: {
                         Text(verbatim: "SHAKE")
                             .reffiType(.monoEyebrow)
-                            .foregroundStyle(.white)
+                            .foregroundStyle(ReffiColor.onAccent)   // blue 면 위 콘텐츠(§2.7)
                             .padding(.horizontal, ReffiSpace.s3)
                             .padding(.vertical, 4)
                             .background(ReffiColor.blue, in: Capsule())
@@ -306,11 +380,11 @@ struct MainView: View {
             .padding(.vertical, ReffiSpace.s2)
             .background {
                 let shape = PaperRect(cornerRadius: ReffiRadius.md)
-                shape.fill(ReffiColor.paper).paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
+                shape.fill(ReffiColor.paper).paperEdge(shape)
             }
             .reffiShadow1()
             .padding(.horizontal, margin)
-            .padding(.bottom, navClearance + 60)
+            .padding(.bottom, ReffiChrome.navReserve + 60)
             .onAppear {
                 pushTiltLab()
                 scene.onClatter = { [clatterLog] in
@@ -360,87 +434,198 @@ struct MainView: View {
     }
     #endif
 
-    // MARK: - Header
+    // MARK: - Background
 
-    private var header: some View {
-        VStack(alignment: .leading, spacing: ReffiSpace.s1) {
-            HStack(alignment: .center) {
-                Text(verbatim: "Reffi").reffiType(.display).foregroundStyle(ReffiColor.ink)
-                Spacer()
-                // 날짜는 분 단위 타임라인으로 갱신 — 자정이 지나도 어제 날짜가 남지 않는다.
-                TimelineView(.everyMinute) { ctx in
-                    Text(ctx.date.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))
-                        .font(.reffiNum(.meta)).foregroundStyle(ReffiColor.ink2)
-                }
+    /// 배경 색면 — 신선도 어컨트 한 장 + 긴급 시노.
+    ///
+    /// **어컨트 색 자체를 애니메이션하지 않는다.** `LiquidGlassBackground`는 blur(80~90)를 태운
+    /// 블롭 세 장인데, 색을 보간하면 그 세 장의 필터 입력이 매 프레임 바뀌어 **프레임마다 블러가
+    /// 다시 구워진다**(0.5초짜리 ambient라 그 비용이 30프레임 넘게 이어졌다). 대신 신선도마다
+    /// 배경을 **다른 뷰로 세우고**(`.id`) 두 장을 불투명도로만 교차시킨다 — 각 장의 내용은 상수라
+    /// 블러가 한 번만 구워지고, 도는 것은 합성 알파뿐이다. 길이는 그대로 `ambient`(§7.1 유일 예외)로,
+    /// 화면을 통째로 덮은 색이 dur3로 갈아타면 "깜빡"으로 읽힌다는 그 규칙은 변하지 않았다.
+    @ViewBuilder private func background(_ counter: CounterDigest) -> some View {
+        let top = counter.topFreshness
+        ZStack {
+            LiquidGlassBackground(accent: top.main, accentDeep: top.dark)
+                .id(top)
+                .transition(.opacity)
+            // 긴급도 연출(F) — 오늘 만료가 있으면 상단에 옅은 웜톤 시노.
+            if counter.urgent > 0 {
+                LinearGradient(colors: [ReffiColor.urgent.opacity(0.14), .clear],
+                               startPoint: .top, endPoint: .center)
+                    .ignoresSafeArea()
+                    .allowsHitTesting(false)
             }
-            // 미션 헤더(D) — 오늘의 상태를 한 문장으로. 누계(Ate/Tossed)는 MyPage가 맡는다.
-            missionText
-                .reffiType(.caption)
-                .foregroundStyle(urgentCount > 0 ? ReffiColor.urgentDark : ReffiColor.ink2)
+        }
+        .animation(ReffiMotion.gated(ReffiMotion.ambient, reduce: reduceMotion), value: top)
+        .animation(ReffiMotion.gated(ReffiMotion.ambient, reduce: reduceMotion), value: counter.urgent > 0)
+    }
+
+    // MARK: - 상단 블록 · 뱃지 행 (두 배치가 함께 쓰는 조각)
+
+    /// 헤더 + 상태 카드 — 못 박힌 배치(기본 크기)와 스크롤 배치(큰 글자)가 **같은 한 장**을 본다.
+    /// 손으로 두 번 쓰면 한쪽만 조용히 어긋난다(판정 커버 `outcomeButtons`와 같은 이유).
+    @ViewBuilder private func statusBlock(_ counter: CounterDigest) -> some View {
+        header(counter)
+            .padding(.horizontal, margin)
+            // **세 루트 페이지의 제목이 같은 높이에서 시작한다**(23차). 냉장고·프로필이 둘 다
+            // `s5`인데 홈만 `s2`라 탭을 오갈 때 제목이 16pt 튀었다(실측: 홈 78.3pt vs 나머지 94.5pt).
+            // 남는 세로 공간은 이 블록 **아래에 오는 상자**가 흡수한다(기본 크기=`physicsField`의
+            // `maxHeight: .infinity` + 바닥 정렬, 큰 글자=그 자리를 물려받은 스크롤 상자) — 그래서
+            // 더미가 앉는 자리는 그대로다(필드는 `fieldRestHeight`로 이미 캡이 걸려 있다).
+            .padding(.top, ReffiSpace.s5)
+
+        // 발주 진행 카드(§13.6 C) — 헤더 아래 죽은 공간이 상태 표면이 된다.
+        if let cook = store.activeCook {
+            cookingNowCard(cook)
+                .padding(.horizontal, margin)
+                .padding(.top, ReffiSpace.s3)
+                .transition(.move(edge: .top).combined(with: .opacity))
+        } else if showAlertPrompt(counter) {
+            alertPromptCard
+                .padding(.horizontal, margin)
+                .padding(.top, ReffiSpace.s3)
+                .transition(.move(edge: .top).combined(with: .opacity))
         }
     }
 
-    private var missionText: Text {
-        if counter.isEmpty { return Text("Fill the counter, then cook") }
-        if urgentCount > 0 { return Text("\(urgentCount) at risk today. Cook one?") }
-        if soonCount > 0 { return Text("\(soonCount) to eat soon. Plan tonight?") }
-        return Text("All fresh. Get ahead of it.")
+    @ViewBuilder private func badgeRow(_ counter: CounterDigest) -> some View {
+        if !counter.items.isEmpty {
+            badgeScroll(counter)
+                .padding(.bottom, ReffiSpace.s2)
+                .id(dayTick)   // 자정 경과 시 D-day·신선도색 재계산
+        }
+    }
+
+    // MARK: - Header
+
+    private func header(_ counter: CounterDigest) -> some View {
+        VStack(alignment: .leading, spacing: ReffiSpace.s1) {
+            // 워드마크와 날짜는 **한 줄이 들어갈 때만** 한 줄이다. 큰 글자에선 둘이 같은 줄에서 폭을
+            // 다투다 날짜가 'Wednesday…'로 잘렸는데(AX5 실측), 날짜는 잘리면 요일·월·일 중 뒤 둘이
+            // 통째로 사라지는 쪽이라 축약이 답이 아니다. 라벨을 줄이는 대신 **배치를 바꾼다** —
+            // 판정 커버(`outcomeRow`)와 같은 처방이고, 한 줄이 들어가는 크기에선 렌더가 그대로다.
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .center) {
+                    wordmark
+                    Spacer(minLength: ReffiSpace.s3)
+                    todayStamp
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    wordmark
+                    todayStamp
+                }
+            }
+            // 미션 헤더(D) — 오늘의 상태를 한 문장으로. 누계(Ate/Tossed)는 MyPage가 맡는다.
+            missionText(counter)
+                .reffiType(.caption)
+                .foregroundStyle(counter.urgent > 0 ? ReffiColor.urgentDark : ReffiColor.ink2)
+        }
+    }
+
+    /// 브랜드 워드마크 — 비번역 라틴(Story Script). 두 배치가 같은 한 장을 본다(손으로 두 번 쓰면 어긋난다).
+    private var wordmark: some View {
+        Text(verbatim: "Reffi").reffiType(.display).foregroundStyle(ReffiColor.ink)
+    }
+
+    /// 오늘 날짜 — 분 단위 타임라인으로 갱신해 자정이 지나도 어제 날짜가 남지 않는다.
+    private var todayStamp: some View {
+        TimelineView(.everyMinute) { ctx in
+            Text(ctx.date.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))
+                .font(.reffiNum(.meta)).foregroundStyle(ReffiColor.ink2)
+        }
+    }
+
+    private func missionText(_ counter: CounterDigest) -> Text {
+        if counter.items.isEmpty { return Text("Fill the counter, then cook") }
+        if counter.urgent > 0 { return Text("\(counter.urgent) at risk today. Cook one?") }
+        if counter.soon > 0 { return Text("\(counter.soon) to eat soon. Plan tonight?") }
+        // 임박이 없을 때도 **다음 한 걸음**을 지목한다 — "미리 해치우라"는 재촉만 남기면
+        // 무엇부터인지가 없어 행동으로 이어지지 않는다(냉장고 정렬 기본값과 같은 순서를 말한다).
+        return Text("All fresh. Cook the oldest one first.")
     }
 
     // MARK: - 알림 유도 배너 (프리퍼미션)
 
     /// 임박 재료가 있고 알림이 꺼져 있고 아직 제안 안 했을 때 한 번만.
-    private var showAlertPrompt: Bool {
-        !alertsEnabled && !alertPromptSeen && (urgentCount + soonCount) > 0
+    private func showAlertPrompt(_ counter: CounterDigest) -> Bool {
+        !alertsEnabled && !alertPromptSeen && (counter.urgent + counter.soon) > 0
     }
 
     /// 미니 영수증 스트립(Cooking now와 같은 자리·같은 언어) — 켜기 / 나중에.
+    ///
+    /// 아이브로+문구 | 켜기 | 나중에 **3열 고정**이던 자리다. 큰 글자에선 셋이 한 줄에서 폭을 나눠
+    /// 가지느라 전부 잘렸다(AX5 실측: 'MOR NIN…' · 'Kno…' · 'Tur n…') — 하나를 줄여 봐야 그 하나만
+    /// 죽으므로 **배치를 통째로 접는다**: 문구 블록 위, 버튼 행 아래. 한 줄이 들어가는 크기에선
+    /// 첫 후보가 그대로 뽑혀 렌더가 변하지 않는다(§3.3, 판정 커버 `outcomeRow`와 같은 처방).
     private var alertPromptCard: some View {
-        HStack(spacing: ReffiSpace.s3) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(verbatim: "MORNING ALERTS")
-                    .reffiType(.monoEyebrow).foregroundStyle(ReffiColor.blueDark)
-                Text("Know before food turns")
-                    .reffiType(.badgeLabel)
-                    .foregroundStyle(ReffiColor.ink).lineLimit(1)
-                    .minimumScaleFactor(0.8)
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: ReffiSpace.s3) {
+                alertPromptCopy
+                Spacer(minLength: ReffiSpace.s2)
+                alertPromptActions
             }
-            Spacer(minLength: ReffiSpace.s2)
-            Button { enableAlerts() } label: {
-                Text("Turn on")
-                    .reffiType(.pillLabel)
-                    .foregroundStyle(ReffiColor.blueDark)
-                    .padding(.horizontal, ReffiSpace.s3 + 2)
-                    .padding(.vertical, ReffiSpace.s1 + 2)
-                    // §13.1 종이컷 8각형(캡슐 금지) — 바로 아래 Start cooking(PaperButton)과 같은 재질 언어.
-                    // 다만 면은 채우지 않는다: blue 솔리드 면은 한 화면에 하나(Start cooking)뿐이어야
-                    // 부차 액션이 F패턴 #1을 가져가지 않는다(§2.4 5% 강조 배분, 감사 R3-1).
-                    .background {
-                        let s = PaperCutRect(seed: 3)
-                        s.fill(ReffiColor.sub)
-                            .paperEdge(s, tint: ReffiColor.blueDark.opacity(0.38), width: 1.2)
-                    }
-                    .frame(minHeight: 44)
-                    .contentShape(Rectangle())
+            VStack(alignment: .leading, spacing: ReffiSpace.s1) {
+                alertPromptCopy
+                HStack(spacing: ReffiSpace.s3) {
+                    alertPromptActions
+                    Spacer(minLength: 0)
+                }
             }
-            .buttonStyle(.reffiPress)
-            Button { withAnimation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion)) { alertPromptSeen = true } } label: {
-                Text("Later")
-                    .reffiType(.pillLabel)
-                    .foregroundStyle(ReffiColor.ink2)
-                    .frame(minWidth: 44, minHeight: 44)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.reffiPress)
         }
         .padding(.horizontal, ReffiSpace.s4)
         .padding(.vertical, ReffiSpace.s1)
-        .frame(minHeight: 44)
+        .frame(minHeight: ReffiChrome.tapMin)
         .background {
             let shape = ReceiptShape(tooth: ReffiTooth.chip)
-            shape.fill(ReffiColor.paper).paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
+            shape.fill(ReffiColor.paper).paperEdge(shape)
         }
         .reffiShadow1()
+    }
+
+    /// 두 배치가 **같은 문구 블록**을 본다 — 손으로 두 번 쓰면 한쪽만 조용히 어긋난다.
+    /// 한 줄 제한을 두지 않는 것이 세로 폴백의 전부다: 접힌 뒤에는 폭이 온전하니 잘릴 이유가 없고,
+    /// 가로 후보의 **이상 폭**은 줄 수와 무관하므로(한 줄 기준) 어느 배치를 고를지는 그대로다.
+    private var alertPromptCopy: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(verbatim: "MORNING ALERTS")
+                .reffiType(.monoEyebrow).foregroundStyle(ReffiColor.blueDark)
+            Text("Know before food turns")
+                .reffiType(.badgeLabel)
+                .foregroundStyle(ReffiColor.ink)
+                .minimumScaleFactor(0.8)
+        }
+    }
+
+    /// 켜기 · 나중에 — 두 배치가 같은 순서로 세운다(위 `alertPromptCopy`와 같은 이유).
+    @ViewBuilder private var alertPromptActions: some View {
+        Button { enableAlerts() } label: {
+            Text("Turn on")
+                .reffiType(.pillLabel)
+                .foregroundStyle(ReffiColor.blueDark)
+                .padding(.horizontal, ReffiSpace.s3 + 2)
+                .padding(.vertical, ReffiSpace.s1 + 2)
+                // §13.1 종이컷 8각형(캡슐 금지) — 바로 아래 Start cooking(PaperButton)과 같은 재질 언어.
+                // 다만 면은 채우지 않는다: blue 솔리드 면은 한 화면에 하나(Start cooking)뿐이어야
+                // 부차 액션이 F패턴 #1을 가져가지 않는다(§2.4 5% 강조 배분, 감사 R3-1).
+                .background {
+                    let s = PaperCutRect(seed: 3)
+                    s.fill(ReffiColor.sub)
+                        .paperEdge(s, tint: ReffiColor.blueDark.opacity(0.38), width: 1.2)
+                }
+                .frame(minHeight: ReffiChrome.tapMin)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.reffiPress)
+        Button { withAnimation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion)) { alertPromptSeen = true } } label: {
+            Text("Later")
+                .reffiType(.pillLabel)
+                .foregroundStyle(ReffiColor.ink2)
+                .frame(minWidth: ReffiChrome.tapMin, minHeight: ReffiChrome.tapMin)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.reffiPress)
     }
 
     /// 켜기 — 시스템 권한 요청 후 성공 시 즉시 스케줄. 거부해도 다시 조르지 않는다(seen 처리).
@@ -469,13 +654,18 @@ struct MainView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(verbatim: "COOKING NOW")
                         .reffiType(.monoEyebrow).foregroundStyle(ReffiColor.blueDark)
-                    HStack(spacing: 6) {
-                        Text(verbatim: cook.recipeName)
-                            .reffiType(.badgeLabel)
-                            .foregroundStyle(ReffiColor.ink).lineLimit(1)
-                        Text(cook.startedAt, style: .relative)
-                            .reffiType(.metaText)
-                            .foregroundStyle(ReffiColor.ink2)
+                    // 요리명과 경과 시간도 알림 배너와 같은 고정 2열이었다 — 큰 글자에선 둘이 남은
+                    // 폭을 나눠 갖느라 이름이 먼저 잘리고 경과가 그 뒤를 따랐다. 한 줄이 들어갈 때만
+                    // 한 줄로 두고, 안 들어가면 아래로 접는다(이름이 폭을 다투지 않고 순서도 그대로).
+                    ViewThatFits(in: .horizontal) {
+                        HStack(spacing: 6) {
+                            cookName(cook)
+                            cookElapsed(cook)
+                        }
+                        VStack(alignment: .leading, spacing: 2) {
+                            cookName(cook)
+                            cookElapsed(cook)
+                        }
                     }
                 }
                 Spacer(minLength: ReffiSpace.s2)
@@ -488,7 +678,7 @@ struct MainView: View {
                 let s = PaperCutRect(seed: 5)                      // 메인 CTA(PaperButton)와 같은 8각형
                 s.fill(ReffiColor.paper)
                     .overlay(PaperGrain(seed: 27, strength: 0.7).clipShape(s))   // 옅은 질감
-                    .paperEdge(s, tint: ReffiColor.ink.opacity(0.06), width: 1)
+                    .paperEdge(s)
                     .compositingGroup()
                     .reffiShadow1()
             }
@@ -498,6 +688,23 @@ struct MainView: View {
         .accessibilityLabel(Text("Continue cooking \(cook.recipeName)"))
     }
 
+    /// 두 배치가 같은 이름 한 장을 본다. 두 줄까지 푸는 것은 접힌 뒤의 이야기다 — 가로 후보는
+    /// **한 줄 이상 폭**으로 재므로(줄 수와 무관) 어느 배치를 고를지는 그대로고, 세로로 접힌 다음엔
+    /// 폭이 온전하니 긴 요리명이 잘릴 이유가 없다(판정 커버의 재료명과 같은 처방).
+    private func cookName(_ cook: FridgeStore.CookSession) -> some View {
+        Text(verbatim: cook.recipeName)
+            .reffiType(.badgeLabel)
+            .foregroundStyle(ReffiColor.ink)
+            .lineLimit(2)
+            .minimumScaleFactor(0.8)
+    }
+
+    private func cookElapsed(_ cook: FridgeStore.CookSession) -> some View {
+        Text(cook.startedAt, style: .relative)
+            .reffiType(.metaText)
+            .foregroundStyle(ReffiColor.ink2)
+    }
+
     // MARK: - Physics field (real engine, persistent pile)
 
     /// 정지 상태 필드 높이의 상한 — "쉬고 있는 더미"에 필요한 만큼만 자리를 잡는다.
@@ -505,18 +712,40 @@ struct MainView: View {
     /// 빈 띠로 남아, 배너와 더미 사이가 뷰포트의 4분의 1이 됐다(감사 R3-4).
     /// 낙하 스폰은 씬 바깥 절대 좌표(`size.height + 700`)라 드라마는 이 캡과 무관하다.
     /// 칩은 화면 폭에서 3열로 눕으므로 행 수 = ⌈n/3⌉, 행 피치·바닥 여유는 실측값이다.
-    /// **스프라이트 몫을 더 얹지 않는다(2026-08 실측으로 기각).** 칩 스프라이트는 `chipSide` 정사각인데
-    /// 충돌 바디는 그 높이의 0.28~0.71뿐이라 "그림이 캡 위로 잘리는 것 아닌가"를 의심할 만하지만,
-    /// 실제로 그려지는 건 스프라이트가 아니라 **알파 bbox**(바디 = bbox × 0.9)다. `-physLab` 5회 실측에서
-    /// 안착 상태의 그림 최상단은 캡을 **11~13pt 밑돌았다**(잘림 0건). 캡 위로 잘려 보이는 칩은 아직
-    /// **낙하 중인** 칩이고, 그건 스폰 천장이 씬 바깥(`size.height + chipSide`)이라 설계대로다.
-    /// 여유를 얹으면 `sealedCeiling`이 함께 올라가 더미가 40pt 더 쌓인다(실측) — 안 그래야 할 변경이다.
-    private var fieldRestHeight: CGFloat {
-        guard !counter.isEmpty else { return .infinity }   // 빈 작업대(카피·CTA)는 캡 대상이 아니다
-        return 96 * ceil(CGFloat(counter.count) / 3) + 28
+    /// **스프라이트 몫을 더 얹지 않는다(2026-08 실측으로 기각) — 단, 한 줄에는 예외가 실재했다.**
+    /// 칩 스프라이트는 `chipSide` 정사각인데 충돌 바디는 그 높이의 0.28~0.71뿐이라 "그림이 캡 위로
+    /// 잘리는 것 아닌가"를 의심할 만하고, `-physLab` 5회 실측(여러 행 더미)에서는 안착 그림 최상단이
+    /// 캡을 11~13pt 밑돌았다(잘림 0건). 그러나 그 실측은 **행이 눕고 맞물리는 더미**의 이야기다 —
+    /// 재료 ≤3이면 캡이 124pt로 떨어지는데 키 큰 글리프의 그려지는 높이(알파 bbox ≈ 0.78×칩 변,
+    /// 402pt 폭에서 ≈131pt)가 그보다 크다. 밀폐 천장은 칩 **중심**만 지키므로 정착은 정상으로 끝나고
+    /// 일러스트 상단만 프레임 경계에서 수평으로 잘렸다(2026-08-18 실기 재현: milk 게이블 소실).
+    /// 그래서 행 공식 위에 씬이 계산한 한 줄 하한(`minRestFieldHeight`)을 깐다 — 칩 기하의 정본은 씬이다.
+    /// 여유를 "전 행"에 얹으면 `sealedCeiling`이 함께 올라가 더미가 40pt 더 쌓인다(실측) — 그건 여전히 하지 않는다.
+    private func fieldRestHeight(_ counter: CounterDigest) -> CGFloat {
+        guard !counter.items.isEmpty else { return .infinity }   // 빈 작업대(카피·CTA)는 캡 대상이 아니다
+        let rows = 96 * ceil(CGFloat(counter.items.count) / 3) + 28
+        guard fieldWidth > 0 else { return rows }
+        // 정지 캡: 한 개면 칩 하나의 키, 둘부터는 2단 탑(칩 위에 선 칩)의 키가 하한이다 —
+        // 행 피치(96)는 눕고 맞물린 더미의 실측이라 선 채 안착한 실배치를 못 담았다(실기 잘림 2건).
+        let rest = counter.items.count == 1
+            ? max(rows, IngredientDropScene.minRestFieldHeight(width: fieldWidth))
+            : max(rows, IngredientDropScene.stackedRestFieldHeight(width: fieldWidth))
+        return rest
     }
 
-    private var physicsField: some View {
+    /// 씬(SpriteView)의 실높이 — **항상 화면 최상단까지**(오너 결정: 물리 천장은 폰 화면 끝
+    /// 가장자리 고정, 가변 금지). 슬롯(레이아웃)은 그대로 두고 위로만 넘치므로 형제 배치는 불변이고,
+    /// 여닫음 자체가 없어 리사이즈 아티팩트도 없다. 자이로·드래그·스폰이 같은 천장을 쓴다.
+    /// 존은 `restHeight + dragFieldHeadroom`에 앵커된다(씬 layoutZones) — 존은 제자리(오너 결정).
+    private func fieldSceneHeight(_ counter: CounterDigest) -> CGFloat? {
+        guard fieldSlotHeight > 0, !counter.items.isEmpty else { return nil }
+        // 슬롯 상단→화면 상단 거리만큼 위로. 실측 전(0)엔 드래그 여유만큼이라도 열어 둔다.
+        let toScreenTop = fieldSlotGlobalTop > 0 ? fieldSlotGlobalTop
+                                                 : IngredientDropScene.dragFieldHeadroom(width: fieldWidth)
+        return fieldSlotHeight + toScreenTop
+    }
+
+    private func physicsField(_ counter: CounterDigest) -> some View {
         GeometryReader { geo in
             ZStack {
                 // 주의: SpriteView(isPaused:)는 초기화 시점에 멈춰 첫 프레임이 안 그려질 수 있다(회색).
@@ -528,10 +757,14 @@ struct MainView: View {
                            debugOptions: physLabDebugOptions)
                     .onAppear { configureScene(size: geo.size) }
                     .onChange(of: geo.size) { _, s in scene.size = s }
-                    .onChange(of: sceneSyncKey) { _, _ in scene.sync(counter) }
+                    .onChange(of: sceneSyncKey(counter)) { _, _ in scene.sync(counter.items) }
                     .onChange(of: reduceMotion) { _, v in scene.reduceMotion = v }
                     .onChange(of: scenePaused) { _, p in scene.externallyPaused = p }
-                if counter.isEmpty { emptyField }
+                    // 프로필에서 토글하고 홈으로 돌아오면 씬은 이미 서 있다 — 값만 흘려 넣으면
+                    // 씬이 센서·햅틱 엔진 수명주기를 스스로 다시 파생시킨다(재시작 불요).
+                    .onChange(of: tiltEnabled) { _, v in scene.tiltEnabled = v }
+                    .onChange(of: hapticsEnabled) { _, v in scene.hapticsEnabled = v }
+                if counter.items.isEmpty { emptyField }
             }
             .frame(width: geo.size.width, height: geo.size.height)
         }
@@ -550,15 +783,19 @@ struct MainView: View {
         scene.scaleMode = .resizeFill
         scene.size = size
         scene.reduceMotion = reduceMotion
+        scene.tiltEnabled = tiltEnabled
+        scene.hapticsEnabled = hapticsEnabled
         scene.onRemove = { id in decide(id) }
         scene.onDecide = { id, wasted in gestureDecide(id, wasted: wasted) }
+        // 하늘 개폐 = 드래그·스폰 수명주기. 씬이 같은 값은 재통지하지 않지만 방어적으로 비교 후 대입.
+        scene.restHeight = fieldSlotHeight
         scene.externallyPaused = scenePaused
-        scene.sync(counter)
+        scene.sync(liveCounter)
     }
 
     /// 제스처 판정(§13.6 B) — 존에 끌어다 놓으면 오버레이 없이 바로 확정. undo 토스트가 안전망.
     private func gestureDecide(_ id: UUID, wasted: Bool) {
-        guard let ing = counter.first(where: { $0.id == id }) else { return }
+        guard let ing = liveCounter.first(where: { $0.id == id }) else { return }
         decisionHaptic += 1
         withAnimation(ReffiMotion.gated(ReffiMotion.pop, reduce: reduceMotion)) {
             if wasted { store.toss(ing) } else { store.eat(ing) }
@@ -576,6 +813,16 @@ struct MainView: View {
                         .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
                         .multilineTextAlignment(.center)
                 }
+            } else if !store.ingredients.isEmpty {
+                // 재고는 있는데 작업대 후보가 없는 상태(전부 냉동 유예·조리 예약) — "없다"고만 하면
+                // 냉장고 탭과 어긋나 보인다(실기 제보: In stock엔 있는데 홈엔 아무것도 없다).
+                // 왜 비었는지와 어디서 볼 수 있는지를 말해 준다.
+                VStack(spacing: ReffiSpace.s1) {
+                    Text("Counter is clear").reffiType(.subhead).foregroundStyle(ReffiColor.ink)
+                    Text("Stock is waiting in the freezer or reserved for cooking. Check the Fridge tab.")
+                        .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
+                        .multilineTextAlignment(.center)
+                }
             } else {
                 Text("Nothing to use yet").reffiType(.subhead).foregroundStyle(ReffiColor.ink2)
             }
@@ -586,11 +833,12 @@ struct MainView: View {
                         store.loadSampleData()
                     }
                 } label: {
+                    // 캔버스 위 링크 잉크는 blueDark — 면 색인 blue는 다크 캔버스에서 대비가 무너진다(§2.2).
                     Text("Or try a sample fridge")
                         .reffiType(.caption)
-                        .foregroundStyle(ReffiColor.blue)
+                        .foregroundStyle(ReffiColor.blueDark)
                         .underline()
-                        .frame(minHeight: 44)
+                        .frame(minHeight: ReffiChrome.tapMin)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.reffiPress)
@@ -604,30 +852,59 @@ struct MainView: View {
 
     /// 뱃지 행 — 긴급도순 가로 스크롤(가장 임박이 맨 앞). 끝에 ＋추가.
     /// (신선도 점 행은 뱃지의 인디케이터 바·D-N과 중복이라 제거 — §13.6 E)
-    private var badgeScroll: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
+    private func badgeScroll(_ counter: CounterDigest) -> some View {
+        // 이번 렌더에서 **새로** 들어온 뱃지들 — 아직 `knownBadgeIDs`에 없는 것이 이번 진입분이다.
+        // 영수증 스캔·샘플 냉장고처럼 한 번에 여럿이 들어오는 경로가 있어, 순서를 알아야 스태거를
+        // 매길 수 있다(하나만 들어오면 목록도 하나라 지연은 0이다).
+        let entering = counter.ids.filter { !knownBadgeIDs.contains($0) }
+        return ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: ReffiSpace.s2) {
-                ForEach(Array(counter.enumerated()), id: \.element.id) { i, ing in
+                ForEach(Array(counter.items.enumerated()), id: \.element.id) { i, ing in
                     IngredientBadge(ingredient: ing, seed: i) { decide(ing.id) }
-                        .transition(.scale(scale: 1.3, anchor: .center).combined(with: .opacity))   // 뿅 사라짐
+                        // **진입과 이탈은 다른 사건이다.** 대칭(.scale 1.3)이면 새 뱃지가 130%에서
+                        // 쪼그라들며 나타나 "방금 지운 것이 되돌아왔나"로 읽힌다. 진입은 §7.1대로
+                        // 0.95에서 자라 오르고(하한 0.95 — scale(0) 금지), 이탈만 §7.5의 뿅(1.3)이다.
+                        .transition(.asymmetric(
+                            insertion: .scale(scale: 0.95, anchor: .center).combined(with: .opacity)
+                                .animation(ReffiMotion.gated(ReffiMotion.pop.delay(badgeEnterDelay(ing.id, in: entering)),
+                                                             reduce: reduceMotion)),
+                            removal: .scale(scale: 1.3, anchor: .center).combined(with: .opacity)))   // 뿅 사라짐
                 }
-                AddBadge(seed: counter.count) { showAdd = true }
+                AddBadge(seed: counter.items.count) { showAdd = true }
             }
             .padding(.horizontal, margin)
             .padding(.vertical, ReffiSpace.s1)   // 그림자 여유
         }
-        .animation(ReffiMotion.gated(ReffiMotion.pop, reduce: reduceMotion), value: counter.map(\.id))
+        .animation(ReffiMotion.gated(ReffiMotion.pop, reduce: reduceMotion), value: counter.ids)
+        // 진입분 판정 기준을 다음 변화로 넘긴다. `initial: true`로 첫 표시에서 채워 두지 않으면,
+        // 나중에 한 개를 더해도 화면에 있던 전부가 "새로 들어온 것"으로 읽혀 엉뚱한 지연을 받는다.
+        .onChange(of: counter.ids, initial: true) { _, now in knownBadgeIDs = Set(now) }
     }
+
+    /// 여럿이 한꺼번에 들어올 때의 등장 지연(초) — 한 덩어리가 통째로 커지는 대신 하나씩 놓인다.
+    /// 40ms는 §7.1 dur-1(120ms)의 1/3로, 앞뒤 뱃지의 팝이 겹치되 순서는 보이는 간격이다.
+    /// 여섯 번째부터는 같은 지연으로 묶는다 — 스캔으로 열 개가 들어와도 마지막이 0.2초 넘게
+    /// 늦으면 "느리게 뜬다"가 되지, 스태거로 읽히지 않는다.
+    private func badgeEnterDelay(_ id: Ingredient.ID, in entering: [Ingredient.ID]) -> Double {
+        guard let i = entering.firstIndex(of: id) else { return 0 }
+        return Double(min(i, Self.badgeStaggerCap)) * Self.badgeStagger
+    }
+
+    private static let badgeStagger: Double = 0.04
+    private static let badgeStaggerCap = 5
 
     // MARK: - Ate / Tossed decision
 
     /// 재료 탭 → "먹었나 버렸나" 묻기. 커버 자체의 슬라이드 애니메이션은 끄고 카드가 pop-in 한다.
     private func decide(_ id: UUID) {
-        guard let ing = counter.first(where: { $0.id == id }) else { return }
+        guard let ing = liveCounter.first(where: { $0.id == id }) else { return }
         var t = Transaction(); t.disablesAnimations = true
         withTransaction(t) { deciding = ing }
     }
 
+    /// 커버 해체 — 여기 도착할 때 카드는 **이미 흐려져 있다**(`DecisionCover.close`가 §7.1 이탈을
+    /// 먼저 재생하고 부른다). 그래서 `fullScreenCover`의 시스템 슬라이드만 끄면 되고, 이 시점의
+    /// 0프레임 컷은 보이지 않는 것을 치우는 일이다.
     private func closeDecision() {
         var t = Transaction(); t.disablesAnimations = true
         withTransaction(t) { deciding = nil }
@@ -660,12 +937,14 @@ struct MainView: View {
         let results = carouselResults
         let stock = store.available
         carouselSnapshot = results
-        atRiskSnapshot = stock.filter { $0.freshness != .fresh }.map(\.name)   // available은 이미 임박순
-        uncoveredSnapshot = RecipeRecommender.uncoveredUrgent(ingredients: stock, results: results).map(\.name)
+        // 호명은 문장 안에 들어가는 **표시 이름**이다 — 저장 `name`은 담던 순간 표기라 로케일이 박제된다
+        // (§Ingredient.displayName). 브리지 문구와 그 옆 영상 검색어가 같은 배열을 쓰므로 여기 한 곳만 고르면 된다.
+        atRiskSnapshot = stock.filter { $0.freshness != .fresh }.map(\.displayName)   // available은 이미 임박순
+        uncoveredSnapshot = RecipeRecommender.uncoveredUrgent(ingredients: stock, results: results).map(\.displayName)
     }
 
     private func cook() {
-        guard !counter.isEmpty else { return }
+        guard !liveCounter.isEmpty else { return }
         snapshotCarousel()   // 발주로 store가 바뀌어도 커버 입력은 고정(재랭크 방지)
         firedTicket = false
         coverGeneration += 1                 // 이전 발주의 지연 닫기 타이머 무효화
@@ -731,61 +1010,122 @@ private struct DecisionCover: View {
     var onCancel: () -> Void
 
     @State private var shown = false
+    /// 이탈 페이드가 도는 동안 잠금 — 그 창에 두 번째 판정이 들어오는 것을 막는다(아래 `close`).
+    @State private var closing = false
 
     /// Freeze 노출 조건 — 오늘 만료(urgent) + 재냉동 아님(1회 제한). '미루기 버튼' 방지.
     private var showFreeze: Bool { ingredient.freshness == .urgent && ingredient.canFreeze }
+
+    /// 판정 블롭 한 변 — 버튼이 셋이면 72, 둘이면 기본 88.
+    /// 가장 좁은 지원 기기(375) 기준 가용 폭은 375 − 외곽 s7×2(64) − 카드 s6×2(56) = **255**인데,
+    /// 88×3 + s4×2 = 296이라 41pt가 종이 밖으로 새어 나갔다. 72×3 + s4×2 = 248 ≤ 255로 들어온다
+    /// (72도 §7.3 최소 터치 타깃 44를 크게 웃돈다). 두 버튼 경로는 88×2 + s6 = 204라 그대로 둔다.
+    private var blobSide: CGFloat { showFreeze ? 72 : 88 }
+
+    /// 세로 폴백의 블롭 한 변 — 행이 최대 셋 쌓이므로 가로 폼보다 작게 잡는다(56 × 3 + s3 × 2 = 192).
+    /// 큰 글자에서 제목·문구가 이미 세로를 크게 먹는 커버라, 블롭을 그대로 두면 카드가 화면을 넘긴다.
+    /// 56도 §7.3 최소 터치 타깃 44를 넘고, 행 전체가 타깃이라 실제로 눌리는 면은 더 넓다.
+    private static let stackedBlobSide: CGFloat = 56
 
     var body: some View {
         ZStack {
             ReffiColor.scrim.ignoresSafeArea()
                 .opacity(shown ? 1 : 0)
-                .onTapGesture { onCancel() }
+                .onTapGesture { close(onCancel) }
                 .accessibilityHidden(true)
             card
-                .scaleEffect(shown ? 1 : 0.85)
+                // 진입 하한은 0.95다(§7.1) — 0.85는 "멀리서 날아온다"라 종이 카드가 뜨는 게 아니라
+                // 던져지는 것으로 읽혔다. 팝 스프링의 오버슈트가 나머지 존재감을 만든다.
+                .scaleEffect(shown ? 1 : 0.95)
                 .opacity(shown ? 1 : 0)
         }
         .onAppear {
-            if reduceMotion {
-                shown = true
-            } else {
-                withAnimation(ReffiMotion.pop) { shown = true }
-            }
+            withAnimation(ReffiMotion.gated(ReffiMotion.pop, reduce: reduceMotion)) { shown = true }
         }
-        .accessibilityAction(.escape) { onCancel() }
+        .accessibilityAction(.escape) { close(onCancel) }
+    }
+
+    /// 이탈 — 예전엔 부모가 `disablesAnimations`로 커버를 **0프레임에 잘라** 냈다. 뜰 때는 스프링으로
+    /// 부풀던 카드가 사라질 때만 한 프레임에 없어지니, 눈이 "무엇이 닫혔는지"를 못 따라가고 판정이
+    /// 취소된 것처럼 보였다. §7.1대로 이탈은 진입보다 짧게(dur-1 ease-in) 한 번 흐린 뒤 해체한다.
+    /// Reduce Motion이면 그 페이드도 없이 즉시(§7.4).
+    ///
+    /// 페이드가 도는 0.12초는 **버튼이 두 번 눌릴 수 있는 창**이다 — `closing`으로 잠가 Tossed 직후
+    /// Ate가 겹쳐 들어오는 이중 판정을 막는다(부모의 커버 해체는 그 뒤에 한 번만 일어난다).
+    private func close(_ finish: @escaping () -> Void) {
+        guard !closing else { return }
+        guard !reduceMotion else { finish(); return }
+        closing = true
+        withAnimation(ReffiMotion.exit) { shown = false }
+        DispatchQueue.main.asyncAfter(deadline: .now() + ReffiMotion.dur1) { finish() }
     }
 
     private var card: some View {
         VStack(spacing: ReffiSpace.s5) {
             VStack(spacing: 2) {
+                // 바깥 s7 마진은 카드에 **제안**으로만 전해진다 — 제안을 무시하는 자식(고정 frame·끊기지
+                // 않는 긴 낱말)만이 종이를 마진 밖으로 밀어낼 수 있다. 블롭은 위 `blobSide`가 잡았고,
+                // 남은 하나가 이 이름이다(냉장고 카드·간편 행도 같은 이유로 이름을 한 줄로 묶는다).
                 Text(verbatim: ingredient.displayName).reffiType(.heading).foregroundStyle(ReffiColor.ink)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.8)
+                    .multilineTextAlignment(.center)
                 Text("Did you eat it, or toss it?")
                     .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
             }
-            HStack(spacing: showFreeze ? ReffiSpace.s4 : ReffiSpace.s6) {
-                PaperIconButton(icon: ReffiIcon.toss, label: "Tossed", intent: .soft, seed: 0) { onCommit(false) }
-                if showFreeze {
-                    PaperIconButton(icon: ReffiIcon.freeze, label: "Freeze", intent: .neutral, seed: 2) { onFreeze() }
-                }
-                PaperIconButton(icon: ReffiIcon.ate, label: "Ate", intent: .primary, seed: 1) { onCommit(true) }
-            }
-            Button { onCancel() } label: {
-                Text("Keep it")
-                    .reffiType(.caption)
-                    .foregroundStyle(ReffiColor.ink2)
-                    .frame(minWidth: 44, minHeight: 44)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.reffiPress)
+            outcomeRow
+            keepIt
         }
         .padding(.horizontal, ReffiSpace.s6)
         .padding(.top, ReffiSpace.s6)
         .padding(.bottom, ReffiSpace.s3)
         .background {
             let shape = PaperRect(cornerRadius: ReffiRadius.xl)
-            shape.fill(ReffiColor.canvas).paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
+            shape.fill(ReffiColor.canvas).paperEdge(shape)
         }
         .reffiShadow1()
         .padding(.horizontal, ReffiSpace.s7)
+    }
+
+    /// 판정 버튼들 — 가로 한 줄이 **들어가면** 지금 그대로, 안 들어가면 세로 세 행으로 접는다.
+    /// 큰 글자에서 'Tossed'가 'To…'로 잘리던 자리다(1라운드 이연분): 라벨을 2줄로 풀면 버튼마다
+    /// 줄 수가 갈려 블롭 세로 정렬이 어긋나므로, 줄을 늘리는 대신 **배치를 통째로 바꾼다**.
+    /// 세로 폼은 블롭 좌 · 라벨 우의 행이라 라벨이 폭을 다투지 않고, 읽는 순서도 그대로 남는다.
+    private var outcomeRow: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: showFreeze ? ReffiSpace.s4 : ReffiSpace.s6) {
+                outcomeButtons(size: blobSide, placement: .below)
+            }
+            VStack(spacing: ReffiSpace.s3) {
+                outcomeButtons(size: Self.stackedBlobSide, placement: .trailing)
+            }
+        }
+    }
+
+    /// 두 배치가 **같은 버튼 셋**을 같은 순서로 세운다 — 손으로 두 번 쓰면 한쪽만 조용히 어긋난다.
+    @ViewBuilder
+    private func outcomeButtons(size: CGFloat, placement: PaperIconLabel.Placement) -> some View {
+        PaperIconButton(icon: ReffiIcon.toss, label: "Tossed", intent: .soft,
+                        size: size, seed: 0, placement: placement,
+                        capsLabelWidth: false) { close { onCommit(false) } }
+        if showFreeze {
+            PaperIconButton(icon: ReffiIcon.freeze, label: "Freeze", intent: .neutral,
+                            size: size, seed: 2, placement: placement,
+                            capsLabelWidth: false) { close(onFreeze) }
+        }
+        PaperIconButton(icon: ReffiIcon.ate, label: "Ate", intent: .primary,
+                        size: size, seed: 1, placement: placement,
+                        capsLabelWidth: false) { close { onCommit(true) } }
+    }
+
+    private var keepIt: some View {
+        Button { close(onCancel) } label: {
+            Text("Keep it")
+                .reffiType(.caption)
+                .foregroundStyle(ReffiColor.ink2)
+                .frame(minWidth: ReffiChrome.tapMin, minHeight: ReffiChrome.tapMin)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.reffiPress)
     }
 }

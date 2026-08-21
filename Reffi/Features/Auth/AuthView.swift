@@ -20,6 +20,12 @@ struct AuthView: View {
     @State private var appleNonce = ""
     @State private var appleCoordinator = AppleSignInCoordinator()
 
+    /// 지금 응답을 기다리는 **입구** — `auth.busy`는 화면 전체가 함께 보는 한 칸이라 그대로 쓰면
+    /// 누르지도 않은 버튼까지 같이 돌아, 스피너가 "무엇을 눌렀는가"를 말해 주지 못한다.
+    /// nil = 이메일 폼(1차 CTA)이 일하는 중.
+    private enum Entry { case apple, google, guest }
+    @State private var pending: Entry?
+
     private var isSignIn: Bool { mode == .signIn }
     private var canSubmit: Bool {
         email.contains("@") && password.count >= 6 && !auth.busy
@@ -53,6 +59,10 @@ struct AuthView: View {
         .onChange(of: auth.session?.user.isAnonymous) { _, isAnon in
             if isAnon == false { dismiss() }
         }
+        // 일이 끝나면 스피너의 주인도 함께 내려놓는다(다음 탭이 자기 자리에서 다시 돌게).
+        .onChange(of: auth.busy) { _, busy in
+            if !busy { pending = nil }
+        }
     }
 
     // MARK: 워드마크
@@ -85,9 +95,9 @@ struct AuthView: View {
 
             // 소셜 우선 — Apple/Google을 기본 이메일 로그인보다 위에 배치.
             // fg는 onInk — ink 면이 다크에서 크림으로 뒤집히므로 흰 리터럴이 아닌 ink 대응 콘텐츠 토큰을 쓴다.
-            socialButton(icon: .appleLogo, title: "Continue with Apple",
+            socialButton(icon: .appleLogo, title: "Continue with Apple", provider: .apple,
                          fill: ReffiColor.ink, fg: ReffiColor.onInk, seed: 5) { startApple() }
-            socialButton(icon: .googleLogo, title: "Continue with Google",
+            socialButton(icon: .googleLogo, title: "Continue with Google", provider: .google,
                          fill: ReffiColor.paper, fg: ReffiColor.ink, seed: 6) {
                 Task { await auth.signInWithGoogle() }
             }
@@ -109,7 +119,8 @@ struct AuthView: View {
 
             feedback
 
-            PaperButton(title: LocalizedStringKey(primaryTitle), seed: 1, action: submit)
+            PaperButton(title: LocalizedStringKey(primaryTitle), seed: 1,
+                        isBusy: auth.busy && pending == nil, action: submit)
                 .disabled(!canSubmit)   // 디밍은 PaperButton이 §7.2로 처리 — 여기서 겹치면 곱해진다.
 
             modeToggle
@@ -119,8 +130,12 @@ struct AuthView: View {
         .receiptSurface(elevated: .floating)
     }
 
+    /// 1차 CTA 문구 — 진행 중에도 **방금 누른 동작을 그대로 지목한다**(로그인 중…/가입 중…).
+    /// 옛 "One sec…"은 어느 버튼이 무슨 일을 하는지 지워 버려, 화면에 진행 신호가 이것뿐인 상황에서
+    /// 사용자가 자기가 무엇을 눌렀는지 확인할 길이 없었다. 진행 자체는 옆의 스피너가 말한다.
+    /// 소셜 응답을 기다리는 동안은 그쪽 버튼이 이미 스피너를 들고 있으므로 여기는 평소 문구로 둔다.
     private var primaryTitle: String {
-        if auth.busy { return "One sec…" }
+        if auth.busy, pending == nil { return isSignIn ? "Logging in…" : "Signing up…" }
         return isSignIn ? "Log in" : "Sign up"
     }
 
@@ -132,20 +147,14 @@ struct AuthView: View {
         }
     }
 
-    // MARK: 입력 필드 — 시트 인풋과 같은 PaperRect 문법
+    // MARK: 입력 필드 — 시트 인풋과 같은 `fieldSurface` 한 칸(§13.8)
 
     private func field(_ placeholder: LocalizedStringKey, text: Binding<String>, focused: Field) -> some View {
         TextField(placeholder, text: text)
             .reffiType(.body)
             .foregroundStyle(ReffiColor.ink)
             .focused($focus, equals: focused)
-            .padding(.horizontal, ReffiSpace.s4)
-            .padding(.vertical, ReffiSpace.s3)
-            .frame(minHeight: 44)   // §7.3
-            .background {
-                let s = PaperRect(cornerRadius: ReffiRadius.md, seed: focused == .email ? 2 : 3)
-                s.fill(ReffiColor.canvas).paperEdge(s, tint: ReffiColor.ink.opacity(0.1))
-            }
+            .fieldSurface(seed: focused == .email ? 2 : 3)   // 면·패딩·히트를 모디파이어가 쥔다
     }
 
     private var secureField: some View {
@@ -153,13 +162,7 @@ struct AuthView: View {
             .reffiType(.body)
             .foregroundStyle(ReffiColor.ink)
             .focused($focus, equals: .password)
-            .padding(.horizontal, ReffiSpace.s4)
-            .padding(.vertical, ReffiSpace.s3)
-            .frame(minHeight: 44)
-            .background {
-                let s = PaperRect(cornerRadius: ReffiRadius.md, seed: 3)
-                s.fill(ReffiColor.canvas).paperEdge(s, tint: ReffiColor.ink.opacity(0.1))
-            }
+            .fieldSurface(seed: 3)
     }
 
     // MARK: 피드백 — 에러(urgent-dark) / 안내(fresh-dark), §2.6 캔버스 위 dark
@@ -180,7 +183,8 @@ struct AuthView: View {
             Text(isSignIn ? "New here?" : "Already have an account?")
                 .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
             Button(isSignIn ? "Sign up" : "Log in") {
-                withAnimation(ReffiMotion.gated(.easeOut(duration: 0.18), reduce: reduceMotion)) {
+                // 로그인↔가입은 같은 폼이 성격만 바뀌는 **상태 전환**이다(§7.1 standard, dur-2).
+                withAnimation(ReffiMotion.gated(ReffiMotion.standard, reduce: reduceMotion)) {
                     mode = isSignIn ? .signUp : .signIn
                     auth.errorMessage = nil
                     auth.notice = nil
@@ -191,7 +195,7 @@ struct AuthView: View {
             .buttonStyle(.reffiPress)
         }
         .frame(maxWidth: .infinity)
-        .frame(minHeight: 44)
+        .frame(minHeight: ReffiChrome.tapMin)
     }
 
     private var dashRule: some View {
@@ -208,14 +212,26 @@ struct AuthView: View {
 
     // MARK: 소셜 버튼 — PaperCutRect(와이드 CTA 문법) + 로고 글리프
 
-    private func socialButton(icon: Ph, title: LocalizedStringKey, fill: Color, fg: Color, seed: Int,
+    private func socialButton(icon: Ph, title: LocalizedStringKey, provider: Entry,
+                              fill: Color, fg: Color, seed: Int,
                               action: @escaping () -> Void) -> some View {
-        Button(action: action) {
+        // 스피너는 **누른 그 버튼에만** 선다 — 디밍은 둘 다 먹으므로(전역 busy), 디밍만으로는
+        // "내가 누른 쪽"과 "그동안 못 누르는 쪽"이 같은 모습이 된다.
+        let isBusy = auth.busy && pending == provider
+        return Button {
+            pending = provider
+            action()
+        } label: {
             HStack(spacing: ReffiSpace.s2) {
                 icon.reffi(18, .fill)
                 Text(title)
                     .font(ReffiTextRole.subhead.font)
                     .tracking(ReffiTextRole.subhead.tracking)
+                if isBusy {
+                    ProgressView()
+                        .controlSize(.small)
+                        .tint(fg)
+                }
             }
             .foregroundStyle(fg)
             .frame(maxWidth: .infinity)
@@ -225,7 +241,7 @@ struct AuthView: View {
                 s.fill(fill)
                     .overlay(PaperGrain(seed: UInt64(seed) &+ 11).clipShape(s))
                     .paperEdge(s, tint: fill == ReffiColor.paper
-                               ? ReffiColor.ink.opacity(0.1) : ReffiColor.paperEdgeOnFill, width: 1)
+                               ? ReffiColor.paperEdgeField : ReffiColor.paperEdgeOnFill)
             }
             .compositingGroup()
             .reffiShadow1()
@@ -233,7 +249,9 @@ struct AuthView: View {
         .buttonStyle(.paperPress)
         .disabled(auth.busy)
         // PaperButton이 아닌 자체 표면이라 디밍이 겹치지 않는다 — 여기가 §7.2 디밍의 유일한 지점.
-        .opacity(auth.busy ? ReffiOpacity.disabled : 1)
+        // **일하는 버튼은 디밍하지 않는다**: 디밍은 "지금 못 누름"의 표기고, 이 버튼이 지금 하는 말은
+        // "내가 처리 중"이다. 잉크를 살려 스피너와 함께 두고, 대기하는 반대쪽만 내린다.
+        .opacity(auth.busy && !isBusy ? ReffiOpacity.disabled : 1)
     }
 
     private var footer: some View {
@@ -248,6 +266,7 @@ struct AuthView: View {
 
     private var guestButton: some View {
         QuietButton(title: "Browse without an account", icon: ReffiIcon.go, tint: ReffiColor.ink2) {
+            pending = .guest   // 둘러보기도 busy를 켠다 — 그 사이 1차 CTA가 "로그인 중…"이 되면 거짓말이다
             Task { await auth.continueAsGuest() }
         }
         .frame(maxWidth: .infinity)

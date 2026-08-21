@@ -721,14 +721,34 @@ struct RecommenderTests {
     }
 }
 
-/// 표시 캐논화 — 저장 스키마(name)는 그대로 두고 표시만 사전에서 다시 읽는지.
+/// 표시 이름 — **가드형 단일 정책**(`IngredientLexicon.displayName(stored:canonicalID:)`).
+/// 저장 스키마(`name`)는 손대지 않고, 저장 표기가 사전 표제어(en/ko)와 일치할 때만 지금 로케일
+/// 표제어로 다시 읽는다. "사용자가 적은 표기는 데이터다 — 사전이 아는 말일 때만 사전이 말한다."
 struct DisplayNameTests {
 
-    @Test func canonicalIDWinsOverStoredName() {
-        let ing = Ingredient(name: "연두부라고 저장된 옛 표기", category: "Veg",
-                             expiresAt: Date(), canonicalID: "egg")
-        let expected = IngredientLexicon.shared.entry(id: "egg")?.displayName
-        #expect(ing.displayName == expected)
+    /// 표제어로 담은 것은 언어를 따라온다 — **반대 로케일 표기를 넣어** 왕복을 세운다.
+    /// 테스트에서 호스트 언어를 못 바꾸므로(`Recipe.isKorean`은 `Locale.current`를 읽는다),
+    /// 지금 호스트가 아닌 *반대쪽* 표기를 저장값으로 주고 지금 쪽 표제어가 나오는지 본다 —
+    /// 어느 호스트에서 돌려도 실제 언어 전환 왕복(ko 입력 → en 표시)을 재현한다.
+    @Test func lexiconHeadwordIsRedrawnInTheCurrentLocale() throws {
+        let entry = try #require(IngredientLexicon.shared.entry(id: "onion"))
+        let ko = try #require(entry.names.ko.first)        // "양파"
+        let en = try #require(entry.names.en.first)        // "onion"(사전의 영문은 매칭용 소문자 캐논)
+        let stored = Recipe.isKorean ? en : ko
+        let ing = Ingredient(name: stored, category: "Veg", expiresAt: Date(), canonicalID: "onion")
+        #expect(ing.displayName == entry.displayName)
+        #expect(ing.displayName == (Recipe.isKorean ? ko : en.localizedCapitalized))
+        #expect(ing.name == stored)                        // 저장값 자체는 건드리지 않는다
+    }
+
+    /// 캐논이 붙어 있어도 **사전이 모르는 표기는 덮지 않는다**(가드형의 핵심).
+    /// 영수증 줄 "서울우유1L"은 포함 매칭으로 캐논이 milk지만, 사용자가 산 그 물건의 이름이
+    /// 화면에서 "Milk"로 바뀌면 안 된다.
+    @Test func freeTextSurvivesEvenWhenItMatchedACanon() {
+        #expect(IngredientLexicon.shared.canonicalID(for: "서울우유1L") == "milk")   // 전제
+        let ing = Ingredient(name: "서울우유1L", category: "Dairy",
+                             expiresAt: Date(), canonicalID: "milk")
+        #expect(ing.displayName == "서울우유1L")
     }
 
     @Test func freeTextKeepsStoredName() {
@@ -736,10 +756,32 @@ struct DisplayNameTests {
         #expect(ing.displayName == "할머니표 장아찌")
     }
 
+    /// 한 품목은 **어느 화면에서든 같은 이름으로 불린다**. 표면마다 규칙이 갈렸던 전례를 못 박는다:
+    /// 같은 이력 로그가 History에선 "Milk", To buy에선 "서울우유1L"로 읽혔다(재고 카드·뱃지·알림은
+    /// `Ingredient`, 타임라인은 `RemovalLog`, 장보기 메모는 `ManualBuyItem`을 그린다).
+    @MainActor   // `FridgeStore.displayName(for:)`는 스토어와 함께 메인 액터에 산다
+    @Test func everySurfaceAgreesOnTheSameName() throws {
+        let entry = try #require(IngredientLexicon.shared.entry(id: "milk"))
+        let headword = try #require(entry.names.ko.first)
+        for stored in [headword, "서울우유1L"] {          // 표제어 / 자유 입력 양쪽
+            let ing = Ingredient(name: stored, category: "Dairy",
+                                 expiresAt: Date(), canonicalID: "milk")
+            let log = RemovalLog(name: stored, glyph: .milk, canonicalID: "milk",
+                                 removedAt: Date(), wasted: false)
+            let memo = FridgeStore.ManualBuyItem(name: stored, canonicalID: "milk", glyph: .milk)
+            #expect(ing.displayName == log.displayName)
+            #expect(log.displayName == FridgeStore.displayName(for: memo))
+        }
+    }
+
     @Test func removalLogFollowsSameRule() {
-        let log = RemovalLog(name: "old label", glyph: .milk, canonicalID: "milk",
+        let log = RemovalLog(name: "우유", glyph: .milk, canonicalID: "milk",
                              removedAt: Date(), wasted: false)
         #expect(log.displayName == IngredientLexicon.shared.entry(id: "milk")?.displayName)
+        // 캐논이 있어도 사전 밖 표기는 그대로 — 타임라인이 사용자가 산 물건 이름을 지우지 않는다.
+        let kept = RemovalLog(name: "old label", glyph: .milk, canonicalID: "milk",
+                              removedAt: Date(), wasted: false)
+        #expect(kept.displayName == "old label")
         let free = RemovalLog(name: "직접 만든 잼", glyph: .generic, removedAt: Date(), wasted: true)
         #expect(free.displayName == "직접 만든 잼")
     }

@@ -31,11 +31,14 @@ struct IngredientBadge: View {
             .padding(.trailing, ReffiSpace.s3 + 2)
             .padding(.vertical, ReffiSpace.s2 + 2)
             .background { surface }
-            .frame(minHeight: 44)              // §7.3 최소 터치 타깃
+            .frame(minHeight: ReffiChrome.tapMin)              // §7.3 최소 터치 타깃
             .contentShape(Rectangle())
         }
         .buttonStyle(.paperPress)
-        .accessibilityLabel(Text("\(ingredient.displayName), \(ingredient.dDayText)"))
+        // 화면의 "3d"는 뱃지 폭에 맞춘 축약이라 소리로는 뜻이 서지 않는다 — 읽을 때는 풀어 쓴다.
+        // 데이터(이름·기한 문구)를 잇는 문장이라 `verbatim` — 보간을 그냥 `Text(_:)`에 넣으면
+        // "%@, %@"라는 키로 카탈로그를 뒤지고, 없어서 폴백으로만 맞는 자리가 된다(§i18n).
+        .accessibilityLabel(Text(verbatim: "\(ingredient.displayName), \(ingredient.dDayAccessibilityText)"))
         .accessibilityHint(Text("Decide: eaten or tossed?"))
     }
 
@@ -43,7 +46,7 @@ struct IngredientBadge: View {
         let shape = PaperRect(cornerRadius: ReffiRadius.md, seed: seed)
         return shape
             .fill(ReffiColor.paper)
-            .paperEdge(shape, tint: ReffiColor.ink.opacity(0.08))
+            .paperEdge(shape)
             .reffiShadow1()
     }
 }
@@ -68,7 +71,7 @@ struct AddBadge: View {
                 shape.stroke(ReffiColor.muted.opacity(0.7),
                              style: StrokeStyle(lineWidth: 1.5, dash: [4, 4]))
             }
-            .frame(minHeight: 44)              // §7.3 최소 터치 타깃
+            .frame(minHeight: ReffiChrome.tapMin)              // §7.3 최소 터치 타깃
             .contentShape(Rectangle())
         }
         .buttonStyle(.paperPress)

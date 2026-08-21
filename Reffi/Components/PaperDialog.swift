@@ -43,7 +43,9 @@ struct PaperDialog: View {
                 // 바깥 탭의 접근성 대응은 아래 `.escape` 액션이 맡는다(호출부가 준 행동과 같은 것).
                 .accessibilityHidden(true)
             card
-                .scaleEffect(shown ? 1 : 0.85)
+                // 진입 하한은 0.95다(§7.1) — 0.85는 "멀리서 날아온다"라 묻는 종이가 뜨는 게 아니라
+                // 던져지는 것으로 읽혔다. 존재감은 팝 스프링의 오버슈트가 만든다(판정 커버와 같은 값).
+                .scaleEffect(shown ? 1 : 0.95)
                 .opacity(shown ? 1 : 0)
         }
         // 뒤 화면을 VoiceOver에서 가린다 — 모달이 뜬 동안 티켓 덱을 훑을 수 있으면 모달이 아니다.
@@ -74,7 +76,7 @@ struct PaperDialog: View {
         .padding(ReffiSpace.s5)
         .background {
             let shape = PaperRect(cornerRadius: ReffiRadius.xl, seed: seed)
-            shape.fill(ReffiColor.paper).paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
+            shape.fill(ReffiColor.paper).paperEdge(shape)
         }
         .reffiShadow1()
         // 접근성 글자는 accessibility3까지만 따라 키운다 — 카드에는 스크롤이 없어서, 그 위 단계는
@@ -165,7 +167,9 @@ private struct PaperDialogModifier: ViewModifier {
                 }
             }
             // 딤의 등장·소멸만 여기서(카드의 팝은 다이얼로그가 스스로 한다). 이탈은 §7대로 더 빠르게.
-            .animation(ReffiMotion.gated(.easeOut(duration: ReffiMotion.dur2), reduce: reduceMotion),
+            // 커브는 `ReffiMotion.easeOut`이다 — 콜사이트에서 그냥 `.easeOut`이라 쓰면 SwiftUI 기본
+            // 커브(0,0,0.58,1)가 잡혀 §7.1 진입 커브(0.23,1,0.32,1)와 다른 시계로 돈다.
+            .animation(ReffiMotion.gated(ReffiMotion.easeOut(duration: ReffiMotion.dur2), reduce: reduceMotion),
                        value: isPresented)
     }
 

@@ -48,6 +48,9 @@ struct IngredientLexicon {
     /// 타이핑 검색용 정규화 이름(en+ko) — `entries`와 같은 순서. 키 입력마다 사전 전체를
     /// 다시 정규화하지 않으려고 로드 때 한 번만 만든다(어차피 아래 키워드 색인이 같은 값을 훑는다).
     private let searchNames: [[String]]
+    /// id → 그 항목의 정규화 표기 집합. `displayName(stored:canonicalID:)`의 가드가 읽는다 —
+    /// 목록은 행마다 그 가드를 부르므로, 호출마다 표기 배열을 새로 만들어 정규화하면 스크롤에서 값이 나간다.
+    private let normalizedNamesByID: [String: Set<String>]
 
     /// 사전 전체를 `FoodGlyph.categoryLabel`로 묶은 섹션 — 항목이 있는 카테고리만,
     /// `FoodGlyph.categoryOrder`(냉장고 필터 칩과 공유하는 단일 순서 상수)대로, 섹션 안은 표기 오름차순.
@@ -69,9 +72,12 @@ struct IngredientLexicon {
         var exact: [String: String] = [:]
         var contains: [(String, String)] = []
         var names: [[String]] = []
+        var normalizedByID: [String: Set<String>] = [:]
         for e in loaded {
             let displayNames = (e.names.en + e.names.ko).map(Self.norm).filter { !$0.isEmpty }
             names.append(displayNames)
+            // 같은 id가 두 번 실렸으면 앞선 항목이 이긴다(byID와 같은 규칙 — 가드와 조회가 갈리면 안 된다).
+            if normalizedByID[e.id] == nil { normalizedByID[e.id] = Set(displayNames) }
             var keywords = e.names.en + e.names.ko
             keywords.append(e.id.replacingOccurrences(of: "-", with: " "))
             for raw in keywords {
@@ -83,6 +89,7 @@ struct IngredientLexicon {
             }
         }
         searchNames = names
+        normalizedNamesByID = normalizedByID
         exactKeyword = exact
         // 긴 키워드 우선("green onion"이 "onion"보다 먼저) — 포함 매칭의 특이도 보장.
         containsKeywords = contains.sorted { $0.0.count > $1.0.count }
@@ -206,6 +213,36 @@ struct IngredientLexicon {
 
     func entry(id: String) -> Entry? { byID[id] }
     func entry(for name: String) -> Entry? { canonicalID(for: name).flatMap { byID[$0] } }
+
+    // MARK: - 표시 이름 (앱 전역 단일 정책)
+
+    /// 저장 표기 + 캐논 ID → **화면에 그릴 이름**. 앱의 모든 표면이 이 한 곳을 거친다
+    /// (`Ingredient.displayName`·`RemovalLog.displayName`·`FridgeStore.displayName(for:)` →
+    /// 재고 카드·뱃지·알림·History 타임라인·To buy 제안·FREQUENT 칩).
+    ///
+    /// **정책(가드형): 사용자가 적은 표기는 데이터다 — 사전이 아는 말일 때만 사전이 말한다.**
+    ///
+    /// 두 요구가 정면으로 부딪힌다.
+    /// - 저장 `name`은 담던 **순간의 표기**라 로케일이 박제된다: 한국어 기기에서 사전 타일로 담은
+    ///   "양파"는 앱 언어를 영어로 바꿔도 "양파"로 남아, 크롬만 영어인 반쪽 화면이 된다.
+    /// - 그런데 캐논만 보고 무조건 덮으면 자유 입력이 사라진다: 영수증 줄 "서울우유1L"은 포함 매칭으로
+    ///   캐논이 `milk`라, 사용자가 산 그 물건이 화면에서 "Milk"로 바뀌어 버린다.
+    ///
+    /// 그래서 **저장 표기가 사전 표제어(en/ko)와 실제로 일치할 때만** 지금 로케일의 표제어로 다시 푼다.
+    /// 표제어를 골라 담은 대다수 경로(검색 그리드·영수증 캐논 매칭·샘플 시드)는 언어를 따라오고,
+    /// 사용자가 직접 친 표기는 어느 화면에서도 원문 그대로 남는다. 판정을 이 한 함수로 모으는 이유는
+    /// 표면마다 규칙이 갈렸던 전례 때문이다: 같은 이력 로그가 History에선 "Milk", To buy에선
+    /// "서울우유1L"로 읽혔다. 한 품목은 어느 화면에서든 같은 이름으로 불려야 한다.
+    ///
+    /// 비교는 `norm`(트림 + 소문자)이라 영문 표시형("Onion")도 캐논("onion")과 같은 말로 본다.
+    /// 마이그레이션은 필요 없다 — 저장 스키마는 그대로 두고 표시 시점에만 판정한다.
+    func displayName(stored: String, canonicalID: String?) -> String {
+        guard let id = canonicalID, let entry = byID[id],
+              normalizedNamesByID[id]?.contains(Self.norm(stored)) == true else {
+            return stored   // 사전 밖이거나 사용자 표기 — 그대로 둔다
+        }
+        return entry.displayName
+    }
 
     func glyph(for name: String) -> FoodGlyph? {
         entry(for: name).flatMap { FoodGlyph(rawValue: $0.glyph) }

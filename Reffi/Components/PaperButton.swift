@@ -13,19 +13,32 @@ struct PaperButtonLabel: View {
     var kind: Kind = .primary
     var fullWidth: Bool = true
     var seed: Int = 0
+    /// 지금 이 버튼이 일하는 중인가 — **라벨을 갈아 끼우지 않고 옆에 스피너를 세운다**(§7.2).
+    /// 문구를 통째로 바꿔 버리면 방금 누른 것이 무엇이었는지가 화면에서 사라지고, 디밍만으로는
+    /// "조건 미충족이라 못 누름"과 구분되지 않는다. 문구는 호출부가 동작 지목형으로 바꾼다.
+    var isBusy: Bool = false
 
     private var fill: Color { kind == .primary ? ReffiColor.blue : ReffiColor.sub }
-    private var foreground: Color { kind == .primary ? .white : ReffiColor.ink }
+    // blue 면 위 콘텐츠는 `onAccent`다(§2.7) — 흰색인 근거가 `blue`의 다크 L 상한에 묶여 있으므로
+    // 리터럴 `.white`가 아니라 토큰으로 부른다. ink 면 위의 `onInk`와는 다른 토큰이다.
+    private var foreground: Color { kind == .primary ? ReffiColor.onAccent : ReffiColor.ink }
 
     var body: some View {
-        Text(title)
-            .font(ReffiTextRole.subhead.font)
-            .tracking(ReffiTextRole.subhead.tracking)
-            .foregroundStyle(foreground)
-            .frame(maxWidth: fullWidth ? .infinity : nil)
-            .padding(.horizontal, ReffiSpace.s5)
-            .padding(.vertical, ReffiSpace.s4)
-            .background { surface }
+        HStack(spacing: ReffiSpace.s2) {
+            Text(title)
+                .font(ReffiTextRole.subhead.font)
+                .tracking(ReffiTextRole.subhead.tracking)
+            if isBusy {
+                ProgressView()
+                    .controlSize(.small)
+                    .tint(foreground)   // 스피너 잉크는 라벨과 같은 색 — 면 위에서 한 덩어리로 읽힌다
+            }
+        }
+        .foregroundStyle(foreground)
+        .frame(maxWidth: fullWidth ? .infinity : nil)
+        .padding(.horizontal, ReffiSpace.s5)
+        .padding(.vertical, ReffiSpace.s4)
+        .background { surface }
     }
 
     private var surface: some View {
@@ -47,6 +60,8 @@ struct PaperButton: View {
     var kind: Kind = .primary
     var fullWidth: Bool = true
     var seed: Int = 0
+    /// 진행 중 표시 — 라벨 옆 스피너(`PaperButtonLabel.isBusy`). 기본값이 있어 기존 호출부는 그대로다.
+    var isBusy: Bool = false
     let action: () -> Void
 
     /// `.disabled(_:)`가 걸리면 투명도만 낮춰 "지금 못 누름"을 보인다(§7.2 disabled = opacity .45, 색 변경 X).
@@ -57,7 +72,7 @@ struct PaperButton: View {
 
     var body: some View {
         Button(action: action) {
-            PaperButtonLabel(title: title, kind: kind, fullWidth: fullWidth, seed: seed)
+            PaperButtonLabel(title: title, kind: kind, fullWidth: fullWidth, seed: seed, isBusy: isBusy)
         }
         .buttonStyle(.paperPress)
         .opacity(isEnabled ? 1 : ReffiOpacity.disabled)

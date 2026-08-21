@@ -221,13 +221,11 @@ struct Ingredient: Identifiable, Codable, Equatable {
     /// 중복 판정·쇼핑리스트·재입고 조회의 공통 기준(§개발규칙 — 정규화 키로 저장, 표시만 로케일).
     var matchKey: String { canonicalID ?? name.lowercased() }
 
-    /// 화면에 그릴 이름 — 캐논 ID가 있으면 **표시 시점의 기기 언어**로 사전에서 다시 읽는다.
-    /// 저장 `name`은 담던 순간의 표기(사전 밖 자유 입력의 원본 보관용)라 그대로 두고 표시만 로컬라이즈한다
-    /// (§개발규칙 — 정규화 키로 저장, 표시만 로케일). 이게 없으면 한국어로 담은 재료가 iOS 언어를
-    /// 영어로 바꿔도 계속 한국어로 남아, 크롬만 영어인 반쪽 화면이 된다. 마이그레이션은 필요 없다 —
-    /// 기존 레코드도 canonicalID만 있으면 즉시 따라온다.
+    /// 화면에 그릴 이름 — 판정은 앱 전역 단일 정책(`IngredientLexicon.displayName(stored:canonicalID:)`)에 맡긴다.
+    /// 저장 표기가 사전 표제어면 **표시 시점의 기기 언어**로 다시 읽고, 사용자가 친 표기("서울우유1L")는
+    /// 그대로 둔다(§개발규칙 — 정규화 키로 저장, 표시만 로케일). 규칙의 근거와 경계는 그 함수 주석에 있다.
     var displayName: String {
-        canonicalID.flatMap { IngredientLexicon.shared.entry(id: $0)?.displayName } ?? name
+        IngredientLexicon.shared.displayName(stored: name, canonicalID: canonicalID)
     }
 
     // MARK: - 시간 모델 (asOf 주입 — 테스트에서 자정 경계·타임존 검증 가능)
@@ -275,6 +273,19 @@ struct Ingredient: Identifiable, Codable, Equatable {
         case ..<0: String(localized: "Overdue", comment: "D-day label when past the use-by date")
         case 0:    String(localized: "Today", comment: "D-day label when expiring today")
         default:   String(localized: "\(daysLeft)d", comment: "D-day shorthand, e.g. 3d")
+        }
+    }
+
+    /// 남은 일수를 **소리로** 읽는 문구 — 화면 표기(`dDayText`)는 도장·배지 폭에 맞춘 축약이라
+    /// 보조기술에는 그대로 쓸 수 없다("3d"는 문자 그대로 "삼디"로 읽히고, 영문 음성은 3D(입체)와 겹친다).
+    /// 표기와 문구를 **한 쌍으로** 여기 둔다 — 화면마다 손으로 적으면 한쪽만 고쳐져 둘이 어긋난다.
+    var dDayAccessibilityText: String { Self.dDayAccessibilityText(daysLeft: effectiveDaysLeft) }
+
+    static func dDayAccessibilityText(daysLeft: Int) -> String {
+        switch daysLeft {
+        case ..<0: String(localized: "Past use-by date", comment: "Spoken D-day label when past the use-by date")
+        case 0:    String(localized: "Expires today", comment: "Spoken D-day label when expiring today")
+        default:   String(localized: "\(daysLeft) days left", comment: "Spoken D-day label, e.g. 3 days left")
         }
     }
 

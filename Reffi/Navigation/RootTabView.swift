@@ -9,6 +9,7 @@ struct RootTabView: View {
 
     @Environment(FridgeStore.self) private var store
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityVoiceOverEnabled) private var voiceOver
 
     @State private var tab: Tab = {
         #if DEBUG
@@ -32,9 +33,15 @@ struct RootTabView: View {
         ZStack(alignment: .bottom) {
             // 세 탭 공존(pane) 유지 — switch 전환은 메인 물리 더미·undo 상태를 파괴한다.
             // 프로필 탭은 PR #4의 ProfileView(계정·취향·리포트)로 교체.
+            //
+            // **공존은 상태를 살리기 위한 것이지 그리기까지 살리자는 뜻이 아니다.** 세 뷰가 전부
+            // store를 보므로 판정 한 번에 세 화면분 body가 돌고, 가려진 둘도 리퀴드글래스와 종이
+            // 카드를 그대로 다시 그렸다. 그래서 셋 다 `isActive`를 받아 **비활성이면 본문을 세우지
+            // 않는다** — @State·@AppStorage·시트는 뷰가 살아 있는 한 그대로다(메인의 물리 씬은
+            // 여전히 여기서 일시정지된다).
             pane(MainView(isActive: tab == .home, onOpenToBuy: { openFridge(.toBuy) }), visible: tab == .home)
-            pane(FridgeView(pendingPane: $fridgePane), visible: tab == .fridge)
-            pane(ProfileView(), visible: tab == .profile)
+            pane(FridgeView(isActive: tab == .fridge, pendingPane: $fridgePane), visible: tab == .fridge)
+            pane(ProfileView(isActive: tab == .profile), visible: tab == .profile)
 
             CapsuleNav(tab: $tab, onAdd: { showAdd = true })
         }
@@ -48,13 +55,40 @@ struct RootTabView: View {
                     withAnimation(ReffiMotion.gated(ReffiMotion.pop, reduce: reduceMotion)) {
                         store.undoPending()
                     }
+                    ReffiAnnounce.say(String(localized: "Undone."))
                 }
                 .padding(.top, ReffiSpace.s2)
-                .transition(.move(edge: .top).combined(with: .opacity))
+                // 이 토스트는 **잉크 캡슐**이지 종이가 아니다 — 종이컷 표면 전용인 통통 스프링(§7.5)을
+                // 태우면 안내가 튀어 오르며 종이 행세를 한다. 들 때는 §7.1 진입(dur-3 ease-out)으로
+                // 내려오고, **날 때는 자리를 밀지 않고 그 자리에서 흐려진다**: 되돌리기 창이 만료로
+                // 조용히 닫히는 것은 사건이 아니라 시간이 지난 것이라, 다시 위로 걷히면 눈이 그것을
+                // 새 사건으로 쫓는다. 진입=이탈 대칭이던 옛 문법의 정확한 반대다(§7.1 이탈은 더 빠르게).
+                .transition(.asymmetric(
+                    insertion: .move(edge: .top).combined(with: .opacity)
+                        .animation(ReffiMotion.gated(ReffiMotion.enter, reduce: reduceMotion)),
+                    removal: .opacity
+                        .animation(ReffiMotion.gated(ReffiMotion.exit, reduce: reduceMotion))))
             }
         }
-        .animation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion), value: store.pendingUndo)
-        .sensoryFeedback(.success, trigger: undoHaptic)
+        // 트랜지션이 자기 커브를 들고 있으므로 여기서는 **창이 열리고 닫히는 트랜잭션만** 연다
+        // (Reduce Motion이면 nil이라 토스트가 즉시 서고 즉시 사라진다, §7.4).
+        .animation(ReffiMotion.gated(ReffiMotion.enter, reduce: reduceMotion), value: store.pendingUndo)
+        .reffiFeedback(.success, trigger: undoHaptic)
+        // 판정·삭제는 뱃지·카드를 화면에서 지우고 토스트만 남긴다 — 그 토스트는 포커스를 가져가지
+        // 않으므로, 고지가 없으면 보조기술 사용자는 무엇이 사라졌는지도 되돌릴 수 있다는 것도 모른다.
+        // **토스트를 띄우는 이 자리가 고지 자리**다(FridgeStore는 순수 데이터라 보조기술을 볼 수 없다).
+        .onChange(of: store.pendingUndo) { previous, current in
+            // 창이 **열릴 때만** 말한다: 만료로 닫히는 것은 사건이 아니고, 되돌리기 실행은 버튼이 말한다.
+            // 토큰으로 비교하는 이유는 연속 판정 때문이다 — 같은 이름·같은 종류를 잇달아 처리하면
+            // 값이 같아 새 창이 열린 줄 모른다(토큰은 창마다 새로 발급된다).
+            guard let current, previous?.token != current.token else { return }
+            ReffiAnnounce.say(current.announcement)
+        }
+        // VoiceOver가 켜져 있으면 되돌리기 창을 늘린다 — 고지를 듣고(2~3초) 토스트로 포커스를 옮겨
+        // Undo까지 스와이프하는 데 6초는 모자란다. 스토어에 UIKit을 들이지 않으려고 값만 건넨다.
+        .onChange(of: voiceOver, initial: true) { _, on in
+            store.undoWindowSeconds = on ? FridgeStore.voiceOverUndoWindow : FridgeStore.defaultUndoWindow
+        }
         #if DEBUG
         // UI 테스트 결정적 상태 — 기기에 남은 사용자 데이터와 무관하게 샘플 냉장고로 고정.
         // (-loadSample은 첫 실행(isPristine)에만 시드하므로 테스트엔 강제 리셋 인자가 따로 필요.)
@@ -100,6 +134,15 @@ private struct CapsuleNav: View {
     @Binding var tab: RootTabView.Tab
     let onAdd: () -> Void
 
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    /// AX 크기에서는 **아이콘만** 세운다(iOS 표준 탭바와 같은 처세).
+    /// 캡슐은 실치수 58pt 높이에 네 항목을 가로로 세우는 면이라, 큰 글자에서 라벨이 들어갈 자리가
+    /// 애초에 없다 — 그대로 두면 '홈'은 'H…', 'Fri…'처럼 **잘린 글자**가 되어 큰 글자를 켠 사람에게
+    /// 오히려 덜 읽히는 라벨을 준다. 라벨을 지우는 대신 길게 눌러 화면 중앙에 크게 띄우는
+    /// Large Content Viewer를 항목마다 걸어 이름을 잃지 않게 한다(아래 `navButton`).
+    private var iconOnly: Bool { typeSize.isAccessibilitySize }
+
     var body: some View {
         HStack(spacing: ReffiSpace.s3) {
             navItem(.home, ReffiIcon.home, "Home")
@@ -129,22 +172,38 @@ private struct CapsuleNav: View {
                   selected: false, action: onAdd)
     }
 
-    /// 모든 네비 항목 공통 형식 — 아이콘(23) + 라벨(11/caption2 스케일).
+    /// 모든 네비 항목 공통 형식 — 아이콘(23) + 라벨(11/caption2 스케일, AX 크기에선 아이콘만).
     private func navButton(icon: Ph, label: LocalizedStringKey, tint: Color, weight: Ph.IconWeight,
                            selected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             VStack(spacing: 3) {
                 icon.reffi(23, weight)
-                Text(label)
-                    .reffiType(.metaText)
+                if !iconOnly {
+                    Text(label)
+                        .reffiType(.metaText)
+                }
             }
             .foregroundStyle(tint)
-            .frame(minWidth: 52, minHeight: 48)
+            // 라벨이 빠지면 보이는 것은 아이콘(23)뿐이라 **손가락이 닿는 면이 같이 줄 위험**이 있다.
+            // 그래서 기본 크기의 실치수(52×48)를 유지하되 하한을 §7.3 토큰으로 못 박는다 — tapMin이
+            // 언젠가 48로 오르면(토큰 주석 참조) 이 두 값도 같이 따라 올라간다.
+            .frame(minWidth: max(52, ReffiChrome.tapMin), minHeight: max(48, ReffiChrome.tapMin))
             .contentShape(Rectangle())
         }
         .buttonStyle(.reffiPress)
         .accessibilityLabel(Text(label))
         .accessibilityAddTraits(selected ? [.isSelected] : [])
+        // 길게 누르면 화면 중앙에 아이콘+이름을 크게 띄운다 — 라벨이 숨은 AX 크기에서만 시스템이
+        // 켜므로 항상 걸어 둔다. Phosphor는 SF Symbol이 아니라 `systemImage:` 를 못 쓴다 —
+        // 이미지 자리에 화면과 **같은 아이콘**(ReffiIcon 경유)을 그대로 넣어야 확대 라벨이
+        // 캡슐에 보이는 것과 같은 기호를 보여 준다.
+        .accessibilityShowsLargeContentViewer {
+            Label {
+                Text(label)
+            } icon: {
+                icon.reffi(23, weight)
+            }
+        }
     }
 }
 

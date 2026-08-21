@@ -70,7 +70,7 @@ struct OrderMemoCard: View {
         .padding(.bottom, ReffiSpace.s5)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(ReceiptShape(tooth: ReffiTooth.ticket).fill(ReffiColor.paper))
-        .overlay { if !headerOnly { ReceiptShape(tooth: ReffiTooth.ticket).stroke(ReffiColor.ink.opacity(0.07), lineWidth: 1) } }
+        .overlay { if !headerOnly { ReceiptShape(tooth: ReffiTooth.ticket).stroke(ReffiColor.paperEdge, lineWidth: 1) } }
         .overlay { if fired { slamStamp } }
         .compositingGroup()   // 그림자 재합성을 1패스로 — PaperGrain(.overlay)도 이 경계에 갇힌다.
         // 그림자는 값만 분기, 체인(2패스)은 고정 — 뷰 정체성 유지.
@@ -206,7 +206,7 @@ struct OrderMemoCard: View {
             Button { fire() } label: {
                 Text("Cook this")
                     .font(ReffiTextRole.subhead.font).tracking(ReffiTextRole.subhead.tracking)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(ReffiColor.onAccent)   // blue 면 위 콘텐츠(§2.7)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, ReffiSpace.s3 + 1)
                     .background {
@@ -267,10 +267,10 @@ struct OrderMemoCard: View {
             .background {
                 let shape = PaperRect(cornerRadius: ReffiRadius.sm, seed: number &+ 7)
                 shape.fill(ReffiColor.blueLight)
-                    .paperEdge(shape, tint: ReffiColor.blueDark.opacity(0.18))
+                    .paperEdge(shape, tint: ReffiColor.paperEdgeAccent(ReffiColor.blueDark))
             }
             // 시각은 작아도 히트 영역은 44pt(§7.3) — 투명 여백으로 확보한다.
-            .frame(minWidth: 44, minHeight: 44)
+            .frame(minWidth: ReffiChrome.tapMin, minHeight: ReffiChrome.tapMin)
             .contentShape(Rectangle())
         }
         .buttonStyle(.paperPress)
@@ -313,6 +313,9 @@ struct OrderMemoCard: View {
                     .padding(.horizontal, ReffiSpace.s2)
                     .padding(.vertical, 1)
                     .background(ing.freshness.light, in: PaperCutRect(seed: 2))   // §13.1 종이컷 8각형(캡슐 금지)
+                    // 보이는 값은 축약(3d)이라 소리로는 뜻이 서지 않는다 — 냉장고 도장·간편 행·재료 뱃지와
+                    // 같은 표기/문구 한 쌍(`Ingredient.dDayAccessibilityText`)을 이 칩도 본다.
+                    .accessibilityLabel(ing.dDayAccessibilityText)
             }
         }
     }

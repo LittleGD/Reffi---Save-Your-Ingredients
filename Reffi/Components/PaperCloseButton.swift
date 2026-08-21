@@ -20,7 +20,7 @@ struct PaperCloseButton: View {
                     s.fill(ReffiColor.paper).paperEdge(s)
                 }
                 .reffiShadow1()
-                .frame(minWidth: 44, minHeight: 44)           // 히트 44 (§7.3)
+                .frame(minWidth: ReffiChrome.tapMin, minHeight: ReffiChrome.tapMin)           // 히트 44 (§7.3)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.paperPress)

@@ -54,7 +54,9 @@ struct PaperChecklistDialog: View {
                 // 딤은 시각 요소다 — 라벨을 달면 VoiceOver에 정체불명의 요소가 하나 늘어난다.
                 .accessibilityHidden(true)
             card
-                .scaleEffect(shown ? 1 : 0.85)
+                // 진입 하한 0.95(§7.1) — `PaperDialog`·판정 커버와 같은 값이다(셋이 갈리면
+                // 같은 문법의 종이가 화면마다 다른 거리에서 날아온다).
+                .scaleEffect(shown ? 1 : 0.95)
                 .opacity(shown ? 1 : 0)
         }
         // 뜬 동안 뒤 화면(티켓 덱)을 VoiceOver에서 가린다 — 훑을 수 있으면 모달이 아니다.
@@ -80,7 +82,7 @@ struct PaperChecklistDialog: View {
         .padding(ReffiSpace.s5)
         .background {
             let shape = PaperRect(cornerRadius: ReffiRadius.xl, seed: seed)
-            shape.fill(ReffiColor.paper).paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
+            shape.fill(ReffiColor.paper).paperEdge(shape)
         }
         .reffiShadow1()
         // 접근성 글자는 accessibility3까지만 따라 키운다 — 카드에는 스크롤이 없어서, 그 위 단계는
@@ -151,7 +153,7 @@ struct PaperChecklistDialog: View {
                 Spacer(minLength: 0)
             }
             .padding(.vertical, ReffiSpace.s1)
-            .frame(minHeight: 44)          // §7.3 — 행 전체가 타깃이다(작은 상자만 노리게 하지 않는다)
+            .frame(minHeight: ReffiChrome.tapMin)          // §7.3 — 행 전체가 타깃이다(작은 상자만 노리게 하지 않는다)
             .contentShape(Rectangle())
         }
         .buttonStyle(.reffiPress)
@@ -175,9 +177,9 @@ struct PaperChecklistDialog: View {
                     .overlay(PaperGrain(seed: UInt64(max(0, seed)) &+ 11, strength: 0.9).clipShape(shape))
                     .paperEdge(shape, tint: ReffiColor.paperEdgeOnFill)
                     .compositingGroup()
-                // blue 면 위의 콘텐츠는 흰색이다 — `PaperButtonLabel`의 primary와 같은 규약
+                // blue 면 위의 콘텐츠는 `onAccent`다 — `PaperButtonLabel`의 primary와 같은 규약
                 // (ink 면이 아니므로 `onInk`가 아니다: 그건 다크에서 뒤집히는 잉크 면 전용이다).
-                ReffiIcon.check.reffi(13, .bold).foregroundStyle(.white)
+                ReffiIcon.check.reffi(13, .bold).foregroundStyle(ReffiColor.onAccent)
             } else {
                 shape.fill(ReffiColor.paper).paperEdge(shape, tint: ReffiColor.ink.opacity(0.18))
             }
@@ -253,7 +255,9 @@ private struct PaperChecklistDialogModifier: ViewModifier {
                         .transition(.opacity)
                 }
             }
-            .animation(ReffiMotion.gated(.easeOut(duration: ReffiMotion.dur2), reduce: reduceMotion),
+            // 커브는 `PaperDialog`와 같은 `ReffiMotion.easeOut`이다(같은 문법의 딤이다) — 콜사이트에서
+            // 그냥 `.easeOut`이라 쓰면 SwiftUI 기본 커브가 잡혀 둘이 다른 시계로 돈다.
+            .animation(ReffiMotion.gated(ReffiMotion.easeOut(duration: ReffiMotion.dur2), reduce: reduceMotion),
                        value: isPresented)
     }
 

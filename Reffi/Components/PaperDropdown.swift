@@ -18,12 +18,18 @@ struct PaperDropdown<Value: Hashable>: View {
     /// 넘치면 행이 **내부 스크롤**되고, 넉넉하면 내용 높이 그대로 뜬다(`ViewThatFits`가 고른다).
     /// `nil`이면 항상 내용 높이(항목이 적은 정렬 드롭다운의 기본 동작 — 기존 호출부는 그대로다).
     var maxHeight: CGFloat? = nil
+    /// 바깥 탭 말고 **보조기술로** 닫는 길(escape 제스처). VoiceOver에는 "팝업 바깥"이 없다 —
+    /// 투명 탭 캐처는 라벨도 없어 커서가 닿지 않으므로, 이 콜백이 없으면 고르는 것 말고는 나갈 수 없다.
+    var onDismiss: (() -> Void)? = nil
     /// 선택 콜백 — 트레일링 클로저로 바인딩되게 마지막에 둔다(`seed`·`maxHeight`는 기본값).
     let onSelect: (Value) -> Void
 
     /// 행 묶음의 실측 높이 — 캡보다 짧으면 종이가 내용에 딱 맞게 줄어야 한다.
     /// `ScrollView`는 제안된 높이를 다 차지하므로 실측 없이 캡만 주면 빈 종이가 남는다.
     @State private var contentHeight: CGFloat = 0
+    /// 열리는 순간 커서를 옮길 행 — 팝업은 루트 오버레이에 떠서 트리거의 이웃이 아니다.
+    /// 옮겨 주지 않으면 종이가 화면을 덮은 채 커서만 뒤 화면에 남는다(§13 팝업은 뜨는 즉시 주인공이다).
+    @AccessibilityFocusState private var focusedOption: Value?
 
     var body: some View {
         let shape = PaperRect(cornerRadius: ReffiRadius.md, seed: seed)
@@ -47,9 +53,19 @@ struct PaperDropdown<Value: Hashable>: View {
         .background {
             shape.fill(ReffiColor.paper)
                 .overlay(PaperGrain(seed: UInt64(seed) &+ 11, strength: 0.6).clipShape(shape))   // 옅은 질감
-                .paperEdge(shape, tint: ReffiColor.ink.opacity(0.08))
+                .paperEdge(shape)
                 .compositingGroup()
                 .reffiShadow1()
+        }
+        // 팝업은 한 묶음으로 서고, 뜬 동안 뒤 화면은 없는 것으로 친다 — 바깥을 건드리면 어차피
+        // 닫히는 면이라(투명 탭 캐처), 보조기술에서만 배경을 훑을 수 있는 상태가 오히려 어긋난
+        // 모델이다(`PaperDialog`와 같은 태도).
+        .accessibilityElement(children: .contain)
+        .accessibilityAddTraits(.isModal)
+        .accessibilityAction(.escape) { onDismiss?() }
+        .onAppear {
+            // 지금 선택된 행이 있으면 거기서, 없으면 첫 행에서 시작한다 — 위아래로 훑을 기준점이 생긴다.
+            focusedOption = options.contains(selected) ? selected : options.first
         }
     }
 
@@ -69,13 +85,14 @@ struct PaperDropdown<Value: Hashable>: View {
                             .opacity(option == selected ? 1 : 0)
                     }
                     .padding(.horizontal, ReffiSpace.s4)
-                    .frame(minHeight: 44)               // §7.3 터치 타깃
+                    .frame(minHeight: ReffiChrome.tapMin)               // §7.3 터치 타깃
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.paperPress)
                 .accessibilityLabel(label(option))
                 .accessibilityAddTraits(option == selected ? [.isButton, .isSelected] : .isButton)
+                .accessibilityFocused($focusedOption, equals: option)
 
                 if index < options.count - 1 {
                     ReffiRule(.ticket).padding(.horizontal, ReffiSpace.s3)   // 절취선 구분(보더 아님)
@@ -128,11 +145,16 @@ struct PaperDropdownTrigger: View {
                 let s = PaperRect(cornerRadius: ReffiRadius.sm, seed: seed)
                 s.fill(ReffiColor.paper).paperEdge(s)
             }
-            .frame(minHeight: 44)   // §7.3 터치 타깃
+            .frame(minHeight: ReffiChrome.tapMin)   // §7.3 터치 타깃
             .contentShape(Rectangle())
             .anchorPreference(key: DropdownAnchorKey.self, value: .bounds) { isOpen ? $0 : nil }
         }
         .buttonStyle(.paperPress)
+        // 펼침/접힘을 **값**으로 말한다 — 셰브런 회전은 눈에만 보이고, SwiftUI에는 expanded 트레잇이
+        // 없다(iOS 26 SDK 확인: `AccessibilityTraits`에 isToggle까지만 있다).
+        // 무엇을 고르는 칩인지·지금 값이 무엇인지는 **호출부의 라벨**이 말한다(예: "Unit: g") —
+        // 여기서 라벨까지 잡으면 안쪽이 이겨 호출부 문구가 조용히 사라진다.
+        .accessibilityValue(isOpen ? Text("Expanded") : Text("Collapsed"))
     }
 }
 
@@ -153,7 +175,11 @@ extension View {
         onDismiss: @escaping () -> Void,
         onSelect: @escaping (Value) -> Void
     ) -> some View {
-        overlayPreferenceValue(DropdownAnchorKey.self) { anchor in
+        // 열린 동안 트리거·배경은 보조기술에서 사라진다 — 오버레이는 **이 뒤에** 붙으므로 함께 가려지지
+        // 않는다. `PaperDropdown`의 `.isModal`만으로는 부족하다: 팝업이 오버레이 안쪽 깊이 놓여
+        // 모달 형제 관계가 화면 전체까지 닿는다고 보장할 수 없다.
+        accessibilityHidden(isPresented)
+        .overlayPreferenceValue(DropdownAnchorKey.self) { anchor in
             GeometryReader { proxy in
                 if isPresented, let anchor {
                     let rect = proxy[anchor]
@@ -170,8 +196,12 @@ extension View {
                             .contentShape(Rectangle())
                             .ignoresSafeArea()
                             .onTapGesture { onDismiss() }
+                            // 탭 캐처는 시각 요소도 아니고 이름도 없다 — 커서에 걸리면 정체불명의
+                            // 요소가 하나 는다. 바깥 탭의 접근성 대응은 팝업의 escape 액션이 맡는다.
+                            .accessibilityHidden(true)
                         PaperDropdown(options: options, selected: selected, label: label,
-                                      seed: seed, maxHeight: cap) { value in
+                                      seed: seed, maxHeight: cap,
+                                      onDismiss: onDismiss) { value in
                             onSelect(value)
                             onDismiss()
                         }

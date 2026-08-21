@@ -28,18 +28,19 @@
   /* ---- Neutral (5) · Reffi 고유 ---- */
   --neutral-900: oklch(25% 0.012 80);
   --neutral-700: oklch(43% 0.014 80);
-  --neutral-500: oklch(56% 0.013 80);
+  --neutral-500: oklch(51% 0.013 80);
   --neutral-200: oklch(93.5% 0.008 85);
   --neutral-50:  oklch(97% 0.012 90);
 
-  /* ---- Semantic aliases ---- */
-  --color-primary: var(--color-blue);   /* 브랜드 · 기본 액션 */
-  --color-action:  var(--color-blue);   /* CTA */
-  --color-recipe:  var(--color-blue);   /* 레시피 · AI */
+  /* ---- Semantic aliases — 뉴트럴 5단 전량에 이름을 준다(번호 대신 역할로 부르게).
+     brand 쪽 별칭(primary/action/recipe)은 두지 않는다: 셋 다 var(--color-blue) 한 값이고
+     갈라질 계획이 없어, 이름만 셋이면 같은 파랑이 세 토큰인 줄 알고 골라 쓰게 된다. ---- */
   --color-canvas:  var(--neutral-50);
-  --color-ink:     var(--neutral-900);
-  --color-ink-2:   var(--neutral-700);
+  --color-sub:     var(--neutral-200);
   --color-muted:   var(--neutral-500);
+  --color-ink-2:   var(--neutral-700);
+  --color-ink:     var(--neutral-900);
+  --on-accent:     white;               /* blue 면 위 콘텐츠 — 고정(§2.7). ink 면 위는 --on-ink */
 
   /* ---- Spacing ---- */
   --space-1: 6px;  --space-2: 8px;  --space-3: 12px; --space-4: 16px;
@@ -56,8 +57,11 @@
   --shadow-stack:
     0 -2px 6px       oklch(25% 0.012 80 / 0.10),
     0 -8px 20px -4px oklch(25% 0.012 80 / 0.05);
-  --focus-ring: 0 0 0 3px oklch(51.4% 0.134 249.8 / 0.45);
-  --scrim:      oklch(25% 0.012 80 / 0.22);   /* 모달·결정 오버레이 딤(ink 틴트) */
+  --focus-ring: 0 0 0 3px oklch(51.4% 0.134 249.8 / 0.45);  /* 웹 쇼케이스 전용 — 키보드 포커스 링.
+                   iOS엔 대응이 없다(포커스는 시스템이 그린다). --ease-bounce와 같은 급의 웹 근사 토큰 */
+  --scrim:       oklch(25% 0.012 80 / 0.22);  /* 모달·결정 오버레이 딤(ink 틴트) */
+  --scrim-flash: oklch(0% 0 0 / 0.10);        /* 슬램 플래시 — 딤이 아니라 순간 조명(§2.7), 양 모드 동일 */
+  /* z 스케일 5단은 웹 기준이다 — 네이티브는 dropdown 한 단만 코드로 세운다(§6.5) */
   --z-base: 0; --z-sticky: 100; --z-dropdown: 1000; --z-modal: 2000; --z-toast: 3000;
 
   /* ---- Motion ---- */
@@ -65,21 +69,27 @@
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in:  cubic-bezier(0.32, 0, 0.67, 0);
   --ease-std: cubic-bezier(0.40, 0, 0.20, 1);
+  --dur-ambient: 500ms;   /* 배경 색면 전환 — §7.1 유일 예외(ease-in-out, 전경 금지) */
   /* 통통 스프링 — 종이컷 표면 전용(§7.5/§13). response / dampingFraction.
      웹 근사: spring-like cubic-bezier로 오버슈트 표현. */
   --spring-pop:    0.34 / 0.56;
   --spring-settle: 0.50 / 0.74;
   --spring-press:  0.25 / 0.55;
+  --spring-slam:   0.26 / 0.50;   /* 종이컷 도장 — 큰 상태에서 쾅(도장 전용) */
   --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);   /* 웹 쇼케이스용 스프링 근사(오버슈트) */
 
   /* ---- Paper / Glass (§13) ---- */
   --paper-surface:     oklch(99% 0.006 90);          /* 밝은 종이 면 — 뱃지·티켓·글리프 타일 */
   --paper-pass:        oklch(95% 0.016 90);          /* 따뜻한 주방 패스 종이 — 캐러셀 배경 */
-  --paper-edge:        oklch(25% 0.012 80 / 0.07);   /* 종이 단면 헤어라인(캔버스 위 면, 분리 보더 아님) */
+  --paper-edge:        oklch(25% 0.012 80 / 0.06);   /* 종이 단면 헤어라인(캔버스 위 면, 분리 보더 아님) */
+  --paper-edge-field:  oklch(25% 0.012 80 / 0.10);   /* 입력 필드 단면 — 같은 헤어라인 한 단 진하게 */
   --paper-edge-onfill: oklch(100% 0 0 / 0.14);       /* 채도 면(버튼) 위 흰 종이 헤어라인 */
+  --paper-edge-accent: 0.18;                          /* 강조 종이 단면의 α — 색은 그 카드의 *-dark(§2.7) */
   --bg-sheen:          oklch(100% 0 0 / 0.22);        /* 메인 배경(리퀴드글래스) 상단 흰 시노 */
-  --glass-tint:        oklch(85% 0.04 242 / 0.30);    /* 네이티브 글래스 틴트(네비) */
-  --receipt:           oklch(98.5% 0.004 90);         /* "흰 영수증" 면(§2.7 신규) */
+  --glass-tint:        oklch(85% 0.04 242 / 0.30);    /* 웹 쇼케이스 전용 — 네이티브 iOS 26 `.glassEffect`의
+                          근사치다(실제 앱은 이 색을 쓰지 않고 시스템 머티리얼이 그린다). --ease-bounce와 같은 급 */
+  --receipt:           oklch(98.5% 0.004 90);         /* "흰 영수증" 면(§2.7) */
+  --field:             oklch(93.5% 0.008 85);         /* 입력 필드 면 — 캔버스와 종이 사이(§2.7·§13.8) */
 
   /* ---- Wilt (§13.3) — 신선도별 일러스트 채도·명도·자세 배수. 스킴 불변(라이트/다크 동일 값) ---- */
   /* 강도 축 — 신선도 3단계. weight는 재질 축 값을 항등에서 보간하는 가중치(배율이 아니다). */
@@ -98,13 +108,15 @@
   --toast-action: oklch(90% 0.05 250); /* toast 위 액션 라벨(Undo) — 고정, 다크 오버라이드 없음(실측 대비 L 11.92 · D 9.11) */
 
   /* ---- 페이지 크롬 전용 고정색(브랜드 표지) — 앱 토큰 아님. 네비/히어로는 다크에서도
-         브랜드 블루 크롬을 유지해야 해서 적응형 --color-blue*를 쓰지 않는다(§2.8 원칙과 무관) ---- */
+         브랜드 블루 크롬을 유지해야 해서 적응형 --color-blue*를 쓰지 않는다(§2.8 원칙과 무관).
+         **MD §12 정본과 1:1에서 빠지는 유일한 셋**이다 — 쇼케이스 페이지 자신의 색이라
+         정본에 없는 것이 맞다(design_system.md §12 머리말에 같은 예외를 적어 두었다) ---- */
   --chrome-blue:      oklch(51.4% 0.134 249.8);
   --chrome-blue-deep: oklch(40% 0.12 250);
   --chrome-blue-tint: oklch(93% 0.045 250);
 
   /* ---- Interaction ---- */
-  --tap-min: 44px;
+  --tap-min: 44px;   /* §7.3 — 네이티브 짝은 `ReffiChrome.tapMin`. 히트 프레임은 콜사이트 리터럴 금지 */
 
   /* ---- Fonts ---- */
   --font-display: "Story Script", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo", system-ui, cursive;
@@ -142,16 +154,18 @@
     --color-blue-dark:    oklch(76%   0.095 250);
     --color-blue-light:   oklch(30%   0.045 250);
     --neutral-900: oklch(93%   0.010 85);
-    --neutral-700: oklch(76%   0.012 82);
-    --neutral-500: oklch(60%   0.012 80);
+    --neutral-700: oklch(81%   0.012 82);
+    --neutral-500: oklch(71%   0.012 80);
     --neutral-200: oklch(32%   0.008 80);
     --neutral-50:  oklch(21.5% 0.010 78);
     --paper-surface:     oklch(33%   0.008 82);
     --paper-pass:        oklch(24%   0.010 84);
-    --paper-edge:        oklch(93% 0.010 85 / 0.07);
+    --paper-edge:        oklch(93% 0.010 85 / 0.06);
+    --paper-edge-field:  oklch(93% 0.010 85 / 0.10);
     --paper-edge-onfill: oklch(100% 0 0 / 0.10);
     --bg-sheen:          oklch(100% 0 0 / 0.045);
     --receipt:           oklch(33.5% 0.007 83);
+    --field:             oklch(28%   0.010 80);
     --scrim:             oklch(0% 0 0 / 0.55);
     --shadow-tint:       oklch(0% 0 0);
     --toast:             oklch(38% 0.010 80);
@@ -178,16 +192,18 @@
   --color-blue-dark:    oklch(76%   0.095 250);
   --color-blue-light:   oklch(30%   0.045 250);
   --neutral-900: oklch(93%   0.010 85);
-  --neutral-700: oklch(76%   0.012 82);
-  --neutral-500: oklch(60%   0.012 80);
+  --neutral-700: oklch(81%   0.012 82);
+  --neutral-500: oklch(71%   0.012 80);
   --neutral-200: oklch(32%   0.008 80);
   --neutral-50:  oklch(21.5% 0.010 78);
   --paper-surface:     oklch(33%   0.008 82);
   --paper-pass:        oklch(24%   0.010 84);
-  --paper-edge:        oklch(93% 0.010 85 / 0.07);
+  --paper-edge:        oklch(93% 0.010 85 / 0.06);
+  --paper-edge-field:  oklch(93% 0.010 85 / 0.10);
   --paper-edge-onfill: oklch(100% 0 0 / 0.10);
   --bg-sheen:          oklch(100% 0 0 / 0.045);
   --receipt:           oklch(33.5% 0.007 83);
+  --field:             oklch(28%   0.010 80);
   --scrim:             oklch(0% 0 0 / 0.55);
   --shadow-tint:       oklch(0% 0 0);
   --toast:             oklch(38% 0.010 80);
@@ -490,9 +506,9 @@ h1, h2, h3 { text-wrap: balance; }
 }
 .btn:active { transform: scale(0.97); }
 .btn:disabled { opacity: .45; cursor: not-allowed; }
-.btn--primary { background: var(--color-blue); color: #fff; }
+.btn--primary { background: var(--color-blue); color: var(--on-accent); }
 .btn--urgent  { background: var(--color-urgent-dark); color: #fff; }
-.btn--ghost   { background: var(--neutral-200); color: var(--color-ink); }
+.btn--ghost   { background: var(--color-sub); color: var(--color-ink); }
 @media (hover: hover) and (pointer: fine) {
   .btn--primary:hover { background-color: var(--color-blue-dark); }
   .btn--urgent:hover  { background-color: oklch(45% 0.155 30); }
@@ -571,7 +587,7 @@ h1, h2, h3 { text-wrap: balance; }
 .grid-viz__cols.desktop { grid-template-columns: repeat(14, 1fr); gap: 6px; }
 .gcol { height: 64px; border-radius: var(--radius-xs); background: var(--color-blue-light); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: var(--color-blue-dark); font-variant-numeric: tabular-nums; }
 .gcol.margin { background: var(--neutral-50); color: var(--color-muted); }
-.gcol.content { background: var(--color-blue); color: #fff; }
+.gcol.content { background: var(--color-blue); color: var(--on-accent); }
 
 /* checklist */
 .checklist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
@@ -595,7 +611,7 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
 
 /* 종이 버튼(와이드 CTA) — 모서리를 잘라낸 길쭉한 8각형(아이콘 버튼 octagon과 동일 계열) + 글래스 시노 + 통통 프레스 */
 .paper-btn { appearance: none; border: 0; cursor: pointer; font: var(--d-subhead);
-  letter-spacing: -0.01em; padding: 16px 28px; color: #fff; position: relative; isolation: isolate;
+  letter-spacing: -0.01em; padding: 16px 28px; color: var(--on-accent); position: relative; isolation: isolate;
   clip-path: polygon(16px 0, calc(100% - 16px) 0, 100% 16px, 100% calc(100% - 16px),
                      calc(100% - 16px) 100%, 16px 100%, 0 calc(100% - 16px), 0 16px);
   filter: drop-shadow(0 1px 3px oklch(25% 0.012 80 / 0.1)) drop-shadow(0 10px 24px oklch(25% 0.012 80 / 0.05));
@@ -603,7 +619,7 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
 .paper-btn::after { content: ""; position: absolute; inset: 0; pointer-events: none;
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='90' height='90'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
   mix-blend-mode: overlay; opacity: 0.16; }
-.paper-btn--secondary { background: var(--neutral-200); color: var(--color-ink); }
+.paper-btn--secondary { background: var(--color-sub); color: var(--color-ink); }
 .paper-btn:active { transform: scale(0.96); }
 .paper-btn:focus-visible { outline: none; filter: drop-shadow(0 0 0 3px oklch(51.4% 0.134 249.8 / 0.45)); }
 
@@ -620,12 +636,12 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
 .icon-btn:active .shape { transform: scale(0.95); }
 .icon-btn .shape svg { width: 34px; height: 34px; z-index: 1; }
 .icon-btn .lbl2 { font-weight: 600; font-size: 15px; color: var(--color-ink); }
-.icon-btn.primary .shape { background: var(--color-blue); color: #fff; }
+.icon-btn.primary .shape { background: var(--color-blue); color: var(--on-accent); }
 .icon-btn.soft    .shape { background: var(--color-urgent-light); color: var(--color-urgent-dark); }
 .icon-btn.fresh   .shape { background: var(--color-fresh); color: var(--color-fresh-dark); }
 .icon-btn.soon    .shape { background: var(--color-soon); color: var(--color-soon-dark); }
 .icon-btn.urgent  .shape { background: var(--color-urgent); color: var(--color-ink); }
-.icon-btn.neutral .shape { background: var(--neutral-200); color: var(--color-ink-2); }
+.icon-btn.neutral .shape { background: var(--color-sub); color: var(--color-ink-2); }
 
 /* 재료 뱃지 — 캡슐 아님(변동 radius) + 좌측 인디케이터 바 + 이름 */
 .badge-row { display: flex; flex-wrap: wrap; gap: var(--space-2); }
@@ -976,6 +992,8 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
             <div class="swatch__meta"><span class="role">neutral-50</span><code>Canvas · 크림 배경</code></div>
           </div>
         </div>
+        <div class="note" style="margin-top:var(--space-4)"><strong><code class="inline">muted</code>는 "약해 보이라"는 뜻이지 "작으라"는 뜻이 아니다.</strong> placeholder·메타 줄도 본문 크기로 앉으므로 요건은 ≥4.5다. 옛 값(라이트 56% / 다크 60%)은 캔버스 위만 통과하고 종이 면에선 라이트 4.53 · <strong>다크 3.04</strong>로 무너져, 라이트 <strong>51%</strong> / 다크 <strong>71%</strong> 로 내리고 올렸다(아래 다크 대비 실측표). 두 값 모두 통과 구간(라이트 L≤.52 · 다크 L≥.702)의 <code class="inline">ink2</code> 반대편 끝에서 한 눈금만 들여 잡은 것이다 — 더 밀면 ink → ink2 → muted 3단 위계가 두 단으로 붙는다.</div>
+        <div class="note" style="margin-top:var(--space-3)"><strong>다크 램프는 간격으로 선다 — 가운데 단이 그 간격을 맞춘다.</strong> 위 <code class="inline">muted</code> 조정으로 다크가 .93 → .76 → .71, 곧 간격 <strong>.17 / .05</strong> 가 되어 3단이 2.5단처럼 읽혔다. 그래서 <code class="inline">ink2</code> 다크를 <strong>.76 → .81</strong> 로 올려 <strong>.12 / .10</strong> 으로 되벌렸다(paper 면 위 9.94 / 6.77 / 4.75, 단계비 1.47 / 1.43). ink 쪽 계단이 아주 조금 큰 것은 의도다 — 본문↔캡션이 캡션↔placeholder보다 큰 층위 차이라는 건 라이트 램프(.18 / .08)의 형태이기도 하다. <strong>아래가 아니라 가운데를 움직인 이유</strong>는 <code class="inline">muted</code>의 바닥을 종이 면 밝기가 잡고 있어서다 — 다크 면을 면 분리 구간(1.35~1.5 · <code class="inline">field</code> ≥1.19) 안에서 통째로 내려도 <code class="inline">muted</code>는 <strong>.701</strong> 까지가 한계고 <code class="inline">canvas</code>를 .185까지 미는 극단에서도 .679다. 면 여섯 개를 흔들어 한 단당 .008을 얻는 거래라, 다크 위계는 면이 아니라 잉크 쪽에서 푼다.</div>
 
         <p class="subhead text">60 : 30 : 5 : 5 운용 비율 (페이지당)</p>
         <div class="ratio">
@@ -983,7 +1001,7 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
           <div style="flex:15;background:var(--color-fresh);color:var(--color-ink)">30% 신선도</div>
           <div style="flex:8;background:var(--color-soon)"></div>
           <div style="flex:7;background:var(--color-urgent)"></div>
-          <div style="flex:5;background:var(--color-blue);color:#fff">5%</div>
+          <div style="flex:5;background:var(--color-blue);color:var(--on-accent)">5%</div>
           <div style="flex:5;background:var(--color-urgent-dark);color:#fff">5%</div>
         </div>
         <p class="t-caption text" style="color:var(--color-ink-2);margin-top:var(--space-3)">바탕(뉴트럴) · 주조 = 신선도 파스텔 군(최대 3색, 카드 스택) · 5% Blue(액션·AI) · 5% 단일 강조(가장 급한 것). 신선도 색은 신선도에만 쓴다. <strong>예외는 "정렬된 재사용" 하나</strong> — 성과 축이 신선도 축과 같은 방향으로 정렬될 때만(값이 나쁠수록 급해진다) 신선도 잉크를 재사용한다: 정산서의 낭비율 도장(≤10% fresh-dark · ≤30% soon-dark · 그 외 urgent-dark, §11 영수증 정산서)과 이력의 먹음/버림 판정 라벨이 전부다. 순서가 없는 축(카테고리·식품군·태그)에는 절대 쓰지 않는다 — 옛 History 도넛이 Veg→fresh·Dairy→soon·Fruit→urgent로 이 선을 넘어, 앱 전체에서 학습한 3색이 그 화면에서만 식품군을 뜻했다.</p>
@@ -1027,15 +1045,28 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
           </tbody>
         </table>
         <div class="note" style="margin-top:var(--space-4)"><strong>파스텔 면 위 글자는 ink, Blue 면 위는 white.</strong> 파스텔은 크림 캔버스와 명도차(1.4~2.2:1)가 작아 면 경계는 색이 아니라 카드 스택 그림자·여백으로 만든다. 불투명도로 글자색을 만들지 않는다(neutral-700 솔리드).</div>
+        <div class="note" style="margin-top:var(--space-3)"><strong><code class="inline">blue</code>는 면(fill) 전용이다.</strong> 종이·캔버스 위에 얹는 잉크(글자·아이콘·밑줄 링크)는 언제나 <code class="inline">blue-dark</code>다. <code class="inline">blue</code>는 흰 글자를 받는 채운 면의 색이라 잉크로 쓰면 라이트에서도 빠듯하고(캔버스 5.18 · <code class="inline">blue-light</code> 면 4.59) 다크에선 면 쪽으로 밝아져 무너진다(3.78 · <strong>2.93</strong>). <code class="inline">blue-dark</code>는 같은 자리에서 6.37~8.42다.</div>
 
         <p class="subhead text" id="dark">2.8 다크 모드 — "밤의 주방 패스"</p>
-        <p class="t-body text" style="color:var(--color-ink-2);margin-bottom:var(--space-4)">라이트를 반전한 흑백이 아니라, 조명 낮은 주방에서 보이는 <strong>웜 차콜</strong>(hue 78~90 유지)이다. <strong>순검정은 쓰지 않는다</strong> — 예외는 그림자(<code class="inline">shadowTint</code>)와 모달 딤(<code class="inline">scrim</code>)뿐, 둘 다 "빛이 없는" 레이어라 온기가 필요 없다. 시맨틱 토큰만 적응하고 <strong>일러스트(FoodGlyph) 팔레트는 스킴 불변 고정색</strong>이다(§13.3) — 재료 식별이 스킴에 흔들리면 안 된다. 신선도에 따른 시듦(Wilt)도 같은 원칙 — 채도·명도 배수와 재질별 형태 값은 스킴과 무관한 순수 상수라 라이트·다크에서 동일하게 적용된다. 공유 카드(<code class="inline">RecipeShareCard</code>)는 항상 라이트로 굽는다. 그림자는 항상 <code class="inline">shadowTint</code>(<code class="inline">ink</code> 금지 — 다크에서 크림으로 뒤집혀 밝은 글로우가 된다). <code class="inline">paperEdge</code> 헤어라인의 다크 반전은 "종이 두께" 표현으로 의도적으로 둔다. <strong>다크에선 면 밝기가 그림자의 일을 대신한다</strong> — 카드·CTA 면(<code class="inline">paper</code>·<code class="inline">receipt</code>·<code class="inline">sub</code>)은 바탕과 1.35~1.5:1을 지키고, 커버의 바탕(<code class="inline">paperPass</code>)은 반대로 한 단 내려 그 위 카드가 같은 요건을 넘게 한다(아래 면 분리표).</p>
+        <p class="t-body text" style="color:var(--color-ink-2);margin-bottom:var(--space-4)">라이트를 반전한 흑백이 아니라, 조명 낮은 주방에서 보이는 <strong>웜 차콜</strong>(hue 78~90 유지)이다. <strong>순검정은 쓰지 않는다</strong> — 예외는 그림자(<code class="inline">shadowTint</code>)·모달 딤(<code class="inline">scrim</code>)·슬램 플래시(<code class="inline">scrimFlash</code>)뿐, 셋 다 면이 아니라 "빛이 없는" 레이어라 온기가 필요 없다. 시맨틱 토큰만 적응하고 <strong>일러스트(FoodGlyph) 팔레트는 스킴 불변 고정색</strong>이다(§13.3) — 재료 식별이 스킴에 흔들리면 안 된다. 신선도에 따른 시듦(Wilt)도 같은 원칙 — 채도·명도 배수와 재질별 형태 값은 스킴과 무관한 순수 상수라 라이트·다크에서 동일하게 적용된다. 공유 카드(<code class="inline">RecipeShareCard</code>)는 항상 라이트로 굽는다. 그림자는 항상 <code class="inline">shadowTint</code>(<code class="inline">ink</code> 금지 — 다크에서 크림으로 뒤집혀 밝은 글로우가 된다). <code class="inline">paperEdge</code> 헤어라인의 다크 반전은 "종이 두께" 표현으로 의도적으로 둔다. <strong>다크에선 면 밝기가 그림자의 일을 대신한다</strong> — 카드·CTA 면(<code class="inline">paper</code>·<code class="inline">receipt</code>·<code class="inline">sub</code>)은 바탕과 1.35~1.5:1을 지키고, 커버의 바탕(<code class="inline">paperPass</code>)은 반대로 한 단 내려 그 위 카드가 같은 요건을 넘게 한다(아래 면 분리표). <strong>다크 잉크 3단은 간격이 지켜야 살아 있다</strong> — 면 대비(≥4.5)만 통과시키면 <code class="inline">muted</code>가 밝은 쪽으로 밀려 램프가 위에 뭉치므로, 다크에는 요건이 하나 더 있다: <strong>ink → ink2 → muted 두 간격이 서로 2배를 넘지 않는다</strong>(현행 .12 / .10). 조정은 <code class="inline">muted</code>가 아니라 가운데 단(<code class="inline">ink2</code>)으로 한다(2.3 램프 각주).</p>
 
-        <p class="t-caption text" style="color:var(--color-ink-2);margin-bottom:var(--space-3)">신규 토큰 5종 — 우측 상단 토글로 전환해 보면 스와치가 실시간으로 바뀐다(라이브 CSS 변수). <code class="inline">toastAction</code>만 고정색(비적응)이다.</p>
+        <p class="t-caption text" style="color:var(--color-ink-2);margin-bottom:var(--space-3)">면·콘텐츠 토큰 8종 — 우측 상단 토글로 전환해 보면 스와치가 실시간으로 바뀐다(라이브 CSS 변수). <code class="inline">toastAction</code>·<code class="inline">onAccent</code>·<code class="inline">scrimFlash</code>는 고정색(비적응)이다.</p>
         <div class="swatch-row">
           <div class="swatch">
             <div class="swatch__main on-ink" style="background:var(--receipt)">receipt</div>
-            <div class="swatch__meta"><span class="role">"흰 영수증" 면의 정본</span><code>L .985/.004/90 · D .29/.007/83</code></div>
+            <div class="swatch__meta"><span class="role">"흰 영수증" 면의 정본</span><code>L .985/.004/90 · D .335/.007/83</code></div>
+          </div>
+          <div class="swatch">
+            <div class="swatch__main on-ink" style="background:var(--field)">field</div>
+            <div class="swatch__meta"><span class="role">입력 필드 면 — 캔버스와 종이 <strong>사이</strong></span><code>L .935/.008/85 · D .28/.010/80</code></div>
+          </div>
+          <div class="swatch">
+            <div class="swatch__main" style="background:var(--color-blue);color:var(--on-accent)">onAccent</div>
+            <div class="swatch__meta"><span class="role"><code class="inline">blue</code> 면 위 콘텐츠 전용 — 고정</span><code>흰색 양 모드 동일 · 실측 L 5.65 / D 4.64</code></div>
+          </div>
+          <div class="swatch">
+            <div class="swatch__main on-ink" style="background:linear-gradient(var(--scrim-flash),var(--scrim-flash)),var(--paper-surface)">scrimFlash</div>
+            <div class="swatch__meta"><span class="role">슬램 플래시 — 모달 딤(<code class="inline">scrim</code>)이 아니다</span><code>순검정 α .10 양 모드 동일</code></div>
           </div>
           <div class="swatch">
             <div class="swatch__main on-white" style="background:var(--shadow-tint)">shadowTint</div>
@@ -1043,7 +1074,7 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
           </div>
           <div class="swatch">
             <div class="swatch__main on-white" style="background:var(--toast)">toast</div>
-            <div class="swatch__meta"><span class="role">잉크 토스트 캡슐 면</span><code>L = 라이트 ink · D .33/.010/80 · 위 텍스트 항상 white</code></div>
+            <div class="swatch__meta"><span class="role">잉크 토스트 캡슐 면</span><code>L = 라이트 ink · D .38/.010/80 · 위 텍스트 항상 white</code></div>
           </div>
           <div class="swatch">
             <div class="swatch__main" style="background:var(--color-ink);color:var(--on-ink)">onInk</div>
@@ -1062,8 +1093,11 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
             <tr><td>ink on canvas</td><td>≥7.0</td><td class="num pass">14.68</td><td class="num pass">14.26</td></tr>
             <tr><td>ink on paper</td><td>≥7.0</td><td class="num pass">15.56</td><td class="num pass">9.94</td></tr>
             <tr><td>ink on receipt</td><td>≥7.0</td><td class="num pass">15.33</td><td class="num pass">9.75</td></tr>
-            <tr><td>ink2 on canvas</td><td>≥4.5</td><td class="num pass">7.44</td><td class="num pass">8.16</td></tr>
-            <tr><td>muted on canvas</td><td>≥3.0</td><td class="num pass">4.27</td><td class="num pass">4.44</td></tr>
+            <tr><td>ink2 on canvas</td><td>≥4.5</td><td class="num pass">7.44</td><td class="num pass">9.70</td></tr>
+            <tr><td>ink2 on paper</td><td>≥4.5</td><td class="num pass">7.89</td><td class="num pass">6.77</td></tr>
+            <tr><td>muted on canvas</td><td>≥4.5</td><td class="num pass">5.28</td><td class="num pass">6.81</td></tr>
+            <tr><td>muted on paper</td><td>≥4.5</td><td class="num pass">5.59</td><td class="num pass">4.75</td></tr>
+            <tr><td>muted on paperPass</td><td>≥4.5</td><td class="num pass">4.97</td><td class="num pass">6.39</td></tr>
             <tr><td>soonDark on canvas</td><td>≥4.5</td><td class="num pass">4.96</td><td class="num pass">8.64</td></tr>
             <tr><td>soonDark on soonLight</td><td>≥4.5</td><td class="num pass">4.67</td><td class="num pass">6.51</td></tr>
             <tr><td>urgentDark on canvas</td><td>≥4.5</td><td class="num pass">5.43</td><td class="num pass">7.23</td></tr>
@@ -1073,8 +1107,12 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
             <tr><td>onInk on ink</td><td>≥7.0</td><td class="num pass">16.01</td><td class="num pass">14.09</td></tr>
             <tr><td>(참고) white on toast</td><td>≥4.5</td><td class="num pass">16.01</td><td class="num pass">10.02</td></tr>
             <tr><td>(참고) ink on sub</td><td>≥7.0</td><td class="num pass">13.22</td><td class="num pass">10.33</td></tr>
-            <tr><td>(참고) ink2 on receipt</td><td>≥4.5</td><td class="num pass">7.77</td><td class="num pass">5.58</td></tr>
-            <tr><td>(참고) muted on receipt</td><td>≥3.0</td><td class="num pass">4.46</td><td class="num pass">3.04</td></tr>
+            <tr><td>(참고) ink2 on receipt</td><td>≥4.5</td><td class="num pass">7.77</td><td class="num pass">6.64</td></tr>
+            <tr><td>(참고) muted on receipt</td><td>≥4.5</td><td class="num pass">5.51</td><td class="num pass">4.66</td></tr>
+            <tr><td>(참고) muted on sub</td><td>≥4.5</td><td class="num pass">4.75</td><td class="num pass">4.93</td></tr>
+            <tr><td>ink on field</td><td>≥7.0</td><td class="num pass">13.22</td><td class="num pass">11.88</td></tr>
+            <tr><td>ink2 on field</td><td>≥4.5</td><td class="num pass">6.70</td><td class="num pass">8.08</td></tr>
+            <tr><td>muted on field (placeholder)</td><td>≥4.5</td><td class="num pass">4.75</td><td class="num pass">5.67</td></tr>
           </tbody>
         </table>
         <p class="t-caption text" style="color:var(--color-ink-2);margin:var(--space-5) 0 var(--space-3)">면 분리 실측표(다크 전용 요건) — 라이트에서 종이 한 장을 세우는 건 그림자지만, 다크에선 그 그림자가 거의 보이지 않아 <strong>면 밝기가 그 일을 혼자 짊어진다</strong>. 그래서 콘텐츠 카드·행동 표면 면은 그 화면의 바탕과 <strong>1.35~1.5:1</strong>을 지킨다(상한도 요건 — 넘기면 밤의 주방 패스 톤이 깨진다). 라이트 열은 참고값이며 이 요건의 대상이 아니다.</p>
@@ -1087,8 +1125,12 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
             <tr><td>paper on paperPass (커버 위 티켓)</td><td>1.35~1.5</td><td class="num">1.12</td><td class="num pass">1.35</td></tr>
             <tr><td>receipt on paperPass</td><td>1.35~1.5</td><td class="num">1.11</td><td class="num pass">1.37</td></tr>
             <tr><td>toast on paper (떠 있는 잉크 캡슐)</td><td>≥1.2</td><td class="num">15.56</td><td class="num pass">1.22</td></tr>
+            <tr><td>field on canvas (시트 위 입력 칸)</td><td>≥1.19</td><td class="num">1.11</td><td class="num pass">1.20</td></tr>
+            <tr><td>field on paper (카드 위 입력 칸)</td><td>≥1.19</td><td class="num">1.18</td><td class="num pass">1.19</td></tr>
+            <tr><td>field on receipt</td><td>≥1.19</td><td class="num">1.16</td><td class="num pass">1.22</td></tr>
           </tbody>
         </table>
+        <div class="note" style="margin-top:var(--space-4)"><strong><code class="inline">field</code>는 카드가 아니라 "칸"이라 ≥1.19 하한만 건다.</strong> 카드·CTA 면의 1.35~1.5 구간은 <em>바탕 위로 뜬 종이 한 장</em>의 요건인데, 입력 칸은 뜨는 게 아니라 부모 면 안에 앉는다 — 그 구간까지 벌리면 시트 안에 종이가 한 장 더 뜬 것으로 읽힌다. 대신 부모가 캔버스든 종이든 <strong>양쪽 모두</strong>에서 1.19 이상이어야 하고, 그래서 값이 두 부모 <strong>사이</strong>에 앉는다. 라이트에선 종이보다 눌린 자리인데 다크에선 캔버스보다 올라오는 것도 같은 이유다 — 다크 canvas(L .215) 아래로는 L .13까지 내려도 1.15밖에 안 벌어져 "눌림"을 밝기로 말할 수 없다.</div>
         <div class="note" style="margin-top:var(--space-4)"><strong>toast 위 글자는 항상 <code class="inline">white</code></strong> — <code class="inline">onInk</code>가 아니다. <code class="inline">toast</code>는 양 모드 모두 어두운 면이라 white가 맞다(다크 10.02:1); <code class="inline">onInk</code>(다크 L .22)를 얹으면 1.73:1로 깨진다. <code class="inline">onInk</code>는 <strong><code class="inline">ink</code>로 채운 면 위에서만</strong> 쓴다(다크에서 ink가 크림으로 뒤집히는 면).</div>
       </section>
 
@@ -1279,6 +1321,7 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
           <div class="z-row"><span class="z-row__token">--z-modal</span><span class="z-row__use">모달·바텀시트(카드 상세) + 딤</span><span class="z-row__z num">2000</span></div>
           <div class="z-row"><span class="z-row__token">--z-toast</span><span class="z-row__use">토스트·스낵바 (항상 최상위)</span><span class="z-row__z num">3000</span></div>
         </div>
+        <div class="note" style="margin-top:var(--space-4)"><strong>iOS에서 이 스케일 중 코드로 서는 단은 <code class="inline">dropdown</code> 하나다.</strong> 나머지는 플랫폼이 이미 자기 계층으로 세운다 — <code class="inline">modal</code>·<code class="inline">toast</code>는 <code class="inline">sheet</code>/<code class="inline">fullScreenCover</code> 같은 <strong>프레젠테이션 계층</strong>이, <code class="inline">sticky</code>는 <code class="inline">safeAreaInset</code>/<code class="inline">overlay</code>가 맡는다. <code class="inline">zIndex</code>는 <strong>같은 컨테이너 안의 형제</strong> 순서만 정하는 값이라 시트를 <code class="inline">.zIndex(2000)</code>으로 띄우려 해도 그 숫자는 프레젠테이션 계층을 넘지 못한다. 그래서 네이티브 <code class="inline">ReffiZ</code>에는 <code class="inline">dropdown</code>만 둔다 — 안 쓰는 상수를 남기면 다음 사람이 그 함정에 빠진다. 스케일 <strong>정본은 위 표</strong>이고, 이 웹 쇼케이스는 다섯 단을 그대로 쓴다.</div>
       </section>
 
       <!-- 7. Interaction -->
@@ -1294,7 +1337,19 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
           <button class="btn btn--ghost">나중에</button>
           <button class="btn btn--primary" disabled>비활성</button>
         </div>
-        <p class="t-caption text" style="color:var(--color-ink-2);margin-top:var(--space-3)">마우스를 올리면 main→dark, 누르면 <code class="inline">scale(0.97)</code>. Tab으로 포커스하면 Blue 포커스 링. (hover는 포인터 가드 안에서만) "오늘 먹기"는 긴급 액션이라 Urgent, 일반 액션·AI는 Blue.</p>
+        <p class="t-caption text" style="color:var(--color-ink-2);margin-top:var(--space-3)">마우스를 올리면 main→dark, 누르면 <code class="inline">scale(0.97)</code>. Tab으로 포커스하면 Blue 포커스 링(<code class="inline">--focus-ring</code>은 <strong>웹 쇼케이스 전용</strong> — iOS는 포커스를 시스템이 그린다). (hover는 포인터 가드 안에서만) "오늘 먹기"는 긴급 액션이라 Urgent, 일반 액션·AI는 Blue.</p>
+
+        <p class="subhead text">상태 투명도 — disabled(.45) vs inactive(.30) <span class="t-caption" style="color:var(--color-muted)">— MD §7.2</span></p>
+        <p class="t-caption text" style="color:var(--color-ink-2);margin-bottom:var(--space-3)"><strong>둘은 다른 축이다.</strong> <code class="inline">disabled</code>(.45)는 "누를 수 없다"는 <strong>컨트롤 상태</strong>라 손이 가는 것을 막고, <code class="inline">inactive</code>(.30, Swift <code class="inline">ReffiOpacity.inactive</code>)는 누를 대상이 아닌 <strong>표시자</strong>(페이지 인디케이터의 현재 아닌 점 등)가 현재 위치를 양보하는 값이다. 같은 축으로 묶어 .45를 쓰면 인디케이터가 "비활성 버튼"으로 읽히고, 리터럴로 흩뿌리면 화면마다 점의 세기가 갈린다.</p>
+        <div class="demo-bar" style="gap:var(--space-5)">
+          <span style="display:inline-flex;gap:6px;align-items:center">
+            <span style="width:7px;height:7px;border-radius:var(--radius-pill);background:var(--color-ink-2)"></span>
+            <span style="width:7px;height:7px;border-radius:var(--radius-pill);background:var(--color-muted);opacity:.30"></span>
+            <span style="width:7px;height:7px;border-radius:var(--radius-pill);background:var(--color-muted);opacity:.30"></span>
+            <span class="t-caption text" style="color:var(--color-ink-2);margin-left:var(--space-2)">inactive · .30</span>
+          </span>
+          <button class="btn btn--primary" disabled>disabled · .45</button>
+        </div>
 
         <p class="subhead text">상태 칩</p>
         <div class="demo-bar">
@@ -1308,27 +1363,50 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
           <div class="motion-card"><div class="dur num">120ms</div><div class="lbl">dur-1 — 마이크로: 포커스·press</div></div>
           <div class="motion-card"><div class="dur num">180ms</div><div class="lbl">dur-2 — 표준: hover·색 전환</div></div>
           <div class="motion-card"><div class="dur num">240ms</div><div class="lbl">dur-3 — 면 전환: 모달·시트·카드 확장</div></div>
+          <div class="motion-card"><div class="dur num">500ms</div><div class="lbl">dur-ambient — 배경 색면(ease-in-out) · <strong>유일 예외</strong></div></div>
         </div>
+        <p class="t-caption text" style="color:var(--color-ink-2);margin-top:var(--space-3)"><strong>듀레이션은 이 넷이 전부다.</strong> 뷰에 <code class="inline">0.18</code>·<code class="inline">0.2</code>·<code class="inline">0.42</code> 같은 숫자를 직접 적지 않는다 — 화면마다 다른 시계가 생기고, 한 값을 고치려면 콜사이트를 전부 뒤져야 한다. 값이 없으면 <strong>토큰을 새로 세우고</strong>(이름 = 용도), 듀레이션이 데이터에서 나오는 자리(던진 속도가 이탈 시간을 정하는 플릭 등)는 <strong>커브만</strong> 토큰으로 받는다(Swift <code class="inline">ReffiMotion.easeOut(duration:)</code>). <code class="inline">--dur-ambient</code>는 화면 전체를 덮은 <strong>배경 색면</strong> 전용이다 — <code class="inline">--dur-3</code>로 갈아타면 색면이 "깜빡"으로 읽히고, 반대로 <strong>전경 요소가 이 길이를 쓰면 UI가 굼떠진다</strong>.</p>
+        <div class="note" style="margin-top:var(--space-3)"><strong>메뉴는 150~250ms 예산.</strong> 드롭다운·정렬 메뉴는 <em>읽으러</em> 여는 것이라, 면이 종이라는 이유로 <code class="inline">--spring-pop</code>(340ms + 오버슈트)을 태우지 않는다 — 성격이 메뉴면 §7.1 진입/이탈이다. <strong>진입과 이탈은 다른 사건이라 트랜지션은 대칭이 아니다</strong>: 커진 상태에서 줄어드는 "뿅"(<code class="inline">scale(1.3)</code>)은 이탈의 문법이고, 진입은 <code class="inline">scale(0.95)</code>에서 자라 오른다. 위로 밀려 들어온 안내가 시간이 지나 조용히 닫힐 때는 자리를 밀지 말고 <strong>그 자리에서 흐려진다</strong>. 여럿이 한꺼번에 들어오면 <strong>30~80ms 스태거</strong>(권장 40ms, 다섯 번째 이후는 같은 지연으로 묶음). 밀어서 닫는 면은 미는 동안 <strong>실제로 손을 따라가고</strong>(감쇠 0.6), 커밋 판정은 변위 단독이 아니라 던진 속도(<code class="inline">predictedEndTranslation</code>)를 함께 본다.</div>
 
         <p class="subhead text">통통 튀는 스프링 (§7.5) — 종이컷 표면 전용</p>
         <p class="t-caption text" style="color:var(--color-ink-2);margin-bottom:var(--space-3)">뱃지·종이 버튼에만 가벼운 오버슈트 스프링. <strong>재료 낙하·바운스는 스프링이 아니라 진짜 물리 엔진</strong>(SpriteKit gravity=-42 · restitution≈0.12±0.02 — 묵직하게 거의 안 튐, 끌어서 던지기·단일 터치 추적, 충돌마다 재료별 달그락 햅틱). 그 외 일반 UI는 위 듀레이션·이징 유지(남용 금지). reduced-motion이면 제거.</p>
         <div class="motion-tokens">
           <div class="motion-card"><div class="dur num">0.34 / 0.56</div><div class="lbl">spring-pop — 뱃지 pop-in</div></div>
-          <div class="motion-card"><div class="dur num">0.50 / 0.74</div><div class="lbl">spring-settle — dim·reflow·인디케이터</div></div>
+          <div class="motion-card"><div class="dur num">0.50 / 0.74</div><div class="lbl">spring-settle — dim·reflow·인디케이터·밀다 만 면의 복귀</div></div>
           <div class="motion-card"><div class="dur num">0.25 / 0.55</div><div class="lbl">spring-press — 종이 버튼·뱃지 누름 (Swift: bouncyPress)</div></div>
+          <div class="motion-card"><div class="dur num">0.26 / 0.50</div><div class="lbl">spring-slam — 종이컷 도장(온보딩 Start·히어로 stamp)</div></div>
         </div>
+        <p class="t-caption text" style="color:var(--color-ink-2);margin-top:var(--space-3)"><code class="inline">spring-slam</code>은 <code class="inline">spring-pop</code>보다 <strong>짧고 덜 감쇠</strong>해 "튀어 오른다"가 아니라 <strong>"찍힌다"</strong>로 읽힌다. <strong>도장 전용</strong>이다 — 일반 등장에 쓰면 화면이 계속 얻어맞는다.</p>
 
         <p class="subhead text">햅틱 (§7.6) — 의미별 매핑</p>
         <p class="t-caption text" style="color:var(--color-ink-2);margin-bottom:var(--space-3)">같은 의미의 액션은 화면이 달라도 항상 같은 햅틱을 낸다 — 트리거가 속한 <strong>화면</strong>이 아니라 <strong>의미</strong>가 매핑 기준이다. 판정 로직을 화면마다 복붙하며 햅틱 유무가 갈리지 않도록, 판정·저장·파괴 확인 <strong>핸들러 레벨</strong>에서 매핑을 강제한다 (Swift <code class="inline">sensoryFeedback</code>).</p>
         <table class="tbl">
           <thead><tr><th>의미</th><th>트리거 예시</th><th>햅틱</th></tr></thead>
           <tbody>
-            <tr><td>판정 · 확정</td><td>Ate / Tossed / Freeze 판정, 레시피 발주(Fire the Ticket)</td><td><code class="inline">.impact</code></td></tr>
+            <tr><td>판정 · 확정</td><td>Ate / Tossed / Freeze 판정, 레시피 발주(Fire the Ticket), 장보기 메모에서 빼기(이번엔 안 사기)</td><td><code class="inline">.impact</code></td></tr>
             <tr><td>성공 완료</td><td>저장 · 추가 · 재입고</td><td><code class="inline">.success</code></td></tr>
             <tr><td>파괴 확인</td><td>삭제 · 초기화 확정(계정삭제 · 전체초기화 · 재료/레시피 삭제 등)</td><td><code class="inline">.warning</code></td></tr>
           </tbody>
         </table>
         <div class="note" style="margin-top:var(--space-3)"><strong>정보성 전환엔 햅틱 금지.</strong> 탭 전환 · 스크롤처럼 순수 정보성 전환에는 햅틱을 쓰지 않는다. 파괴 확인 햅틱은 <strong>확정 시점</strong>(다이얼로그의 파괴 버튼)에 울린다 — 다이얼로그를 여는 순간이 아니다.</div>
+
+        <p class="subhead text">물리 질감 문법 (§7.6.1) — 재질 공명 · 속도 엔벨로프 · 구름 텍스처 · 캡처 스냅</p>
+        <p class="t-caption text" style="color:var(--color-ink-2);margin-bottom:var(--space-3)">위 표가 <strong>무엇을 했는가</strong>(의미)를 말한다면, 이 문법은 <strong>무엇에 닿았는가</strong>(재질 · 물리량)를 말한다 — 두 축은 겹치지 않는다. 판정 · 성공 · 파괴는 여전히 <code class="inline">sensoryFeedback</code>이고, SpriteKit 물리 씬의 이 계열만 <strong>CoreHaptics를 직접</strong> 쓴다(세기 · 날카로움 파라미터가 없으면 재질을 표현할 수 없고, trigger 구동은 초당 20회 발화 시 물리 필드까지 다시 그린다).</p>
+        <p class="t-caption text" style="color:var(--color-ink-2);margin-bottom:var(--space-3)"><strong>참조 기술과 하드웨어 격차.</strong> 닌텐도 HD Rumble(스위치) · HD Rumble 2(스위치2)는 iPhone Taptic Engine과 <strong>같은 부품 계열</strong>(선형 공진 액추에이터, LRA)이라 원리가 그대로 옮겨진다 — 한 사이클에 최대 출력, 밀리초 단위 정지, 여러 주파수의 파형 합성. 조이콘 프로토콜이 드러낸 HD Rumble의 실체는 <strong>밴드 2개 × (주파수, 진폭)</strong>이다: 저역 40.9~626.3Hz(무게) · 고역 320~1252.6Hz(어택 · 질감)를 <strong>동시에</strong> 다른 진폭으로 구동해 하나의 파형으로 합성한다. HD Rumble 2는 새 물성이 아니라 같은 원리의 <strong>해상도 개선</strong>(대역 확대 · 응답 속도 · 하우징/댐핑/펌웨어 재설계로 최대 음압은 낮추고 미세 고 · 저역을 살림)이다. iPhone 쪽 한계는 넷 — ① 액추에이터가 <strong>하나</strong>(좌 · 우 2개인 조이콘과 달리 공간 정위 불가) ② 대역이 좁다(연속 이벤트의 sharpness 0→1이 대략 80~230Hz에 대응, 최대 출력은 0.73 ≈ 공진 160Hz 부근) ③ 밴드를 <strong>독립 주소로</strong> 줄 수 없다(sharpness가 하나뿐) ④ 파형 샘플 스트리밍이 없다. 그래서 밴드 동시 구동은 <strong>이벤트 겹침</strong>으로, 주파수 변화는 <strong>파라미터 커브</strong>로 근사한다.</p>
+        <table class="tbl">
+          <thead><tr><th>문법</th><th>물리 입력</th><th>Core Haptics 표현</th><th>값</th></tr></thead>
+          <tbody>
+            <tr><td>재질 공명</td><td>글리프 물성 클래스 6종</td><td>transient sharpness 베이스 + 꼬리 길이 배율</td><td>sharpness <code class="inline">0.10</code>(두부 · 밥) ~ <code class="inline">0.95</code>(캔 · 병) · decay <code class="inline">0.10</code>(가장 길게, ×1.35) ~ <code class="inline">0.85</code>(딱 끊김, ×0.65), <strong>중립 0.5 = ×1.0</strong></td></tr>
+            <tr><td>속도 엔벨로프</td><td>생 임펄스 20 ~ 90</td><td>transient intensity + 꼬리 길이</td><td>세기 <code class="inline">0.10</code> → <code class="inline">1.0</code>(포화) · 꼬리 <code class="inline">40~70ms</code>(중립 재료 기준, 재질 배율이 곱해진다)</td></tr>
+            <tr><td>저 / 고역 동시 구동</td><td>임펄스 상위 1/3</td><td>transient(고역) + <strong>겹치는</strong> continuous(저역)</td><td>꼬리 시작 지연 = <code class="inline">12ms × (1 − u)</code> — 갓 임계는 12ms 뒤('툭 → 잔향'), 최대 충돌은 <strong>0ms</strong>(겹침 = 한 방의 무게)</td></tr>
+            <tr><td>주파수 하강 스윕</td><td>임펄스</td><td><code class="inline">.hapticSharpnessControl</code> 커브 <code class="inline">0 → −sweep</code></td><td><code class="inline">sweep = 0.45 × (0.55 + 0.45u)</code> — 세게 칠수록 더 깊이 저역으로 떨어진다(고주파가 먼저 죽는다)</td></tr>
+            <tr><td>감쇠 커브</td><td>꼬리 길이</td><td><code class="inline">.hapticIntensityControl</code> 커브 <code class="inline">1 → 0</code></td><td>첫 제어점을 <strong>꼬리 시작 시각에 값 1</strong>로 둔다 — 커브는 플레이어 전역이라, 겹칠 때 그 시각의 어택까지 감쇠시키면 안 된다</td></tr>
+            <tr><td>구름 텍스처</td><td>병진 <code class="inline">14~240pt/s</code> × 각속도 <code class="inline">0.85~8.5rad/s</code>(√곱)</td><td>루프 continuous 베드 + <strong>불규칙 미세 transient 17개</strong>(0.85s 루프) + <code class="inline">sendParameters</code> 실시간 변조</td><td>세기 <code class="inline">≤ 0.32 × 재료배율</code> · 날카로움 <code class="inline">재료 − 0.22 + 0.24 × 신호</code>. <code class="inline">360pt/s</code> 위 = 날고 있음 → 끔</td></tr>
+            <tr><td>잡기</td><td>터치 시작</td><td>transient</td><td><code class="inline">0.34 / 0.62</code>, 꼬리 없음</td></tr>
+            <tr><td>캡처 스냅</td><td>마그네틱 반경(88pt) <strong>진입 에지</strong></td><td>transient + 겹치는 45ms 저역 꼬리</td><td><code class="inline">0.62 / 0.84</code> + 꼬리 <code class="inline">0.24 / 0.30</code>(lead 0 · sweep 0.22) · 쿨다운 <code class="inline">180ms</code></td></tr>
+          </tbody>
+        </table>
+        <div class="note" style="margin-top:var(--space-3)"><strong>채널은 하나다.</strong> 액추에이터가 하나뿐이라 여러 칩의 결을 합치면 결국 '웅'이 된다 — 지속 촉감은 <strong>가장 세게 구르는 칩 하나</strong>가 가져가고, 드래그 중엔 호버가 가져간다(드래그 분기가 곧장 반환하므로 두 용도는 구조적으로 배타적이다). <strong>지속 계열은 별도 관문</strong>을 탄다(충돌의 3중 관문과 예산을 나눠 쓰지 않는다 — 공유하면 구르는 동안 텍스처가 충돌 예산을 먹어 부딪힘이 사라진다): 켬 <code class="inline">0.20</code> / 끔 <code class="inline">0.09</code> + 유예 <code class="inline">0.14s</code>. 문턱이 하나거나 유예가 없으면 경계에서 지직거리며 여닫히고, 유예 중에는 <strong>직전 값을 그대로</strong> 다시 낸다. <strong>재생을 끊지 않는다</strong> — 텍스처는 루프 플레이어를 켜 둔 채 <code class="inline">sendParameters</code>로 세기 · 날카로움만 갈아 끼운다(껐다 켜면 그건 질감이 아니라 스위치 소리다). 값 변화가 <code class="inline">0.02</code> 미만이면 보내지 않는다. <strong>결은 불규칙하되 결정적이다</strong> — 루프 안의 미세 transient 17개는 간격 · 세기 · 밝기를 <code class="inline">ReffiHash</code>로 뽑는다(균등 간격이면 20Hz 톱니로 들리고, 난수면 실행마다 달라져 튜닝 비교가 불가능하다). 루프 길이 <code class="inline">0.85s</code>는 반복 주기가 손에 <strong>클럭</strong>으로 잡히지 않게 잡은 값이다. <strong>엔진 수명주기는 그대로</strong> — 보이는 씬에서만 켜고, 씬이 멈추면 <strong>텍스처를 먼저 끄고</strong> 엔진을 내린다(루프 플레이어를 켠 채 엔진만 내리면 다음 기동에서 죽은 핸들에 파라미터를 보낸다). 손을 떼거나 잡고 있던 칩이 사라지면 지속 촉감은 <strong>유예 없이</strong> 즉시 닫는다. <strong><code class="inline">IngredientClatterHaptics.isEnabled</code>(기본 켬)가 이 계열 전체의 스위치</strong>이고, 프로필 "감각(Feel)"의 <code class="inline">Collision haptics</code> 토글이 씬을 거쳐 여기로 내려온다(<code class="inline">ReffiFeedback.hapticsKey</code>). 끄면 엔진까지 내린다 — 켠 채 무음이면 배터리만 먹는다. <strong>켜는 쪽은 이 플래그가 스스로 기동하지 않는다</strong>(기동 조건 = 표시 중 + 안 가려짐은 소유자인 씬이 안다 — <code class="inline">syncClatterEngine</code>이 맡는다). 시스템 진동 끔은 CoreHaptics가 알아서 존중한다. <strong>의미 햅틱(§7.6 표)은 <code class="inline">.reffiFeedback</code> 래퍼로 낸다</strong> — 같은 토글을 존중해야 하므로 호출부가 <code class="inline">.sensoryFeedback</code>을 직접 부르면 토글을 우회한다(끄면 피드백을 <code class="inline">nil</code>로 돌려 발화 자체를 막는다 — 모디파이어를 조건부로 떼면 다시 켜는 프레임에 밀린 한 번이 울린다). <strong>Reduce Motion에서도 살아 있다</strong> — 시각 배려지 촉각 배려가 아니다(§7.4). 앱 안에서 촉감을 빼는 자리는 위 프로필 토글이고, <strong>시스템 설정이 우선이며 토글은 그 위에 얹히는 선택</strong>이다. <strong>검증면</strong>: 촉감의 자연스러움 자체는 실기기에서만 판정되고(시뮬레이터엔 액추에이터가 없다), 규칙은 전부 순수 계산기라 단위 테스트가 고정한다(<code class="inline">ClatterFeelTests</code> · <code class="inline">ClatterTextureTests</code> · <code class="inline">TextureGateTests</code>). TILT LAB의 <code class="inline">HAPTIC n/s</code>는 <strong>충돌 달그락만</strong> 센다.</div>
 
         <p class="subhead text">시스템 적용 예시 — 재료 리스트</p>
         <div class="product">
@@ -1468,12 +1546,20 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text"><code class="inline">prefers-reduced-motion</code>을 존중하고 <code class="inline">transition:all</code>을 쓰지 않았는가</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">보더·이모지·순백배경·순흑텍스트·네온을 쓰지 않았는가 · 1200px 분기로 함께 전환되는가</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">(행동 표면) 종이컷 셰이프에 완벽한 원·사각·캡슐을 쓰지 않고(소형 칩·필도 <code class="inline">PaperCutRect</code>), 종이 헤어라인을 분리 보더로 오용하지 않았는가 (§13)</span></li>
-          <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">통통 스프링을 행동 표면에만 쓰고 정보 표면(카드 스택)엔 남용하지 않았는가 · 추천 캐러셀에 네비 없이 닫기(X)가 있는가 (§7.5/§13)</span></li>
+          <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">통통 스프링을 행동 표면에만 쓰고 정보 표면(카드 스택)엔 남용하지 않았는가 · <strong>성격이 메뉴</strong>인 종이 면(드롭다운)에 <code class="inline">spring-pop</code>을 태우지 않았는가 · 추천 캐러셀에 네비 없이 닫기(X)가 있는가 (§7.1/§7.5/§13)</span></li>
+          <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">뷰에 듀레이션·커브 리터럴을 적지 않고 토큰만 썼는가 — 없으면 콜사이트가 아니라 <strong>토큰을 새로 세웠는가</strong> (§7.1/§7.5)</span></li>
+          <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">트랜지션이 진입·이탈 <strong>비대칭</strong>인가(진입 <code class="inline">scale(0.95)</code>, 이탈만 뿅/더 빠르게) · 여럿 동시 진입에 30~80ms 스태거를 넣었는가 · 밀어 닫는 면이 미는 동안 손을 따라가는가 (§7.1)</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">종이 X 닫기가 <code class="inline">PaperCloseButton</code>인가 (시각 40 · 히트 44 · <code class="inline">paper</code> 단일 토큰, 인라인 재조립 금지 §14)</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">시트에 dragIndicator(핸들)와 콘텐츠 양에 맞는 detent가 있는가 (§14)</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">판정·확정은 <code class="inline">.impact</code>(판정 light · 발주 medium 두 강도뿐), 성공 완료는 <code class="inline">.success</code>, 파괴 확인은 <code class="inline">.warning</code>인가 · 매핑 밖 강도를 새로 만들지 않았는가 · 정보성 전환에 햅틱을 넣지 않았는가 (§7.6)</span></li>
+          <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">물리 씬 촉감을 새로 얹을 때 §7.6.1 문법(재질 공명 · 속도 엔벨로프 · 저/고역 겹침 · 주파수 스윕 · 구름 텍스처 · 캡처 스냅)에서 왔는가 — <strong>지속 계열은 별도 관문</strong>(켬 0.20 / 끔 0.09 + 유예 0.14s)을 타고 <strong>채널은 하나</strong>이며, 씬이 멈출 때 텍스처를 먼저 끄는가 (§7.6.1)</span></li>
+          <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">의미 햅틱을 <code class="inline">.sensoryFeedback</code>이 아니라 <strong><code class="inline">.reffiFeedback</code> 래퍼</strong>로 냈는가 — 직접 부르면 프로필 "감각(Feel)"의 진동 토글을 우회한다 (§7.6.1)</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">레시피 대표 아이콘을 그리는 새 표면이 뷰에서 <code class="inline">DishGlyphCatalog</code>를 직접 부르지 않고 <code class="inline">Recipe.heroIcon</code>/<code class="inline">RecipeHeroIcon.session</code>만 쓰는가 (§13.7)</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">영수증 종이를 새로 그릴 때 톱니를 <code class="inline">ReffiTooth</code>로 지정하고 면은 <code class="inline">receiptSurface(...)</code>로 얹었는가 — 숫자 리터럴·손조립 금지 (§13.8)</span></li>
+          <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">입력 필드를 <code class="inline">fieldSurface(...)</code>로 세웠는가 — 그리고 <strong>종이 카드 안의 행 필드에는 면을 얹지 않고</strong> 절취선으로 나눴는가 (§13.8)</span></li>
+          <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">blue 면 위 콘텐츠에 <code class="inline">.white</code> 리터럴 대신 <code class="inline">onAccent</code>를 썼는가 — <code class="inline">ink</code> 면 위는 <code class="inline">onInk</code>, <code class="inline">toast</code> 위는 고정 흰색 (§02)</span></li>
+          <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">히트 영역을 리터럴 44가 아니라 <code class="inline">--tap-min</code>/<code class="inline">ReffiChrome.tapMin</code>으로 잡았는가 (§07)</span></li>
+          <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">표시자의 흐림에 <code class="inline">disabled</code>(.45)가 아니라 <code class="inline">inactive</code>(.30)를 썼는가 — 둘은 다른 축이다 (§07)</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">재료 실루엣·요리 아이콘 크기를 <code class="inline">ReffiFoodIcon</code>/<code class="inline">ReffiDishIcon</code>으로 지정했는가 — 표면마다 숫자를 흩뿌리지 않는가 (§13.3/§13.7)</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">점선 구분을 손으로 그리지 않고 <code class="inline">ReffiRule(.receipt|.ticket)</code>을 썼는가 (§13.8)</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">성과 지표를 차트가 아니라 영수증 정산서로 세웠는가 — 한 축(건수)·도장 하나·모수 일치, 순서 없는 축에 신선도 색 재사용 금지 (§13.9/§2.4)</span></li>
@@ -1487,13 +1573,14 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
         <span class="section__num num">11</span>
         <h2 class="text">종이 · 글래스 · 모션 <span class="t-caption" style="color:var(--color-muted)">— MD §13</span></h2>
         <p class="section__lead text">메인 플로우의 <strong>행동 표면</strong>(재료·버튼·티켓)에 입히는 한 겹: 손으로 자른 종이 + 리퀴드글래스 + 일러스트 실루엣 + 통통 튀는 모션. 정보 표면(§02~§09)의 규율은 그대로 둔다.</p>
-        <div class="note"><strong>칩·필도 예외가 아니다 — 소형 면의 정본은 <code class="inline">PaperCutRect</code>다.</strong> D-day 칩·상태 칩·추정 기한 배지·취향 칩·알림 배너 액션처럼 작고 반복되는 행동 표면 면은 <code class="inline">Capsule()</code>이 아니라 <code class="inline">PaperCutRect(seed:)</code>를 쓴다. 예외는 글래스 캡슐 네비와 잉크 토스트 두 곳뿐 — 둘 다 종이가 아닌 재질이라 이 규칙 밖이다.</div>
+        <div class="note"><strong>종이 단면은 토큰 셋이 전부다 — <code class="inline">--paper-edge</code> · <code class="inline">--paper-edge-field</code> · <code class="inline">--paper-edge-onfill</code>.</strong> 면과 같은 톤의 ~1px 헤어라인을 면 위에 겹쳐 "종이 두께"를 표현한다. 캔버스 위 밝은 면은 잉크 톤(<strong>α 0.06</strong>), 입력 필드는 한 단 진하게(<strong>α 0.10</strong> — 카드는 그림자가 경계를 만들지만 필드는 면 안에 눌러 앉아 있어 "여기에 쓴다"를 단면이 혼자 말한다), 채도 면(버튼)은 흰 톤(α 0.14)이다. 0.06은 <strong>코드 실사용 수렴값</strong> — 앱에는 0.06/0.07/0.08이 섞여 있었고 그중 0.06이 압도적 다수였다. 헤어라인에서 0.01~0.02 알파 차는 눈에 잡히지 않으니 문서를 코드의 최다수 쪽으로 맞추고 갈래를 두 토큰으로 닫았다. <strong>§6.1의 분리용 보더가 아니다</strong> — 리스트 행 구분선처럼 실제로 면을 나누는 선은 알파가 같아도 이 토큰을 쓰지 않는다.</div>
+        <div class="note" style="margin-top:var(--space-3)"><strong>칩·필도 예외가 아니다 — 소형 면의 정본은 <code class="inline">PaperCutRect</code>다.</strong> D-day 칩·상태 칩·추정 기한 배지·취향 칩·알림 배너 액션처럼 작고 반복되는 행동 표면 면은 <code class="inline">Capsule()</code>이 아니라 <code class="inline">PaperCutRect(seed:)</code>를 쓴다. 예외는 글래스 캡슐 네비와 잉크 토스트 두 곳뿐 — 둘 다 종이가 아닌 재질이라 이 규칙 밖이다.</div>
         <div class="note" style="margin-top:var(--space-3)"><strong><code class="inline">PaperRect</code>가 그 규율을 스스로 지킨다(프리미티브 가드).</strong> 호출부 규약만으로는 앱 전역이 새기 때문에 셰이프 자체가 두 가지를 보장한다. ① <strong>pill 스케일 라우팅</strong> — 네 코너가 전부 <code class="inline">min(w,h)/2</code>로 클램프되는 크기(= 캡슐 퇴화)면 <code class="inline">PaperRect</code>가 <code class="inline">PaperCutRect</code>의 8각 패스를 대신 그린다. <code class="inline">ReffiRadius.pill</code>을 넘겨도 완벽한 캡슐이 나오지 않는다. ② <strong>지각되는 변 휨</strong> — 변 휨은 그 변의 직선 구간 길이에 비례하고(가위질이 길수록 선이 더 흔들린다) 편차 1.4~4pt로 클램프된다. 예전 값(하한 1.5를 2차 베지어의 컨트롤 오프셋에 그대로 적용 → 실제 편차 0.5pt)은 44pt 컨트롤에서 3x 렌더로도 보이지 않아, 코드는 종이인데 화면은 스톡 iOS였다. <strong>상한은 짧은 변에도 건다</strong> — 긴 변 기준만 두면 폭은 넓고 높이는 낮은 면(재료 뱃지 ≈150×40)의 위·아래 변이 상한 4pt를 그대로 받아 높이의 10%가 출렁이고, 위아래가 반대로 휘면 실루엣이 20%까지 일그러진다. 손으로 자른 종이도 얇은 조각의 가장자리는 그만큼 크게 흔들리지 않는다 — 흔들림의 폭은 가위질 길이뿐 아니라 <strong>조각의 두께</strong>에도 매인다. 그래서 편차 상한은 <code class="inline">min(4pt, 짧은 변 × 0.05)</code>이고, 짧은 변이 80pt를 넘는 큰 카드는 4pt 그대로다.</div>
 
         <div class="paper-demo">
           <div class="demo-pane">
             <p class="subhead text">종이컷 아이콘 버튼 (Tossed · Ate)</p>
-            <p class="lbl">손으로 자른 종이 9각형 + 가운데 채운 아이콘 + 아래 라벨. 솔리드(Blue/흰 아이콘) · 소프트 틴트(blush/terracotta). 통통 프레스.</p>
+            <p class="lbl">손으로 자른 종이 9각형 + 가운데 채운 아이콘 + 아래 라벨. 솔리드(Blue/흰 아이콘) · 소프트 틴트(blush/terracotta). 통통 프레스. 접근성 큰 글자에서 가로 한 줄이 안 들어가면 라벨이 블롭 <strong>옆</strong>으로 가고 버튼이 세로로 쌓인다(<code class="inline">Placement .below → .trailing</code>).</p>
             <div class="demo-bar" style="gap:var(--space-6)">
               <button class="icon-btn soft" aria-label="Tossed">
                 <span class="shape"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 3h6l1 2h4v2H4V5h4l1-2zM6 8h12l-1 12a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1L6 8z"/></svg></span>
@@ -1538,7 +1625,7 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
 
           <div class="demo-pane">
             <p class="subhead text">정렬 칩 · PaperDropdown (§13.5)</p>
-            <p class="lbl">스톡 <code class="inline">Menu</code>/<code class="inline">Picker</code> 팝업(흰 시스템 라운드 렉트) 대신 <strong>앱 최초 커스텀 드롭다운</strong>. PaperRect 면 + paperEdge 헤어라인 + 옅은 그레인 + <code class="inline">--shadow-1</code>, 행마다 라벨(좌) + <strong>선택 행에만 체크 글리프</strong>(우, blue-dark), 행 사이 DashedRule 절취선, 최소 44pt 히트 + 통통 프레스. 트리거 칩 앵커 아래에 루트 오버레이로 띄워 스크롤에 클리핑되지 않고(<code class="inline">--z-dropdown</code>), 딤 없는 투명 탭 캐처가 바깥 탭을 받아 닫는다 — 가벼운 드롭다운이지 모달이 아니다(<code class="inline">--scrim</code> 없음). 진입 spring-pop, 이탈은 더 빠르게.</p>
+            <p class="lbl">스톡 <code class="inline">Menu</code>/<code class="inline">Picker</code> 팝업(흰 시스템 라운드 렉트) 대신 <strong>앱 최초 커스텀 드롭다운</strong>. PaperRect 면 + paperEdge 헤어라인 + 옅은 그레인 + <code class="inline">--shadow-1</code>, 행마다 라벨(좌) + <strong>선택 행에만 체크 글리프</strong>(우, blue-dark), 행 사이 DashedRule 절취선, 최소 44pt 히트 + 통통 프레스. 트리거 칩 앵커 아래에 루트 오버레이로 띄워 스크롤에 클리핑되지 않고(<code class="inline">--z-dropdown</code>), 딤 없는 투명 탭 캐처가 바깥 탭을 받아 닫는다 — 가벼운 드롭다운이지 모달이 아니다(<code class="inline">--scrim</code> 없음). 진입 <code class="inline">--dur-3</code> <code class="inline">--ease-out</code>, 이탈은 더 빠르게(§7.1) — 면은 종이지만 <strong>성격이 메뉴</strong>라 spring-pop의 예산 밖이다.</p>
             <div>
               <button class="sort-chip paper-face" aria-expanded="true">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M6 12h12M9 17h6"/></svg>
@@ -1564,7 +1651,7 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
 
           <div class="demo-pane">
             <p class="subhead text">일러스트 · 물리 낙하</p>
-            <p class="lbl">재료는 <strong>각진 면분할(faceted) 컷페이퍼</strong> 일러스트(곡선 대신 5~9각 직선 면 + 몸통 2~3톤 면분할 + 오프컬러 액센트[양파 뿌리 보라], `FoodGlyph` <strong>53종</strong> — 채소·과일·고기·생선·유제품·<strong>곡류·저장식품</strong> + 요리형 김밥)로, <strong>진짜 물리 엔진</strong>으로 <strong>묵직하게</strong> 떨어져 쌓이고 그대로 남는다(끌어서 던지기, 던지면 릴리스 속도 기반으로 회전도 한다). <strong>기기를 기울이면 중력도 함께 기운다</strong>(자이로, `GravityMapper`) — 방향은 기기 중력 벡터를 그대로 따르고 크기는 42×[0.35, 1.0]로 클램프, 손떨림은 데드밴드(2°/5%)로 걸러내고 잠든 더미는 6° 넘게 기울여야 다시 깨운다. 잔여 운동 감쇠는 <strong>저속 지터 플로어</strong>(14pt/s 미만만 프레임당 ×0.8, 항상 켜짐)로 잡는다 — 진짜 움직임은 이 대역 위라 감쇠를 안 받고, 솔버 미세 요동만 자세와 무관하게 죽는다(플로어를 관측 지터 상단 30이 아니라 14에 두는 건 의도다 — 얕은 기울기의 느린 굴림이 14~40pt/s에 살아, 30까지 올리면 그 굴림이 얼어붙는다. 그 대역은 안착 판정 calm 40 + 순변위 4pt가 책임진다). 감쇠엔 <strong>하한</strong>도 있다 — 2pt/s 미만(각속도는 0.05rad/s 미만)이면 대입 자체를 생략한다: <code>velocity</code> 대입은 그 자체로 바디를 깨워 수면 타이머를 0으로 되돌리므로, 거의 멈춘 바디까지 매 프레임 곱해 넣으면 솔버가 영원히 돈다(v1.0 (5) 실측: 20초 240회 관측 전부 <code>isResting=false</code>, 안착 도달 0회). calm 창을 접는 기준도 데드밴드에서 떼어내 <strong>창이 열린 시점의 중력</strong> 대비 6°/15%로 올렸고(2°로 접으면 손떨림이 창을 무한 리필한다), 연속 4프레임 이하의 속도 스파이크로는 창을 접지 않는다(640g 아래 솔버 잔차는 칩을 10초에 3pt도 못 움직이면서 이따금 50~104pt/s로 튄다)(중력 변화 후 유예 방식은 실기기 손떨림이 유예를 무한 리필해 더미가 쉼 없이 움찔거렸다). 시뮬레이터·Reduce Motion에선 상수 중력 (0,-42)로 폴백. <strong>흔들면 달그락거린다</strong> — 중력은 저역 신호라 흔들기를 못 싣기 때문에 <code>userAcceleration</code>을 따로 받아 임펄스 킥으로 바꾼다. 크기는 x·y·z 세 축 합산(폰을 화면 보며 흔들면 주 가속이 z축이다), 방향은 평면 성분이 충분하면 그쪽·z 지배적이면 중력 반대(0.25G 미만 무시 · 킥 간격 90ms · 초과분 × 480을 <strong>흩뿌림을 곱한 뒤</strong> 칩당 최대 210pt/s로 클램프 = 터널링 상한). 임계·이득은 v1.0 (3) 실기기 피드백 "흔들어도 반응이 없다"로 0.35→0.25 · 150→480으로 고쳤다 — 옛 산식은 0.5G 흔들기가 (0.5−0.35)×150 = 22pt/s라 사실상 정지처럼 보였고, 새 산식은 (0.5−0.25)×480 = 120pt/s로 확실히 보이며 0.7G 이상은 상한 210에 포화한다(상한은 터널링 방지선이라 유지). 칩마다 각도 ±0.65rad·세기 0.65~1.35배로 흩뿌려야 서로 부딪힌다(전부 같은 벡터면 더미가 평행이동만 하고 충돌이 0이다), 흩는 값은 UUID 기반 결정적 해시라 실행마다 같다. 상한은 이 배율을 곱한 <strong>칩별 최종 Δv</strong>에 걸어야 한다 — 곱하기 앞에만 걸면 실최대가 210×1.35 = 283.5pt/s로 새어 나가 터널링 상한이 거짓이 된다(v1.0 (4) 결함). 포화 구간에선 세기만 잘리고 각도 흩뿌림은 남아 칩들은 여전히 서로 부딪힌다. 중력을 아무 방향으로나 돌릴 수 있으므로 <strong>필드 컨테인먼트</strong>가 따라붙는다 — 좌·우 벽은 <code>chipSide × 0.09</code>만큼 안쪽에 세우고(충돌체가 알파 bbox의 90%라 그림이 화면 밖으로 삐져나가는 걸 막는다), 천장은 2단이다: 낙하 중엔 <strong>스폰 천장</strong>(사다리 꼭대기 위로 올라가는 <strong>래칫</strong>), 다 내려오면 화면 위끝(밀폐 천장)으로 닫힌다. <strong>스폰 사다리는 클램프하지 않는다</strong> — order번째 칩은 화면 위 <code>chipSide × (0.4 + order × 0.85)</code>에서 떨어지고, 간격 0.85s는 바디 최대 높이(0.70s)보다 넉넉해야 이웃 order가 겹쳐 태어나지 않는다는 불변식이다. v1.0 (5)까지는 상수 천장(+700pt)으로 접었는데 작업대 6개·칩변 169pt면 사다리 꼭대기가 786pt여서 마지막 두 칩이 같은 y로 접혔다 — 실측 AABB 관통 <strong>43.1%</strong>("절반 가까이 겹친 채 고착"이라는 실기기 3차 피드백 그대로). 그 깊은 관통이 벽 관통·이탈·상시 분리 압력의 공통 뿌리였다(검증: 스폰 겹침 43.1% → <strong>0%</strong>). 이탈 회수는 <strong>어느 방향이든</strong> 매 프레임 돈다 — 벽은 두께 0의 edge loop라 큰 임펄스엔 CCD로도 못 막고 뚫리고(실측: 한 칩이 2050pt/s로 튀어나가 y=−438,000까지 낙하), 샌 칩 하나가 씬 전체의 안착을 영원히 막는다. 안착 직전엔 AABB 관통 15% 초과 쌍을 최소 관통 축으로 <strong>위치를 반씩 나눠 밀어</strong> 떼어 놓는다(여유 0.5pt · 반복 상한 10바퀴 · 밀 때마다 상자 안으로 클램프) — force-settle이 겹친 배치를 그대로 얼리면 영구 고착이 된다. v1.0 (6)까지는 얼리기 <strong>전에</strong> 임펄스 240pt/s로 밀고 calm 창을 다시 돌렸는데, 마찰 3465pt/s²가 임펄스를 즉시 먹고 밀 때마다 창이 처음부터 다시 돌아 <strong>시도 8회가 ~6.6초에 소진</strong>된 뒤 15% 초과 쌍이 남은 채 얼었다. 위치 보정은 속도가 0이라 벽을 뚫을 수 없고(터널링 불가) 얼리는 순간에 도는 것이라 창을 되돌리지 않는다 — 예산 소진이라는 실패 모드 자체가 없다(콜드런치 실측: 안착 <strong>3.1초</strong>, 얼린 시점 15% 초과 쌍 <strong>0</strong>·최대 잔여 11.4%). <strong>Reduce Motion</strong>에선 낙하 없이 격자로 놓되 같은 declump 불변식을 지킨다 — 행 간격은 사다리와 같은 0.85s, 한 행의 개수는 밴드를 바디 최대 폭(0.72s) 이상 벌릴 수 있는 만큼(옛 식은 행 간격 0.5s라 Reduce Motion 사용자만 겹쳐 태어난 더미를 봤다). 천장이 6초 넘게 열려 있으면 위쪽에 갇힌 칩을 끌어내려 회수해 "화면 밖으로 나가서 안 돌아옴"을 구조적으로 막는다 — 회수한 칩엔 상자 안쪽 고정 벡터 (0, −220)를 실어 <strong>떨어지게</strong> 한다(속도 0으로 두면 얼어붙은 채 나타나 "순간이동"으로 읽힌다. 중력 방향으로 쏘면 기기를 뒤집었을 때 칩이 천장으로 되돌아가 회수분 전체가 동시에 스쿼시·달그락을 냈다 — v1.0 (4))(타임아웃은 실측 후 재조정 예정). 착지 임팩트가 크면 통통 스쿼시(질량으로 나눈 Δv <strong>600</strong> 이상, 상한 <strong>3000</strong>)가 들어가되 <strong>착지인 접촉만</strong> 누른다 — 접촉 법선과 그 시점 중력의 |dot|이 0.55를 넘어야 하고(굴림 옆접촉은 법선이 중력에 수직이라 걸러진다), 칩당 쿨다운 250ms를 둔다(v1.0 (3) 실기기 피드백 "크기가 커졌다 작아지는 움찔거림" — 기울여 굴리는 내내 더미가 숨쉬듯 눌렸다). <strong>임계는 정지 접촉 바닥 위에 있어야 한다</strong> — 중력 42는 m/s² 단위(150pt=1m)라 실제로 6300pt/s² = 640g이고, 가만히 놓인 칩도 매 프레임 g·dt = 105pt/s를 접촉 임펄스로 상쇄한다. 옛 임계 30은 그 바닥의 1/3이라 모든 정지 접촉이 통과했고 상한 260도 정지 접촉 관측 최대(≈470)보다 낮아 더미가 최대 진폭으로 영구히 펄스했다(실측: 정지한 더미에서 접촉 95회/초·스쿼시 20회/초 — 실기기 3차 "가만히 있어도 움찔움찔"의 정체). 새 임계는 실측 두 대역 사이다: 정지 접촉 Δv 평균 130·최대 470, 진짜 착지 평균 1074·최대 3104. 게이트는 시각 축에만 걸어 굴러 부딪히는 달그락 햅틱은 그대로 울리고, <strong>부딪히면 달그락 햅틱</strong>이 따로 울린다 — 이쪽은 질량으로 나누지 않은 <strong>생 임펄스</strong>로 재는 CoreHaptics 이벤트이고, 세 관문(임펄스 20 · 전역 <strong>70~110ms</strong> = 중심 90ms ± 지터 20ms, 평균 ≈11Hz · 같은 쌍 260ms)을 통과한 충돌만 발화해 정지한 더미가 웅웅대지 않고 구르는 중에도 또렷한 부딪힘에만 촉감이 실린다. 촉감 값은 <strong>순수 계산기</strong>(<code>ClatterFeelRule</code>)가 (임펄스, 재료, 발화 순번) → (세기, 날카로움, 꼬리)로 만든다 — v1.0 (5)까지는 모든 충돌이 <em>같은 파형의</em> transient 단발 + 정확히 11Hz 격자여서 손이 충돌이 아니라 <strong>기계적 클럭</strong>을 읽었다(실기기 3차 "햅틱이 딱딱하고 인위적·고정된 느낌"). HD 진동의 자연스러움은 세 겹이라 세 겹을 다 얹었다: ① <strong>세기</strong>는 임펄스 20→90 구간에서 <strong>0.10</strong>(옛 0.18)→1.0으로 포화해 최대/최소가 5.6배에서 <strong>9배 이상</strong>으로 벌어지고, ② <strong>날카로움</strong>은 재료 기준값(두부 0.10의 뭉툭한 '퍽' ~ 캔·병 0.95의 쨍한 '클링')에 <strong>±0.12</strong>의 임펄스 변조를 얹어 세게 부딪히면 살짝 더 쨍해지며(재료 성격은 뒤집히지 않는다), ③ 상위 1/3(정규화 세기 0.67 이상)에만 transient 뒤 12ms에 <strong>40~70ms 감쇠 꼬리</strong>(<code>.hapticContinuous</code> + 세기를 0까지 끄는 파라미터 커브, 본 타격의 0.42배 세기·0.28 낮은 날카로움)를 <strong>같은 패턴</strong>으로 붙인다 — 모든 충돌에 붙이면 잔향이 겹쳐 '웅웅'으로 되돌아간다. 세기·날카로움엔 <strong>독립된 ±8% 미세 변주</strong>가 걸리고, 리듬 지터와 함께 전부 <strong>발화 순번 해시</strong>(<code>ReffiHash.signed</code> — FNV-1a + fmix64 믹싱 한 단, 믹싱이 없으면 순번 접미사에서 값이 뭉쳐 64개가 14개로 붕괴한다)라 <strong>같은 충돌 시퀀스는 실행마다 같은 촉감</strong>이다(튜닝 비교·계측 QA 재현성). <strong>촉감의 자연스러움 자체는 실기기에서만 판정된다</strong> — 시뮬레이터엔 액추에이터가 없어 TILT LAB의 <code>HAPTIC n/s</code> 카운터로 발화율만 보고, 변조 규칙은 순수 계산기 단위 테스트가 고정한다. §7.6의 의미별 햅틱 매핑은 그대로 두고 그 옆에 <strong>물리 질감 계열</strong>을 새로 놓은 것이며, Reduce Motion에서도 햅틱은 살아 있다(시각 배려지 촉각 배려가 아니다). 물성은 <strong>6종 클래스</strong>(standard·light·rolling·heavy·container·soft)로 묶되 <strong>마찰(0.30~0.82)·각감쇠(0.78~0.98)·반발(0.12±0.02)과 햅틱 날카로움만</strong> 차등한다 — 중력 42와 linearDamping 0.2는 전 클래스 공통으로 유지해 "쿵" 감각을 지킨다(클래스별 종단속도를 주면 수중감이 되어 정반대가 된다). 질량은 글리프 크기에서 유도한다(클래스의 mass 값은 햅틱 대표자 선정용 랭킹 키일 뿐 바디 질량이 아니다). 충돌체는 각 글리프 <strong>실측 알파 bbox 기반 볼록 폴리곤</strong>(bbox의 90% + <strong>bbox 중심</strong> 정렬, 53종 전수)이라 겹침·지터 없이 안착한다 — 모양은 <strong>16각 수퍼타원</strong>(|x/a|⁴+|y/b|⁴=1)이다. 내접 <em>타원</em>이었을 때는 bbox 대비 커버리지가 0.76에 그쳐 모서리·뾰족한 끝(생선 꼬리·우유갑 모서리)이 비었고, 두 칩의 바디가 정확히 맞닿아도 그림끼리 수십 pt 겹쳐 보였다(실측 29pt·27pt). 지수를 올리면 모서리가 차 커버리지가 0.91이 된다 — <strong>크기는 그대로 두고 모양만 바꾼다</strong>(타원을 bbox 모서리에 닿게 키우면 평평한 변이 41% 삐져나가 칩 사이에 빈틈이 생긴다). <strong>모양을 바꿀 때는 AABB 식도 함께 바꾼다</strong>: 관통 해소·벽 클램프·계측이 전부 바디 AABB로 겹침을 재는데, 그 AABB를 옛 모양의 닫힌 식(회전 타원 지지함수)으로 내면 실제 꼭짓점이 사각형 밖으로 나가 53종 전부에서 최대 18.9% 과소평가되고, 문턱 15%가 재는 겹침이 실제 바디 겹침과 갈려 예산이 5.2%→10.0%로 두 배 벌어진다. AABB는 <strong>바디 꼭짓점에서 직접</strong> 잰다 — 정렬 기준을 질량중심이 아니라 bbox 중심으로 못박는 이유는 볼록 근사 바디가 그려진 영역을 고르게 덮어야 하는데 질량중심은 짙은 쪽으로 쏠려 옅은 끝을 비우기 때문이다(v1.0 (5)에서 51종 중 41종의 정렬 오프셋이 틀려 있었다: v1 34종은 부호가 뒤집혀 오차가 두 배였고, v2 17종은 계측 덤프가 찍던 질량중심을 그대로 옮겨 기준이 갈렸다 — 최대 어긋남 0.12s ≈ 20pt). <strong>그리기 순서는 스폰 순간 고정한다</strong> — <code>zPosition</code>은 스폰 카운터에서 <code>10 + n × 0.5</code>로 한 번만 정하고(레이어: 쌓인 칩 10~28 &lt; 잡은 칩 29 &lt; 판정 존 30 &lt; 사라지는 칩 50) 다시 계산하지 않는다. 매 프레임 y로 다시 매기던 옛 방식(<code>10 + (H − y) × 0.01</code>)은 안착하면 칩이 전부 바닥 한 줄이라 z가 0.01 단위로 붙었고(실측: 6칩이 13.52~13.61), 미세 요동으로 순서가 뒤집혀 <strong>겹친 영역만 프레임마다 다시 칠해졌다</strong>(실기기 3차 "보였다 안 보였다 깜빡임"). 드래그 중엔 29로 승격했다가 놓으면 보관값으로 되돌리며, <strong>압축(compact)이 그 사이에 돌아도 잡은 칩의 승격은 덮지 않는다</strong>(슬롯만 다시 배정 — 덮으면 손끝의 칩이 더미 밑으로 가라앉고 복귀값까지 날아간다). 칩이 예산 칸 수(36)를 넘으면 압축은 회수할 값이 없어 무동작이 되므로 그때는 간격을 예산 안에서 좁힌다(<code>step = min(0.5, (28 − 10) / n)</code>) — 상한 28은 희망이 아니라 불변식이다. 검증: 안착 후 1초 간격 3장 캡처의 물리 필드 픽셀 diff가 전부 0/553,554. 일러스트는 자연색(hue 고정)이 베이스이고, 위 <strong>시듦(Wilt)</strong> 데모처럼 신선도가 채도·명도를 감쇠시키고 재질별로 형태를 무너뜨린다(용기류는 기하 불변) — 그래도 확정 신호는 <strong>뱃지</strong>가 맡는다(§2.5 행동표면 예외) — 씬 위에 이름 라벨을 얹지 않는다. 카테고리 라벨은 기존 8종에 <strong>Grain(곡류)·Pantry(저장식품)</strong>를 더한 10종이며, v2 신규 17종(가지·고구마·생강·김·포도·수박·파인애플·망고·소시지·베이컨·게·오징어·조개·요거트·버터·꿀·만두)은 전부 이 기존 라벨로 편입한다(신규 라벨 없음). 칩을 드래그하면 <strong>판정 바스켓(마그네틱)</strong> — 좌상 휴지통(Tossed)·우상 냄비(Ate) 종이 블롭이 나타나고, 반경 ≈88pt에 들면 재료가 자석처럼 끌려 들어가(1.14× 확대) 놓는 즉시 확정된다(되돌리기 토스트가 안전망). 배경은 리퀴드글래스. <strong>정지 상태의 필드 높이는 재료 수로 캡한다</strong> — ⌈n/3⌉행 × 96 + 28pt이고 <strong>남는 공백은 전부 위로 몬다</strong>(필드는 바닥 정렬) — 더미가 뱃지 행 바로 위에 내려앉는다. 가운데 정렬이던 시절엔 필드 상자 자체가 화면 중앙에 떠서, 칩이 상자 바닥에 정확히 붙어 있는데도 "바닥에 안 붙는다"로 읽혔다(<code class="inline">-physLab</code> 콜라이더 오버레이로 확인 — 중력 방향과 더미가 앉는 자리가 어긋나면 물리가 거짓말하는 것처럼 보인다). 필드가 화면 끝까지 늘어나면 눕는 더미는 바닥에 붙고 위쪽 여유가 통째로 빈 띠가 되어 배너와 재료 사이가 뷰포트의 4분의 1로 벌어졌다(실측 170pt → 123pt). 낙하 드라마는 무관하다 — 스폰 천장이 씬 바깥 절대 좌표(+700pt)라 낙하 높이·스태거가 그대로다. 재료가 없으면 캡하지 않는다.</p>
+            <p class="lbl">재료는 <strong>각진 면분할(faceted) 컷페이퍼</strong> 일러스트(곡선 대신 5~9각 직선 면 + 몸통 2~3톤 면분할 + 오프컬러 액센트[양파 뿌리 보라], `FoodGlyph` <strong>53종</strong> — 채소·과일·고기·생선·유제품·<strong>곡류·저장식품</strong> + 요리형 김밥)로, <strong>진짜 물리 엔진</strong>으로 <strong>묵직하게</strong> 떨어져 쌓이고 그대로 남는다(끌어서 던지기, 던지면 릴리스 속도 기반으로 회전도 한다). <strong>기기를 기울이면 중력도 함께 기운다</strong>(자이로, `GravityMapper`) — 방향은 기기 중력 벡터를 그대로 따르고 크기는 42×[0.35, 1.0]로 클램프, 손떨림은 데드밴드(2°/5%)로 걸러내고 잠든 더미는 6° 넘게 기울여야 다시 깨운다. 잔여 운동 감쇠는 <strong>저속 지터 플로어</strong>(14pt/s 미만만 프레임당 ×0.8, 항상 켜짐)로 잡는다 — 진짜 움직임은 이 대역 위라 감쇠를 안 받고, 솔버 미세 요동만 자세와 무관하게 죽는다(플로어를 관측 지터 상단 30이 아니라 14에 두는 건 의도다 — 얕은 기울기의 느린 굴림이 14~40pt/s에 살아, 30까지 올리면 그 굴림이 얼어붙는다. 그 대역은 안착 판정 calm 40 + 순변위 4pt가 책임진다). 감쇠엔 <strong>하한</strong>도 있다 — 2pt/s 미만(각속도는 0.05rad/s 미만)이면 대입 자체를 생략한다: <code>velocity</code> 대입은 그 자체로 바디를 깨워 수면 타이머를 0으로 되돌리므로, 거의 멈춘 바디까지 매 프레임 곱해 넣으면 솔버가 영원히 돈다(v1.0 (5) 실측: 20초 240회 관측 전부 <code>isResting=false</code>, 안착 도달 0회). calm 창을 접는 기준도 데드밴드에서 떼어내 <strong>창이 열린 시점의 중력</strong> 대비 6°/15%로 올렸고(2°로 접으면 손떨림이 창을 무한 리필한다), 연속 4프레임 이하의 속도 스파이크로는 창을 접지 않는다(640g 아래 솔버 잔차는 칩을 10초에 3pt도 못 움직이면서 이따금 50~104pt/s로 튄다)(중력 변화 후 유예 방식은 실기기 손떨림이 유예를 무한 리필해 더미가 쉼 없이 움찔거렸다). 시뮬레이터·Reduce Motion·<strong>프로필 "감각(Feel)"의 <code>Tilt gravity</code> 토글 끔</strong>(<code>ReffiFeedback.tiltKey</code>)에선 상수 중력 (0,-42)로 폴백 — 시스템 Reduce Motion이 우선이고 토글은 그 위에 얹히는 선택이라 둘 중 하나만 꺼도 자이로는 멈춘다. 토글을 끄면 센서 갱신 자체를 내리므로(배터리) <strong>같은 스트림에서 갈라져 나오던 흔들기 킥도 함께 멈춘다</strong>(기울임과 흔들기는 한 센서 스트림의 두 소비처다). <strong>흔들면 달그락거린다</strong> — 중력은 저역 신호라 흔들기를 못 싣기 때문에 <code>userAcceleration</code>을 따로 받아 임펄스 킥으로 바꾼다. 크기는 x·y·z 세 축 합산(폰을 화면 보며 흔들면 주 가속이 z축이다), 방향은 평면 성분이 충분하면 그쪽·z 지배적이면 중력 반대(0.25G 미만 무시 · 킥 간격 90ms · 초과분 × 480을 <strong>흩뿌림을 곱한 뒤</strong> 칩당 최대 210pt/s로 클램프 = 터널링 상한). 임계·이득은 v1.0 (3) 실기기 피드백 "흔들어도 반응이 없다"로 0.35→0.25 · 150→480으로 고쳤다 — 옛 산식은 0.5G 흔들기가 (0.5−0.35)×150 = 22pt/s라 사실상 정지처럼 보였고, 새 산식은 (0.5−0.25)×480 = 120pt/s로 확실히 보이며 0.7G 이상은 상한 210에 포화한다(상한은 터널링 방지선이라 유지). 칩마다 각도 ±0.65rad·세기 0.65~1.35배로 흩뿌려야 서로 부딪힌다(전부 같은 벡터면 더미가 평행이동만 하고 충돌이 0이다), 흩는 값은 UUID 기반 결정적 해시라 실행마다 같다. 상한은 이 배율을 곱한 <strong>칩별 최종 Δv</strong>에 걸어야 한다 — 곱하기 앞에만 걸면 실최대가 210×1.35 = 283.5pt/s로 새어 나가 터널링 상한이 거짓이 된다(v1.0 (4) 결함). 포화 구간에선 세기만 잘리고 각도 흩뿌림은 남아 칩들은 여전히 서로 부딪힌다. 중력을 아무 방향으로나 돌릴 수 있으므로 <strong>필드 컨테인먼트</strong>가 따라붙는다 — 좌·우 벽은 <code>chipSide × 0.09</code>만큼 안쪽에 세우고(충돌체가 알파 bbox의 90%라 그림이 화면 밖으로 삐져나가는 걸 막는다), 천장은 2단이다: 낙하 중엔 <strong>스폰 천장</strong>(사다리 꼭대기 위로 올라가는 <strong>래칫</strong>), 다 내려오면 화면 위끝(밀폐 천장)으로 닫힌다. <strong>스폰 사다리는 클램프하지 않는다</strong> — order번째 칩은 화면 위 <code>chipSide × (0.4 + order × 0.85)</code>에서 떨어지고, 간격 0.85s는 바디 최대 높이(0.70s)보다 넉넉해야 이웃 order가 겹쳐 태어나지 않는다는 불변식이다. v1.0 (5)까지는 상수 천장(+700pt)으로 접었는데 작업대 6개·칩변 169pt면 사다리 꼭대기가 786pt여서 마지막 두 칩이 같은 y로 접혔다 — 실측 AABB 관통 <strong>43.1%</strong>("절반 가까이 겹친 채 고착"이라는 실기기 3차 피드백 그대로). 그 깊은 관통이 벽 관통·이탈·상시 분리 압력의 공통 뿌리였다(검증: 스폰 겹침 43.1% → <strong>0%</strong>). 이탈 회수는 <strong>어느 방향이든</strong> 매 프레임 돈다 — 벽은 두께 0의 edge loop라 큰 임펄스엔 CCD로도 못 막고 뚫리고(실측: 한 칩이 2050pt/s로 튀어나가 y=−438,000까지 낙하), 샌 칩 하나가 씬 전체의 안착을 영원히 막는다. 안착 직전엔 AABB 관통 15% 초과 쌍을 최소 관통 축으로 <strong>위치를 반씩 나눠 밀어</strong> 떼어 놓는다(여유 0.5pt · 반복 상한 10바퀴 · 밀 때마다 상자 안으로 클램프) — force-settle이 겹친 배치를 그대로 얼리면 영구 고착이 된다. v1.0 (6)까지는 얼리기 <strong>전에</strong> 임펄스 240pt/s로 밀고 calm 창을 다시 돌렸는데, 마찰 3465pt/s²가 임펄스를 즉시 먹고 밀 때마다 창이 처음부터 다시 돌아 <strong>시도 8회가 ~6.6초에 소진</strong>된 뒤 15% 초과 쌍이 남은 채 얼었다. 위치 보정은 속도가 0이라 벽을 뚫을 수 없고(터널링 불가) 얼리는 순간에 도는 것이라 창을 되돌리지 않는다 — 예산 소진이라는 실패 모드 자체가 없다(콜드런치 실측: 안착 <strong>3.1초</strong>, 얼린 시점 15% 초과 쌍 <strong>0</strong>·최대 잔여 11.4%). <strong>Reduce Motion</strong>에선 낙하 없이 격자로 놓되 같은 declump 불변식을 지킨다 — 행 간격은 사다리와 같은 0.85s, 한 행의 개수는 밴드를 바디 최대 폭(0.72s) 이상 벌릴 수 있는 만큼(옛 식은 행 간격 0.5s라 Reduce Motion 사용자만 겹쳐 태어난 더미를 봤다). 천장이 6초 넘게 열려 있으면 위쪽에 갇힌 칩을 끌어내려 회수해 "화면 밖으로 나가서 안 돌아옴"을 구조적으로 막는다 — 회수한 칩엔 상자 안쪽 고정 벡터 (0, −220)를 실어 <strong>떨어지게</strong> 한다(속도 0으로 두면 얼어붙은 채 나타나 "순간이동"으로 읽힌다. 중력 방향으로 쏘면 기기를 뒤집었을 때 칩이 천장으로 되돌아가 회수분 전체가 동시에 스쿼시·달그락을 냈다 — v1.0 (4))(타임아웃은 실측 후 재조정 예정). 착지 임팩트가 크면 통통 스쿼시(질량으로 나눈 Δv <strong>600</strong> 이상, 상한 <strong>3000</strong>)가 들어가되 <strong>착지인 접촉만</strong> 누른다 — 접촉 법선과 그 시점 중력의 |dot|이 0.55를 넘어야 하고(굴림 옆접촉은 법선이 중력에 수직이라 걸러진다), 칩당 쿨다운 250ms를 둔다(v1.0 (3) 실기기 피드백 "크기가 커졌다 작아지는 움찔거림" — 기울여 굴리는 내내 더미가 숨쉬듯 눌렸다). <strong>임계는 정지 접촉 바닥 위에 있어야 한다</strong> — 중력 42는 m/s² 단위(150pt=1m)라 실제로 6300pt/s² = 640g이고, 가만히 놓인 칩도 매 프레임 g·dt = 105pt/s를 접촉 임펄스로 상쇄한다. 옛 임계 30은 그 바닥의 1/3이라 모든 정지 접촉이 통과했고 상한 260도 정지 접촉 관측 최대(≈470)보다 낮아 더미가 최대 진폭으로 영구히 펄스했다(실측: 정지한 더미에서 접촉 95회/초·스쿼시 20회/초 — 실기기 3차 "가만히 있어도 움찔움찔"의 정체). 새 임계는 실측 두 대역 사이다: 정지 접촉 Δv 평균 130·최대 470, 진짜 착지 평균 1074·최대 3104. 게이트는 시각 축에만 걸어 굴러 부딪히는 달그락 햅틱은 그대로 울리고, <strong>부딪히면 달그락 햅틱</strong>이 따로 울린다 — 이쪽은 질량으로 나누지 않은 <strong>생 임펄스</strong>로 재는 CoreHaptics 이벤트이고, 세 관문(임펄스 20 · 전역 <strong>70~110ms</strong> = 중심 90ms ± 지터 20ms, 평균 ≈11Hz · 같은 쌍 260ms)을 통과한 충돌만 발화해 정지한 더미가 웅웅대지 않고 구르는 중에도 또렷한 부딪힘에만 촉감이 실린다. 촉감 값은 <strong>순수 계산기</strong>(<code>ClatterFeelRule</code>)가 (임펄스, 재료, 발화 순번) → (세기, 날카로움, 꼬리)로 만든다 — v1.0 (5)까지는 모든 충돌이 <em>같은 파형의</em> transient 단발 + 정확히 11Hz 격자여서 손이 충돌이 아니라 <strong>기계적 클럭</strong>을 읽었다(실기기 3차 "햅틱이 딱딱하고 인위적·고정된 느낌"). HD 진동의 자연스러움은 세 겹이라 세 겹을 다 얹었다: ① <strong>세기</strong>는 임펄스 20→90 구간에서 <strong>0.10</strong>(옛 0.18)→1.0으로 포화해 최대/최소가 5.6배에서 <strong>9배 이상</strong>으로 벌어지고, ② <strong>날카로움</strong>은 재료 기준값(두부 0.10의 뭉툭한 '퍽' ~ 캔·병 0.95의 쨍한 '클링')에 <strong>±0.12</strong>의 임펄스 변조를 얹어 세게 부딪히면 살짝 더 쨍해지며(재료 성격은 뒤집히지 않는다), ③ 상위 1/3(정규화 세기 0.67 이상)에만 <strong>감쇠 꼬리</strong>(<code>.hapticContinuous</code> + 세기를 0까지 끄는 파라미터 커브, 본 타격의 0.42배 세기·0.28 낮은 날카로움 — <strong>길이·시작 시각·주파수 스윕은 §7.6.1이 정본</strong>이다: 40~70ms에 재질 감쇠 배율 0.65~1.35가 곱해지고, 시작은 <code>12ms × (1 − u)</code>라 강한 충돌일수록 어택과 겹쳐 저/고역이 동시에 울린다)를 <strong>같은 패턴</strong>으로 붙인다 — 모든 충돌에 붙이면 잔향이 겹쳐 '웅웅'으로 되돌아간다. 세기·날카로움엔 <strong>독립된 ±8% 미세 변주</strong>가 걸리고, 리듬 지터와 함께 전부 <strong>발화 순번 해시</strong>(<code>ReffiHash.signed</code> — FNV-1a + fmix64 믹싱 한 단, 믹싱이 없으면 순번 접미사에서 값이 뭉쳐 64개가 14개로 붕괴한다)라 <strong>같은 충돌 시퀀스는 실행마다 같은 촉감</strong>이다(튜닝 비교·계측 QA 재현성). <strong>촉감의 자연스러움 자체는 실기기에서만 판정된다</strong> — 시뮬레이터엔 액추에이터가 없어 TILT LAB의 <code>HAPTIC n/s</code> 카운터로 발화율만 보고, 변조 규칙은 순수 계산기 단위 테스트가 고정한다. §7.6의 의미별 햅틱 매핑은 그대로 두고 그 옆에 <strong>물리 질감 계열</strong>을 새로 놓은 것이며, Reduce Motion에서도 햅틱은 살아 있다(시각 배려지 촉각 배려가 아니다). <strong>구르는 동안의 지속 질감(HD Rumble의 구슬 시그니처)·잡기·마그네틱 캡처 스냅은 §7.6.1이 규정한다</strong> — 여기(§13.4)는 <strong>충돌 사건</strong>의 촉감만 다룬다. 물성은 <strong>6종 클래스</strong>(standard·light·rolling·heavy·container·soft)로 묶되 <strong>마찰(0.30~0.82)·각감쇠(0.78~0.98)·반발(0.12±0.02)과 햅틱 날카로움만</strong> 차등한다 — 중력 42와 linearDamping 0.2는 전 클래스 공통으로 유지해 "쿵" 감각을 지킨다(클래스별 종단속도를 주면 수중감이 되어 정반대가 된다). 질량은 글리프 크기에서 유도한다(클래스의 mass 값은 햅틱 대표자 선정용 랭킹 키일 뿐 바디 질량이 아니다). 충돌체는 각 글리프 <strong>실측 알파 bbox 기반 볼록 폴리곤</strong>(bbox의 90% + <strong>bbox 중심</strong> 정렬, 53종 전수)이라 겹침·지터 없이 안착한다 — 모양은 <strong>16각 수퍼타원</strong>(|x/a|⁴+|y/b|⁴=1)이다. 내접 <em>타원</em>이었을 때는 bbox 대비 커버리지가 0.76에 그쳐 모서리·뾰족한 끝(생선 꼬리·우유갑 모서리)이 비었고, 두 칩의 바디가 정확히 맞닿아도 그림끼리 수십 pt 겹쳐 보였다(실측 29pt·27pt). 지수를 올리면 모서리가 차 커버리지가 0.91이 된다 — <strong>크기는 그대로 두고 모양만 바꾼다</strong>(타원을 bbox 모서리에 닿게 키우면 평평한 변이 41% 삐져나가 칩 사이에 빈틈이 생긴다). <strong>모양을 바꿀 때는 AABB 식도 함께 바꾼다</strong>: 관통 해소·벽 클램프·계측이 전부 바디 AABB로 겹침을 재는데, 그 AABB를 옛 모양의 닫힌 식(회전 타원 지지함수)으로 내면 실제 꼭짓점이 사각형 밖으로 나가 53종 전부에서 최대 18.9% 과소평가되고, 문턱 15%가 재는 겹침이 실제 바디 겹침과 갈려 예산이 5.2%→10.0%로 두 배 벌어진다. AABB는 <strong>바디 꼭짓점에서 직접</strong> 잰다 — 정렬 기준을 질량중심이 아니라 bbox 중심으로 못박는 이유는 볼록 근사 바디가 그려진 영역을 고르게 덮어야 하는데 질량중심은 짙은 쪽으로 쏠려 옅은 끝을 비우기 때문이다(v1.0 (5)에서 51종 중 41종의 정렬 오프셋이 틀려 있었다: v1 34종은 부호가 뒤집혀 오차가 두 배였고, v2 17종은 계측 덤프가 찍던 질량중심을 그대로 옮겨 기준이 갈렸다 — 최대 어긋남 0.12s ≈ 20pt). <strong>그리기 순서는 스폰 순간 고정한다</strong> — <code>zPosition</code>은 스폰 카운터에서 <code>10 + n × 0.5</code>로 한 번만 정하고(레이어: 쌓인 칩 10~28 &lt; 잡은 칩 29 &lt; 판정 존 30 &lt; 사라지는 칩 50) 다시 계산하지 않는다. 매 프레임 y로 다시 매기던 옛 방식(<code>10 + (H − y) × 0.01</code>)은 안착하면 칩이 전부 바닥 한 줄이라 z가 0.01 단위로 붙었고(실측: 6칩이 13.52~13.61), 미세 요동으로 순서가 뒤집혀 <strong>겹친 영역만 프레임마다 다시 칠해졌다</strong>(실기기 3차 "보였다 안 보였다 깜빡임"). 드래그 중엔 29로 승격했다가 놓으면 보관값으로 되돌리며, <strong>압축(compact)이 그 사이에 돌아도 잡은 칩의 승격은 덮지 않는다</strong>(슬롯만 다시 배정 — 덮으면 손끝의 칩이 더미 밑으로 가라앉고 복귀값까지 날아간다). 칩이 예산 칸 수(36)를 넘으면 압축은 회수할 값이 없어 무동작이 되므로 그때는 간격을 예산 안에서 좁힌다(<code>step = min(0.5, (28 − 10) / n)</code>) — 상한 28은 희망이 아니라 불변식이다. 검증: 안착 후 1초 간격 3장 캡처의 물리 필드 픽셀 diff가 전부 0/553,554. 일러스트는 자연색(hue 고정)이 베이스이고, 위 <strong>시듦(Wilt)</strong> 데모처럼 신선도가 채도·명도를 감쇠시키고 재질별로 형태를 무너뜨린다(용기류는 기하 불변) — 그래도 확정 신호는 <strong>뱃지</strong>가 맡는다(§2.5 행동표면 예외) — 씬 위에 이름 라벨을 얹지 않는다. 카테고리 라벨은 기존 8종에 <strong>Grain(곡류)·Pantry(저장식품)</strong>를 더한 10종이며, v2 신규 17종(가지·고구마·생강·김·포도·수박·파인애플·망고·소시지·베이컨·게·오징어·조개·요거트·버터·꿀·만두)은 전부 이 기존 라벨로 편입한다(신규 라벨 없음). 칩을 드래그하면 <strong>판정 바스켓(마그네틱)</strong> — 좌상 휴지통(Tossed)·우상 냄비(Ate) 종이 블롭이 나타나고, 반경 ≈88pt에 들면 재료가 자석처럼 끌려 들어가(1.14× 확대) 놓는 즉시 확정된다(되돌리기 토스트가 안전망). 배경은 리퀴드글래스. <strong>정지 상태의 필드 높이는 재료 수로 캡한다</strong> — ⌈n/3⌉행 × 96 + 28pt이고 <strong>남는 공백은 전부 위로 몬다</strong>(필드는 바닥 정렬) — 더미가 뱃지 행 바로 위에 내려앉는다. 가운데 정렬이던 시절엔 필드 상자 자체가 화면 중앙에 떠서, 칩이 상자 바닥에 정확히 붙어 있는데도 "바닥에 안 붙는다"로 읽혔다(<code class="inline">-physLab</code> 콜라이더 오버레이로 확인 — 중력 방향과 더미가 앉는 자리가 어긋나면 물리가 거짓말하는 것처럼 보인다). 필드가 화면 끝까지 늘어나면 눕는 더미는 바닥에 붙고 위쪽 여유가 통째로 빈 띠가 되어 배너와 재료 사이가 뷰포트의 4분의 1로 벌어졌다(실측 170pt → 123pt). 낙하 드라마는 무관하다 — 스폰 천장이 씬 바깥 절대 좌표(+700pt)라 낙하 높이·스태거가 그대로다. 재료가 없으면 캡하지 않는다.</p>
             <div class="silo-row">
               <span class="silo f-urgent"></span><span class="silo f-soon"></span><span class="silo f-fresh"></span>
             </div>
@@ -1585,7 +1672,7 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
 
           <div class="demo-pane" style="grid-column: 1 / -1;">
             <p class="subhead text">오더 메모 카드 — 단서 카드 (추천 캐러셀)</p>
-            <p class="lbl">주방 오더 티켓, <strong>단서 카드로 축소(2026-08)</strong>: 상·하 톱니 절취 + <strong>모노 크롬 크라운 한 줄</strong>("ORDER · REFFI KITCHEN" + "#NN", 한 role·색만 ink/ink2) + 점선 룰 + 판정문 키커("Saves N expiring today" 등, <code class="inline">metaText</code> + 신선도 색) + 메뉴명/시간 + "ON THE TICKET"(크라운과 같은 모노 role) + 재료 이름 블록(체크박스 없음, 최대 5줄 + N more, D-day 종이 칩(<code class="inline">PaperCutRect</code>)은 <strong>soon·urgent에만</strong>) + Short 문구(+ <strong>"Add to list" 담기 알약</strong> — 팝업 3단을 여는 문, 아래 참고) + "이걸로 요리" 발주 CTA(발주 시 START 스탬프 슬램). <strong>PREP 단계 미리보기는 제거했다</strong> — 조리법의 디테일은 발주 후 조리 화면의 영상 링크가 맡는다. 덱은 풀스크린·네비 없음 — 뒤에 겹친 종이가 실제 다음 티켓이며(<strong>노출 띠는 글자 없는 빈 종이</strong> — depth ≥ 1은 크롬 텍스트를 렌더하지 않는다: 앞 티켓 톱니의 골 사이로 반쪽 글리프가 새는 것을 막고, 승격 시엔 불투명도만 되살린다. 성능은 별도로 가장 깊은 티켓만 본문·CTA를 생략한다 — 바로 뒤는 풀 렌더라 플릭 승격이 매끄럽다), 맨 앞을 튕겨(플릭) 넘긴다(아래 "플릭 방향 의미론" 참고). 카드는 화면 높이에 캡되고 중간 섹션은 필요 시 카드 안에서 스크롤(큰 글씨 안전망). <strong>발주 = 예약</strong>(START 슬램은 연출, 재고 차감·이력은 <strong>요리 완료에서 확정</strong> — 재료별 "다 썼어요/조금 남았어요" 원탭, 조리 취소는 예약 해제). 발주는 커버당 1회 + 6초 되돌리기(<strong>상단</strong> 잉크 캡슐 토스트 — 탭 공통, 하단 CTA·네비를 가리지 않는다) → 곧장 조리 화면(영상 CTA), 메인의 <strong>Cooking now 진행 카드</strong>로 복귀 — 몰입 커버를 여는 진입점이라 셰입은 CTA급(<code class="inline">PaperCutRect</code> + <code class="inline">PaperGrain</code> + shadow-1)이고 색만 종이 면으로 눌러 Start cooking과 경쟁하지 않는다(룰 ⑩). 같은 자리의 알림 배너는 커버를 열지 않으므로 톱니 영수증 스트립 그대로다. 판정 커버엔 urgent 한정 <strong>Freeze</strong> 3번째 선택지 — 얼리면 유예 14일의 새 D-day(재냉동 불가), 냉장고 카드엔 FROZEN 도장. <strong>발주 덱은 시드 + 커스텀 레시피로 구성된다</strong> — 인앱 AI 레시피 생성은 2026-08 owner decision으로 제거했다(서버 함수는 유지, MD §11.8 참고).</p>
+            <p class="lbl">주방 오더 티켓, <strong>단서 카드로 축소(2026-08)</strong>: 상·하 톱니 절취 + <strong>모노 크롬 크라운 한 줄</strong>("ORDER · REFFI KITCHEN" + "#NN", 한 role·색만 ink/ink2) + 점선 룰 + 판정문 키커("Saves N expiring today" 등, <code class="inline">metaText</code> + 신선도 색) + 메뉴명/시간 + "ON THE TICKET"(크라운과 같은 모노 role) + 재료 이름 블록(체크박스 없음, 최대 5줄 + N more, D-day 종이 칩(<code class="inline">PaperCutRect</code>)은 <strong>soon·urgent에만</strong>) + Short 문구(+ <strong>"Add to list" 담기 알약</strong> — 팝업 3단을 여는 문, 아래 참고) + "이걸로 요리" 발주 CTA(발주 시 START 스탬프 슬램). <strong>PREP 단계 미리보기는 제거했다</strong> — 조리법의 디테일은 발주 후 조리 화면의 영상 링크가 맡는다. 덱은 풀스크린·네비 없음 — 뒤에 겹친 종이가 실제 다음 티켓이며(<strong>노출 띠는 글자 없는 빈 종이</strong> — depth ≥ 1은 크롬 텍스트를 렌더하지 않는다: 앞 티켓 톱니의 골 사이로 반쪽 글리프가 새는 것을 막고, 승격 시엔 불투명도만 되살린다. 성능은 별도로 가장 깊은 티켓만 본문·CTA를 생략한다 — 바로 뒤는 풀 렌더라 플릭 승격이 매끄럽다), 맨 앞을 튕겨(플릭) 넘긴다(아래 "플릭 방향 의미론" 참고). 카드는 화면 높이에 캡되고 중간 섹션은 필요 시 카드 안에서 스크롤(큰 글씨 안전망). <strong>발주 = 예약</strong>(START 슬램은 연출, 재고 차감·이력은 <strong>요리 완료에서 확정</strong> — 재료별 "다 썼어요/조금 남았어요" 원탭, 조리 취소는 예약 해제). 발주는 커버당 1회 + 6초 되돌리기(<strong>상단</strong> 잉크 캡슐 토스트 — 탭 공통, 하단 CTA·네비를 가리지 않는다) → 곧장 조리 화면(영상 CTA), 메인의 <strong>Cooking now 진행 카드</strong>로 복귀 — 몰입 커버를 여는 진입점이라 셰입은 CTA급(<code class="inline">PaperCutRect</code> + <code class="inline">PaperGrain</code> + shadow-1)이고 색만 종이 면으로 눌러 Start cooking과 경쟁하지 않는다(룰 ⑩). 같은 자리의 알림 배너는 커버를 열지 않으므로 톱니 영수증 스트립 그대로다. 판정 커버엔 urgent 한정 <strong>Freeze</strong> 3번째 선택지 — 얼리면 유예 14일의 새 D-day(재냉동 불가), 냉장고 카드엔 FROZEN 도장. 커버는 시스템 슬라이드를 끄고 <code class="inline">scale(0.95)</code> + <code class="inline">pop</code>으로 떴다가, 고르거나 취소하면 <strong>짧은 이탈 페이드(<code class="inline">--dur-1</code>) 뒤에 해체</strong>한다(0프레임 컷은 판정이 취소된 것처럼 보인다 — 그 0.12초 창은 두 번째 판정을 잠근다). <strong>발주 덱은 시드 + 커스텀 레시피로 구성된다</strong> — 인앱 AI 레시피 생성은 2026-08 owner decision으로 제거했다(서버 함수는 유지, MD §11.8 참고).</p>
             <div class="memo">
               <div class="ticket-head"><span>ORDER</span><span class="right"><span class="num">#01</span></span></div>
               <div class="rule"></div>
@@ -1617,7 +1704,7 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
           </div>
         </div>
 
-        <div class="note" style="margin-top:var(--space-5)"><strong>입력 시트도 행동표면 언어를 따른다 — 재료 추가는 이제 영수증 스캔 하나뿐이다.</strong> 사용자 결정(2026-08-01)으로 일러스트 사전 픽커·검색 필드·직접 입력 폼을 주 플로우에서 전부 제거했다 — 지금 냉장고가 비어 뭔가 사려는 상황을 상정하지 않고, 장 본 뒤 영수증으로 한 번에 등록하는 패턴에 집중한다. 3단계: ① <strong>소스 선택</strong>(카메라 문서 스캐너 또는 사진 최대 3장 — <code class="inline">PhotosPicker</code> 면도 공용 킷 <code class="inline">PaperButtonLabel</code> secondary + paperPress), ② <strong>처리</strong>(온디바이스 Vision OCR, 네트워크 전송 없음), ③ <strong>확인 리스트</strong> — 인식된 줄이 후보 행(체크·이름·원문·수량·연필)으로 뜨고 기본 전체 선택(선택 체크는 종이 상자 + Phosphor 체크 글리프, 체크·연필 모두 paperPress — SF Symbol·<code class="inline">.plain</code> 금지), 사전 미매칭이면 "Est. date: check" 배지로 추정 기한임을 알린다. 연필이 여는 컴팩트 편집 시트(흰 영수증 카드 + DashedRule 행)에서 이름·수량·보관·기한·구매처를 고칠 수 있다 — <strong>여기가 사전 밖 이름을 만드는 유일한 경로</strong>다(별도 커스텀 시트 없음). 하단 PaperButton("Add N items")으로 선택분을 일괄 등록. 쇼핑리스트 재입고는 여전히 시트조차 열지 않고 이력 스냅샷 + 사전 기본 기한으로 곧장 채운다.</div>
+        <div class="note" style="margin-top:var(--space-5)"><strong>입력 시트도 행동표면 언어를 따른다 — 재료 추가는 이제 영수증 스캔 하나뿐이다.</strong> 사용자 결정(2026-08-01)으로 일러스트 사전 픽커·검색 필드·직접 입력 폼을 주 플로우에서 전부 제거했다 — 지금 냉장고가 비어 뭔가 사려는 상황을 상정하지 않고, 장 본 뒤 영수증으로 한 번에 등록하는 패턴에 집중한다. 3단계: ① <strong>소스 선택</strong>(카메라 문서 스캐너 또는 사진 최대 3장 — <code class="inline">PhotosPicker</code> 면도 공용 킷 <code class="inline">PaperButtonLabel</code> secondary + paperPress), ② <strong>처리</strong>(온디바이스 Vision OCR, 네트워크 전송 없음), ③ <strong>확인 리스트</strong> — 인식된 줄이 후보 행(체크·이름·원문·수량·연필)으로 뜨고 기본 전체 선택(선택 체크는 종이 상자 + Phosphor 체크 글리프, 체크·연필 모두 paperPress — SF Symbol·<code class="inline">.plain</code> 금지), 사전 미매칭이면 "Estimated date" 배지로 추정 기한임을 알린다. 연필이 여는 컴팩트 편집 시트(흰 영수증 카드 + DashedRule 행)에서 이름·수량·보관·기한·구매처를 고칠 수 있다 — <strong>여기가 사전 밖 이름을 만드는 유일한 경로</strong>다(별도 커스텀 시트 없음). 하단 PaperButton("Add N items")으로 선택분을 일괄 등록. 쇼핑리스트 재입고는 여전히 시트조차 열지 않고 이력 스냅샷 + 사전 기본 기한으로 곧장 채운다.</div>
         <div class="note" style="margin-top:var(--space-4)"><strong>예외 하나 — To buy 화면의 재료 검색(2026-08-05).</strong> 위 단일 경로에 <strong>To buy 화면 한정 예외</strong>를 둔다: <strong>화면 하단에 도킹된</strong> <code class="inline">PaperButton</code>("Add item", <strong>primary</strong> — 21차에 secondary에서 올렸다, 아래 근거)이 재료 검색 바텀시트를 연다(목록 꼬리에 딸려 스크롤되지 않는다 — 커버 하단 도킹 CTA, 아래 §14.4). 근거는 이 예외가 <strong>추가 플로우가 아니라 장보기 메모</strong>라는 데 있다. <strong>재고에 재료를 넣는 메인 추가 플로우는 여전히 영수증 스캔 단일 경로</strong>다(검색으로 고른 항목은 '구매 전' 목록 상태로만 들어가고, 실제 반입은 그 뒤 Bought 재입고나 영수증 스캔이 한다).</div>
         <div class="note" style="margin-top:var(--space-4)"><strong>목록에는 직접 담은 것만 선다(2026-08 owner decision).</strong> 그전에는 카드가 두 구역이었다 — 위는 직접 담은 것("Added by you"), 아래는 소비 이력에서 파생한 제안("Ran out, based on what you use often")이고 사이를 DashedRule이 갈랐다. <strong>제안 구역을 걷어낸 이유는 소유권</strong>이다: 장보기 메모는 내가 적은 것이어야 하는데, 앱이 추측해 채운 줄이 그 위에 섞이면 목록이 내 것이 아니게 된다. 걷어낸 것은 <strong>표시 층뿐</strong>이라 파생 제안 모델과 '이번엔 안 사기'는 store에 그대로 살아 있다(흡수 의미론·덱의 부족 재료 담기가 그 위에서 검증된다). <strong>패인의 이름표는 영수증 카드 밖에 선다</strong>(17차) — 카드 위에 <code class="inline">Grocery memo</code> 헤드라인(heading 24 · <code class="inline">.isHeader</code>)을 두고 카드 안 "Added by you" 캡션은 걷었다(제목이 두 번 서지 않게). 간격은 탭 행과 s5 · 카드와 s3이라 제목이 자기가 이름 붙이는 카드 쪽에 붙어 읽힌다. <strong>행에는 알약 하나만 서고, 빼기는 밀어야 나온다</strong>(21차): 실루엣 · 이름 · <strong>Bought 알약</strong>(<code class="inline">PaperRect(.pill)</code> + blue-light 면 + blue-dark 잉크 + pillLabel, 히트 44). 라벨이 <code class="inline">Add</code>가 아니라 <code class="inline">Bought</code>인 이유는 이 화면이 장보기 메모이기 때문이다 — <code class="inline">Add</code>는 앱이 무엇을 하는지(재고에 넣는다)를 말하고, 사용자가 방금 한 일은 <strong>샀다</strong>는 것이다(동작은 그대로 즉시 재입고 — 시트를 열지 않고 직전 이력 스냅샷 + 사전 기본 기한으로 채운다). <strong>밀면 행 얼굴 뒤에서 빨간 종이 조각이 드러난다</strong> — 시스템 빨간 띠가 아니라 오려 낸 종이다(<code class="inline">PaperRect(.md)</code> + urgent-light 면 + paperEdge + urgent-dark 휴지통 글리프, 폭 84 = 44pt 히트 + 여백). 행 얼굴은 불투명 영수증 면이라 종이 두 장이 미끄러지며 드러나고, 밀려난 얼굴은 행 폭에서 잘린다(안 자르면 이름이 카드 밖으로 삐져나간다). 축은 |Δx| &gt; |Δy|×1.4일 때만 <strong>한 번</strong> 잡고 세로는 스크롤에 양보하며(<code class="inline">simultaneousGesture</code>), 열린 행은 한 번에 하나다. 커밋 경로는 셋 — <strong>끝까지 밀기</strong>(예측 종점 200pt, 최대 이동 260) · <strong>드러난 조각 탭</strong> · <strong>커스텀 접근성 액션</strong>("Remove from the memo"). 밀기는 보조기술에 존재하지 않으므로 셋째는 선택이 아니라 필수이고, 셋 다 같은 종점으로 모여 같은 store 호출·햅틱·되돌리기 창을 받는다. <strong>확인 다이얼로그는 없고 되돌리기 토스트를 짝지었다</strong>(<code class="inline">skipBuyUndoable</code> → "&lt;이름&gt; · off the memo" + Undo) — 어포던스가 버튼에서 밀기로 바뀌면 오발 가능성이 달라진다. 문구가 재료 삭제 토스트("· removed")와 갈리는 이유는 그쪽이 냉장고에서 재료가 사라졌다는 말이기 때문이다. 햅틱은 세 라운드 내내 그대로다(<code class="inline">skipBuy</code> 계열 · impact light — §7.6의 매핑 기준은 어포던스가 아니라 <strong>의미</strong>). <strong>하단 CTA가 primary로 올라간 것도 같은 라운드다</strong> — 제안 구역이 사라져 이 버튼이 <strong>목록의 유일한 소스</strong>가 됐고(여기서 담지 않으면 행 자체가 없다), 행의 Bought는 이미 있는 줄에만 존재하는 반응형 액션이라 둘은 같은 축의 1·2등이 아니다. 파랑이 둘이라는 긴장은 <strong>면의 밀도</strong>로 가른다(행 알약 = 연한 면 + 진한 글자, 도킹 CTA = 꽉 찬 파랑 면 + 흰 글자). 빈 상태는 <strong>직접 담은 것이 없을 때</strong> 뜨고 카피는 "Nothing on the list" + "Tap Add item to jot down what you need." — 이력 제안의 언어였던 "All stocked up"은 그 계산을 화면에 세우지 않는 지금 거짓이 된다.</div>
         <div class="note" style="margin-top:var(--space-4)"><strong>검색 시트 — 타일 그리드 + 직접 입력 담기 행.</strong> 시트는 <code class="inline">SheetHeader</code>("Add to list") + medium/large detent + dragIndicator(§14.5), 필드는 종이 인풋(돋보기 + 클리어 ×)이다. <strong>검색어가 비어 있으면 삭제된 픽커의 재료 배열 UI</strong>가 그 자리를 채운다(2026-08-05 이식) — 적응형 74~96pt 열의 세로 타일(56pt 실루엣 + 이름)을 섹션 헤더(<code class="inline">caption</code> — 번역되는 라벨이라 올캡 모노 크롬을 쓰지 않는다)로 묶어 Frequent → 카테고리 섹션(<code class="inline">FoodGlyph.categoryOrder</code> 고정 순서 — 냉장고 필터와 같은 상수) 순으로 쌓는다. Frequent는 이력 빈도 상위 12종이고, 모자라면 <strong>이력 종수와 무관하게</strong> 부족분을 큐레이션 시드로 채워 12칸을 유지한다(빈 그리드는 기능이 아니라 고장으로 읽힌다). <strong>타이핑한 결과도 같은 타일 그리드</strong>다 — 쿼리는 배열을 거르는 조작이라 결과 타일이 빈 쿼리의 타일을 그대로 재사용한다. <strong>타일 한 칸이 종이 조각 한 장이다</strong> — <code class="inline">PaperRect</code> + <code class="inline">PaperGrain</code>(0.6) + paperEdge, 셰입 시드는 matchKey 해시 % 4 · <strong>그레인 시드는 해시 전체</strong>(<code class="inline">ReffiHash.stable</code> — 런치마다 결이 바뀌면 스크린샷 회귀가 불가능하다). 검색 필드도 같은 대역의 그레인(0.5)을 얹어 시트 안 재질이 갈리지 않게 한다. <strong>다만 PaperGrain은 overlay 블렌드라 흰 종이 위에서는 실측 델타가 0에 가깝다</strong> — 결이 눈에 보이는 건 다크이고, 라이트에서 이 그리드를 스톡 픽커와 갈라 놓는 실질은 담김 도장이다. 담긴 타일 우상단엔 <strong>담김 도장</strong> <code class="inline">GlyphStamp</code>(체크 글리프 + D-day 도장과 같은 각인 문법: 기울어진 둥근 사각 외곽선 −7°, blue-dark 잉크) — 도장 안이 글자가 아니라 글리프인 이유는 §3.5와 같다(라벨은 번역·올캡 문제가 따라온다). 탭은 냉장고 반입이 아니라 <strong>장보기 메모 담기</strong>이고, 담김 여부로 미리 막지 않고 항상 store로 보낸다(뷰가 게이팅하면 파생 제안을 수동으로 흡수하는 경로가 도달 불가해진다). 담아도 시트는 닫히지 않는다(연속 추가). <strong>사전 밖 이름도 여기서 담는다(18차).</strong> 검색어가 있으면 결과 <strong>위</strong>에 전폭 <strong>직접 입력 담기 행</strong>(＋ 아이콘 + <code class="inline">Add "친 그대로"</code>)이 상시 선다 — 결과가 있어도(브랜드·규격 표기) 없어도(그때는 이 행이 곧 빈 결과의 해법이다) 같다. 타일이 아니라 전폭 행인 이유는 폭이다: 74~96pt 타일은 자유 입력을 곧바로 자르는데, 무엇을 담게 되는지가 이 행의 유일한 payload다. <strong>캐논 해석은 정확 일치까지만 하고 끝낸다</strong>(<code class="inline">addToBuy(canonicalIsFinal:)</code>) — 친 이름이 사전 표제어와 정확히 같으면 그 캐논으로 묶이고 아니면 친 그대로 자유 항목이다. store의 포함 매칭 폴백에 맡기면 "Fish sauce brand X"가 남의 캐논에 붙고, 그 캐논이 이미 목록에 있으면 담기가 <strong>조용한 no-op</strong>이 된다. 글리프만 이름 매칭으로 추측한다(시각 전용). 담긴 상태는 타일과 같은 도장 + 라벨 "Added"이고, 담아도 검색어가 남아 방금 한 일이 그 자리에서 도장으로 보인다. 이로써 <strong>사전 밖 이름을 만드는 경로가 둘</strong>이 됐다 — 여기(장보기 메모)와 영수증 스캔의 후보 편집(재고 반입). <strong>타일 라벨의 표기</strong>는 사전 캐논 그대로가 아니다 — 정본 사전의 영문 표기는 매칭용 소문자("bok choy")라 표시 시점에 단어 첫 글자를 올린다(한글은 대소문자가 없어 그대로).</div>
@@ -1629,7 +1716,7 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
             <div class="rule"></div>
             <div class="line"><span class="box" style="box-shadow:inset 0 0 0 1.5px var(--color-blue-dark);background:var(--color-blue-dark)"></span><span class="text">연두부</span><span class="dn num" style="color:var(--color-ink-2)">D-0</span></div>
             <div class="line"><span class="box" style="box-shadow:inset 0 0 0 1.5px var(--color-blue-dark);background:var(--color-blue-dark)"></span><span class="text">애호박</span><span class="dn num" style="color:var(--color-ink-2)">D-2</span></div>
-            <div class="line"><span class="box"></span><span class="text">토마토소스 <span class="est-badge">Est. date: check</span></span><span class="dn num" style="color:var(--color-soon-dark)">D+3</span></div>
+            <div class="line"><span class="box"></span><span class="text">토마토소스 <span class="est-badge">Estimated date</span></span><span class="dn num" style="color:var(--color-soon-dark)">D+3</span></div>
           </div>
           <p class="lbl">체크(선택) → 연필(편집 시트에서 이름·수량·보관·기한·구매처 수정, 사전 밖 이름도 여기서) → 하단 "Add N items"로 일괄 등록.</p>
         </div>
@@ -1646,9 +1733,12 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
         <p class="subhead text" style="margin-top:var(--space-6)">종이 표면 토큰 <span class="t-caption" style="color:var(--color-muted)">— MD §13.8</span></p>
         <p class="t-caption text" style="color:var(--color-ink-2);margin-bottom:var(--space-4)">영수증 종이는 앱의 시그니처인데 오래도록 토큰 없이 표면마다 손으로 조립됐다 — 같은 카드가 파일마다 다른 톱니·패딩·그림자·점선을 들고 갈라졌다. §12 요리 아이콘이 그랬듯 <strong>자리를 몇 개만 두고 호출부는 전부 여기를 경유</strong>한다.</p>
         <p class="t-caption text" style="color:var(--color-ink-2);margin-bottom:var(--space-4)"><strong>영수증 면 모디파이어</strong> <code class="inline">receiptSurface(tooth:seed:alignment:elevated:)</code> — 톱니 면 + 종이 헤어라인 + 엘리베이션을 한 번에 얹는다. <strong>세로 패딩을 톱니에서 계산</strong>(<code class="inline">s5 + tooth</code>)하는 게 핵심이다: 톱니는 면 안쪽으로 파고들어 그만큼 여백을 먹는데, 그 보정을 호출부가 손으로 적어 온 결과 같은 카드가 <code class="inline">s5+7</code>/<code class="inline">s5+3</code>/<code class="inline">s5</code>로 갈렸다. <code class="inline">elevated</code>는 §06 카드 엘리베이션과 1:1 — <code class="inline">flat</code>(빈 상태·결과 없음) · <code class="inline">card</code>(기본) · <code class="inline">floating</code>(화면에 한 장만 뜨는 로그인·온보딩 질문 카드). 헤더 행이 따로 있어 위·아래 보정이 비대칭인 카드(<code class="inline">ReceiptCard</code>·<code class="inline">FridgeCard</code>)는 자체 프리셋으로 남되 톱니·엘리베이션은 같은 토큰을 쓴다.</p>
+        <p class="t-caption text" style="color:var(--color-ink-2);margin-bottom:var(--space-4)"><strong>입력 필드 모디파이어</strong> <code class="inline">fieldSurface(seed:)</code> — 면(<code class="inline">field</code>) + 필드 단면(<code class="inline">paperEdgeField</code>) + 옅은 그레인 + 패딩(<code class="inline">s4</code>/<code class="inline">s3</code>) + 터치 타깃(<code class="inline">tapMin</code>)을 한 번에. <code class="inline">receiptSurface</code>가 영수증 카드에 한 일을 입력 칸에 한다. 손으로 조립하던 시절 <strong>같은 역할이 canvas / paper / receipt+그레인 / 면 없음 네 갈래</strong>로 갈렸고, 갈린 축이 부모 면이었다 — 시트 캔버스 위 필드와 영수증 카드 위 필드가 서로 다른 종이를 골랐다. 그레인을 넣는 건 이 앱에서 매끈한 면은 시스템 컨트롤이고 종이는 전부 결을 갖기 때문이다.</p>
+        <div class="note" style="margin-bottom:var(--space-4)"><strong>카드 위 인라인 필드는 면을 갖지 않는다.</strong> 영수증·종이 카드 <strong>안의 행(row) 필드</strong>(재료 편집·후보 편집·내 레시피)는 <code class="inline">fieldSurface</code>를 쓰지 않는다 — 카드가 이미 "쓰는 종이"라 그 위에 또 한 장을 얹으면 종이가 겹치고, 한 카드 안에서 면이 두 겹으로 쌓이는 유일한 자리가 된다. 행을 나누는 것은 면이 아니라 <strong>절취선</strong>(<code class="inline">ReffiRule(.ticket)</code>)이다. 반대로 시트 캔버스 위에 <strong>직접</strong> 서는 독립 필드(로그인·닉네임·태그·검색)는 기댈 종이가 없으므로 자기 면을 갖는다. 즉 판단 기준은 컴포넌트가 아니라 <strong>부모가 종이인가</strong>다.</div>
         <table class="tbl">
           <thead><tr><th>토큰</th><th>값</th><th>용도</th></tr></thead>
           <tbody>
+            <tr><td><code class="inline">ReffiChrome.tapMin</code></td><td>44pt (= <code class="inline">--tap-min</code>)</td><td>§07 최소 터치 타깃 — 히트 프레임(<code class="inline">minHeight</code>·<code class="inline">minWidth</code>·대칭 스페이서)은 전부 이 값을 경유한다. 콜사이트 리터럴 44 금지</td></tr>
             <tr><td><code class="inline">ReffiChrome.navReserve</code></td><td>96pt (= navHeight 58 + navBottom 2 + s6 + s2)</td><td>레이아웃이 떠 있는 캡슐 네비 몫으로 비워 두는 <strong>정적 자리</strong></td></tr>
             <tr><td><code class="inline">ReffiChrome.navClearance</code></td><td>120pt (= navReserve + s5)</td><td><strong>스크롤 꼬리 여백</strong> — 끝까지 스크롤해도 마지막 카드가 네비 위로 올라오게. 정지 배치와 달리 손가락이 마지막 카드를 만져야 해 한 단 더 준다</td></tr>
             <tr><td><code class="inline">ReffiJudgeZone</code></td><td>side 86 · alpha 0.96 · hotScale 1.14 · fade 0.15s · hotDuration 0.1s</td><td>홈 판정 바스켓(SpriteKit)과 캐러셀 플릭 예고 블롭(SwiftUI)이 같은 규격을 읽는 단일 자리 — 결속을 주석이 아니라 심볼로 만든다</td></tr>
@@ -1856,7 +1946,7 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
 
         <p class="subhead text" style="margin-top:var(--space-6)">종이 다이얼로그 — <code class="inline">PaperDialog</code> · <code class="inline">PaperChecklistDialog</code> <span class="t-caption" style="color:var(--color-muted)">— MD §14.7</span></p>
         <p class="t-caption text" style="color:var(--color-ink-2);margin-bottom:var(--space-4)"><strong>앱의 종이 언어로 된 팝업.</strong> 크림 종이 · 손으로 자른 테두리 · 종이컷 버튼으로 이뤄진 화면 한복판에 iOS 기본 <code class="inline">.alert</code>이 뜨면 그 순간만 다른 앱이 된다. 프레젠테이션 이유도 겹친다 — 풀스크린 커버 <strong>안에서</strong> 시스템 알림을 띄우면 알림 해체 전환이 부모 커버의 닫기 요청과 겹쳐 UIKit이 그 요청을 삼킨다(실측: 3회 중 1회 재현, 0.6초 지연으로 우회해야 했다). 두 다이얼로그는 <strong>같은 뷰 트리 안의 오버레이</strong>라 전환 큐 자체가 없고, 두 장을 이어 띄우는 흐름도 프레젠테이션 큐가 아니라 <strong>같은 업데이트에서 교대</strong>된다(담기 3단 팝업이 그 위에서 돈다 — §11 "Short 행의 담기 알약").</p>
-        <div class="note"><strong>공통 문법.</strong> <code class="inline">scrim</code> 딤 + <code class="inline">PaperRect(cornerRadius: .xl)</code> 크림 카드(paper 면 + paperEdge + shadow-1) + 제목(<code class="inline">heading</code>) + 선택 메시지(<code class="inline">body</code>/ink-2) + <strong><code class="inline">PaperButton</code></strong>(새 버튼 어휘를 만들지 않는다). 카드 <strong>최대 폭 420pt</strong>(큰 화면에서 통째로 늘어나면 문장이 한 줄로 길어져 읽는 눈이 멀리 이동한다) · 좌우 여백 <code class="inline">s6</code> · 내부 패딩 <code class="inline">s5</code>. 딤은 <code class="inline">easeOut(dur-2)</code>로 들고 나고 카드는 <code class="inline">pop</code> 스프링으로 튀어 오른다(§7.5, 판정 커버와 같은 방식), Reduce Motion이면 둘 다 즉시. 버튼을 누르면 <strong>먼저 내리고 그 다음 행동</strong>한다(시스템 알림과 같은 순서). <strong><code class="inline">ReceiptShape</code>(톱니)를 쓰지 않는다</strong> — 티켓 덱 위에 뜨는 팝업이 톱니를 두르면 "티켓이 한 장 더 나온 것"으로 읽힌다. 다이얼로그는 티켓이 아니라 <strong>묻는 종이</strong>다. 접근성은 컨테이너에 <code class="inline">.isModal</code>(뜬 동안 뒤 화면이 VoiceOver에서 사라진다) + 등장 시 제목 포커스 + <code class="inline">.isHeader</code>, 이스케이프 제스처는 <strong>딤 탭과 같은 행동</strong>(정해지지 않았으면 1차 행동)이고 딤에는 라벨을 달지 않는다.</div>
+        <div class="note"><strong>공통 문법.</strong> <code class="inline">scrim</code> 딤 + <code class="inline">PaperRect(cornerRadius: .xl)</code> 크림 카드(paper 면 + paperEdge + shadow-1) + 제목(<code class="inline">heading</code>) + 선택 메시지(<code class="inline">body</code>/ink-2) + <strong><code class="inline">PaperButton</code></strong>(새 버튼 어휘를 만들지 않는다). 카드 <strong>최대 폭 420pt</strong>(큰 화면에서 통째로 늘어나면 문장이 한 줄로 길어져 읽는 눈이 멀리 이동한다) · 좌우 여백 <code class="inline">s6</code> · 내부 패딩 <code class="inline">s5</code>. 딤은 <code class="inline">easeOut(dur-2)</code>로 들고 나고 카드는 <code class="inline">scale(0.95)</code>에서 <code class="inline">pop</code> 스프링으로 튀어 오른다(§7.1 진입 하한 · §7.5, 판정 커버와 같은 값), Reduce Motion이면 둘 다 즉시. 버튼을 누르면 <strong>먼저 내리고 그 다음 행동</strong>한다(시스템 알림과 같은 순서). <strong><code class="inline">ReceiptShape</code>(톱니)를 쓰지 않는다</strong> — 티켓 덱 위에 뜨는 팝업이 톱니를 두르면 "티켓이 한 장 더 나온 것"으로 읽힌다. 다이얼로그는 티켓이 아니라 <strong>묻는 종이</strong>다. 접근성은 컨테이너에 <code class="inline">.isModal</code>(뜬 동안 뒤 화면이 VoiceOver에서 사라진다) + 등장 시 제목 포커스 + <code class="inline">.isHeader</code>, 이스케이프 제스처는 <strong>딤 탭과 같은 행동</strong>(정해지지 않았으면 1차 행동)이고 딤에는 라벨을 달지 않는다.</div>
         <table class="tbl" style="margin-top:var(--space-4)">
           <thead><tr><th>형태</th><th>버튼</th><th>딤 탭</th><th>규칙</th></tr></thead>
           <tbody>

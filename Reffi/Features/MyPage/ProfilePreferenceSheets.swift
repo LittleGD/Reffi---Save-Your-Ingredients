@@ -48,12 +48,7 @@ struct NicknameEditSheet: View {
                 TextField("Nickname", text: $draft)
                     .reffiType(.body)
                     .foregroundStyle(ReffiColor.ink)
-                    .padding(.horizontal, ReffiSpace.s4)
-                    .padding(.vertical, ReffiSpace.s3)
-                    .background {
-                        let s = PaperRect(cornerRadius: ReffiRadius.md, seed: 2)
-                        s.fill(ReffiColor.paper).paperEdge(s, tint: ReffiColor.ink.opacity(0.1))
-                    }
+                    .fieldSurface(seed: 2)   // §13.8 필드 한 칸 — 캔버스 시트 위 독립 필드
                     .submitLabel(.done)
                     .onSubmit(commit)
 
@@ -123,12 +118,7 @@ struct TagEditorSheet: View {
                     TextField(placeholder, text: $draft)
                         .reffiType(.body)
                         .foregroundStyle(ReffiColor.ink)
-                        .padding(.horizontal, ReffiSpace.s4)
-                        .padding(.vertical, ReffiSpace.s3)
-                        .background {
-                            let s = PaperRect(cornerRadius: ReffiRadius.md, seed: 2)
-                            s.fill(ReffiColor.paper).paperEdge(s, tint: ReffiColor.ink.opacity(0.1))
-                        }
+                        .fieldSurface(seed: 2)   // §13.8 필드 한 칸
                         .submitLabel(.done)
                         .onSubmit(add)
                     QuietButton(title: "Add", icon: ReffiIcon.add, action: add)
@@ -153,7 +143,7 @@ struct TagEditorSheet: View {
                                 .padding(.horizontal, ReffiSpace.s3)
                                 .padding(.vertical, ReffiSpace.s2)
                                 .background(ReffiColor.sub, in: PaperCutRect(seed: 4))   // §13.1 종이컷 8각형(캡슐 금지)
-                                .frame(minHeight: 44)          // §7.3 터치 타깃
+                                .frame(minHeight: ReffiChrome.tapMin)          // §7.3 터치 타깃
                                 .contentShape(Rectangle())
                             }
                             .buttonStyle(.reffiPress)

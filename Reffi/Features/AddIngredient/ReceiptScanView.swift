@@ -7,8 +7,11 @@ import PhotosUI
 /// 정본 재료 사전으로 매핑된 후보를 체크리스트로 확인 후 일괄 등록한다.
 /// 인식·매핑은 전부 온디바이스 — 네트워크 전송 없음.
 ///
-/// `AddIngredientSheet`가 그대로 감싸는 1차 추가 표면(사용자 결정 2026-08-01) — 픽커·검색·
-/// 직접 입력 폴백은 없다. presentationDetents는 여기서 적용한다(호출부 중복 금지).
+/// `AddIngredientSheet`가 그대로 감싸는 1차 추가 표면(사용자 결정 2026-08-01) — 일러스트 픽커·
+/// 검색은 없다. 다만 **직접 입력은 조용한 링크 한 줄로 남긴다**(사용자 결정 2026-08-19): 영수증이
+/// 없거나 스캔이 안 잡히는 날에도 재료 하나를 넣을 길은 있어야 한다. 그 길은 전용 폼이 아니라
+/// 후보 편집 시트(`CandidateEditSheet`)를 빈 초안으로 여는 것이다.
+/// presentationDetents는 여기서 적용한다(호출부 중복 금지).
 struct ReceiptScanView: View {
     @Environment(FridgeStore.self) private var store
     @Environment(\.dismiss) private var dismiss
@@ -38,7 +41,7 @@ struct ReceiptScanView: View {
         .presentationDetents([.large])
         .presentationDragIndicator(.visible)
         .presentationBackground(ReffiColor.canvas)
-        .sensoryFeedback(.success, trigger: addedHaptic)
+        .reffiFeedback(.success, trigger: addedHaptic)
         .fullScreenCover(isPresented: $showCamera) {
             DocumentCameraView { images in
                 showCamera = false
@@ -47,9 +50,14 @@ struct ReceiptScanView: View {
             }
             .ignoresSafeArea()
         }
+        // 편집 시트는 하나다 — 스캔 후보 고치기와 직접 입력이 **같은 폼**을 쓴다(초안이 자기 출처를
+        // 안고 온다). 직접 입력 전용 폼을 또 세우면 같은 다섯 칸이 두 벌이 되고 규칙도 두 벌이 된다.
         .sheet(item: $editingCandidate) { candidate in
-            CandidateEditSheet(candidate: candidate) { updated in
-                if let idx = candidates.firstIndex(where: { $0.id == updated.id }) {
+            CandidateEditSheet(candidate: candidate,
+                               title: candidate.isManual ? "Add by hand" : "Edit item") { updated in
+                if updated.isManual {
+                    addManual(updated)
+                } else if let idx = candidates.firstIndex(where: { $0.id == updated.id }) {
                     candidates[idx] = updated
                 }
             }
@@ -57,6 +65,21 @@ struct ReceiptScanView: View {
         .onChange(of: photoItems) { _, items in
             guard !items.isEmpty else { return }
             Task { await loadPhotos(items) }
+        }
+        // 단계 전환은 화면을 통째로 갈아 끼우면서도 포커스를 옮기지 않는다 — 고지가 없으면 스캔을
+        // 누른 뒤 무슨 일이 벌어지는지, 끝났는지, 몇 개를 찾았는지가 전부 침묵이다.
+        .onChange(of: phase) { _, newPhase in
+            switch newPhase {
+            case .pick:
+                break   // 되돌아온 자리는 화면이 스스로 말한다(제목·버튼이 다시 선다)
+            case .processing:
+                ReffiAnnounce.say(String(localized: "Reading receipt…"))
+            case .review:
+                // 결과 요약까지 말한다 — "끝났다"만으로는 다시 찍어야 하는지 알 수 없다.
+                ReffiAnnounce.say(candidates.isEmpty
+                                  ? String(localized: "Nothing recognized")
+                                  : String(localized: "\(candidates.count) items recognized"))
+            }
         }
     }
 
@@ -75,35 +98,63 @@ struct ReceiptScanView: View {
 
     // MARK: - 소스 선택
 
+    /// 소스 선택 — 버튼 묶음은 남는 세로를 위아래 Spacer로 반씩 나눠 **화면 중앙**에 서고,
+    /// 프라이버시 고지는 하단(세이프에어리어 위)에 고정한다. 예전엔 셋이 한 스택에 붙어 있어
+    /// 묶음이 위로 쏠리고, 고지가 버튼 폭(전폭)을 물려받아 좌측정렬로 어색하게 끊겼다.
     private var pickSource: some View {
-        VStack(spacing: ReffiSpace.s4) {
-            ReffiIcon.receipt.reffi(44).foregroundStyle(ReffiColor.blueDark)
-            Text("Snap the receipt. Groceries land in your fridge.")
-                .reffiType(.body).foregroundStyle(ReffiColor.ink2)
-                .multilineTextAlignment(.center)
+        VStack(spacing: 0) {
+            Spacer(minLength: ReffiSpace.s4)
+            VStack(spacing: ReffiSpace.s4) {
+                ReffiIcon.receipt.reffi(44).foregroundStyle(ReffiColor.blueDark)
+                Text("Snap the receipt. Groceries land in your fridge.")
+                    .reffiType(.body).foregroundStyle(ReffiColor.ink2)
+                    .multilineTextAlignment(.center)
 
-            if cameraAvailable {
-                PaperButton(title: "Scan with camera") { showCamera = true }
+                if cameraAvailable {
+                    PaperButton(title: "Scan with camera") { showCamera = true }
+                }
+                // Button이 아닌 컨트롤에도 CTA 표면을 공용 킷에서 가져온다(`PaperButtonLabel` + `.paperPress`).
+                // 손으로 재조립하던 예전 면은 fill이 `blueLight`(킷 secondary 정본은 `sub`)에 질감·그림자·
+                // 눌림이 모두 빠져 있어, 바로 위 "Scan with camera"와 나란히 두면 재질이 어긋났다(감사 R4-2).
+                PhotosPicker(selection: $photoItems, maxSelectionCount: 3, matching: .images) {
+                    PaperButtonLabel(title: "Choose photos", kind: .secondary, seed: 3)
+                }
+                .buttonStyle(.paperPress)
+                // 영수증이 없거나 스캔이 안 잡히는 날의 탈출구 — 면 없는 조용한 링크로 둔다.
+                // 종이 CTA로 세우면 스캔과 같은 무게가 돼, 이 화면이 무엇을 권하는지가 흐려진다.
+                QuietButton(title: "Type it in yourself", icon: ReffiIcon.manual) {
+                    editingCandidate = EditableCandidate(manualDraft: true)
+                }
             }
-            // Button이 아닌 컨트롤에도 CTA 표면을 공용 킷에서 가져온다(`PaperButtonLabel` + `.paperPress`).
-            // 손으로 재조립하던 예전 면은 fill이 `blueLight`(킷 secondary 정본은 `sub`)에 질감·그림자·
-            // 눌림이 모두 빠져 있어, 바로 위 "Scan with camera"와 나란히 두면 재질이 어긋났다(감사 R4-2).
-            PhotosPicker(selection: $photoItems, maxSelectionCount: 3, matching: .images) {
-                PaperButtonLabel(title: "Choose photos", kind: .secondary, seed: 3)
-            }
-            .buttonStyle(.paperPress)
-            Text("Everything is read on this device. Nothing is uploaded.")
-                .reffiType(.caption).foregroundStyle(ReffiColor.muted)
+            .padding(.horizontal, ReffiSpace.s6)
+            Spacer(minLength: ReffiSpace.s4)
+            privacyNote
         }
-        .padding(ReffiSpace.s6)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(ReffiColor.canvas)
     }
 
+    /// 온디바이스 고지 — 화면이 아니라 **바닥**이 할 말이다(버튼 옆에 붙으면 선택을 방해한다).
+    /// 잉크는 muted 대신 ink2로 한 단 어둡게(캡션 크기에서 muted는 캔버스 위 대비가 얕다).
+    private var privacyNote: some View {
+        Text("Everything is read on this device. Nothing is uploaded.")
+            .reffiType(.caption)
+            .foregroundStyle(ReffiColor.ink2)
+            .multilineTextAlignment(.center)
+            // 폭은 버튼 스택이 아니라 **화면**이 정한다 — 전폭에서 가로 마진만 물리면 두 줄로 고르게 앉는다.
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, ReffiSpace.s7)
+            .padding(.bottom, ReffiSpace.s5)
+    }
+
     private var processing: some View {
         VStack(spacing: ReffiSpace.s4) {
+            // 라벨 없는 스피너는 보조기술에서 이름 없는 점 하나다 — 아래 문장과 **같은 말**을 준다.
             ProgressView()
+                .accessibilityLabel(Text("Reading receipt…"))
             Text("Reading receipt…").reffiType(.body).foregroundStyle(ReffiColor.ink2)
+                // 그 문장이 곧 스피너의 이름이라 두 번 읽을 이유가 없다(화면에는 그대로 남는다).
+                .accessibilityHidden(true)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(ReffiColor.canvas)
@@ -130,6 +181,7 @@ struct ReceiptScanView: View {
                         ForEach(candidates) { c in
                             candidateRow(c)
                                 .listRowBackground(Color.clear)
+                                // 행 구분선은 §6.1 소관이라 종이 단면(`paperEdge`)이 아니다 — 알파가 같아도 역할이 다르다.
                                 .listRowSeparatorTint(ReffiColor.ink.opacity(0.06))
                         }
                     } footer: {
@@ -159,30 +211,35 @@ struct ReceiptScanView: View {
                 // "선택 = 체크 글리프"는 PaperDropdown·To buy 타일과 같은 문법이다.
                 let box = PaperRect(cornerRadius: ReffiRadius.sm, seed: 6)
                 ReffiIcon.check.reffi(12, .bold)
-                    .foregroundStyle(isOn ? Color.white : .clear)
+                    .foregroundStyle(isOn ? ReffiColor.onAccent : .clear)   // blue 면 위 콘텐츠(§2.7)
                     .frame(width: 22, height: 22)
                     .background {
                         box.fill(isOn ? ReffiColor.blue : ReffiColor.paper)
                             .paperEdge(box, tint: isOn ? ReffiColor.paperEdgeOnFill
                                                        : ReffiColor.ink.opacity(0.18))
                     }
-                    .frame(width: 44, height: 44)
+                    .frame(width: ReffiChrome.tapMin, height: ReffiChrome.tapMin)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.paperPress)
             .accessibilityLabel(Text(verbatim: c.name))
             .accessibilityValue(isOn ? Text("Selected") : Text(verbatim: ""))
 
-            VStack(alignment: .leading, spacing: 1) {
-                HStack(spacing: ReffiSpace.s2) {
-                    Text(verbatim: c.name).reffiType(.body).foregroundStyle(ReffiColor.ink)
-                    if c.showsEstimateBadge { estimateBadge }
+            // 이름 블록도 체크와 **같은 토글**이라 같은 컨트롤이어야 한다 — 탭 제스처만 얹으면
+            // 보조기술엔 그냥 글자로 서고(누를 수 있다는 신호가 없다) 눌림도 없다(§7.5).
+            Button { toggleSelection(c.id) } label: {
+                VStack(alignment: .leading, spacing: 1) {
+                    HStack(spacing: ReffiSpace.s2) {
+                        Text(verbatim: c.name).reffiType(.body).foregroundStyle(ReffiColor.ink)
+                        if c.showsEstimateBadge { estimateBadge }
+                    }
+                    Text(verbatim: c.rawLine).reffiType(.caption).foregroundStyle(ReffiColor.muted)
+                        .lineLimit(1)
                 }
-                Text(verbatim: c.rawLine).reffiType(.caption).foregroundStyle(ReffiColor.muted)
-                    .lineLimit(1)
+                .contentShape(Rectangle())
             }
-            .contentShape(Rectangle())
-            .onTapGesture { toggleSelection(c.id) }
+            .buttonStyle(.paperPress)
+            .accessibilityValue(isOn ? Text("Selected") : Text(verbatim: ""))
 
             Spacer(minLength: ReffiSpace.s2)
 
@@ -199,7 +256,7 @@ struct ReceiptScanView: View {
                         let s = PaperRect(cornerRadius: ReffiRadius.sm, seed: 3)
                         s.fill(ReffiColor.paper).paperEdge(s)
                     }
-                    .frame(minWidth: 44, minHeight: 44)   // §7.3 터치 타깃
+                    .frame(minWidth: ReffiChrome.tapMin, minHeight: ReffiChrome.tapMin)   // §7.3 터치 타깃
                     .contentShape(Rectangle())
             }
             .buttonStyle(.paperPress)   // §7.5 — 종이 면에는 종이 프레스(.plain은 눌림이 없다)
@@ -210,7 +267,9 @@ struct ReceiptScanView: View {
     /// 추정 기한 배지 — 사전 미매칭(D+3 폴백) 또는 매칭돼도 해당 보관 shelfLife 데이터가 없는 항목.
     /// soonDark 톤 종이 칩(§2.6 신선도 팔레트 재사용 + §13.1 종이컷 8각형) — 새 컴포넌트가 아니라 기존 언어의 조합.
     private var estimateBadge: some View {
-        Text("Est. date: check")
+        // 배지는 **무엇인지만** 말한다 — "확인 필요"라는 요청은 이미 카드 푸터가 한 번 하고 있어,
+        // 칩에 다시 얹으면 같은 화면에서 같은 부탁이 두 번 선다(어느 쪽을 따라야 하는지가 흐려진다).
+        Text("Estimated date")
             .reffiType(.pillLabel)
             .foregroundStyle(ReffiColor.soonDark)
             .padding(.horizontal, ReffiSpace.s2)
@@ -285,6 +344,24 @@ struct ReceiptScanView: View {
         addedHaptic += 1
         dismiss()
     }
+
+    /// 직접 입력 한 건 등록 — 일괄 스캔과 달리 단건 `store.add`다(작업대 상한을 잠시 넘겨서라도
+    /// 방금 적은 하나를 바로 보이게 한다). 피드백·닫힘은 스캔 경로와 같은 두 줄.
+    private func addManual(_ draft: EditableCandidate) {
+        let name = draft.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return }   // 저장 버튼이 이미 막지만, 등록 경로도 스스로 지킨다
+        let glyph = FoodGlyph.match(name)
+        store.add(Ingredient(name: name,
+                             category: glyph.categoryLabel,
+                             expiresAt: draft.expiresAt,
+                             quantity: draft.quantity,
+                             glyph: glyph,
+                             place: draft.place,
+                             storage: draft.storage,
+                             canonicalID: draft.canonicalID))
+        addedHaptic += 1
+        dismiss()
+    }
 }
 
 /// 스캔 후보의 편집 가능한 래퍼 — `ReceiptParser.Candidate`는 순수 파서 산출물로 그대로 두고,
@@ -299,6 +376,8 @@ private struct EditableCandidate: Identifiable {
     var expiresAt: Date
     var place: String
     var expiryTouched = false   // 편집 시트에서 소비기한을 직접 만졌으면 재계산·배지를 멈춘다.
+    /// 스캔이 아니라 손으로 적기 시작한 초안인가 — 저장이 목록 갱신이 아니라 **바로 등록**으로 간다.
+    var isManual = false
 
     init(_ c: ReceiptParser.Candidate, place: String) {
         id = c.id
@@ -309,6 +388,20 @@ private struct EditableCandidate: Identifiable {
         self.place = place
         expiresAt = IngredientLexicon.shared.defaultExpiry(for: c.name, storage: .fridge)
             ?? Ingredient.day(offset: 3)
+    }
+
+    /// 손으로 적는 빈 초안 — 원문도 매칭도 없는 상태로 시작한다. 이름을 치는 순간 편집 시트가
+    /// canonicalID와 소비기한을 사전에서 다시 잡으므로(recomputeExpiryIfNeeded), 여기 기한은
+    /// 사전이 침묵할 때 쓰이는 폴백(D+3)일 뿐이다.
+    init(manualDraft: Bool) {
+        id = UUID()
+        rawLine = ""
+        name = ""
+        canonicalID = nil
+        quantity = Quantity(value: 1, unit: .piece)
+        place = ""
+        expiresAt = Ingredient.day(offset: 3)
+        isManual = manualDraft
     }
 
     /// 추정 기한 배지 노출 조건 — 미매칭(D+3 폴백) 또는 매칭돼도 해당 보관 shelfLife 데이터가 전혀 없음.
@@ -325,6 +418,9 @@ private struct CandidateEditSheet: View {
     private enum OpenDropdown { case unit, storage }
 
     @State var candidate: EditableCandidate
+    /// 같은 폼이 두 일을 한다 — 스캔 후보 고치기("Edit item")와 직접 입력("Add by hand").
+    /// 제목만 출처를 말하고, 칸·규칙·저장 버튼은 한 벌 그대로다.
+    var title: LocalizedStringKey = "Edit item"
     var onSave: (EditableCandidate) -> Void
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -394,12 +490,15 @@ private struct CandidateEditSheet: View {
     }
 
     private var header: some View {
-        SheetHeader(title: "Edit item", showsClose: true) { requestClose() }
+        SheetHeader(title: title, showsClose: true) { requestClose() }
     }
 
+    /// 진입 `.enter` / 이탈 `.exit`(§7.1) — 메뉴는 읽으러 여는 것이라 예산이 짧다.
+    /// `pop`(§7.5)은 종이컷 표면이 튀어 오르는 문법이라 340ms + 오버슈트로 그 예산을 깬다
+    /// (냉장고 정렬 메뉴·재료 편집 시트와 같은 판단 — 드롭다운은 앱 전체에서 한 문법이다).
     private func toggle(_ which: OpenDropdown) {
         let opening = openDropdown != which
-        withAnimation(ReffiMotion.gated(opening ? ReffiMotion.pop : ReffiMotion.exit,
+        withAnimation(ReffiMotion.gated(opening ? ReffiMotion.enter : ReffiMotion.exit,
                                         reduce: reduceMotion)) {
             openDropdown = opening ? which : nil
         }
@@ -423,7 +522,7 @@ private struct CandidateEditSheet: View {
             TextField("Name", text: $candidate.name,
                       prompt: Text("Name").foregroundStyle(ReffiColor.ink2))
                 .reffiType(.body).foregroundStyle(ReffiColor.ink)
-                .frame(minHeight: 44)
+                .frame(minHeight: ReffiChrome.tapMin)
 
             ReffiRule(.ticket)
 
@@ -438,12 +537,13 @@ private struct CandidateEditSheet: View {
                     .foregroundStyle(ReffiColor.ink)
                     .frame(width: 64)
                 // 스톡 시스템 팝업 대신 앱 커스텀 종이 드롭다운(커먼 룰 H) — IngredientEditView와 같은 문법.
+                // 라벨이 현재 값까지 안고 간다 — 값 자리는 트리거가 펼침/접힘을 말하는 데 쓴다
+                // (정렬 칩의 "Filter: …"와 같은 문법).
                 PaperDropdownTrigger(label: candidate.quantity.unit.label,
                                      isOpen: openDropdown == .unit, seed: 5) { toggle(.unit) }
-                    .accessibilityLabel(Text("Unit"))
-                    .accessibilityValue(Text(verbatim: candidate.quantity.unit.label))
+                    .accessibilityLabel(Text("Unit: \(candidate.quantity.unit.label)"))
             }
-            .frame(minHeight: 44)
+            .frame(minHeight: ReffiChrome.tapMin)
 
             ReffiRule(.ticket)
 
@@ -453,10 +553,9 @@ private struct CandidateEditSheet: View {
                 // 저장값은 영문 식별자 그대로, 표시만 로컬라이즈(`StorageLocation.label`).
                 PaperDropdownTrigger(label: candidate.storage.label,
                                      isOpen: openDropdown == .storage, seed: 3) { toggle(.storage) }
-                    .accessibilityLabel(Text("Storage"))
-                    .accessibilityValue(Text(verbatim: candidate.storage.label))
+                    .accessibilityLabel(Text("Storage: \(candidate.storage.label)"))
             }
-            .frame(minHeight: 44)
+            .frame(minHeight: ReffiChrome.tapMin)
 
             ReffiRule(.ticket)
 
@@ -470,14 +569,17 @@ private struct CandidateEditSheet: View {
                     .datePickerStyle(.compact)
                     .tint(ReffiColor.blue)
             }
-            .frame(minHeight: 44)
+            .frame(minHeight: ReffiChrome.tapMin)
 
             ReffiRule(.ticket)
 
-            TextField("Where you bought it", text: $candidate.place,
-                      prompt: Text("Where you bought it").foregroundStyle(ReffiColor.ink2))
+            // 필드 이름은 `IngredientEditView`의 구매처 행과 **같은 한 단어**("Where")다 — 같은 값을
+            // 고치는 두 폼이 서로 다른 이름을 쓰면 어느 쪽이 무엇을 담는 칸인지 매번 다시 읽어야 한다.
+            // 비어 있을 때 보이는 자리표시자는 이름을 되풀이하지 않고 **예시**를 준다(무엇을 치면 되는지).
+            TextField("Where", text: $candidate.place,
+                      prompt: Text("e.g. Emart").foregroundStyle(ReffiColor.ink2))
                 .reffiType(.body).foregroundStyle(ReffiColor.ink)
-                .frame(minHeight: 44)
+                .frame(minHeight: ReffiChrome.tapMin)
         }
         .receiptSurface()
     }
@@ -490,6 +592,9 @@ private struct CandidateEditSheet: View {
         .padding(.horizontal, ReffiGrid.margin)
         .padding(.top, ReffiSpace.s3)
         .padding(.bottom, ReffiSpace.s3)
+        // 이름 없는 재료는 냉장고에서 이름 없는 칸이 된다 — 빈 초안으로 시작하는 직접 입력에서
+        // 특히 도달 가능한 상태라, 저장 자체를 막는다(디밍은 PaperButton이 §7.2로 처리).
+        .disabled(candidate.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
     }
 
     /// 이름·보관이 바뀔 때마다, 사용자가 날짜를 만지기 전까지만 사전 기본값으로 재계산.

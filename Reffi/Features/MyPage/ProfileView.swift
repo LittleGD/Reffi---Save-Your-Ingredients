@@ -5,6 +5,12 @@ import UserNotifications
 /// 구성은 Main의 리퀴드글래스 배경 + Fridge의 "흰 영수증 더미" 문법(톱니+점선+틸트·슬립)을 그대로 따른다.
 /// 흰 종이 면은 그레인 없이 깨끗하게 — 그레인은 채도 버튼 면 전용(PaperButton 문법).
 struct ProfileView: View {
+    /// 현재 탭으로 표시 중인지 — 아니면 본문을 세우지 않는다(`MainView(isActive:)`·`FridgeView` 선례).
+    /// 루트가 세 패인을 모두 살려 두는 대가로, 가려진 이 화면도 store 변이마다 body가 다시 돌아
+    /// 리퀴드글래스 블롭 세 장과 영수증 일곱 장을 보이지도 않는 채로 다시 그렸다.
+    /// 상태(`@AppStorage`·시트 선택)와 시트 프레젠테이션은 그대로 살고, 그리는 것만 끊는다.
+    var isActive: Bool = true
+
     @Environment(FridgeStore.self) private var store
     @Environment(ProfileStore.self) private var profile
     @Environment(AuthStore.self) private var auth
@@ -15,6 +21,10 @@ struct ProfileView: View {
     // 알림 SSOT — ExpiryNotifier의 @AppStorage 키를 직접 읽어 실제 스케줄에 반영한다.
     @AppStorage(ExpiryNotifier.enabledKey) private var alertsEnabled = false
     @AppStorage(ExpiryNotifier.hourKey) private var alertHour = ExpiryNotifier.defaultHour
+
+    // 감각 SSOT — 같은 키를 홈(MainView)과 모든 햅틱 호출부(`.reffiFeedback`)가 함께 읽는다.
+    @AppStorage(ReffiFeedback.hapticsKey) private var hapticsEnabled = true
+    @AppStorage(ReffiFeedback.tiltKey) private var tiltEnabled = true
 
     @State private var sheet: Sheet?
     @State private var showLogout = false
@@ -41,22 +51,27 @@ struct ProfileView: View {
         @Bindable var profile = profile
         ScrollViewReader { proxy in
         ScrollView {
-            VStack(alignment: .leading, spacing: ReffiSpace.s5) {
-                header
-                // 영수증 스택 — 설정 화면이라 기울임 없이 정돈된 정렬(질서 있는 영수증 문법).
-                // 무낭비 리포트는 냉장고 페이지 History(No-waste report)로 이동.
-                tasteReceipt
-                householdReceipt
-                notifyReceipt
-                recipesReceipt
-                languageReceipt
-                dataReceipt
-                accountReceipt
-                Color.clear.frame(height: 1).id(Anchor.bottom)   // 스크롤 하단 앵커(QA 스크린샷)
+            // 가려진 동안은 **아무것도 세우지 않는다**(위 `isActive` 주석) — 상태는 그대로 살아 있고,
+            // 활성화되는 프레임에 이 서브트리가 통째로 다시 선다(포기하는 것은 스크롤 위치 하나다).
+            if isActive {
+                VStack(alignment: .leading, spacing: ReffiSpace.s5) {
+                    header
+                    // 영수증 스택 — 설정 화면이라 기울임 없이 정돈된 정렬(질서 있는 영수증 문법).
+                    // 무낭비 리포트는 냉장고 페이지 History(No-waste report)로 이동.
+                    tasteReceipt
+                    householdReceipt
+                    notifyReceipt
+                    feelReceipt
+                    recipesReceipt
+                    languageReceipt
+                    dataReceipt
+                    accountReceipt
+                    Color.clear.frame(height: 1).id(Anchor.bottom)   // 스크롤 하단 앵커(QA 스크린샷)
+                }
+                .padding(.horizontal, ReffiGrid.margin + receiptInset)
+                .padding(.top, ReffiSpace.s5)
+                .padding(.bottom, ReffiChrome.navClearance)   // 떠 있는 캡슐 네비 위로 스크롤 여유
             }
-            .padding(.horizontal, ReffiGrid.margin + receiptInset)
-            .padding(.top, ReffiSpace.s5)
-            .padding(.bottom, ReffiChrome.navClearance)   // 떠 있는 캡슐 네비 위로 스크롤 여유
         }
         #if DEBUG
         // 스크린샷·QA용 — 하단 섹션(Data·Account)까지 스크롤(-fridgeTab 선례).
@@ -70,7 +85,9 @@ struct ProfileView: View {
         #endif
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(LiquidGlassBackground(accent: accent))
+        // 배경도 게이트 안쪽이다 — 블롭 세 장 + 글래스 프로스트가 가려진 채로 서 있을 이유가 없고,
+        // `accent`가 읽는 `store.sorted`(전체 정렬)도 비활성 프레임에서는 돌지 않는다.
+        .background { if isActive { LiquidGlassBackground(accent: accent) } }
         .sheet(item: $sheet) { which in
             switch which {
             case .nickname:  NicknameEditSheet().presentationDetents([.height(260)])
@@ -146,7 +163,7 @@ struct ProfileView: View {
         } message: {
             Text("Ingredients and history will be deleted. This can't be undone.")
         }
-        .sensoryFeedback(.warning, trigger: destructiveHaptic)
+        .reffiFeedback(.warning, trigger: destructiveHaptic)
         // 시스템 설정에서 권한을 나중에 회수한 경우 — 토글이 켜진 채 조용히 실패하지 않게 동기화.
         .task { await syncAuthorization() }
         .onChange(of: scenePhase) { _, phase in
@@ -172,30 +189,31 @@ struct ProfileView: View {
         Button { sheet = .nickname } label: {
             HStack(spacing: ReffiSpace.s4) {
                 // 아바타 — 닉네임 이니셜(워드마크 서체, 한글은 Pretendard). 빈 닉네임은 아이콘 폴백.
+                // 잉크는 blueDark다 — blue는 흰 글자를 받는 면 색이라 blue-light 종이 위에서 대비가 안 선다(§2.2).
                 Group {
                     if avatarInitial.isEmpty {
-                        ReffiIcon.profile.reffi(30).foregroundStyle(ReffiColor.blue)
+                        ReffiIcon.profile.reffi(30).foregroundStyle(ReffiColor.blueDark)
                     } else {
                         Text(avatarInitial)
+                            // 폴백 판별은 공용 `String.hasHangul`(§ReffiTypography) — 아바타만 라틴 쪽이
+                            // 30pt 전용 크기라 `font(for:)`를 그대로 못 쓰고 판별만 공유한다.
                             .font(avatarInitial.hasHangul
                                   ? ReffiTextRole.display.koreanDisplayFont
                                   : .custom("StoryScript-Regular", size: 30, relativeTo: .title))
                             // 한글 아바타는 디스플레이 role(34) 재사용 + 28pt로 축소(전용 사이즈 신설 금지, 시각 동일).
                             .scaleEffect(avatarInitial.hasHangul ? 28.0 / 34.0 : 1, anchor: .center)
-                            .foregroundStyle(ReffiColor.blue)
+                            .foregroundStyle(ReffiColor.blueDark)
                     }
                 }
                 .frame(width: 64, height: 64)
                 .background {
                     let s = PaperBlob(sides: 9, seed: 2)
-                    s.fill(ReffiColor.blueLight).paperEdge(s, tint: ReffiColor.ink.opacity(0.06))
+                    s.fill(ReffiColor.blueLight).paperEdge(s)
                 }
                 VStack(alignment: .leading, spacing: 2) {
                     // 한글 닉네임은 Story Script(한글 미지원) 대신 Pretendard Bold 폴백(§3.1).
                     Text(profile.nickname)
-                        .font(profile.nickname.hasHangul
-                              ? ReffiTextRole.display.koreanDisplayFont
-                              : ReffiTextRole.display.font)
+                        .font(ReffiTextRole.display.font(for: profile.nickname))
                         .foregroundStyle(ReffiColor.ink)
                         .lineLimit(1)
                     Text(subtitle).reffiType(.caption).foregroundStyle(ReffiColor.ink2)
@@ -217,7 +235,7 @@ struct ProfileView: View {
 
     /// 부제 — 요리 취향 요약(스트릭은 리포트 도장으로 이동해 중복 제거). 취향 없으면 담백한 문구.
     private var subtitle: String {
-        profile.cuisines.isEmpty ? String(localized: "Saving with Reffi") : profile.cuisines.summaryText
+        profile.cuisines.isEmpty ? String(localized: "Saving food with Reffi") : profile.cuisines.summaryText
     }
 
     // MARK: - 요리 취향 영수증
@@ -266,17 +284,10 @@ struct ProfileView: View {
     // MARK: - 알림 영수증 — ExpiryNotifier 실배선(토글=권한요청·롤백, 시각=스케줄 반영).
     private var notifyReceipt: some View {
         ReceiptCard(title: String(localized: "Notifications")) {
-            Toggle(isOn: $alertsEnabled) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Expiry alerts").reffiType(.body).foregroundStyle(ReffiColor.ink)
-                    Text("A morning reminder for what expires today and tomorrow")
-                        .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
-                }
-            }
-            .tint(ReffiColor.blue)
-            .accessibilityLabel("Expiry alerts")
-            .padding(.horizontal, ReffiSpace.s5)
-            .padding(.vertical, ReffiSpace.s4)
+            // 감각 영수증과 같은 토글 행 문법(SettingsToggle) — 여백·타이포·VoiceOver 처리를 공유한다.
+            SettingsToggle(title: "Expiry alerts",
+                           caption: "A morning reminder for what expires today and tomorrow",
+                           isOn: $alertsEnabled)
             .onChange(of: alertsEnabled) { _, on in
                 if on {
                     // 켤 때만 권한 요청 — 거부되면 토글을 되돌리고 안내(§소프트 애스크).
@@ -308,6 +319,22 @@ struct ProfileView: View {
 
     /// 알림 시각 표시 — 정시(:00) 라벨.
     private var alertHourText: String { NotifyTimeSheet.hourLabel(alertHour) }
+
+    // MARK: - 감각 영수증 — 홈 물리 필드의 촉각·기울임 실배선(§7.6 · §13.4).
+    // 두 스위치 모두 **시스템 접근성 설정 위에 얹히는 선택**이다: Reduce Motion이 켜져 있으면
+    // 기울임은 이 토글과 무관하게 꺼지고(시스템 우선), 토글은 Reduce Motion을 쓰지 않는 사람이
+    // "그래도 폰이 흔들리는 건 싫다"고 말하는 자리다.
+    private var feelReceipt: some View {
+        ReceiptCard(title: String(localized: "Feel")) {
+            SettingsToggle(title: "Collision haptics",
+                           caption: "Feel ingredients knock into each other on the counter",
+                           isOn: $hapticsEnabled)
+            ReceiptRule()
+            SettingsToggle(title: "Tilt gravity",
+                           caption: "Tilt your phone and the ingredients roll that way",
+                           isOn: $tiltEnabled)
+        }
+    }
 
     // MARK: - 내 레시피 영수증 (커스텀 — 추천 풀에 합류)
     private var recipesReceipt: some View {
@@ -444,7 +471,7 @@ struct ReceiptCard<Content: View>: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.bottom, ReffiSpace.s2 + toothH)
         .background(paper, in: shape)
-        .paperEdge(shape, tint: ReffiColor.ink.opacity(0.06))
+        .paperEdge(shape)
         .reffiShadowCardCompact()   // 스택 카드와 같은 얕은 단(Fridge와 동일)
     }
 }
@@ -454,6 +481,33 @@ struct ReceiptCard<Content: View>: View {
 struct ReceiptRule: View {
     var body: some View {
         ReffiRule(.receipt).padding(.horizontal, ReffiSpace.s5)
+    }
+}
+
+/// 설정 토글 행 — 제목 + 한 줄 설명 + 스위치. 여백·타이포는 `SettingsRow`와 같은 문법이라
+/// 한 영수증 안에서 두 행이 섞여도 줄 높이가 어긋나지 않는다.
+///
+/// VoiceOver는 **제목을 라벨로, 설명을 힌트로** 읽는다 — 두 줄을 한 라벨로 이어 붙이면
+/// 스위치를 훑는 동안 행마다 설명 문장이 통째로 낭독돼 목록을 지나가기가 어려워진다.
+/// 상태(켬/끔)와 조작은 SwiftUI Toggle 기본 동작 그대로다.
+struct SettingsToggle: View {
+    let title: LocalizedStringKey
+    let caption: LocalizedStringKey
+    @Binding var isOn: Bool
+
+    var body: some View {
+        Toggle(isOn: $isOn) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).reffiType(.body).foregroundStyle(ReffiColor.ink)
+                Text(caption).reffiType(.caption).foregroundStyle(ReffiColor.ink2)
+            }
+        }
+        .tint(ReffiColor.blue)
+        .accessibilityLabel(title)
+        .accessibilityHint(caption)
+        .padding(.horizontal, ReffiSpace.s5)
+        .padding(.vertical, ReffiSpace.s4)
+        .frame(minHeight: ReffiChrome.tapMin)   // 히트 타깃 하한(§7.3) — 두 줄이라 이미 넘지만 계약은 명시한다
     }
 }
 
@@ -487,16 +541,5 @@ struct SettingsRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.reffiPress)
-    }
-}
-
-private extension String {
-    /// 한글 포함 여부 — Story Script는 한글 미지원(§3.1) → Display 폴백(Pretendard Bold) 판별.
-    var hasHangul: Bool {
-        unicodeScalars.contains {
-            (0xAC00...0xD7A3).contains($0.value)      // 완성형
-            || (0x1100...0x11FF).contains($0.value)   // 자모
-            || (0x3130...0x318F).contains($0.value)   // 호환 자모
-        }
     }
 }

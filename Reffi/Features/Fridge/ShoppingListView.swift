@@ -90,8 +90,8 @@ struct ShoppingListContent: View {
         // 직접 담기 진입은 목록 꼬리가 아니라 화면 하단에 도킹한다(§13.5) — 목록이 짧든 길든 같은
         // 자리에 있고, 커버·시트·메인이 공유하는 하단 CTA 관례와 어긋나지 않는다.
         .dockedCTA(over: ReffiColor.canvas, bottomInset: ctaBottomInset) { addItemButton }
-        .sensoryFeedback(.success, trigger: restockHaptic)
-        .sensoryFeedback(.impact(weight: .light), trigger: skipHaptic)
+        .reffiFeedback(.success, trigger: restockHaptic)
+        .reffiFeedback(.impact(weight: .light), trigger: skipHaptic)
         .sheet(isPresented: $showSearch) { ToBuySearchSheet() }
         #if DEBUG
         // `-toBuy.search` — 검색 시트 자동 오픈(스크린샷·QA용). 탭 착지 자체는 `FridgeView`가 한다.
@@ -224,9 +224,9 @@ struct ShoppingListContent: View {
                     .padding(.vertical, ReffiSpace.s1 + 1)
                     .background {
                         let s = PaperRect(cornerRadius: ReffiRadius.pill, seed: 1)
-                        s.fill(ReffiColor.blueLight).paperEdge(s, tint: ReffiColor.ink.opacity(0.06))
+                        s.fill(ReffiColor.blueLight).paperEdge(s)
                     }
-                    .frame(minHeight: 44)
+                    .frame(minHeight: ReffiChrome.tapMin)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.paperPress)
@@ -244,10 +244,10 @@ struct ShoppingListContent: View {
         Button { remove(item) } label: {
             ReffiIcon.delete.reffi(16, .bold)
                 .foregroundStyle(ReffiColor.urgentDark)
-                .frame(width: Self.revealWidth - ReffiSpace.s2, height: 44)
+                .frame(width: Self.revealWidth - ReffiSpace.s2, height: ReffiChrome.tapMin)   // §7.3
                 .background {
                     let s = PaperRect(cornerRadius: ReffiRadius.md, seed: 7)
-                    s.fill(ReffiColor.urgentLight).paperEdge(s, tint: ReffiColor.ink.opacity(0.06))
+                    s.fill(ReffiColor.urgentLight).paperEdge(s)
                 }
                 .contentShape(Rectangle())
         }
@@ -385,7 +385,7 @@ private struct ToBuySearchSheet: View {
         .presentationDetents([.medium, .large], selection: $detent)
         .presentationDragIndicator(.visible)
         .presentationBackground(ReffiColor.canvas)
-        .sensoryFeedback(.success, trigger: addHaptic)   // 목록에 담김 = 성공 완료(§7.6)
+        .reffiFeedback(.success, trigger: addHaptic)   // 목록에 담김 = 성공 완료(§7.6)
         // 검색 필드 포커스 → 시트를 .large로. 키보드가 떠도 그리드가 가리지 않는다(원본 픽커 P0-2 계승).
         // 진입 자동 포커스는 두지 않는다: 이 시트의 기본 상태는 `content` 주석이 선언한 대로 타이핑 없이
         // 끝나는 재료 배열인데, 자동 포커스는 .medium 높이에서 그 배열을 키보드로 덮어 스스로의 원칙을
@@ -422,25 +422,14 @@ private struct ToBuySearchSheet: View {
                         .frame(width: 30, height: 30)
                         .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.reffiPress)   // §7.2 — .plain은 눌림이 없다(앱에서 유일하게 남아 있던 자리)
                 .accessibilityLabel(Text("Clear search"))
             }
         }
-        .padding(.horizontal, ReffiSpace.s4)
-        .padding(.vertical, ReffiSpace.s3)
-        .frame(minHeight: 44)   // §7.3 터치 타깃
-        .background {
-            let s = PaperRect(cornerRadius: ReffiRadius.md, seed: 6)
-            // receipt — 원본 픽커 검색 필드의 인라인 값 oklch(0.985, 0.004, 90)이 곧 이 토큰이고,
-            // 시트 안의 다른 종이 면(타일·listCard·emptyCard·noMatchCard)도 전부 receipt다.
-            // paper(0.99, 0.006, 90)는 다른 토큰이라 여기만 남으면 시트 안 종이결이 갈라진다.
-            // 그레인도 타일과 같은 대역으로 얹는다 — 바로 아래 타일이 전부 종이결을 갖는데 필드만
-            // 매끈하면 같은 시트 안에서 인풋만 다른 재질(플라스틱)로 읽힌다.
-            s.fill(ReffiColor.receipt)
-                .overlay(PaperGrain(seed: 6, strength: 0.5).clipShape(s))
-                .paperEdge(s, tint: ReffiColor.ink.opacity(0.1))
-                .compositingGroup()
-        }
+        // §13.8 필드 한 칸 — 면·그레인·헤어라인·패딩·히트가 한 모디파이어에서 나온다.
+        // 이 필드는 종이 카드가 아니라 시트 캔버스 위에 직접 서는 독립 필드라 면을 갖는다
+        // (영수증 카드 **안**의 행 필드는 반대로 면 없이 절취선이 나눈다).
+        .fieldSurface(seed: 6)
     }
 
     @ViewBuilder private var content: some View {
@@ -493,13 +482,13 @@ private struct ToBuySearchSheet: View {
             }
             .padding(.horizontal, ReffiSpace.s4)
             .padding(.vertical, ReffiSpace.s3)
-            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)   // §7.3 터치 타깃
+            .frame(maxWidth: .infinity, minHeight: ReffiChrome.tapMin, alignment: .leading)   // §7.3 터치 타깃
             .background {
                 // 그리드 타일과 같은 종이 문법(면 `receipt` + 옅은 그레인 + 헤어라인).
                 let s = PaperRect(cornerRadius: ReffiRadius.md, seed: 7)
                 s.fill(ReffiColor.receipt)
                     .overlay(PaperGrain(seed: 7, strength: 0.6).clipShape(s))
-                    .paperEdge(s, tint: ReffiColor.ink.opacity(0.06))
+                    .paperEdge(s)
                     .compositingGroup()
             }
             .contentShape(Rectangle())
@@ -601,7 +590,7 @@ private struct ToBuySearchSheet: View {
             }
             .padding(.vertical, ReffiSpace.s2)
             .padding(.horizontal, ReffiSpace.s1)
-            .frame(maxWidth: .infinity, minHeight: 44)   // §7.3 터치 타깃
+            .frame(maxWidth: .infinity, minHeight: ReffiChrome.tapMin)   // §7.3 터치 타깃
             .background {
                 // 종이 시드는 `ReffiHash.stable` — `String.hashValue`는 런치마다 시드가 바뀌어 같은 타일이
                 // 매번 다른 종이결로 뜨고 스크린샷 회귀가 불가능해진다(요리 아이콘 색과 같은 유틸을 공유한다).
@@ -614,7 +603,7 @@ private struct ToBuySearchSheet: View {
                 s.fill(ReffiColor.receipt)
                     // 반복되는 소형 면이라 옅게(§13.5 — 드롭다운 0.6·냉장고 카드 0.7과 같은 대역).
                     .overlay(PaperGrain(seed: h, strength: 0.6).clipShape(s))
-                    .paperEdge(s, tint: ReffiColor.ink.opacity(0.06))
+                    .paperEdge(s)
                     .compositingGroup()   // overlay 블렌드 그레인을 타일 경계에 가둔다
             }
             .overlay(alignment: .topTrailing) {

@@ -15,6 +15,14 @@ struct HistoryContent: View {
     /// 정산서에 세우는 자주 버린 재료 줄 수 — 영수증 한 장이 삼키는 상한.
     private static let topTossedLimit = 3
 
+    /// 타임라인 한 번에 세우는 행 수 — 첫 화면에도, "더 보기" 한 번에도 같은 값.
+    /// 이력은 2000건까지 쌓이는데(`FridgeStore.historyCap`) 행마다 실루엣 Canvas가 한 장이라,
+    /// 상한 없이 세우면 History를 여는 **첫 프레임의 비용이 쌓인 이력 수에 비례**한다.
+    private static let timelinePage = 60
+
+    /// 지금 타임라인에 세운 행 수 — "더 보기"가 한 페이지씩 늘린다.
+    @State private var timelineShown = HistoryContent.timelinePage
+
     private var logs: [RemovalLog] { store.history }
     /// 정산서(수치·비율)는 라벨 그대로 **최근 30일** 기준. 타임라인은 전체.
     private var recent: [RemovalLog] { store.recentHistory }
@@ -71,6 +79,11 @@ struct HistoryContent: View {
             .padding(.horizontal, ReffiGrid.margin)
             .padding(.bottom, bottomPadding)
         }
+        // 이력이 바뀌면 타임라인 상한을 **첫 페이지로 되돌린다**. "더 보기"는 지금 이 목록을 더
+        // 보겠다는 뜻이지 앞으로 쌓일 것까지 미리 세우라는 뜻이 아니다 — 판정·되돌리기가 들어올
+        // 때마다 예전 상한이 그대로 살아 있으면, History를 켜 둔 채 판정을 반복한 사람만 조용히
+        // 수백 행짜리 첫 프레임을 다시 세우게 된다(상한을 둔 이유가 정확히 그것이다).
+        .onChange(of: logs.count) { _, _ in timelineShown = Self.timelinePage }
     }
 
     /// 패인 헤드라인 — To buy의 `Grocery memo`와 **같은 문법**(카드/밴드 밖, `heading` 24, leading 마진,
@@ -356,34 +369,68 @@ struct HistoryContent: View {
     }
 
     // MARK: ③ 타임라인
+    //
+    // **최근 것부터 한 페이지씩**만 세운다. 이력 전량을 평범한 `VStack`에 펼치면 커버가 열리는
+    // 첫 프레임에 행 전부가 뷰 트리로 실체화되고, 행마다 실루엣 Canvas가 한 장씩 붙어 그 비용이
+    // 이력 수에 비례해 늘어난다 — 오래 쓴 사람일수록 History가 느려지는 구조다. 세운 행은
+    // `LazyVStack`이 화면에 든 만큼만 그리고, 그 아래 것은 "더 보기"가 명시적으로 불러온다.
     private var timelineCard: some View {
-        card(seed: 2) {
+        let shown = min(timelineShown, logs.count)
+        let remaining = logs.count - shown
+        return card(seed: 2) {
             VStack(alignment: .leading, spacing: ReffiSpace.s3) {
                 Text("Timeline").reffiType(.subhead).foregroundStyle(ReffiColor.ink)
-                ForEach(logs) { log in
-                    HStack(spacing: ReffiSpace.s3) {
-                        miniGlyph(log.glyph)
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text(verbatim: log.displayName).reffiType(.body).foregroundStyle(ReffiColor.ink)
-                            // 발주로 소비된 재료는 "한 요리"로 귀속(조리 payoff의 기록면).
-                            if let via = log.via {
-                                Text("Cooked · \(via)")
-                                    .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
-                            }
-                        }
-                        Spacer()
-                        Text(log.wasted ? "Tossed" : "Ate")
-                            .reffiType(.caption)
-                            .foregroundStyle(log.wasted ? ReffiColor.urgentDark : ReffiColor.freshDark)
-                        Text(verbatim: log.dateText)
-                            .font(.reffiNum(.meta)).foregroundStyle(ReffiColor.muted)
-                    }
+                LazyVStack(alignment: .leading, spacing: ReffiSpace.s3) {
+                    ForEach(logs.prefix(shown)) { log in timelineRow(log) }
                 }
+                if remaining > 0 { moreButton(remaining) }
             }
         }
     }
 
+    private func timelineRow(_ log: RemovalLog) -> some View {
+        HStack(spacing: ReffiSpace.s3) {
+            miniGlyph(log.glyph)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(verbatim: log.displayName).reffiType(.body).foregroundStyle(ReffiColor.ink)
+                // 발주로 소비된 재료는 "한 요리"로 귀속(조리 payoff의 기록면).
+                if let via = log.via {
+                    Text("Cooked · \(via)")
+                        .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
+                }
+            }
+            Spacer()
+            Text(log.wasted ? "Tossed" : "Ate")
+                .reffiType(.caption)
+                .foregroundStyle(log.wasted ? ReffiColor.urgentDark : ReffiColor.freshDark)
+            Text(verbatim: log.dateText)
+                .font(.reffiNum(.meta)).foregroundStyle(ReffiColor.muted)
+        }
+    }
+
+    /// 더 보기 — **다음에 몇 줄이 오는지**를 문구가 말한다. 남은 게 한 페이지보다 적으면 그 수 그대로라,
+    /// 누르기 전에 이 아래가 끝인지 아닌지가 읽힌다. 영수증 명세를 잇는 자리라 점선 룰 아래 한 줄로 앉힌다.
+    private func moreButton(_ remaining: Int) -> some View {
+        let step = min(remaining, Self.timelinePage)
+        return VStack(alignment: .leading, spacing: ReffiSpace.s3) {
+            ReffiRule(.receipt)
+            Button { timelineShown += Self.timelinePage } label: {
+                Text("Show \(step) more")
+                    .reffiType(.checklistItem)
+                    .foregroundStyle(ReffiColor.blueDark)   // §2.6 종이 위 파랑 잉크는 blueDark
+                    .frame(maxWidth: .infinity, minHeight: ReffiChrome.tapMin)   // §7.3 최소 터치 타깃
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.reffiPress)
+        }
+    }
+
     /// 작은 일러스트 — 키운 실루엣(테두리 없음).
+    ///
+    /// 행마다 외곽 그림자 필터가 한 장씩 붙지만 **`shadowed: false`로 내리지 않는다**(A/B 실측):
+    /// 이 카드의 면은 흰 영수증이라, 헤일로를 빼면 흰 계열 글리프(달걀·우유·요거트·밥)의 왼쪽·위
+    /// 윤곽이 면에 묻혀 형태가 안쪽 음영으로만 읽힌다 — 그림자가 애초에 그 자리를 위해 있는 것이다.
+    /// 비용 쪽은 위 페이지 상한 + `LazyVStack`이 이미 화면에 든 행 수로 묶어 두었다.
     private func miniGlyph(_ glyph: FoodGlyph) -> some View {
         PaperSilhouette(glyph: glyph, fresh: .fresh)
             .frame(width: ReffiFoodIcon.row, height: ReffiFoodIcon.row)

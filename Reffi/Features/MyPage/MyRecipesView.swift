@@ -50,7 +50,7 @@ struct MyRecipesView: View {
         .presentationDetents([.large])                    // 룰 ⑪: 긴 목록 → .large
         .presentationDragIndicator(.visible)              // 룰 ④: 핸들이 주 닫기 신호
         .presentationBackground(ReffiColor.canvas)
-        .sensoryFeedback(.warning, trigger: deleteHaptic)
+        .reffiFeedback(.warning, trigger: deleteHaptic)
         // 룰⑧ — 커스텀 레시피 삭제는 **복구 불가능**이라 alert다(2026-08-13 재분류).
         // dialog로 둘 근거였던 "pendingUndo 토스트가 뜬다"는 이 경로에 성립하지 않는다:
         // undo 모델은 재료·이력 스냅샷 전용이고 `deleteUserRecipe`는 사용자가 직접 쓴 콘텐츠를
@@ -212,8 +212,8 @@ struct RecipeEditorView: View {
         .presentationDragIndicator(.visible)
         .presentationBackground(ReffiColor.canvas)
         .interactiveDismissDisabled(isDirty)         // 룰 ⑨: 변경 있으면 스와이프 실수로 닫히지 않음
-        .sensoryFeedback(.success, trigger: savedHaptic)
-        .sensoryFeedback(.warning, trigger: deleteHaptic)
+        .reffiFeedback(.success, trigger: savedHaptic)
+        .reffiFeedback(.warning, trigger: deleteHaptic)
         .confirmationDialog(Text("Discard changes?"), isPresented: $showDiscardConfirm,
                             titleVisibility: .visible) {
             Button("Discard", role: .destructive) { dismiss() }
@@ -300,7 +300,7 @@ struct RecipeEditorView: View {
                 .background {
                     // 조용한 종이 면 + urgent 틴트 헤어라인(보더 아님) — 그림자 없이 Save보다 잔잔하게.
                     let s = PaperRect(cornerRadius: ReffiRadius.md, seed: 9)
-                    s.fill(ReffiColor.paper).paperEdge(s, tint: ReffiColor.urgentDark.opacity(0.18))
+                    s.fill(ReffiColor.paper).paperEdge(s, tint: ReffiColor.paperEdgeAccent(ReffiColor.urgentDark))
                 }
             }
             .buttonStyle(.paperPress)
