@@ -187,6 +187,12 @@ struct ShoppingListContent: View {
             rowFace(item)
                 // 행 얼굴은 **불투명 영수증 면**이라야 한다 — 뒤의 빨간 조각은 이 면이 밀려나면서
                 // 드러나는 것이지, 알파로 켜지는 것이 아니다(종이 두 장이 겹쳐 있다가 미끄러진다).
+                //
+                // 색이 카드와 **같은 `receipt` 토큰**인 것도 그래서다: 쉬고 있을 때 이 면은 영수증에
+                // 완전히 녹아 목록이 카드 묶음이 아니라 **한 장의 영수증**으로 읽히고, 밀 때만 종이
+                // 두 장이었다는 사실이 드러난다. 27차까지 그렇게 읽히지 않았던 이유는 색이 아니라
+                // 그림자였다 — `receiptSurface`의 카드 그림자가 자식마다 따로 드리워 이 면에 카드
+                // 윤곽을 그려 주고 있었다. 근거와 수정은 `ReceiptSurface`의 `compositingGroup` 주석.
                 .background(ReffiColor.receipt)
                 .offset(x: x)
                 // `simultaneousGesture`인 이유: 이 행은 세로 `ScrollView` 안에 산다. `gesture`로 걸면
