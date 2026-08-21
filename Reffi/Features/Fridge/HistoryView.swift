@@ -59,8 +59,8 @@ struct HistoryContent: View {
     }
 
     var body: some View {
-        // 집계는 **본문당 한 번**만 돈다. computed로 두면 고리·요일 행·접근성 라벨이 각자 이력을
-        // 다시 훑고, 그 사이에 자정이 지나면 한 화면 안에서 두 값이 다른 주를 가리킬 수 있다.
+        // 집계는 **본문당 한 번**만 돈다. computed로 두면 헤드라인·칩 행·추세 문장·접근성 라벨이
+        // 각자 이력을 다시 훑고, 그 사이에 자정이 지나면 한 화면 안에서 두 값이 다른 주를 가리킬 수 있다.
         let week = ConsumptionWeek.summary(of: logs)
         ScrollView {
             VStack(spacing: ReffiSpace.s4) {
@@ -208,9 +208,19 @@ struct HistoryContent: View {
     /// 숫자가 있으면 사용자가 다음 주에 스스로 검산할 수 있다. 색은 낭비율 축과 같은 방향이다
     /// (초록 = 덜 버렸다). **두 창 중 하나라도 비면 이 줄 자체가 서지 않는다** — 비교할 것이 없는데
     /// 문장을 세우면 없는 지난 주를 지어내는 셈이 된다(`Summary.trend`가 그때 `nil`이다).
+    ///
+    /// **문장이 종이 조각 위에 앉는 이유는 실측이다.** 밴드 위에 그냥 놓았더니 라이트 모드 최악
+    /// 대비가 `freshDark` **4.25:1**이었다(캡처 픽셀 실측, 배경은 밴드 좌우 띠의 2백분위 = 밝은
+    /// 실루엣 위). 같은 자리의 `ink2` 캡션은 5.78로 통과하므로 원인은 배경이 아니라 **잉크**다 —
+    /// 색이 곧 정보인 문장이라 잉크를 어둡게 바꿀 수는 없다. 더미 농도를 조이는 길도 재 봤는데
+    /// 4.5를 넘기려면 실루엣 이탈 폭을 0.162 → 0.12로(≈30%) 깎아야 해서, 문장 하나 때문에 배경
+    /// 전체를 약하게 만드는 거래가 된다. 대신 **불투명한 바닥을 문장에만 준다**: `paper` 면 위에서
+    /// 세 변형의 최악이 5.04:1이고(라이트/다크 전부), 그 면은 조용한 날 칩이 이미 쓰는 바로 그
+    /// 종이라 밴드에 문법이 늘지 않는다. 셰이프도 기존 와이드 종이컷(`PaperCutRect`)을 쓴다.
     @ViewBuilder
     private func trendSentence(_ trend: ConsumptionWeek.Trend, previous: Int) -> some View {
         let last = previous.formatted(.percent)
+        let shape = PaperCutRect(seed: 6)
         Group {
             switch trend {
             case .better:
@@ -223,6 +233,10 @@ struct HistoryContent: View {
         }
         .reffiType(.caption)
         .multilineTextAlignment(.center)
+        .padding(.horizontal, ReffiSpace.s3)
+        .padding(.vertical, ReffiSpace.s1)
+        .background(shape.fill(ReffiColor.paper))
+        .paperEdge(shape)
     }
 
     /// 칩 한 조각 — 폭은 일곱 칸이 **SE급(375pt)에서도 한 줄에 서는** 상한에서 왔다:
@@ -242,7 +256,7 @@ struct HistoryContent: View {
     /// 20차의 요일 블롭은 오늘 칸을 잉크 솔리드로 칠했다. 지금은 면색이 "먹었는가"라는 **데이터**를
     /// 지고 있어서, 오늘을 면색으로 표시하면 오늘 하루만 데이터가 지워진다. 남는 채널은 칩 위의
     /// 글자뿐이고, 거기에 얹으면 채널이 겹치지 않는다. 오늘을 어디서든 찾을 수 있다는 조건도
-    /// 그대로다 — 앞으로 올 날이 연한 면이라 **연해지기 직전 칸**이 오늘이고, 주의 마지막 날이면
+    /// 그대로다 — 앞으로 올 날이 점선이라 **오려 낸 마지막 칸**이 오늘이고, 주의 마지막 날이면
     /// 앞으로 올 날이 없으니 마지막 칸이 오늘이다.
     private func dayCell(_ day: ConsumptionWeek.Day) -> some View {
         VStack(spacing: ReffiSpace.s1) {
