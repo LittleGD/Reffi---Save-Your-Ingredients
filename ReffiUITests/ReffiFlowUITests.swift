@@ -32,6 +32,21 @@ final class ReffiFlowUITests: XCTestCase {
         app.buttons.matching(NSPredicate(format: "label CONTAINS %@", name)).firstMatch
     }
 
+    /// History 히어로의 **값 덩이** — 이번 주 먹은 비율을 분자·분모와 함께 한 문장으로 읽는 요소.
+    /// 접근성 라벨이 이 표면의 계약이라, 화면 구조가 바뀌어도 테스트는 같은 문장을 본다.
+    private func heroRateHeadline(_ app: XCUIApplication) -> XCUIElement {
+        app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label BEGINSWITH %@", "Eaten this week:")).firstMatch
+    }
+
+    /// 히어로의 **추세 한 문장**(지난 주 대비). 세 변형 중 어느 것이 뜨는지는 실행일의 데이터가
+    /// 정하므로 셋을 다 받는다 — 이 헬퍼가 참이면 "문장이 섰다", 거짓이면 "서지 않았다"다.
+    private func heroTrendSentence(_ app: XCUIApplication) -> XCUIElement {
+        app.descendants(matching: .any).matching(NSPredicate(
+            format: "label BEGINSWITH 'Up from ' OR label BEGINSWITH 'Down from ' "
+                  + "OR label == 'About the same as last week.'")).firstMatch
+    }
+
     /// 온보딩을 처음부터 시작. `-skipAuth`로 게스트 상태를 로컬에 고정해, 셋업 완료 후
     /// 메인 진입이 실제 익명 로그인 네트워크 호출에 좌우되지 않고 결정론적으로 검증되게 한다
     /// (게이트 로직 자체는 세션 유무와 무관하게 온보딩 완료 시 곧장 메인으로 보낸다).
@@ -141,31 +156,52 @@ final class ReffiFlowUITests: XCTestCase {
         XCTAssertFalse(stockTab.isSelected, "직전 탭의 선택은 풀린다")
         attach(app, named: "fridge-tab-to-buy")
 
-        // History 탭 — 맨 위는 패인 헤드라인("Kitchen ledger"), 그 아래가 이번 주 히어로(종이 고리 +
-        // 요일 블롭 일곱)고, 30일 정산서는 다시 그 아래다. 헤드라인 이름이 탭 라벨("History")과
-        // **다른 것이 요점**이다 — 같은 말이면 한 화면에 같은 이름이 두 번 선다.
+        // History 탭 — 맨 위는 패인 헤드라인("Kitchen ledger"), 그 아래가 이번 주 히어로(숫자 헤드라인 +
+        // 추세 한 문장 + 종이 칩 일곱)고, 30일 정산서는 다시 그 아래다. 헤드라인 이름이 탭 라벨
+        // ("History")과 **다른 것이 요점**이다 — 같은 말이면 한 화면에 같은 이름이 두 번 선다.
         historyTab.tap()
         let ledgerHeadline = app.staticTexts["Kitchen ledger"]
         XCTAssertTrue(ledgerHeadline.waitForExistence(timeout: 4),
                       "History 패인의 첫 블록은 헤드라인이다")
         XCTAssertFalse(app.staticTexts["Grocery memo"].exists, "To buy 헤드라인은 함께 사라져야 한다")
-        let heroCaption = app.staticTexts["One circle a day. The number is what you ate."]
+        let heroCaption = app.staticTexts["A chip a day. Green is what you ate."]
         XCTAssertTrue(heroCaption.waitForExistence(timeout: 4),
                       "히어로는 헤드라인 바로 아래에 선다")
         XCTAssertTrue(ledgerHeadline.frame.maxY <= heroCaption.frame.minY,
                       "헤드라인이 히어로보다 위에 있어야 한다")
-        // 고리는 두 상태 중 정확히 하나로 읽힌다 — 이번 주 처리 건이 있으면 비율, 없으면 빈 창 안내.
+        // 값 덩이는 두 상태 중 정확히 하나로 읽힌다 — 이번 주 처리 건이 있으면 비율, 없으면 빈 창 안내.
         // (샘플 이력의 날짜는 상대값이라, 실행일이 주의 어디냐에 따라 둘 다 정상이다.)
-        let ringWithRate = app.descendants(matching: .any)
-            .matching(NSPredicate(format: "label BEGINSWITH %@", "Eaten this week:")).firstMatch
-        let ringEmpty = app.descendants(matching: .any)
+        let rateHeadline = heroRateHeadline(app)
+        let emptyHeadline = app.descendants(matching: .any)
             .matching(NSPredicate(format: "label == %@", "Nothing cleared out this week yet.")).firstMatch
-        XCTAssertTrue(ringWithRate.waitForExistence(timeout: 4) || ringEmpty.exists,
-                      "고리는 비율이나 빈 창 안내 중 하나를 읽어 준다(NaN·빈 라벨 금지)")
-        // 요일 행 — 오늘 칸은 언제 돌려도 정확히 하나다(잉크 솔리드로 구분한 그 칸).
+        XCTAssertTrue(rateHeadline.waitForExistence(timeout: 4) || emptyHeadline.exists,
+                      "헤드라인은 비율이나 빈 창 안내 중 하나를 읽어 준다(NaN·빈 라벨 금지)")
+        // 추세 문장 — 샘플 이력은 **어느 요일에 돌려도 두 창이 모두 비지 않는다**:
+        // 이번 주에는 오늘(daysAgo 0) 로그가 있고, 지난 주 창(daysAgo offset+1…offset+7)에는
+        // daysAgo 2·3·4·5·7·9·11·13 중 최소 셋이 언제나 들어온다. 그래서 이 문장은 **반드시 선다**
+        // (세 변형 중 어느 것이 뜨는지는 실행일에 달렸으므로 셋 다 받는다).
+        XCTAssertTrue(heroTrendSentence(app).waitForExistence(timeout: 4),
+                      "두 창이 모두 차 있으면 추세 문장이 서야 한다")
+        // 칩 행 — 오늘 칸은 언제 돌려도 정확히 하나이고, 일곱 칸이 모두 한 문장으로 읽힌다.
         let todayCell = app.descendants(matching: .any)
             .matching(NSPredicate(format: "label BEGINSWITH %@", "Today, ")).firstMatch
-        XCTAssertTrue(todayCell.waitForExistence(timeout: 4), "요일 행에 오늘 칸이 선다")
+        XCTAssertTrue(todayCell.waitForExistence(timeout: 4), "칩 행에 오늘 칸이 선다")
+        // 앞으로 올 날은 "still to come", 아무 일도 없던 날은 "nothing"이다 — 어느 쪽도 "0 eaten"이
+        // 아니어야 한다(0은 없는 판정이다). 실행일이 주의 끝이면 미래 칸이 없으므로 둘 중 하나만 본다.
+        let futureCell = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label ENDSWITH %@", ", still to come")).firstMatch
+        let quietCell = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label ENDSWITH %@", ", nothing")).firstMatch
+        XCTAssertTrue(futureCell.exists || quietCell.exists,
+                      "조용한 칸은 'still to come'이거나 'nothing'이다")
+        XCTAssertFalse(app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label ENDSWITH %@", ", 0 eaten")).firstMatch.exists,
+                       "0은 판정이 아니다 — 빈 칸을 '0 eaten'으로 읽으면 안 된다")
+        // 정산서 — 발주 소비 행이 Ate·Tossed와 같은 문법으로 함께 선다.
+        // 정산 행은 `children: .combine`이라 라벨에 건수가 붙는다 — 이름으로만 찾는다.
+        XCTAssertTrue(app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label BEGINSWITH %@", "Cooked into recipes")).firstMatch.exists,
+                      "정산서에 요리 소비 행이 있어야 한다")
         XCTAssertFalse(app.buttons["Add item"].exists, "To buy 패인의 CTA는 함께 사라져야 한다")
         XCTAssertTrue(historyTab.isSelected, "History가 선택된다")
         attach(app, named: "fridge-tab-history")
@@ -230,16 +266,17 @@ final class ReffiFlowUITests: XCTestCase {
         XCTAssertTrue(app.buttons["Sort: Expiring first"].waitForExistence(timeout: 4), "기본 정렬 복귀")
     }
 
-    // MARK: History 히어로 — 오늘의 판정이 곧 고리의 값
+    // MARK: History 히어로 — 오늘의 판정이 곧 값 덩이와 오늘 칩의 값
 
-    /// 히어로 고리는 장식이 아니라 **이번 주 장부**다. 오늘 재료 하나를 버리면 그 즉시
-    /// "처리했지만 안 먹은 것"이 한 건 생기므로, 고리는 반드시 100% 아래로 내려온다.
+    /// 히어로는 장식이 아니라 **이번 주 장부**다. 오늘 재료 하나를 버리면 그 즉시
+    /// "처리했지만 안 먹은 것"이 한 건 생기므로, 비율은 반드시 100% 아래로 내려오고
+    /// **오늘 칩에는 버림이 함께 실린다**(칩은 먹음과 버림을 다른 채널로 동시에 말한다).
     ///
     /// 이 단언이 날짜와 무관하게 성립하는 이유: 버림이 오늘 찍히면 이번 주 창에 **반드시** 들어가고
     /// (창은 이번 주 시작 자정부터 오늘을 포함한다), 분자(먹은 수)는 그대로인 채 분모만 늘어난다.
     /// 실행일이 주의 어디든, 심지어 이번 주 첫 기록이든 결과는 같다 — 100%는 나올 수 없다.
     /// 유닛 테스트가 못 덮는 배선(판정 → store → 히어로 재계산)을 여기서 고정한다.
-    func testFridge_HistoryHero_RingFollowsTodaysJudgement() {
+    func testFridge_HistoryHero_HeadlineAndTodaysChipFollowTodaysJudgement() {
         let app = XCUIApplication()
         // -fridgeExpand: 첫 재료의 펼친 상세로 바로 착지(Ate/Tossed 버튼 QA용 기존 인자).
         app.launchArguments = ["-skipAuth", "-onboarding.done", "YES",
@@ -254,19 +291,24 @@ final class ReffiFlowUITests: XCTestCase {
         XCTAssertTrue(historyTab.waitForExistence(timeout: 4), "판정 후 탭 행으로 돌아온다")
         historyTab.tap()
 
-        let ring = app.descendants(matching: .any)
-            .matching(NSPredicate(format: "label BEGINSWITH %@", "Eaten this week:")).firstMatch
-        XCTAssertTrue(ring.waitForExistence(timeout: 4),
-                      "오늘 판정이 있으면 창이 비지 않으므로 고리는 비율을 읽는다")
+        let headline = heroRateHeadline(app)
+        XCTAssertTrue(headline.waitForExistence(timeout: 4),
+                      "오늘 판정이 있으면 창이 비지 않으므로 헤드라인은 비율을 읽는다")
         XCTAssertFalse(app.descendants(matching: .any)
             .matching(NSPredicate(format: "label CONTAINS %@", "100 percent")).firstMatch.exists,
-                       "오늘 하나를 버렸는데 고리가 100%면 버림이 분모에 들어가지 않은 것이다")
+                       "오늘 하나를 버렸는데 비율이 100%면 버림이 분모에 들어가지 않은 것이다")
+        // 오늘 칩 — 버림이 화면의 다른 채널(모서리 조각)로도 남아야 한다. 라벨이 그 채널의 계약이다.
+        let todayCell = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label BEGINSWITH %@", "Today, ")).firstMatch
+        XCTAssertTrue(todayCell.waitForExistence(timeout: 4), "칩 행에 오늘 칸이 선다")
+        XCTAssertTrue(todayCell.label.contains("tossed"),
+                      "오늘 버린 게 있는데 오늘 칩이 그것을 말하지 않는다: \(todayCell.label)")
         attach(app, named: "history-hero-after-toss")
     }
 
     // MARK: History — 다른 패인에서 한 판정이 같은 실행 안에서 반영되는가
 
-    /// 사용자 제보(22차): "In stock에서 먹음/버림을 처리해도 History의 링·숫자가 안 바뀐다".
+    /// 사용자 제보(22차): "In stock에서 먹음/버림을 처리해도 History의 숫자가 안 바뀐다".
     ///
     /// **20차 테스트와 결정적으로 다른 점**: 그쪽은 판정을 먼저 하고 History를 *처음* 열었다
     /// (= 뷰가 그때 처음 만들어지므로 어차피 새 값을 읽는다). 사용자의 실제 순서는 반대다 —
@@ -284,10 +326,9 @@ final class ReffiFlowUITests: XCTestCase {
 
         // ① History를 **먼저** 본다 — 이 방문이 뷰를 만들고, 그 상태가 스테일의 후보다.
         historyTab.tap()
-        let ring = app.descendants(matching: .any)
-            .matching(NSPredicate(format: "label BEGINSWITH %@", "Eaten this week:")).firstMatch
-        XCTAssertTrue(ring.waitForExistence(timeout: 4), "고리가 비율을 읽는다")
-        let before = ring.label
+        let headline = heroRateHeadline(app)
+        XCTAssertTrue(headline.waitForExistence(timeout: 4), "값 덩이가 비율을 읽는다")
+        let before = headline.label
         attach(app, named: "history-before-judgement")
 
         // ② In stock에서 판정 한 번(먹음).
@@ -301,9 +342,9 @@ final class ReffiFlowUITests: XCTestCase {
 
         // ③ 같은 실행에서 History로 돌아온다 — 여기서 값이 그대로면 그것이 제보된 버그다.
         historyTab.tap()
-        XCTAssertTrue(ring.waitForExistence(timeout: 4), "고리가 여전히 비율을 읽는다")
+        XCTAssertTrue(headline.waitForExistence(timeout: 4), "값 덩이가 여전히 비율을 읽는다")
         attach(app, named: "history-after-judgement")
-        XCTAssertNotEqual(ring.label, before,
+        XCTAssertNotEqual(headline.label, before,
                           "다른 패인의 판정이 History에 반영돼야 한다(분모가 최소 1 늘어난다)")
     }
 

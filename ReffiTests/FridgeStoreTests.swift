@@ -636,6 +636,37 @@ struct FridgeStoreTests {
         #expect(store.wasteRate == 0)
     }
 
+    /// 정산서의 "Cooked into recipes" 행 — 발주(레시피 티켓)로 소비된 줄만, 그리고 **30일 창 안**에서만.
+    /// `Ate`의 **부분집합**이라 두 값이 함께 성립해야 한다(같은 줄을 두 행이 각자 세지 않는다).
+    @Test func cookedCountIsTheRecipeSliceOfAteInsideTheThirtyDayWindow() {
+        let logs = [
+            RemovalLog(name: "Beef", glyph: .meat, canonicalID: "beef",
+                       removedAt: Ingredient.day(offset: 0), wasted: false, via: "Bibimbap"),
+            RemovalLog(name: "Onion", glyph: .onion, canonicalID: "onion",
+                       removedAt: Ingredient.day(offset: -3), wasted: false, via: "Bibimbap"),
+            // 직접 먹음 판정 — 출처가 없으니 요리 행에는 안 선다(그래도 Ate에는 선다).
+            RemovalLog(name: "Egg", glyph: .egg, daysAgo: 1, wasted: false),
+            // 버림 — 출처가 없고, 있더라도 요리로 세면 안 된다.
+            RemovalLog(name: "Milk", glyph: .milk, daysAgo: 2, wasted: true),
+            // 창 밖(40일 전) 발주 소비 — 헤더가 "past 30 days"라 이 행도 같은 창을 써야 한다.
+            RemovalLog(name: "Pork", glyph: .meat, canonicalID: "pork-belly",
+                       removedAt: Ingredient.day(offset: -40), wasted: false, via: "Kimchi stew"),
+        ]
+        let store = FridgeStore(ingredients: [], recipes: [], history: logs)
+
+        #expect(store.cookedCount == 2)
+        // 부분집합 불변식 — 요리 행이 먹음 행을 넘을 수는 없다.
+        let ate = store.recentHistory.filter { !$0.wasted }.count
+        #expect(ate == 3)
+        #expect(store.cookedCount <= ate)
+        // 출처가 붙은 버림이 생겨도 요리로 새지 않는다(현재 프로덕션 경로엔 없지만 방어를 잠근다).
+        let tainted = FridgeStore(ingredients: [], recipes: [],
+                                  history: [RemovalLog(name: "Beef", glyph: .meat,
+                                                       removedAt: Ingredient.day(offset: 0),
+                                                       wasted: true, via: "Bibimbap")])
+        #expect(tainted.cookedCount == 0)
+    }
+
     // MARK: skipBuyUndoable — 밀어서 삭제 전용(21차). 결과는 skipBuy와 같고 되돌리기 창만 더한다.
 
     @Test func swipeRemovalRestoresTheRowInItsOriginalPlace() {
