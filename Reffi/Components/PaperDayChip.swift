@@ -37,11 +37,20 @@ struct PaperDayChip: View {
     var body: some View {
         face
             .frame(width: width, height: height)
-            // 배지는 칩 **밖으로 조금 걸친다** — 위에 얹으면 종이 한 장에 인쇄된 무늬로 읽히고,
+            // 배지는 칩 **밖으로 걸친다** — 위에 얹으면 종이 한 장에 인쇄된 무늬로 읽히고,
             // 걸쳐야 나중에 덧붙인 두 번째 조각으로 읽힌다.
+            //
+            // 걸치는 폭은 실측으로 정했다. 처음엔 x +10% · y −10%였는데, 먹고 **동시에** 버린 날
+            // (흔한 날이다)에 배지 왼쪽 변이 안쪽 글자 칸을 3pt 파고들어 **체크의 오른팔이 잘렸다**
+            // (3x 확대 캡처로 확인 — 잘린 체크는 겹침이 아니라 렌더 오류로 읽힌다). 38pt 칩에서
+            // 가운데 정렬된 글자 칸은 x 12.5~25.5이고 배지 왼쪽 변은 `폭 − 배지폭 + 오프셋`이라,
+            // 배지를 줄이고(글자 26% → 22%, 좌우 여백 11% → 9%) 더 밀어내(+18%) 왼쪽 변을 27.1로
+            // 옮겼다 — 글자 칸에서 1.6pt 떨어진다. 세로는 반대로 **덜** 올린다(−10% → −8%):
+            // 더 올리면 칸 사이 s1(6pt) 위의 요일 머리글자에 닿는다.
+            // 이웃 칩까지의 거리는 9.6pt(칸 여유 1.8 × 2 + 간격 6)라 6.8pt 걸쳐도 2.8pt 남는다.
             .overlay(alignment: .topTrailing) {
                 if !isFuture, tossed > 0 {
-                    tossedBadge.offset(x: side * 0.10, y: -side * 0.10)
+                    tossedBadge.offset(x: side * 0.18, y: -side * 0.08)
                 }
             }
     }
@@ -107,12 +116,12 @@ struct PaperDayChip: View {
         // `✕`(U+2715)가 아니라 `×`(U+00D7)다 — 후자는 Latin-1이라 Pretendard가 확실히 덮는다.
         // 폰트가 빠지면 시스템 폴백으로 글꼴이 이 조각에서만 갈린다.
         return Text(verbatim: "×\(tossed.formatted())")
-            .font(.reffiStamp(side * 0.26, relativeTo: .caption2))
+            .font(.reffiStamp(side * 0.22, relativeTo: .caption2))
             .monospacedDigit()
             .foregroundStyle(ReffiColor.onInk)
             .lineLimit(1)
-            .padding(.horizontal, side * 0.11)
-            .padding(.vertical, side * 0.04)
+            .padding(.horizontal, side * 0.09)
+            .padding(.vertical, side * 0.045)
             .background(shape.fill(ReffiColor.urgentDark))
             .paperEdge(shape, tint: ReffiColor.paperEdgeOnFill)
             .compositingGroup()
