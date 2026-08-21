@@ -50,8 +50,13 @@ extension FridgeTab {
     /// **같은 목적지의 탭**으로 착지한다(RUN.md QA 절과 함께 갱신). `-toBuy.search`의 검색 시트
     /// 자동 오픈은 `ShoppingListContent`가 계속 맡는다 — 인자 해석과 시트 표시는 다른 일이다.
     /// 둘 다 주어지면 To buy가 이긴다(검색 시트까지 여는 쪽이 더 구체적인 지시다).
+    ///
+    /// `-toBuy.swipeHint`(28차 밀기 어포던스 힌트)도 같은 규약을 탄다 — To buy 패인을 겨눈 인자는
+    /// **단독으로 줘도** 그 패인에 닿아야 QA·스크린샷 한 줄로 끝난다. 힌트를 실제로 재생하는 건
+    /// `ShoppingListContent`의 몫이고, 착지는 이 함수의 몫이다(`-toBuy.search`와 같은 분업).
     static func initial(from arguments: [String]) -> FridgeTab {
-        if arguments.contains("-toBuy") || arguments.contains("-toBuy.search") { return .toBuy }
+        if arguments.contains("-toBuy") || arguments.contains("-toBuy.search")
+            || arguments.contains("-toBuy.swipeHint") { return .toBuy }
         if arguments.contains("-showHistory") { return .history }
         return .stock
     }

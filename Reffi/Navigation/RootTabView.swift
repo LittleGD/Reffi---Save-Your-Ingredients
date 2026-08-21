@@ -17,7 +17,8 @@ struct RootTabView: View {
         if ProcessInfo.processInfo.arguments.contains("-profileTab") { return .profile }
         // 냉장고 **패인** 인자는 냉장고 탭을 함의한다 — RUN.md가 "단독 지정해도 착지"를 약속하는
         // 인자들이라, 루트가 홈에 머물면 그 약속이 조용히 깨진다(패인 선택은 `FridgeTab.initial`).
-        if ["-fridgeTab", "-toBuy", "-toBuy.search", "-showHistory"]
+        if ["-fridgeTab", "-toBuy", "-toBuy.search", "-toBuy.swipeHint", "-toBuy.sampleMemo",
+            "-showHistory"]
             .contains(where: ProcessInfo.processInfo.arguments.contains) { return .fridge }
         #endif
         return .home
@@ -28,6 +29,14 @@ struct RootTabView: View {
     /// 탭 전환과 패인 지정이 서로 다른 뷰에 살기 때문에 값 하나로 묶어 함께 보낸다: `tab`만 바꾸면
     /// 냉장고는 자기가 마지막에 보던 패인을 그대로 띄운다(패인 선택은 `FridgeView`의 세션 상태다).
     @State private var fridgePane: FridgeTab?
+
+    #if DEBUG
+    /// `-toBuy.sampleMemo`가 담는 장보기 메모 두 줄(위 `onAppear` 참고). **사전 밖 자유 표기**라
+    /// 샘플 냉장고 재료와 캐논이 겹치지 않는다 — 겹치면 흡수 의미론에 걸려 줄이 서지 않거나
+    /// `Bought` 재입고가 남의 줄을 건드린다. 두 줄인 이유는 행 **사이**를 봐야 하기 때문이다
+    /// (28차 절취선). UI 테스트가 같은 문자열을 그대로 본다.
+    static let sampleMemoNames = ["Fish sauce brand X", "Rice vinegar brand Y"]
+    #endif
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -99,11 +108,29 @@ struct RootTabView: View {
                 UserDefaults.standard.set(false, forKey: "fridge.compact")
                 UserDefaults.standard.set(FridgeSort.expiry.rawValue, forKey: "fridge.sort")
             }
+            // `-toBuy.sampleMemo` — 장보기 메모 두 줄 시드. **위 리셋 바로 뒤여야 한다**
+            // (`loadSampleData()`가 `manualToBuy`를 비우므로 순서가 뒤집히면 시드가 지워진다).
+            //
+            // 왜 필요한가: To buy 패인을 겨눈 QA 인자(`-toBuy.swipeHint`, 28차)는 목록에 줄이 있어야
+            // 볼 것이 생기는데 새 설치의 메모는 비어 있고, 메모를 채우는 유일한 경로가 검색 시트
+            // 여닫기라 인자 하나로 화면에 닿는다는 규약이 To buy에서만 깨져 있었다. UI 테스트도 같은
+            // 이유로 시트를 세 단계 몰아야 했고, 그 조작 사슬이 실측에서 반복적으로 흔들렸다
+            // (시트 프레젠테이션 유실·합성 타이핑 포커스 유실).
+            //
+            // 이름은 **사전 밖 자유 표기**다 — 샘플 냉장고 재료와 캐논이 겹치면 흡수 의미론에 걸려
+            // 줄이 서지 않거나 Bought 재입고가 남의 줄을 건드린다. `canonicalIsFinal: true`로 넘겨
+            // store의 포함 매칭 폴백도 끊는다(`addTyped`와 같은 규약).
+            if ProcessInfo.processInfo.arguments.contains("-toBuy.sampleMemo") {
+                for name in Self.sampleMemoNames {
+                    store.addToBuy(name: name, canonicalID: nil, canonicalIsFinal: true)
+                }
+            }
             // 탭 직행 보강 — 위 @State 초기값 클로저와 같은 조건을 onAppear에서도 한 번 더 확인해
             // 스크린샷·QA 자동화가 launch 인자 하나만으로 안정적으로 목표 탭에 도달하게 한다.
             let args = ProcessInfo.processInfo.arguments
             if args.contains("-profileTab") { tab = .profile }
-            else if ["-fridgeTab", "-toBuy", "-toBuy.search", "-showHistory"]
+            else if ["-fridgeTab", "-toBuy", "-toBuy.search", "-toBuy.swipeHint",
+                     "-toBuy.sampleMemo", "-showHistory"]
                 .contains(where: args.contains) { tab = .fridge }
         }
         #endif

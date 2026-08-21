@@ -442,6 +442,110 @@ final class ReffiFlowUITests: XCTestCase {
         start.press(forDuration: 0.1, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.5)
     }
 
+    // MARK: To buy — 밀기 어포던스 힌트(28차)
+
+    /// **첫 등장의 힌트**: 목록에 줄이 있는 채로 패인이 서면 맨 윗줄이 왼쪽으로 한 번 밀렸다 돌아온다.
+    /// 그리고 **플래그가 서 있으면 뜨지 않는다** — 설치당 한 번이라는 규약이 실제로 잠기는지 본다.
+    ///
+    /// 두 번 런치하는 이유: 이 힌트의 게이트 중 하나가 `@AppStorage`라 **프로세스 경계를 넘어야**
+    /// 관측된다. 첫 런치는 `-toBuy.swipeHint <초>`로 강제하고(유지 시간을 넓혀 프레임 조회가 닿게 한다),
+    /// 둘째 런치는 `-toBuy.swipeHintSeen YES`로 플래그만 주입한 뒤 **아무 일도 없음**을 단언한다.
+    func testToBuy_SwipeHint_PeeksWhenForcedAndStaysPutOnceSeen() {
+        // ① 강제 — `-toBuy.sampleMemo`가 **두 줄**을 시드한다. 두 줄인 것이 요점이다: 움직이는 줄과
+        //    움직이지 않는 줄을 같은 실행에서 대조해야 "맨 윗줄만"이라는 규약이 잠기고, 행 사이
+        //    절취선도 그때 화면에 선다. 담기는 시트를 세 단계 몰지 않고 인자로 끝낸다 — 상태를 만드는
+        //    조작 사슬이 길수록 검증하려는 것과 무관한 이유로 흔들린다(시트 프레젠테이션·타이핑 포커스).
+        let top = Self.memoTop, second = Self.memoSecond
+        let app = XCUIApplication()
+        app.launchArguments = ["-skipAuth", "-onboarding.done", "YES", "-fridgeTab",
+                               "-uiTestSampleFridge", "-toBuy.sampleMemo",
+                               "-toBuy.swipeHint", String(Self.forcedHold)]
+        app.launch()
+        XCTAssertTrue(app.staticTexts["Grocery memo"].waitForExistence(timeout: 10), "To buy 패인")
+
+        // 첫 등장에서도 줄이 이미 서 있지만, 힌트를 **관측 가능한 창에서** 잡으려면 등장 시점을
+        // 테스트가 쥐어야 한다 — 탭을 오가면 패인이 뷰째 새로 서고 그 등장에서 재생이 시작된다.
+        reenterToBuyPane(app)
+        let topRow = app.staticTexts[top], secondRow = app.staticTexts[second]
+        XCTAssertTrue(topRow.waitForExistence(timeout: 10), "시드된 첫 줄")
+        XCTAssertTrue(secondRow.exists, "시드된 둘째 줄(행 사이 절취선이 생기는 조건)")
+        // **이 시점이 재생 중이다**(유예 0.5초 + 넓힌 유지 시간 안쪽) — 밀린 첫 행이 여기 찍힌다.
+        attach(app, named: "to-buy-swipe-hint-peek")
+
+        // 유지 시간 + 진입·복귀 모션 + 조회 지연까지 넉넉히 덮는 창에서 두 행의 가로 위치를 함께 훑는다.
+        let samples = sampleMinX([topRow, secondRow], seconds: Self.forcedHold + 4)
+        guard let peeked = samples[0].min(), let rest = samples[0].max(), let last = samples[0].last,
+              let stillLo = samples[1].min(), let stillHi = samples[1].max() else {
+            return XCTFail("표본이 하나도 없다 — 행이 조회되지 않았다")
+        }
+        // 창이 끝난 뒤 = 제자리 — 두 행이 다시 나란해진 목록과 그 사이 절취선이 여기 찍힌다.
+        attach(app, named: "to-buy-rows-at-rest-with-dashed-rule")
+        XCTAssertGreaterThan(rest - peeked, 12,
+                             "힌트는 맨 윗줄을 왼쪽으로 눈에 보이게 민다(설계값 20pt)")
+        XCTAssertLessThan(rest - peeked, 40,
+                          "드러내기(84pt)나 열림 판정(42pt)까지 가면 '열려다 만 행'으로 읽힌다")
+        // 되돌아왔는가 — 마지막 표본이 최댓값 근처면 제자리다(`settle`은 감쇠 0.74라 미세 오버슛이 있다).
+        XCTAssertLessThan(abs(last - rest), 3, "힌트는 스프링으로 제자리에 돌아온다(밀린 채 굳지 않는다)")
+        // **맨 윗줄만** — 둘째 행은 같은 창 내내 붙박이다.
+        XCTAssertLessThan(stillHi - stillLo, 3, "힌트는 첫 행에만 얹힌다(둘째 행은 움직이지 않는다)")
+
+        // 힌트가 도는 동안에도 빼기 컨트롤은 보조기술에 없다 — 장식 모션이 트리를 바꾸면 안 된다.
+        XCTAssertFalse(app.buttons["Remove \(top) from the memo"].exists,
+                       "힌트는 보이기만 한다 — 조각이 접근성 트리에 올라오면 안 된다")
+        // 21차가 세운 계약도 그대로다.
+        XCTAssertTrue(app.buttons["Bought \(top)"].exists, "행의 1차 액션은 그대로 'Bought <이름>'")
+
+        // ② 플래그가 서 있으면 뜨지 않는다 — 강제 인자 없이, 같은 조건(줄 있음·새 등장)을 다시 만든다.
+        let seen = XCUIApplication()
+        seen.launchArguments = ["-skipAuth", "-onboarding.done", "YES", "-fridgeTab",
+                                "-uiTestSampleFridge", "-toBuy.sampleMemo", "-toBuy",
+                                "-toBuy.swipeHintSeen", "YES"]
+        seen.launch()
+        XCTAssertTrue(seen.staticTexts["Grocery memo"].waitForExistence(timeout: 10), "To buy 패인")
+
+        reenterToBuyPane(seen)
+        let seenRow = seen.staticTexts[top]
+        XCTAssertTrue(seenRow.waitForExistence(timeout: 10), "다시 선 패인에 메모 행이 있다")
+        let still = sampleMinX([seenRow], seconds: 4)   // 유예 0.5초 + 재생 전체를 덮는다
+        guard let lo = still[0].min(), let hi = still[0].max() else {
+            return XCTFail("표본이 하나도 없다 — 행이 조회되지 않았다")
+        }
+        attach(seen, named: "to-buy-swipe-hint-suppressed")
+        XCTAssertLessThan(hi - lo, 3, "이미 본 뒤에는 행이 움직이지 않는다(설치당 한 번)")
+    }
+
+    /// 강제 재생의 유지 시간(초). 기본 0.4초는 **런치와 `waitForExistence`만으로 지나가** 프레임
+    /// 조회가 닿지 못한다 — `-fireDismissDelay`가 같은 이유로 같은 모양의 인자를 갖는다.
+    private static let forcedHold: TimeInterval = 8
+
+    /// `-toBuy.sampleMemo`가 담는 두 줄 — **정본은 `RootTabView.sampleMemoNames`**(RUN.md에도 적혀 있다).
+    /// 첫 값이 맨 윗줄이고, 힌트가 얹히는 행이 그 줄이다.
+    private static let memoTop = "Fish sauce brand X"
+    private static let memoSecond = "Rice vinegar brand Y"
+
+    /// 패인을 **다시 세운다**. 탭 패인은 `switch tab` 분기라 탭을 떠나면 뷰째 해체되고, 돌아오면
+    /// `onAppear`가 다시 돈다 — 이 왕복이 곧 "새 등장"이고, 힌트는 그 등장 훅에 걸려 있다.
+    private func reenterToBuyPane(_ app: XCUIApplication) {
+        let stockTab = app.buttons["In stock"]
+        XCTAssertTrue(stockTab.waitForExistence(timeout: 8), "In stock 탭")
+        stockTab.tap()
+        let toBuyTab = app.buttons["To buy"]
+        XCTAssertTrue(toBuyTab.waitForExistence(timeout: 8), "To buy 탭")
+        toBuyTab.tap()
+    }
+
+    /// 여러 요소의 가로 위치를 주어진 시간 동안 **번갈아** 반복 조회한다. 힌트는 상태가 아니라
+    /// **지나가는 모션**이라 단발 조회로는 잡을 수 없다 — 표본의 최소·최대·마지막 값이 "밀렸다"와
+    /// "돌아왔다"를 함께 말하고, 같은 창에서 뜬 다른 행의 표본이 "그 행은 안 움직였다"를 말한다.
+    private func sampleMinX(_ elements: [XCUIElement], seconds: TimeInterval) -> [[CGFloat]] {
+        var out = Array(repeating: [CGFloat](), count: elements.count)
+        let deadline = Date().addingTimeInterval(seconds)
+        while Date() < deadline {
+            for (i, element) in elements.enumerated() { out[i].append(element.frame.minX) }
+        }
+        return out
+    }
+
     /// 행을 끝까지 밀어 **바로 확정**한다 — 관성이 붙은 기본 속도 드래그.
     private func flickRowAway(_ app: XCUIApplication, rowLabeled label: String) {
         let midY = app.staticTexts[label].frame.midY
