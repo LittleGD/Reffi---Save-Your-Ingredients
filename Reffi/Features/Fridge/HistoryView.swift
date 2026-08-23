@@ -249,6 +249,12 @@ struct HistoryContent: View {
             ForEach(week.days) { dayCell($0) }
         }
         .accessibilityElement(children: .contain)
+        // 칩 행은 접근성 글자에서도 **accessibility1까지만** 따라 키운다(`FridgeTabBar`와 같은 상한).
+        // 칩 상자(38 × 44)는 그려지는 치수라 글자를 따라 커지지 않는데, 안의 숫자·배지만 AX5까지
+        // 키우면 축소 방어(`minimumScaleFactor`)로도 못 받는다 — 실측에서 배지가 칩을 덮고 글자가
+        // "…"로 잘렸다. 일곱 칸이 한 줄에 서는 배치라 칩을 키우는 길도 없고, 진짜 값은 접근성
+        // 라벨(`dayLabel`)이 크기와 무관하게 온전히 읽어 준다.
+        .dynamicTypeSize(...DynamicTypeSize.accessibility1)
     }
 
     /// 한 칸 — 머리글자 + 칩. **오늘 표시는 머리글자가 진다**(칩이 아니라).
