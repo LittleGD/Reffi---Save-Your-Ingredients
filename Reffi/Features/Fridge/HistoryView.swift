@@ -1,8 +1,8 @@
 import SwiftUI
 
 /// History 본문 — 소비/버림 이력을 종이컷 카드로(§13).
-/// ① 이번 주 히어로(종이 고리 + 요일 블롭 일곱) ② 정산서(먹음·버림 두 행 + 낭비율 도장 +
-/// 자주 버린 재료 TOP 3) ③ 타임라인.
+/// ① 이번 주 히어로(숫자 헤드라인 + 추세 문장 + 종이 칩 일곱) ② 정산서(먹음·버림·요리 세 행 +
+/// 낭비율 도장 + 자주 버린 재료 TOP 3) ③ 타임라인.
 ///
 /// **커버 크롬(헤더·닫기)을 갖지 않는 임베더블 본문**이다 — 냉장고 History 탭이 이 뷰를 그대로 얹고,
 /// 풀스크린 커버가 필요한 자리는 아래 `HistoryView`가 헤더만 씌운다.
@@ -28,6 +28,9 @@ struct HistoryContent: View {
     private var recent: [RemovalLog] { store.recentHistory }
     private var eaten: Int { recent.filter { !$0.wasted }.count }
     private var tossed: Int { recent.filter(\.wasted).count }
+    /// 발주(레시피)로 소비된 건수 — 정의는 **스토어 한 곳**에 둔다(`Ate`·`Tossed`와 달리 조건이
+    /// 둘이라, 뷰가 자기 필터를 들고 있으면 테스트가 보는 규칙과 화면이 보는 규칙이 갈릴 수 있다).
+    private var cooked: Int { store.cookedCount }
     private var rate: Int { store.wasteRate }
 
     /// 낭비율 색 — 임계값의 **단일 공급원**이다(색=정보, §1). 커버 배경 accent와 냉장고 History 탭의
@@ -56,8 +59,8 @@ struct HistoryContent: View {
     }
 
     var body: some View {
-        // 집계는 **본문당 한 번**만 돈다. computed로 두면 고리·요일 행·접근성 라벨이 각자 이력을
-        // 다시 훑고, 그 사이에 자정이 지나면 한 화면 안에서 두 값이 다른 주를 가리킬 수 있다.
+        // 집계는 **본문당 한 번**만 돈다. computed로 두면 헤드라인·칩 행·추세 문장·접근성 라벨이
+        // 각자 이력을 다시 훑고, 그 사이에 자정이 지나면 한 화면 안에서 두 값이 다른 주를 가리킬 수 있다.
         let week = ConsumptionWeek.summary(of: logs)
         ScrollView {
             VStack(spacing: ReffiSpace.s4) {
@@ -105,23 +108,33 @@ struct HistoryContent: View {
             .accessibilityAddTraits(.isHeader)
     }
 
-    // MARK: ① 이번 주 히어로 — 고리 하나 + 요일 블롭 일곱
+    // MARK: ① 이번 주 히어로 — 숫자 헤드라인 + 추세 한 문장 + 종이 칩 일곱
     //
-    // **창은 이번 주다**(정산서의 30일이 아니라). 바로 아래 요일 행이 이번 주 7일이므로, 고리만
+    // **창은 이번 주다**(정산서의 30일이 아니라). 바로 아래 칩 행이 이번 주 7일이므로, 헤드라인만
     // 30일이면 한 블록 안에서 서로 다른 두 책을 읽게 된다 — 옛 도넛이 링과 가운데 숫자에 다른 분모를
-    // 놓아 실패한 지점이 정확히 그것이다(§13.9). 요일 칸 일곱의 합이 곧 고리의 분자라, 화면에서
+    // 놓아 실패한 지점이 정확히 그것이다(§13.9). 칩 일곱의 합이 곧 헤드라인의 분자라, 화면에서
     // 눈으로 검산된다. 30일 수치는 아래 정산서가 자기 라벨과 함께 계속 말한다.
+    //
+    // **고리가 아니라 칩인 이유**는 히어로가 두 가지 일을 동시에 해야 한다는 데 있다: 비율 하나와
+    // 7일 각각. 연속 호는 앞의 하나만 담을 수 있어 뒤의 일곱을 위해 둘째 그래픽(요일 블롭 행)을
+    // 붙여야 했고, 그 결과 한 밴드 안에 **문법이 둘**이었다. 낱개 사건 일곱에는 낱개 마크가 맞고,
+    // 그러면 비율은 그냥 숫자로 세우면 된다 — 값 하나를 위한 가장 정확한 형태는 값 그 자체다.
+    // `PaperRing`은 레포에 남는다(이 표면에서 물러날 뿐이다).
     //
     // 전면 블리드(`-ReffiGrid.margin`)는 카테고리 칩 행이 쓰던 관용구 그대로다 — 히어로는 카드가
     // 아니라 패인이 앉은 **바닥 면**이라 좌우 마진에 갇히면 카드 한 장으로 오해된다.
     private func hero(_ week: ConsumptionWeek.Summary) -> some View {
-        VStack(spacing: ReffiSpace.s4) {
-            ring(week)
-            weekRow(week)
-            Text("One circle a day. The number is what you ate.")
-                .reffiType(.caption)
-                .foregroundStyle(ReffiColor.ink2)
-                .multilineTextAlignment(.center)
+        // 두 덩이(값 / 주) 사이는 s5, 캡션은 자기가 설명하는 칩 행에 s3으로 붙는다 —
+        // 캡션이 두 덩이 한가운데에 뜨면 무엇을 설명하는 줄인지 위치가 말해 주지 않는다.
+        VStack(spacing: ReffiSpace.s5) {
+            headlineBlock(week)
+            VStack(spacing: ReffiSpace.s3) {
+                chipRow(week)
+                Text("A chip a day. Green is what you ate.")
+                    .reffiType(.caption)
+                    .foregroundStyle(ReffiColor.ink2)
+                    .multilineTextAlignment(.center)
+            }
         }
         .frame(maxWidth: .infinity)
         .padding(.horizontal, ReffiGrid.margin + ReffiSpace.s2)
@@ -130,57 +143,57 @@ struct HistoryContent: View {
         .padding(.horizontal, -ReffiGrid.margin)
     }
 
-    /// 고리 지름·두께 — 안지름(지름 − 2×두께 = 120)이 가운데 두 줄을 받는 폭이다.
-    private static let ringSize: CGFloat = 156
-    private static let ringThickness: CGFloat = 18
-
-    private func ring(_ week: ConsumptionWeek.Summary) -> some View {
-        PaperRing(fraction: Double(week.eatenRate ?? 0) / 100,
-                  // 값은 "먹은 비율"인데 **색은 낭비율의 색**이다 — 앱 전체에서 초록은 "덜 버렸다"이고,
-                  // 그 임계값의 단일 공급원이 아래 `rateColor`다. 여기서 뒤집지 않으면 잘한 주가 빨개진다.
-                  tint: Self.rateColor(week.wasteRate ?? 0),
-                  thickness: Self.ringThickness,
-                  seed: 4) {
+    /// 값 덩이 — 큰 비율 + 창 이름·표본 한 줄, 그 아래 추세 한 문장.
+    private func headlineBlock(_ week: ConsumptionWeek.Summary) -> some View {
+        VStack(spacing: ReffiSpace.s2) {
             VStack(spacing: 2) {
                 if let rate = week.eatenRate {
+                    // `reffiNum(.hero)`(32)가 숫자 계열의 **맨 위 단**이다(§3.4). 34를 새로 만들지
+                    // 않는 이유: 그 절이 크기를 자유 파라미터로 두었다가 여덟 종이 유통된 사고를
+                    // 닫으며 세 단만 남긴 곳이라, 화면 하나를 위해 넷째 단을 여는 순간 그 규율이 풀린다.
                     Text(rate.formatted(.percent))
                         .font(.reffiNum(.hero))
                         .foregroundStyle(ReffiColor.ink)
-                    Text("eaten this week")
-                        .reffiType(.metaText)
-                        .foregroundStyle(ReffiColor.ink2)
-                    // **분자·분모를 눈에 보이게 둔다**(22차). 비율만 세우면 히어로의 가장 큰 숫자가
-                    // 사용자의 행동에 반응하지 않는 구간이 생긴다 — 이번 주에 버린 게 없으면 뭘 더
-                    // 먹어도 100%에 고정된다(실측: 재고에서 먹음 판정 후 요일 칸은 0→1, 정산서는
+                    // **창 이름과 분자·분모를 한 줄에 둔다**(22차 근거 유지). 비율만 세우면 히어로의
+                    // 가장 큰 숫자가 사용자의 행동에 반응하지 않는 구간이 생긴다 — 이번 주에 버린 게
+                    // 없으면 뭘 더 먹어도 100%에 고정된다(실측: 먹음 판정 후 요일 칸은 0→1, 정산서는
                     // 7→8로 움직였는데 링의 100%만 그대로였고, 그것이 "안 바뀐다"는 제보의 정체였다).
                     // 이 줄은 판정마다 반드시 움직이고, 동시에 **표본 크기**를 드러내 아래 30일
                     // 정산서의 낭비율과 나란히 놓였을 때의 모순감도 함께 푼다(2개 중 2개 vs 13개 중 5개).
-                    Text("\(week.eaten) of \(week.removed)")
-                        .font(.reffiNum(.meta))
-                        .foregroundStyle(ReffiColor.muted)
+                    HStack(spacing: ReffiSpace.s1) {
+                        Text("eaten this week").reffiType(.metaText)
+                        Text(verbatim: "·").reffiType(.metaText)
+                        Text("\(week.eaten) of \(week.removed)").font(.reffiNum(.meta))
+                    }
+                    // `muted`가 아니라 `ink2`다 — `muted`는 히어로 밴드(`paperPass`) 위에서 4.03:1
+                    // (라이트) / 4.17:1(다크)로 4.5:1을 못 넘고, 밴드에는 실루엣 더미까지 깔린다.
+                    // `ink2`는 같은 면에서 7.02 / 7.66이다(§2.6).
+                    .foregroundStyle(ReffiColor.ink2)
                 } else {
                     // 처리 0건 — 0%는 "다 버렸다"는 없는 판정이다. 숫자를 아예 세우지 않는다.
+                    // 자리를 비우지 않고 `subhead`(18) 한 줄로 채우는 이유: 값 덩이가 통째로
+                    // 사라지면 아래 칩 행이 밴드 한가운데로 올라와 히어로가 다른 화면처럼 보인다.
+                    // `heading`(24)을 쓰지 않는 것은 바로 위 패인 헤드라인이 그 단이라, 같은 크기가
+                    // 둘이면 무엇이 무엇을 이름 붙이는지가 사라지기 때문이다(§3.2 위계).
                     Text("Nothing this week")
-                        .reffiType(.metaText)
-                        .foregroundStyle(ReffiColor.ink2)
+                        .reffiType(.subhead)
+                        .foregroundStyle(ReffiColor.ink)
                 }
             }
             .lineLimit(1)
             .minimumScaleFactor(0.7)
             .multilineTextAlignment(.center)
-            // 안지름 120에서 s3(12)씩 물리면 캡션이 96pt에 갇혀 **기본 크기에서도** 축소된다 —
-            // 캡션("eaten this week")의 자연 폭이 그보다 넓다. 여백은 고리 안쪽 곡률이 이미 주고
-            // 있으므로 최소(s1)만 남긴다.
-            .padding(.horizontal, ReffiSpace.s1)
-            .frame(width: Self.ringSize - Self.ringThickness * 2)
+            // 값 덩이는 숫자 하나가 아니라 "무엇의 몇 퍼센트인가"다 — 분자·분모까지 한 문장으로 읽는다.
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(headlineLabel(week))
+
+            if let trend = week.trend, let previous = week.previousEatenRate {
+                trendSentence(trend, previous: previous)
+            }
         }
-        .frame(width: Self.ringSize, height: Self.ringSize)
-        // 고리는 숫자 하나가 아니라 "무엇의 몇 퍼센트인가"다 — 분자·분모까지 읽어 준다.
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(ringLabel(week))
     }
 
-    private func ringLabel(_ week: ConsumptionWeek.Summary) -> Text {
+    private func headlineLabel(_ week: ConsumptionWeek.Summary) -> Text {
         guard let rate = week.eatenRate else {
             return Text("Nothing cleared out this week yet.")
         }
@@ -189,72 +202,109 @@ struct HistoryContent: View {
         return Text("Eaten this week: \(rate) percent, \(week.eaten) of ^[\(week.removed) items](inflect: true)")
     }
 
-    /// 요일 블롭 한 변.
-    private static let dayBlob: CGFloat = 38
+    /// 추세 한 문장 — 이번 주 먹은 비율을 **지난 주** 같은 비율과 견준다.
+    ///
+    /// 문장이 지난 주 값을 그대로 싣는 이유: "나아졌어요"만 있으면 무엇에 견줬는지가 화면 밖에 있고,
+    /// 숫자가 있으면 사용자가 다음 주에 스스로 검산할 수 있다. 색은 낭비율 축과 같은 방향이다
+    /// (초록 = 덜 버렸다). **두 창 중 하나라도 비면 이 줄 자체가 서지 않는다** — 비교할 것이 없는데
+    /// 문장을 세우면 없는 지난 주를 지어내는 셈이 된다(`Summary.trend`가 그때 `nil`이다).
+    ///
+    /// **문장이 종이 조각 위에 앉는 이유는 실측이다.** 밴드 위에 그냥 놓았더니 라이트 모드 최악
+    /// 대비가 `freshDark` **4.25:1**이었다(캡처 픽셀 실측, 배경은 밴드 좌우 띠의 2백분위 = 밝은
+    /// 실루엣 위). 같은 자리의 `ink2` 캡션은 5.78로 통과하므로 원인은 배경이 아니라 **잉크**다 —
+    /// 색이 곧 정보인 문장이라 잉크를 어둡게 바꿀 수는 없다. 더미 농도를 조이는 길도 재 봤는데
+    /// 4.5를 넘기려면 실루엣 이탈 폭을 0.162 → 0.12로(≈30%) 깎아야 해서, 문장 하나 때문에 배경
+    /// 전체를 약하게 만드는 거래가 된다. 대신 **불투명한 바닥을 문장에만 준다**: `paper` 면 위에서
+    /// 세 변형의 최악이 5.04:1이고(라이트/다크 전부), 그 면은 조용한 날 칩이 이미 쓰는 바로 그
+    /// 종이라 밴드에 문법이 늘지 않는다. 셰이프도 기존 와이드 종이컷(`PaperCutRect`)을 쓴다.
+    @ViewBuilder
+    private func trendSentence(_ trend: ConsumptionWeek.Trend, previous: Int) -> some View {
+        let last = previous.formatted(.percent)
+        let shape = PaperCutRect(seed: 6)
+        Group {
+            switch trend {
+            case .better:
+                Text("Up from \(last) last week.").foregroundStyle(ReffiColor.freshDark)
+            case .worse:
+                Text("Down from \(last) last week.").foregroundStyle(ReffiColor.urgentDark)
+            case .same:
+                Text("About the same as last week.").foregroundStyle(ReffiColor.ink2)
+            }
+        }
+        .reffiType(.caption)
+        .multilineTextAlignment(.center)
+        .padding(.horizontal, ReffiSpace.s3)
+        .padding(.vertical, ReffiSpace.s1)
+        .background(shape.fill(ReffiColor.paper))
+        .paperEdge(shape)
+    }
 
-    private func weekRow(_ week: ConsumptionWeek.Summary) -> some View {
+    /// 칩 한 조각 — 폭은 일곱 칸이 **SE급(375pt)에서도 한 줄에 서는** 상한에서 왔다:
+    /// 밴드 콘텐츠 폭 327 − 칸 사이 s1 × 6 = 291, 일곱으로 나누면 41.6pt다.
+    private static let chipWidth: CGFloat = 38
+    private static let chipHeight: CGFloat = 44
+
+    private func chipRow(_ week: ConsumptionWeek.Summary) -> some View {
         HStack(spacing: ReffiSpace.s1) {
             ForEach(week.days) { dayCell($0) }
         }
         .accessibilityElement(children: .contain)
+        // 칩 행은 접근성 글자에서도 **accessibility1까지만** 따라 키운다(`FridgeTabBar`와 같은 상한).
+        // 칩 상자(38 × 44)는 그려지는 치수라 글자를 따라 커지지 않는데, 안의 숫자·배지만 AX5까지
+        // 키우면 축소 방어(`minimumScaleFactor`)로도 못 받는다 — 실측에서 배지가 칩을 덮고 글자가
+        // "…"로 잘렸다. 일곱 칸이 한 줄에 서는 배치라 칩을 키우는 길도 없고, 진짜 값은 접근성
+        // 라벨(`dayLabel`)이 크기와 무관하게 온전히 읽어 준다.
+        .dynamicTypeSize(...DynamicTypeSize.accessibility1)
     }
 
+    /// 한 칸 — 머리글자 + 칩. **오늘 표시는 머리글자가 진다**(칩이 아니라).
+    ///
+    /// 20차의 요일 블롭은 오늘 칸을 잉크 솔리드로 칠했다. 지금은 면색이 "먹었는가"라는 **데이터**를
+    /// 지고 있어서, 오늘을 면색으로 표시하면 오늘 하루만 데이터가 지워진다. 남는 채널은 칩 위의
+    /// 글자뿐이고, 거기에 얹으면 채널이 겹치지 않는다. 오늘을 어디서든 찾을 수 있다는 조건도
+    /// 그대로다 — 앞으로 올 날이 점선이라 **오려 낸 마지막 칸**이 오늘이고, 주의 마지막 날이면
+    /// 앞으로 올 날이 없으니 마지막 칸이 오늘이다.
     private func dayCell(_ day: ConsumptionWeek.Day) -> some View {
         VStack(spacing: ReffiSpace.s1) {
             Text(verbatim: ConsumptionWeek.initial(of: day))
                 .reffiType(.metaText)
-                .foregroundStyle(day.isToday ? ReffiColor.ink : ReffiColor.muted)
-            ZStack {
-                dayBlobSurface(day)
-                // 0은 찍지 않는다 — 일곱 칸에 0이 늘어서면 숫자가 아니라 노이즈가 된다.
-                // 조용한 날은 빈 종이 조각으로 남고, 먹은 날만 숫자를 든다.
-                if !day.isFuture, day.eaten > 0 {
-                    Text(day.eaten.formatted())
-                        .font(.reffiNum(.body))
-                        .foregroundStyle(day.isToday ? ReffiColor.canvas : ReffiColor.ink)
-                }
-            }
-            .frame(width: Self.dayBlob, height: Self.dayBlob)
+                // 지나간 날·앞으로 올 날은 `ink2`다(옛 `muted`는 밴드 위에서 4.03:1로 미달, 위 참고).
+                .foregroundStyle(day.isToday ? ReffiColor.ink : ReffiColor.ink2)
+                // 큰 글자에서 칩을 키우지 않고 **글자를 줄인다**(`FridgeTabBar` 알약과 같은 방어).
+                // 일곱 칸이 한 줄에 서는 배치라 칸이 커지면 주가 화면 밖으로 밀려난다 — 잘리는 것보다
+                // 작아지는 편이 낫고, 진짜 값은 접근성 라벨이 온전히 읽어 준다.
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+            PaperDayChip(eaten: day.eaten, tossed: day.tossed, isFuture: day.isFuture,
+                         // 시드는 요일 번호 — 일곱 조각이 서로 다른 윤곽을 갖되, 같은 요일은
+                         // 다시 열어도 같은 모양이라 화면이 흔들리지 않는다.
+                         seed: day.weekday,
+                         width: Self.chipWidth, height: Self.chipHeight)
         }
-        // 큰 글자에서 블롭을 키우지 않고 **글자를 줄인다**(`FridgeTabBar` 알약과 같은 방어).
-        // 일곱 칸이 한 줄에 서는 배치라 칸이 커지면 주가 화면 밖으로 밀려난다 — 잘리는 것보다
-        // 작아지는 편이 낫고, 진짜 값은 접근성 라벨이 온전히 읽어 준다.
-        .lineLimit(1)
-        .minimumScaleFactor(0.6)
         .frame(maxWidth: .infinity)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(dayLabel(day))
     }
 
-    /// 오늘 칸만 **잉크 솔리드**다(§13.5 탭 알약과 같은 문법).
-    ///
-    /// 바로 그 §13.5는 카테고리 필터 칩에 "선택 표시가 콘텐츠보다 무거워지면 안 된다"고 못 박았는데,
-    /// 그 규칙의 근거는 *조작 상태*가 조작 대상보다 무거워지는 것을 막는 것이었다. 오늘 칸은 조작
-    /// 상태가 아니다 — 이 행에서 **어디가 지금인지**를 정하는 유일한 기준점이고(그것 없이는 어느 쪽이
-    /// 지나간 날이고 어느 쪽이 아직 오지 않은 날인지 읽히지 않는다), 탭 알약이 패인 행에서 하는 일과
-    /// 같은 일이다. 게다가 이 행은 눌리지 않으므로, 무거운 표시가 컨트롤로 오독될 여지도 없다.
-    @ViewBuilder
-    private func dayBlobSurface(_ day: ConsumptionWeek.Day) -> some View {
-        let shape = PaperBlob(sides: 9, seed: 40 + day.weekday)
-        if day.isToday {
-            shape.fill(ReffiColor.ink)
-                .overlay(PaperGrain(seed: UInt64(40 + day.weekday), strength: 0.9).clipShape(shape))
-                .paperEdge(shape, tint: ReffiColor.paperEdgeOnFill)
-                .compositingGroup()
-        } else if day.isFuture {
-            // 아직 오지 않은 날 — 자리는 지키되 종이를 덜 오려 둔다(빈 칸이면 주가 짧아 보인다).
-            shape.fill(ReffiColor.sub.opacity(0.55))
-        } else {
-            shape.fill(ReffiColor.paper).paperEdge(shape)
-        }
-    }
-
+    /// 칩 한 칸의 소리 — 화면의 세 채널(면색·숫자·모서리 조각)을 한 문장으로 편다.
+    /// 아무 일도 없던 날은 "0 eaten"이 아니라 **"nothing"**이다: 0은 "안 먹었다"는 판정처럼 들리는데
+    /// 그날은 냉장고에서 나간 것 자체가 없다(화면에서 빈 종이 조각으로 두는 것과 같은 이유).
     private func dayLabel(_ day: ConsumptionWeek.Day) -> Text {
         let name = ConsumptionWeek.name(of: day)
         if day.isFuture { return Text("\(name), still to come") }
-        // 오늘은 요일 이름 대신 "Today"로 읽는다 — 화면에서 잉크로 구분해 둔 그 사실이 소리로도 와야 한다.
-        if day.isToday { return Text("Today, \(day.eaten) eaten") }
-        return Text("\(name), \(day.eaten) eaten")
+        // 오늘은 요일 이름 대신 "Today"로 읽는다 — 화면에서 머리글자로 구분해 둔 사실이 소리로도 와야 한다.
+        if day.eaten > 0, day.tossed > 0 {
+            return day.isToday
+                ? Text("Today, \(day.eaten) eaten, \(day.tossed) tossed")
+                : Text("\(name), \(day.eaten) eaten, \(day.tossed) tossed")
+        }
+        if day.eaten > 0 {
+            return day.isToday ? Text("Today, \(day.eaten) eaten") : Text("\(name), \(day.eaten) eaten")
+        }
+        if day.tossed > 0 {
+            return day.isToday ? Text("Today, \(day.tossed) tossed") : Text("\(name), \(day.tossed) tossed")
+        }
+        return day.isToday ? Text("Today, nothing") : Text("\(name), nothing")
     }
 
     /// 배경 더미에 세울 글리프 — **내 냉장고가 먼저, 그다음 내 이력**. 같은 글리프는 한 번만 쓴다
@@ -293,6 +343,12 @@ struct HistoryContent: View {
                 } else {
                     tallyRow("Ate", count: eaten)
                     tallyRow("Tossed", count: tossed)
+                    // **"Ate"의 부분집합**이다(발주 소비도 먹은 것이므로 위 `Ate`가 이미 세고 있다).
+                    // 그래서 세 행이 합해지는 것처럼 보이면 안 되는데, 이 카드에는 Ate + Tossed를
+                    // 더하는 총계 행이 어디에도 없고(합은 아래 낭비율이 비율로만 쓴다) 영수증은
+                    // 위에서 아래로 읽는 명세라 세 줄이 곧바로 산술로 읽히지 않는다. 그 위에서
+                    // **파생 행을 맨 아래**에 두어 두 판정(Ate·Tossed)이 서로 붙어 있게 했다.
+                    tallyRow("Cooked into recipes", count: cooked)
                     ReffiRule(.receipt)
                     rateRow
                     if topTossed.isEmpty {

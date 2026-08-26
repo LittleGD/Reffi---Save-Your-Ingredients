@@ -650,6 +650,15 @@ final class FridgeStore {
         return history.filter { $0.removedAt >= cutoff }
     }
 
+    /// 최근 30일 중 **발주(레시피 티켓)로 소비된** 건수 — 정산서의 "Cooked into recipes" 행.
+    ///
+    /// `via`를 붙이는 곳은 `finishCooking` **한 곳**뿐이고(직접 판정은 `via: nil`), 그 경로는 항상
+    /// `wasted: false`로 기록한다. 그래도 `!wasted`를 함께 보는 것은 방어다 — 언젠가 버림에도 출처를
+    /// 달게 되면 이 행이 조용히 "버린 것도 요리한 것"으로 세기 시작한다.
+    ///
+    /// 이 수치는 `ateCount`(= `!wasted`)의 **부분집합**이지 별도의 판정이 아니다.
+    var cookedCount: Int { recentHistory.lazy.filter { $0.via != nil && !$0.wasted }.count }
+
     /// 낭비율(%) — 최근 30일 기준: 버림 / (먹음 + 버림).
     var wasteRate: Int {
         let recent = recentHistory

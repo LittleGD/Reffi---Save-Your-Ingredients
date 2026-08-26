@@ -112,6 +112,36 @@
         }
       }
     },
+    "%@, %lld eaten, %lld tossed": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@, %2$lld개 먹음, %3$lld개 버림"
+          }
+        }
+      }
+    },
+    "%@, %lld tossed": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@, %2$lld개 버림"
+          }
+        }
+      }
+    },
+    "%@, nothing": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@, 없음"
+          }
+        }
+      }
+    },
     "%@, still to come": {
       "localizations": {
         "ko": {
@@ -403,6 +433,16 @@
         }
       }
     },
+    "A chip a day. Green is what you ate.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "종이 한 조각이 하루예요. 초록은 먹은 날이에요."
+          }
+        }
+      }
+    },
     "A heads-up before\nfood goes bad?": {
       "localizations": {
         "ko": {
@@ -419,6 +459,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "오늘·내일 소비기한인 재료를 아침에 알려드려요"
+          }
+        }
+      }
+    },
+    "About the same as last week.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "지난주와 비슷해요."
           }
         }
       }
@@ -1008,6 +1058,16 @@
         }
       }
     },
+    "Cooked into recipes": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "요리에 씀"
+          }
+        }
+      }
+    },
     "Cooked · %@": {
       "localizations": {
         "ko": {
@@ -1225,6 +1285,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "비선호"
+          }
+        }
+      }
+    },
+    "Down from %@ last week.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "지난주 %@에서 내렸어요."
           }
         }
       }
@@ -2256,16 +2326,6 @@
         }
       }
     },
-    "One circle a day. The number is what you ate.": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "동그라미 하나가 하루예요. 숫자는 그날 먹은 개수예요."
-          }
-        }
-      }
-    },
     "Onion, Egg, Rice…": {
       "localizations": {
         "ko": {
@@ -3274,6 +3334,36 @@
         }
       }
     },
+    "Today, %lld eaten, %lld tossed": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "오늘, %1$lld개 먹음, %2$lld개 버림"
+          }
+        }
+      }
+    },
+    "Today, %lld tossed": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "오늘, %lld개 버림"
+          }
+        }
+      }
+    },
+    "Today, nothing": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "오늘, 없음"
+          }
+        }
+      }
+    },
     "Toggles whether some is left over": {
       "localizations": {
         "ko": {
@@ -3420,6 +3510,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "단위: %@"
+          }
+        }
+      }
+    },
+    "Up from %@ last week.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "지난주 %@에서 올랐어요."
           }
         }
       }

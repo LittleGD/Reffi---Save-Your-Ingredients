@@ -36,6 +36,24 @@ struct ShoppingListContent: View {
     @State private var dragKey: String?
     @State private var dragX: CGFloat = 0
 
+    // MARK: - 밀기 어포던스 힌트(28차)
+
+    /// 첫 행이 한 번 밀렸다 돌아오는 힌트를 **이미 보여 줬는가**. 설치당 한 번이라 `@AppStorage`다
+    /// (`fridge.compact`·`fridge.sort`와 같은 점 구분 네임스페이스 규약).
+    ///
+    /// 값의 뜻은 "재생을 끝까지 마쳤다"이지 "재생을 시도했다"가 아니다 — 그래서 아래 `startSwipeHint`는
+    /// 힌트가 **되돌아오는 순간**에만 이 값을 세운다. 시작 시점에 세우면 사용자가 손을 대 중간에 걷힌
+    /// 재생이나 시트에 덮인 재생이 유일한 기회를 조용히 소진한다.
+    @AppStorage("toBuy.swipeHintSeen") private var swipeHintSeen = false
+    /// 힌트가 첫 행에 얹는 가로 이동량 — **손끝의 이동량과 더해지지만 섞이지는 않는다**(`row` 참고).
+    @State private var peekX: CGFloat = 0
+    /// 예약된 힌트 단계(시작·복귀)를 무효화하는 세대 토큰 — `MainView.coverGeneration`과 같은 장치다.
+    /// 취소가 값을 올리면 이미 큐에 들어간 두 클로저가 자기 세대와 어긋나 그대로 반환한다.
+    @State private var peekGeneration = 0
+    /// 이 등장에서 사용자가 **이미 행을 만졌는가**(가로로 밀었거나, 뺐거나). 한 번 참이 되면 이 등장
+    /// 동안 힌트는 다시 예약되지 않는다 — 이미 아는 동작을 가르치는 연출은 방해일 뿐이다.
+    @State private var userSwiped = false
+
     /// 드러나는 빨간 조각의 폭. 44pt 히트(§7.3)에 좌우 여백을 더한 값이다.
     private static let revealWidth: CGFloat = 84
     /// 끝까지 밀기(full swipe) 커밋 거리 — **예측 종점** 기준. 드러내기(84)의 두 배가 넘어야
@@ -43,13 +61,88 @@ struct ShoppingListContent: View {
     private static let commitDistance: CGFloat = 200
     /// 드래그가 끌고 갈 수 있는 최대 거리 — 커밋 거리 너머로는 더 밀리지 않는다(고무줄 대신 정지).
     private static let maxTravel: CGFloat = 260
+
+    /// 힌트가 첫 행을 미는 거리. **드러내기 폭(84)의 1/4**이라 빨간 조각의 둥근 끝만 얇게 보이고
+    /// 휴지통 글리프(조각 폭 76의 한가운데)는 나오지 않는다 — "여기 뭔가 숨어 있다"까지만 말하고
+    /// 무엇인지는 손으로 밀어 확인하게 남긴다. 열림 판정(−42)의 절반이라 "열려다 만 것"으로도 오해되지 않는다.
+    private static let peekDistance: CGFloat = 20
+    /// 탭·커버 전환이 끝난 뒤에 시작한다 — 착지와 같은 프레임에 얹으면 전환 애니메이션에 묻혀
+    /// 의도한 연출이 아니라 렌더 결함으로 읽힌다(`-toBuy.search`가 0.6초를 두는 것과 같은 이유).
+    private static let peekLeadIn: Double = 0.5
+    /// 밀린 채 머무는 시간 — 눈이 빨간 조각을 인지하기엔 충분하고, 손을 붙잡아 두기엔 짧다.
+    static let defaultPeekHold: Double = 0.4
+
+    /// 힌트를 지금 낼 것인가 — 뷰 상태에서 떼어 낸 **순수 판정**이라 유닛 테스트가 다섯 갈래를
+    /// 전부 고정한다(`FridgeTab.initial(from:)`·`MainView.fireDismissDelay(from:)` 선례).
+    ///
+    /// **모션 축소면 플래그를 남기지 않는다**(§7.4). 이 함수가 거짓을 돌려주면 호출부는 재생도 기록도
+    /// 하지 않으므로, 나중에 사용자가 모션 축소를 끄면 힌트가 그때 처음 뜬다. 반대로 축소 상태에서
+    /// 플래그를 세우면 **아무것도 못 본 채로** 단 한 번의 기회가 사라진다.
+    static func shouldPeek(rowCount: Int, seen: Bool, reduceMotion: Bool,
+                           userSwiped: Bool, sheetUp: Bool, forced: Bool) -> Bool {
+        guard rowCount > 0 else { return false }          // 빈 목록엔 가르칠 행이 없다
+        guard !reduceMotion else { return false }         // §7.4 — 기록도 남기지 않는다
+        guard !userSwiped else { return false }           // 이미 아는 동작을 다시 가르치지 않는다
+        guard !sheetUp else { return false }              // 시트에 덮이면 재생이 통째로 낭비된다
+        return forced || !seen                            // QA 강제는 플래그를 무시한다
+    }
+
     #if DEBUG
     /// `-toBuy.search` 자동 오픈을 **런치당 한 번**으로 묶는다 — 탭 패인은 커버와 달리 오갈 때마다
     /// `onAppear`가 다시 도는데, 그때마다 시트가 튀어나오면 QA 세션에서 다른 탭을 볼 수가 없다.
     /// `@State`가 아니라 **타입 스코프**다: 패인은 `switch tab` 분기라 탭을 떠나면 뷰째 해체돼
     /// `@State`가 초기화된다 — 그러면 "런치당 한 번"이 "탭 진입마다 한 번"이 된다.
     @MainActor private static var searchArgHandled = false
+
+    /// `-toBuy.swipeHint [초]` 파싱 결과 — 강제 여부와(선택) 넓힌 유지 시간.
+    struct SwipeHintOverride: Equatable {
+        var forced: Bool
+        var hold: Double
+    }
+
+    /// `-toBuy.swipeHint` — 힌트를 **플래그와 무관하게** 강제한다(스크린샷·QA용). 뒤에 양수를 붙이면
+    /// 유지 시간이 그 값으로 넓어진다: 기본 0.4초는 XCUITest가 "지금 밀려 있다"를 프레임 조회로 잡기엔
+    /// 너무 좁다(런치·`waitForExistence`만으로 그 창을 넘긴다). `-fireDismissDelay <초>`가 같은 이유로
+    /// 같은 모양을 하고 있다.
+    ///
+    /// 강제 경로는 **플래그를 쓰지 않는다** — QA가 한 번 돌릴 때마다 실사용자의 일회성 상태가
+    /// 소진되면 같은 인자를 두 번 쓸 수 없고, 그 설치는 되돌릴 방법이 없다(`-myRecipesPreview`가
+    /// 영속 저장으로 남긴 경고가 그 사례다). 반대로 "플래그가 서 있으면 안 뜬다"를 재현할 때는
+    /// UserDefaults 인자 `-toBuy.swipeHintSeen YES`를 쓴다(`-fridge.compact YES` 선례).
+    ///
+    /// 뷰에서 분기를 늘리는 대신 **순수 함수**로 떼어 유닛 테스트가 고정한다. 값 파싱은 `arguments`
+    /// 직접 순회다 — 다음 토큰이 숫자가 아니면(다른 플래그거나 없으면) 소비하지 않고 기본값으로 둔다.
+    static func swipeHintConfig(from arguments: [String]) -> SwipeHintOverride {
+        guard let i = arguments.firstIndex(of: "-toBuy.swipeHint") else {
+            return SwipeHintOverride(forced: false, hold: defaultPeekHold)
+        }
+        guard i + 1 < arguments.count, let value = Double(arguments[i + 1]), value > 0 else {
+            return SwipeHintOverride(forced: true, hold: defaultPeekHold)
+        }
+        return SwipeHintOverride(forced: true, hold: value)
+    }
+
+    /// 프로세스당 한 번만 파싱 — 등장마다 `ProcessInfo.arguments`를 다시 훑지 않게(`tiltLabConfig` 선례).
+    private static let swipeHint = swipeHintConfig(from: ProcessInfo.processInfo.arguments)
     #endif
+
+    /// 힌트 강제 여부 — 릴리스엔 이 경로가 없다.
+    private var peekForced: Bool {
+        #if DEBUG
+        return Self.swipeHint.forced
+        #else
+        return false
+        #endif
+    }
+
+    /// 힌트 유지 시간 — 릴리스는 항상 기본값이다.
+    private var peekHold: Double {
+        #if DEBUG
+        return Self.swipeHint.hold
+        #else
+        return Self.defaultPeekHold
+        #endif
+    }
 
     private typealias Row = (name: String, glyph: FoodGlyph, manual: Bool, key: String)
 
@@ -93,6 +186,14 @@ struct ShoppingListContent: View {
         .reffiFeedback(.success, trigger: restockHaptic)
         .reffiFeedback(.impact(weight: .light), trigger: skipHaptic)
         .sheet(isPresented: $showSearch) { ToBuySearchSheet() }
+        // 밀기 어포던스 힌트(28차) — **등장할 때 한 번만** 건다. 등장 중에 목록이 비었다가 차는
+        // 경우(빈 화면에서 방금 담은 직후)에는 걸지 않는다: 그 순간 사용자는 시트를 막 닫았고
+        // 담김 연출이 아직 흐르는 중이라, 거기 힌트를 얹으면 방금 한 일의 피드백과 겹쳐 읽힌다.
+        // 다음 등장(탭을 오가면 패인은 뷰째 새로 선다)에서 목록이 차 있으면 그때 뜬다.
+        .onAppear { startSwipeHint() }
+        .onDisappear { cancelSwipeHint() }
+        // 검색 시트가 올라오면 힌트는 자리를 비운다 — 덮인 채 재생되면 플래그만 소진된다.
+        .onChange(of: showSearch) { _, up in if up { cancelSwipeHint() } }
         #if DEBUG
         // `-toBuy.search` — 검색 시트 자동 오픈(스크린샷·QA용). 탭 착지 자체는 `FridgeView`가 한다.
         // 탭 전환·커버 전환과 같은 프레임에 시트를 올리면 프레젠테이션이 씹히므로 전환 뒤로 미룬다.
@@ -154,9 +255,29 @@ struct ShoppingListContent: View {
     /// 목록 카드 — 구역도 캡션도 하나뿐이다. 옛 이력 제안 구역("Ran out, based on what you use often")과
     /// 두 구역을 가르던 절취선(`ReffiRule(.ticket)`)은 16차에, 카드 안 `Added by you` 캡션은 17차에
     /// 사라졌다 — 카드 밖 헤드라인이 그 이름표 역할을 가져갔고, 캡션이 남으면 제목이 두 번 선다.
+    ///
+    /// **행 사이에 절취선이 돌아왔다(28차, 사용자 요청).** 16차가 걷은 것과 같은 `ReffiRule(.ticket)`이지만
+    /// 뜻이 다르다: 그때는 두 **구역**(파생 제안 ↔ 직접 담은 것)의 경계였고, 지금은 **행 경계**다.
+    /// 그 용법의 정본은 `PaperDropdown`이다 — 44pt 행이 이어질 때 행 사이를 `ReffiRule(.ticket)`으로
+    /// 가르는 규약이 이미 서 있고, 컴포넌트 문서가 그것을 "드롭다운 행 구분"으로 명시한다. 그래서
+    /// 새 어휘를 만들지 않았고, 굵은 쪽(`.ticket`)을 쓴 것도 `.receipt`(헤더 아래·구역 마감)와 뜻이
+    /// 겹치지 않게 하려는 것이다.
+    ///
+    /// **여백 재유도**: 옛 리듬은 행 사이 s3(12)의 순수 여백이었다. 선이 가르는 일을 대신 하므로
+    /// 간격을 s2(8)로 좁히고 선을 그 한가운데에 놓는다 — 행 얼굴 사이는 8 + 1 + 8 = **17pt**이고
+    /// 선은 위아래 어느 행에도 붙지 않아 두 행의 공유 경계로 읽힌다. 행 자체는 여전히 ≥44pt이며
+    /// (`rowFace`가 `ReffiChrome.tapMin`을 그대로 쓴다), 인접 타깃 간격 17pt는 §7.3의 하한 8pt를 넉넉히 넘는다.
+    ///
+    /// **첫 행 위·마지막 행 아래에는 선이 없다** — 카드의 톱니 가장자리가 이미 그 두 경계를 말한다.
+    /// 거기까지 그으면 목록이 영수증 **안의 상자**가 되어 27차가 걷어낸 카드 느낌이 선으로 돌아온다.
     private var listCard: some View {
-        VStack(alignment: .leading, spacing: ReffiSpace.s3) {
-            ForEach(items, id: \.key) { row($0) }
+        VStack(alignment: .leading, spacing: ReffiSpace.s2) {
+            // `enumerated()`를 쓰면서도 **식별자는 키**다(`\.element.key`) — 인덱스를 id로 삼으면
+            // 빼기·되돌리기에서 행이 자리로 식별돼 사라지는 줄과 올라오는 줄이 뒤바뀐다.
+            ForEach(Array(items.enumerated()), id: \.element.key) { pair in
+                if pair.offset > 0 { ReffiRule(.ticket) }
+                row(pair.element, isFirst: pair.offset == 0)
+            }
         }
         .receiptSurface()
         // 목록이 바뀌면(샀거나·담았거나) 열려 있던 조각은 닫는다 — 사라진 행의 상태가 남으면
@@ -177,16 +298,30 @@ struct ShoppingListContent: View {
     /// 확인 다이얼로그는 여전히 두지 않는다(§7.6의 파괴 확정은 계정·전체 초기화·재료 삭제 쪽이다).
     /// 대신 **되돌리기 토스트**를 세웠다: 어포던스가 버튼에서 밀기로 바뀌면 오발 가능성이 달라진다
     /// (스크롤하려다, 옆 행을 만지려다). 근거는 `FridgeStore.skipBuyUndoable`에 적었다.
-    private func row(_ item: Row) -> some View {
+    ///
+    /// `isFirst`는 **어포던스 힌트 전용**이다(28차) — 첫 행만 등장 직후 한 번 밀렸다 돌아온다.
+    private func row(_ item: Row, isFirst: Bool) -> some View {
         let base: CGFloat = revealedKey == item.key ? -Self.revealWidth : 0
         let live: CGFloat = dragKey == item.key ? dragX : 0
-        let x = max(-Self.maxTravel, min(0, base + live))
-        let revealed = x < -8
+        // **손끝이 만든 이동량과 힌트가 만든 이동량을 가른다.** 그림은 둘을 더한 자리에 그리지만,
+        // 빨간 조각이 "열렸다"고 판정하는 축은 손끝 쪽 하나뿐이다. 힌트까지 그 판정에 섞으면
+        // 장식 모션이 조각을 접근성 트리에 올리고 히트 테스트를 켠다 — VoiceOver 사용자에게는
+        // 아무 조작 없이 버튼이 생겼다 사라지는 일이 되고, 그 사용자를 위한 길은 이미 행의
+        // 커스텀 액션이다. 힌트는 끝까지 **보이기만** 한다.
+        let userX = max(-Self.maxTravel, min(0, base + live))
+        let revealed = userX < -8
+        let x = max(-Self.maxTravel, min(0, userX + (isFirst ? peekX : 0)))
         return ZStack(alignment: .trailing) {
             deleteZone(item, revealed: revealed)
             rowFace(item)
                 // 행 얼굴은 **불투명 영수증 면**이라야 한다 — 뒤의 빨간 조각은 이 면이 밀려나면서
                 // 드러나는 것이지, 알파로 켜지는 것이 아니다(종이 두 장이 겹쳐 있다가 미끄러진다).
+                //
+                // 색이 카드와 **같은 `receipt` 토큰**인 것도 그래서다: 쉬고 있을 때 이 면은 영수증에
+                // 완전히 녹아 목록이 카드 묶음이 아니라 **한 장의 영수증**으로 읽히고, 밀 때만 종이
+                // 두 장이었다는 사실이 드러난다. 27차까지 그렇게 읽히지 않았던 이유는 색이 아니라
+                // 그림자였다 — `receiptSurface`의 카드 그림자가 자식마다 따로 드리워 이 면에 카드
+                // 윤곽을 그려 주고 있었다. 근거와 수정은 `ReceiptSurface`의 `compositingGroup` 주석.
                 .background(ReffiColor.receipt)
                 .offset(x: x)
                 // `simultaneousGesture`인 이유: 이 행은 세로 `ScrollView` 안에 산다. `gesture`로 걸면
@@ -272,6 +407,10 @@ struct ShoppingListContent: View {
                     let dx = abs(v.translation.width), dy = abs(v.translation.height)
                     guard dx > dy * 1.4 else { return }   // 아직 안 갈렸거나 세로다 — 스크롤에 양보
                     dragKey = item.key
+                    // 축이 갈린 이 순간이 **진짜 밀기**다 — 어포던스 힌트는 여기서 끝난다(28차).
+                    // 세로 스크롤은 이 분기에 닿지 않으므로 힌트를 끄지 않는다.
+                    userSwiped = true
+                    cancelSwipeHint()
                     // 다른 행이 열려 있었다면 닫는다(열린 행은 한 번에 하나).
                     if revealedKey != item.key { revealedKey = nil }
                 }
@@ -297,6 +436,10 @@ struct ShoppingListContent: View {
     /// 메모에서 빼기 — **세 경로의 유일한 종점**(끝까지 밀기 · 드러낸 조각 탭 · 접근성 액션).
     /// 한 곳으로 모아 두면 어느 경로로 들어와도 같은 store 호출·같은 햅틱·같은 되돌리기 창이 된다.
     private func remove(_ item: Row) {
+        // 세 경로 중 어느 것으로 들어왔든 사용자는 이미 빼기를 해냈다 — 가르칠 것이 없다(28차).
+        // 되돌리기 토스트가 뜨는 순간이기도 해서, 힌트를 끄지 않으면 토스트와 행 모션이 겹친다.
+        userSwiped = true
+        cancelSwipeHint()
         withAnimation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion)) {
             revealedKey = nil
             dragKey = nil
@@ -304,6 +447,50 @@ struct ShoppingListContent: View {
             store.skipBuyUndoable(key: item.key)
         }
         skipHaptic += 1   // §7.6 판정·확정 = .impact (Bought의 .success와 짝)
+    }
+
+    /// 밀기 어포던스 힌트(28차) — **첫 행이 20pt 밀렸다가 0.4초 머물고 스프링으로 돌아온다.**
+    ///
+    /// 21차가 빼기를 버튼에서 제스처로 내리면서 이 화면에는 "밀 수 있다"고 말하는 것이 하나도
+    /// 남지 않았다(행에 서는 컨트롤은 파란 Bought 하나뿐이다). 시스템 목록이라면 스와이프가 관례라
+    /// 설명이 필요 없지만, 이건 영수증 카드 안의 커스텀 `VStack`이라 그 관례가 자동으로 붙지 않는다.
+    /// 그래서 **동작 자체를 한 번 보여 준다** — 문구를 얹지 않은 이유이기도 하다(설명 문장은 목록을
+    /// 한 줄 늘리고, 다 읽은 뒤에도 목록에 남는다).
+    ///
+    /// 두 단계를 각각 예약하고 **세대 토큰**으로 취소한다(`MainView`의 지연 닫기와 같은 장치).
+    /// - 나가는 모션은 `enter`(ease-out) — 시연이지 튕김이 아니라 오버슈트를 두지 않는다.
+    /// - 돌아오는 모션은 `settle` — **실제 밀기를 놓았을 때와 같은 스프링**이다(`swipe`의 `onEnded`).
+    ///   힌트가 흉내 내는 물리와 진짜 물리가 같아야 배운 것이 손끝에서 맞는다.
+    private func startSwipeHint() {
+        let forced = peekForced
+        guard Self.shouldPeek(rowCount: items.count, seen: swipeHintSeen, reduceMotion: reduceMotion,
+                              userSwiped: userSwiped, sheetUp: showSearch, forced: forced) else { return }
+        let hold = peekHold
+        peekGeneration += 1
+        let gen = peekGeneration
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.peekLeadIn) {
+            // 유예 동안 판이 바뀌었을 수 있다(손이 닿았거나·목록이 비었거나·시트가 올라왔거나).
+            guard gen == peekGeneration,
+                  Self.shouldPeek(rowCount: items.count, seen: swipeHintSeen,
+                                  reduceMotion: reduceMotion, userSwiped: userSwiped,
+                                  sheetUp: showSearch, forced: forced) else { return }
+            withAnimation(ReffiMotion.enter) { peekX = -Self.peekDistance }
+            DispatchQueue.main.asyncAfter(deadline: .now() + hold) {
+                guard gen == peekGeneration else { return }
+                // **끝까지 재생됐을 때만** 봤다고 기록한다. 강제(QA)는 남의 상태를 건드리지 않는다.
+                if !forced { swipeHintSeen = true }
+                withAnimation(ReffiMotion.settle) { peekX = 0 }
+            }
+        }
+    }
+
+    /// 힌트 중단 — 예약된 단계를 세대 토큰으로 무효화하고, 이미 밀려 있으면 즉시 되돌린다.
+    /// 되돌림은 `exit`(§7.1 "이탈은 더 빠르게")다: 손끝이 행을 가져가는 순간이라 힌트는 빠르게
+    /// 자리를 비워야 하고, 느린 스프링으로 물러나면 같은 행을 두 힘이 반대로 당기는 것처럼 보인다.
+    private func cancelSwipeHint() {
+        peekGeneration += 1
+        guard peekX != 0 else { return }
+        withAnimation(ReffiMotion.gated(ReffiMotion.exit, reduce: reduceMotion)) { peekX = 0 }
     }
 
     /// 직접 담기 진입 — 하단 도킹 CTA(`dockedCTA`)의 `PaperButton`, **`primary`(파랑)**다(21차).

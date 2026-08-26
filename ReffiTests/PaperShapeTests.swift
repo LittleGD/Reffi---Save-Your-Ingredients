@@ -73,8 +73,11 @@ final class PaperShapeTests: XCTestCase {
     }
 }
 
-/// `PaperRingArc`(History 히어로의 종이 고리) — 각도 규약과 이음매를 셰이프 수준에서 고정한다.
+/// `PaperRingArc`(종이 고리) — 각도 규약과 이음매를 셰이프 수준에서 고정한다.
 /// 렌더 결과는 스크린샷이 보지만, "12시에서 시계방향"과 "꽉 찬 고리에 홈이 없다"는 회귀는 여기서 막는다.
+///
+/// **History 히어로는 26차에 종이 칩으로 갈아탔다**(§13.10) — 이 프리미티브는 레포에 남아 있고
+/// 규율도 그대로 잠가 두지만, 지금 그 히어로를 그리는 것은 `PaperDayChip`이다.
 final class PaperRingArcTests: XCTestCase {
 
     private let rect = CGRect(x: 0, y: 0, width: 156, height: 156)
@@ -152,6 +155,64 @@ final class PaperRingArcTests: XCTestCase {
         let a = PaperRingArc(start: 0, end: 0.6, thickness: 18, seed: 4).path(in: rect)
         let b = PaperRingArc(start: 0, end: 0.6, thickness: 18, seed: 4).path(in: rect)
         XCTAssertEqual(a.description, b.description)
+    }
+}
+
+/// `PaperChipCut`(하루 한 조각) — 히어로 칩 행이 "찍어 낸 패턴"으로 되돌아가지 않게 잠근다(§13.10).
+/// 칩 일곱은 **서로 다른 윤곽**이어야 하고, 같은 요일은 다시 열어도 같은 모양이어야 한다.
+final class PaperChipCutTests: XCTestCase {
+
+    private let chip = CGRect(x: 0, y: 0, width: 38, height: 44)
+
+    private func vertices(_ path: Path) -> [CGPoint] {
+        var result: [CGPoint] = []
+        path.forEach { element in
+            switch element {
+            case .move(let p): result.append(p)
+            case .line(let p): result.append(p)
+            default:           break
+            }
+        }
+        return result
+    }
+
+    /// 모서리를 잘라 낸 **8각**이고 곡선이 하나도 없다(§13.1, 매끈한 원·사각 금지).
+    func testChipIsAnOctagonWithNoCurves() {
+        let path = PaperChipCut(seed: 3).path(in: chip)
+        XCTAssertEqual(vertices(path).count, 8, "네 모서리를 자른 8각이어야 한다")
+        var curves = 0
+        path.forEach { element in
+            switch element {
+            case .quadCurve, .curve: curves += 1
+            default: break
+            }
+        }
+        XCTAssertEqual(curves, 0, "종이 칩은 직선 변으로만 잘린다")
+    }
+
+    /// 모서리가 실제로 **잘려** 있다 — 네 꼭짓점이 비어 있어야 8각으로 읽힌다.
+    /// 잘림은 짧은 변의 26%(38pt에서 9.9pt)이고 정점 지터는 ±1.7pt라, 꼭짓점에서 2pt 안쪽은
+    /// 어떤 시드에서도 도형 밖이다.
+    func testCornersAreActuallyCutAway() {
+        for seed in 0...6 {
+            let path = PaperChipCut(seed: seed).path(in: chip)
+            XCTAssertFalse(path.contains(CGPoint(x: 2, y: 2)), "seed \(seed): 좌상 모서리가 안 잘렸다")
+            XCTAssertFalse(path.contains(CGPoint(x: 36, y: 42)), "seed \(seed): 우하 모서리가 안 잘렸다")
+            XCTAssertTrue(path.contains(CGPoint(x: chip.midX, y: chip.midY)), "seed \(seed): 가운데는 종이다")
+        }
+    }
+
+    /// **일곱 칸이 서로 다르다.** 시드는 요일 번호(1...7)라 이 범위가 실제 사용 구간이고,
+    /// 하나라도 겹치면 칩 행이 오려 낸 종이가 아니라 찍어 낸 패턴으로 읽힌다.
+    func testEveryWeekdaySeedGivesADifferentOutline() {
+        let outlines = (1...7).map { PaperChipCut(seed: $0).path(in: chip).description }
+        XCTAssertEqual(Set(outlines).count, 7, "요일 일곱의 윤곽이 서로 달라야 한다")
+    }
+
+    /// 같은 시드는 항상 같은 윤곽 — 값이 바뀌어도(먹은 개수가 늘어도) 가위 자국은 제자리다.
+    func testSeedIsDeterministic() {
+        XCTAssertEqual(PaperChipCut(seed: 5).path(in: chip).description,
+                       PaperChipCut(seed: 5).path(in: chip).description)
     }
 }
 

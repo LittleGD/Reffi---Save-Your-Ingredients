@@ -32,6 +32,21 @@ final class ReffiFlowUITests: XCTestCase {
         app.buttons.matching(NSPredicate(format: "label CONTAINS %@", name)).firstMatch
     }
 
+    /// History 히어로의 **값 덩이** — 이번 주 먹은 비율을 분자·분모와 함께 한 문장으로 읽는 요소.
+    /// 접근성 라벨이 이 표면의 계약이라, 화면 구조가 바뀌어도 테스트는 같은 문장을 본다.
+    private func heroRateHeadline(_ app: XCUIApplication) -> XCUIElement {
+        app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label BEGINSWITH %@", "Eaten this week:")).firstMatch
+    }
+
+    /// 히어로의 **추세 한 문장**(지난 주 대비). 세 변형 중 어느 것이 뜨는지는 실행일의 데이터가
+    /// 정하므로 셋을 다 받는다 — 이 헬퍼가 참이면 "문장이 섰다", 거짓이면 "서지 않았다"다.
+    private func heroTrendSentence(_ app: XCUIApplication) -> XCUIElement {
+        app.descendants(matching: .any).matching(NSPredicate(
+            format: "label BEGINSWITH 'Up from ' OR label BEGINSWITH 'Down from ' "
+                  + "OR label == 'About the same as last week.'")).firstMatch
+    }
+
     /// 온보딩을 처음부터 시작. `-skipAuth`로 게스트 상태를 로컬에 고정해, 셋업 완료 후
     /// 메인 진입이 실제 익명 로그인 네트워크 호출에 좌우되지 않고 결정론적으로 검증되게 한다
     /// (게이트 로직 자체는 세션 유무와 무관하게 온보딩 완료 시 곧장 메인으로 보낸다).
@@ -141,31 +156,52 @@ final class ReffiFlowUITests: XCTestCase {
         XCTAssertFalse(stockTab.isSelected, "직전 탭의 선택은 풀린다")
         attach(app, named: "fridge-tab-to-buy")
 
-        // History 탭 — 맨 위는 패인 헤드라인("Kitchen ledger"), 그 아래가 이번 주 히어로(종이 고리 +
-        // 요일 블롭 일곱)고, 30일 정산서는 다시 그 아래다. 헤드라인 이름이 탭 라벨("History")과
-        // **다른 것이 요점**이다 — 같은 말이면 한 화면에 같은 이름이 두 번 선다.
+        // History 탭 — 맨 위는 패인 헤드라인("Kitchen ledger"), 그 아래가 이번 주 히어로(숫자 헤드라인 +
+        // 추세 한 문장 + 종이 칩 일곱)고, 30일 정산서는 다시 그 아래다. 헤드라인 이름이 탭 라벨
+        // ("History")과 **다른 것이 요점**이다 — 같은 말이면 한 화면에 같은 이름이 두 번 선다.
         historyTab.tap()
         let ledgerHeadline = app.staticTexts["Kitchen ledger"]
         XCTAssertTrue(ledgerHeadline.waitForExistence(timeout: 4),
                       "History 패인의 첫 블록은 헤드라인이다")
         XCTAssertFalse(app.staticTexts["Grocery memo"].exists, "To buy 헤드라인은 함께 사라져야 한다")
-        let heroCaption = app.staticTexts["One circle a day. The number is what you ate."]
+        let heroCaption = app.staticTexts["A chip a day. Green is what you ate."]
         XCTAssertTrue(heroCaption.waitForExistence(timeout: 4),
                       "히어로는 헤드라인 바로 아래에 선다")
         XCTAssertTrue(ledgerHeadline.frame.maxY <= heroCaption.frame.minY,
                       "헤드라인이 히어로보다 위에 있어야 한다")
-        // 고리는 두 상태 중 정확히 하나로 읽힌다 — 이번 주 처리 건이 있으면 비율, 없으면 빈 창 안내.
+        // 값 덩이는 두 상태 중 정확히 하나로 읽힌다 — 이번 주 처리 건이 있으면 비율, 없으면 빈 창 안내.
         // (샘플 이력의 날짜는 상대값이라, 실행일이 주의 어디냐에 따라 둘 다 정상이다.)
-        let ringWithRate = app.descendants(matching: .any)
-            .matching(NSPredicate(format: "label BEGINSWITH %@", "Eaten this week:")).firstMatch
-        let ringEmpty = app.descendants(matching: .any)
+        let rateHeadline = heroRateHeadline(app)
+        let emptyHeadline = app.descendants(matching: .any)
             .matching(NSPredicate(format: "label == %@", "Nothing cleared out this week yet.")).firstMatch
-        XCTAssertTrue(ringWithRate.waitForExistence(timeout: 4) || ringEmpty.exists,
-                      "고리는 비율이나 빈 창 안내 중 하나를 읽어 준다(NaN·빈 라벨 금지)")
-        // 요일 행 — 오늘 칸은 언제 돌려도 정확히 하나다(잉크 솔리드로 구분한 그 칸).
+        XCTAssertTrue(rateHeadline.waitForExistence(timeout: 4) || emptyHeadline.exists,
+                      "헤드라인은 비율이나 빈 창 안내 중 하나를 읽어 준다(NaN·빈 라벨 금지)")
+        // 추세 문장 — 샘플 이력은 **어느 요일에 돌려도 두 창이 모두 비지 않는다**:
+        // 이번 주에는 오늘(daysAgo 0) 로그가 있고, 지난 주 창(daysAgo offset+1…offset+7)에는
+        // daysAgo 2·3·4·5·7·9·11·13 중 최소 셋이 언제나 들어온다. 그래서 이 문장은 **반드시 선다**
+        // (세 변형 중 어느 것이 뜨는지는 실행일에 달렸으므로 셋 다 받는다).
+        XCTAssertTrue(heroTrendSentence(app).waitForExistence(timeout: 4),
+                      "두 창이 모두 차 있으면 추세 문장이 서야 한다")
+        // 칩 행 — 오늘 칸은 언제 돌려도 정확히 하나이고, 일곱 칸이 모두 한 문장으로 읽힌다.
         let todayCell = app.descendants(matching: .any)
             .matching(NSPredicate(format: "label BEGINSWITH %@", "Today, ")).firstMatch
-        XCTAssertTrue(todayCell.waitForExistence(timeout: 4), "요일 행에 오늘 칸이 선다")
+        XCTAssertTrue(todayCell.waitForExistence(timeout: 4), "칩 행에 오늘 칸이 선다")
+        // 앞으로 올 날은 "still to come", 아무 일도 없던 날은 "nothing"이다 — 어느 쪽도 "0 eaten"이
+        // 아니어야 한다(0은 없는 판정이다). 실행일이 주의 끝이면 미래 칸이 없으므로 둘 중 하나만 본다.
+        let futureCell = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label ENDSWITH %@", ", still to come")).firstMatch
+        let quietCell = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label ENDSWITH %@", ", nothing")).firstMatch
+        XCTAssertTrue(futureCell.exists || quietCell.exists,
+                      "조용한 칸은 'still to come'이거나 'nothing'이다")
+        XCTAssertFalse(app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label ENDSWITH %@", ", 0 eaten")).firstMatch.exists,
+                       "0은 판정이 아니다 — 빈 칸을 '0 eaten'으로 읽으면 안 된다")
+        // 정산서 — 발주 소비 행이 Ate·Tossed와 같은 문법으로 함께 선다.
+        // 정산 행은 `children: .combine`이라 라벨에 건수가 붙는다 — 이름으로만 찾는다.
+        XCTAssertTrue(app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label BEGINSWITH %@", "Cooked into recipes")).firstMatch.exists,
+                      "정산서에 요리 소비 행이 있어야 한다")
         XCTAssertFalse(app.buttons["Add item"].exists, "To buy 패인의 CTA는 함께 사라져야 한다")
         XCTAssertTrue(historyTab.isSelected, "History가 선택된다")
         attach(app, named: "fridge-tab-history")
@@ -230,16 +266,17 @@ final class ReffiFlowUITests: XCTestCase {
         XCTAssertTrue(app.buttons["Sort: Expiring first"].waitForExistence(timeout: 4), "기본 정렬 복귀")
     }
 
-    // MARK: History 히어로 — 오늘의 판정이 곧 고리의 값
+    // MARK: History 히어로 — 오늘의 판정이 곧 값 덩이와 오늘 칩의 값
 
-    /// 히어로 고리는 장식이 아니라 **이번 주 장부**다. 오늘 재료 하나를 버리면 그 즉시
-    /// "처리했지만 안 먹은 것"이 한 건 생기므로, 고리는 반드시 100% 아래로 내려온다.
+    /// 히어로는 장식이 아니라 **이번 주 장부**다. 오늘 재료 하나를 버리면 그 즉시
+    /// "처리했지만 안 먹은 것"이 한 건 생기므로, 비율은 반드시 100% 아래로 내려오고
+    /// **오늘 칩에는 버림이 함께 실린다**(칩은 먹음과 버림을 다른 채널로 동시에 말한다).
     ///
     /// 이 단언이 날짜와 무관하게 성립하는 이유: 버림이 오늘 찍히면 이번 주 창에 **반드시** 들어가고
     /// (창은 이번 주 시작 자정부터 오늘을 포함한다), 분자(먹은 수)는 그대로인 채 분모만 늘어난다.
     /// 실행일이 주의 어디든, 심지어 이번 주 첫 기록이든 결과는 같다 — 100%는 나올 수 없다.
     /// 유닛 테스트가 못 덮는 배선(판정 → store → 히어로 재계산)을 여기서 고정한다.
-    func testFridge_HistoryHero_RingFollowsTodaysJudgement() {
+    func testFridge_HistoryHero_HeadlineAndTodaysChipFollowTodaysJudgement() {
         let app = XCUIApplication()
         // -fridgeExpand: 첫 재료의 펼친 상세로 바로 착지(Ate/Tossed 버튼 QA용 기존 인자).
         app.launchArguments = ["-skipAuth", "-onboarding.done", "YES",
@@ -254,19 +291,24 @@ final class ReffiFlowUITests: XCTestCase {
         XCTAssertTrue(historyTab.waitForExistence(timeout: 4), "판정 후 탭 행으로 돌아온다")
         historyTab.tap()
 
-        let ring = app.descendants(matching: .any)
-            .matching(NSPredicate(format: "label BEGINSWITH %@", "Eaten this week:")).firstMatch
-        XCTAssertTrue(ring.waitForExistence(timeout: 4),
-                      "오늘 판정이 있으면 창이 비지 않으므로 고리는 비율을 읽는다")
+        let headline = heroRateHeadline(app)
+        XCTAssertTrue(headline.waitForExistence(timeout: 4),
+                      "오늘 판정이 있으면 창이 비지 않으므로 헤드라인은 비율을 읽는다")
         XCTAssertFalse(app.descendants(matching: .any)
             .matching(NSPredicate(format: "label CONTAINS %@", "100 percent")).firstMatch.exists,
-                       "오늘 하나를 버렸는데 고리가 100%면 버림이 분모에 들어가지 않은 것이다")
+                       "오늘 하나를 버렸는데 비율이 100%면 버림이 분모에 들어가지 않은 것이다")
+        // 오늘 칩 — 버림이 화면의 다른 채널(모서리 조각)로도 남아야 한다. 라벨이 그 채널의 계약이다.
+        let todayCell = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label BEGINSWITH %@", "Today, ")).firstMatch
+        XCTAssertTrue(todayCell.waitForExistence(timeout: 4), "칩 행에 오늘 칸이 선다")
+        XCTAssertTrue(todayCell.label.contains("tossed"),
+                      "오늘 버린 게 있는데 오늘 칩이 그것을 말하지 않는다: \(todayCell.label)")
         attach(app, named: "history-hero-after-toss")
     }
 
     // MARK: History — 다른 패인에서 한 판정이 같은 실행 안에서 반영되는가
 
-    /// 사용자 제보(22차): "In stock에서 먹음/버림을 처리해도 History의 링·숫자가 안 바뀐다".
+    /// 사용자 제보(22차): "In stock에서 먹음/버림을 처리해도 History의 숫자가 안 바뀐다".
     ///
     /// **20차 테스트와 결정적으로 다른 점**: 그쪽은 판정을 먼저 하고 History를 *처음* 열었다
     /// (= 뷰가 그때 처음 만들어지므로 어차피 새 값을 읽는다). 사용자의 실제 순서는 반대다 —
@@ -284,10 +326,9 @@ final class ReffiFlowUITests: XCTestCase {
 
         // ① History를 **먼저** 본다 — 이 방문이 뷰를 만들고, 그 상태가 스테일의 후보다.
         historyTab.tap()
-        let ring = app.descendants(matching: .any)
-            .matching(NSPredicate(format: "label BEGINSWITH %@", "Eaten this week:")).firstMatch
-        XCTAssertTrue(ring.waitForExistence(timeout: 4), "고리가 비율을 읽는다")
-        let before = ring.label
+        let headline = heroRateHeadline(app)
+        XCTAssertTrue(headline.waitForExistence(timeout: 4), "값 덩이가 비율을 읽는다")
+        let before = headline.label
         attach(app, named: "history-before-judgement")
 
         // ② In stock에서 판정 한 번(먹음).
@@ -301,9 +342,9 @@ final class ReffiFlowUITests: XCTestCase {
 
         // ③ 같은 실행에서 History로 돌아온다 — 여기서 값이 그대로면 그것이 제보된 버그다.
         historyTab.tap()
-        XCTAssertTrue(ring.waitForExistence(timeout: 4), "고리가 여전히 비율을 읽는다")
+        XCTAssertTrue(headline.waitForExistence(timeout: 4), "값 덩이가 여전히 비율을 읽는다")
         attach(app, named: "history-after-judgement")
-        XCTAssertNotEqual(ring.label, before,
+        XCTAssertNotEqual(headline.label, before,
                           "다른 패인의 판정이 History에 반영돼야 한다(분모가 최소 1 늘어난다)")
     }
 
@@ -399,6 +440,110 @@ final class ReffiFlowUITests: XCTestCase {
         let start = origin.withOffset(CGVector(dx: app.frame.midX, dy: midY))
         let end = origin.withOffset(CGVector(dx: app.frame.midX - 120, dy: midY))
         start.press(forDuration: 0.1, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.5)
+    }
+
+    // MARK: To buy — 밀기 어포던스 힌트(28차)
+
+    /// **첫 등장의 힌트**: 목록에 줄이 있는 채로 패인이 서면 맨 윗줄이 왼쪽으로 한 번 밀렸다 돌아온다.
+    /// 그리고 **플래그가 서 있으면 뜨지 않는다** — 설치당 한 번이라는 규약이 실제로 잠기는지 본다.
+    ///
+    /// 두 번 런치하는 이유: 이 힌트의 게이트 중 하나가 `@AppStorage`라 **프로세스 경계를 넘어야**
+    /// 관측된다. 첫 런치는 `-toBuy.swipeHint <초>`로 강제하고(유지 시간을 넓혀 프레임 조회가 닿게 한다),
+    /// 둘째 런치는 `-toBuy.swipeHintSeen YES`로 플래그만 주입한 뒤 **아무 일도 없음**을 단언한다.
+    func testToBuy_SwipeHint_PeeksWhenForcedAndStaysPutOnceSeen() {
+        // ① 강제 — `-toBuy.sampleMemo`가 **두 줄**을 시드한다. 두 줄인 것이 요점이다: 움직이는 줄과
+        //    움직이지 않는 줄을 같은 실행에서 대조해야 "맨 윗줄만"이라는 규약이 잠기고, 행 사이
+        //    절취선도 그때 화면에 선다. 담기는 시트를 세 단계 몰지 않고 인자로 끝낸다 — 상태를 만드는
+        //    조작 사슬이 길수록 검증하려는 것과 무관한 이유로 흔들린다(시트 프레젠테이션·타이핑 포커스).
+        let top = Self.memoTop, second = Self.memoSecond
+        let app = XCUIApplication()
+        app.launchArguments = ["-skipAuth", "-onboarding.done", "YES", "-fridgeTab",
+                               "-uiTestSampleFridge", "-toBuy.sampleMemo",
+                               "-toBuy.swipeHint", String(Self.forcedHold)]
+        app.launch()
+        XCTAssertTrue(app.staticTexts["Grocery memo"].waitForExistence(timeout: 10), "To buy 패인")
+
+        // 첫 등장에서도 줄이 이미 서 있지만, 힌트를 **관측 가능한 창에서** 잡으려면 등장 시점을
+        // 테스트가 쥐어야 한다 — 탭을 오가면 패인이 뷰째 새로 서고 그 등장에서 재생이 시작된다.
+        reenterToBuyPane(app)
+        let topRow = app.staticTexts[top], secondRow = app.staticTexts[second]
+        XCTAssertTrue(topRow.waitForExistence(timeout: 10), "시드된 첫 줄")
+        XCTAssertTrue(secondRow.exists, "시드된 둘째 줄(행 사이 절취선이 생기는 조건)")
+        // **이 시점이 재생 중이다**(유예 0.5초 + 넓힌 유지 시간 안쪽) — 밀린 첫 행이 여기 찍힌다.
+        attach(app, named: "to-buy-swipe-hint-peek")
+
+        // 유지 시간 + 진입·복귀 모션 + 조회 지연까지 넉넉히 덮는 창에서 두 행의 가로 위치를 함께 훑는다.
+        let samples = sampleMinX([topRow, secondRow], seconds: Self.forcedHold + 4)
+        guard let peeked = samples[0].min(), let rest = samples[0].max(), let last = samples[0].last,
+              let stillLo = samples[1].min(), let stillHi = samples[1].max() else {
+            return XCTFail("표본이 하나도 없다 — 행이 조회되지 않았다")
+        }
+        // 창이 끝난 뒤 = 제자리 — 두 행이 다시 나란해진 목록과 그 사이 절취선이 여기 찍힌다.
+        attach(app, named: "to-buy-rows-at-rest-with-dashed-rule")
+        XCTAssertGreaterThan(rest - peeked, 12,
+                             "힌트는 맨 윗줄을 왼쪽으로 눈에 보이게 민다(설계값 20pt)")
+        XCTAssertLessThan(rest - peeked, 40,
+                          "드러내기(84pt)나 열림 판정(42pt)까지 가면 '열려다 만 행'으로 읽힌다")
+        // 되돌아왔는가 — 마지막 표본이 최댓값 근처면 제자리다(`settle`은 감쇠 0.74라 미세 오버슛이 있다).
+        XCTAssertLessThan(abs(last - rest), 3, "힌트는 스프링으로 제자리에 돌아온다(밀린 채 굳지 않는다)")
+        // **맨 윗줄만** — 둘째 행은 같은 창 내내 붙박이다.
+        XCTAssertLessThan(stillHi - stillLo, 3, "힌트는 첫 행에만 얹힌다(둘째 행은 움직이지 않는다)")
+
+        // 힌트가 도는 동안에도 빼기 컨트롤은 보조기술에 없다 — 장식 모션이 트리를 바꾸면 안 된다.
+        XCTAssertFalse(app.buttons["Remove \(top) from the memo"].exists,
+                       "힌트는 보이기만 한다 — 조각이 접근성 트리에 올라오면 안 된다")
+        // 21차가 세운 계약도 그대로다.
+        XCTAssertTrue(app.buttons["Bought \(top)"].exists, "행의 1차 액션은 그대로 'Bought <이름>'")
+
+        // ② 플래그가 서 있으면 뜨지 않는다 — 강제 인자 없이, 같은 조건(줄 있음·새 등장)을 다시 만든다.
+        let seen = XCUIApplication()
+        seen.launchArguments = ["-skipAuth", "-onboarding.done", "YES", "-fridgeTab",
+                                "-uiTestSampleFridge", "-toBuy.sampleMemo", "-toBuy",
+                                "-toBuy.swipeHintSeen", "YES"]
+        seen.launch()
+        XCTAssertTrue(seen.staticTexts["Grocery memo"].waitForExistence(timeout: 10), "To buy 패인")
+
+        reenterToBuyPane(seen)
+        let seenRow = seen.staticTexts[top]
+        XCTAssertTrue(seenRow.waitForExistence(timeout: 10), "다시 선 패인에 메모 행이 있다")
+        let still = sampleMinX([seenRow], seconds: 4)   // 유예 0.5초 + 재생 전체를 덮는다
+        guard let lo = still[0].min(), let hi = still[0].max() else {
+            return XCTFail("표본이 하나도 없다 — 행이 조회되지 않았다")
+        }
+        attach(seen, named: "to-buy-swipe-hint-suppressed")
+        XCTAssertLessThan(hi - lo, 3, "이미 본 뒤에는 행이 움직이지 않는다(설치당 한 번)")
+    }
+
+    /// 강제 재생의 유지 시간(초). 기본 0.4초는 **런치와 `waitForExistence`만으로 지나가** 프레임
+    /// 조회가 닿지 못한다 — `-fireDismissDelay`가 같은 이유로 같은 모양의 인자를 갖는다.
+    private static let forcedHold: TimeInterval = 8
+
+    /// `-toBuy.sampleMemo`가 담는 두 줄 — **정본은 `RootTabView.sampleMemoNames`**(RUN.md에도 적혀 있다).
+    /// 첫 값이 맨 윗줄이고, 힌트가 얹히는 행이 그 줄이다.
+    private static let memoTop = "Fish sauce brand X"
+    private static let memoSecond = "Rice vinegar brand Y"
+
+    /// 패인을 **다시 세운다**. 탭 패인은 `switch tab` 분기라 탭을 떠나면 뷰째 해체되고, 돌아오면
+    /// `onAppear`가 다시 돈다 — 이 왕복이 곧 "새 등장"이고, 힌트는 그 등장 훅에 걸려 있다.
+    private func reenterToBuyPane(_ app: XCUIApplication) {
+        let stockTab = app.buttons["In stock"]
+        XCTAssertTrue(stockTab.waitForExistence(timeout: 8), "In stock 탭")
+        stockTab.tap()
+        let toBuyTab = app.buttons["To buy"]
+        XCTAssertTrue(toBuyTab.waitForExistence(timeout: 8), "To buy 탭")
+        toBuyTab.tap()
+    }
+
+    /// 여러 요소의 가로 위치를 주어진 시간 동안 **번갈아** 반복 조회한다. 힌트는 상태가 아니라
+    /// **지나가는 모션**이라 단발 조회로는 잡을 수 없다 — 표본의 최소·최대·마지막 값이 "밀렸다"와
+    /// "돌아왔다"를 함께 말하고, 같은 창에서 뜬 다른 행의 표본이 "그 행은 안 움직였다"를 말한다.
+    private func sampleMinX(_ elements: [XCUIElement], seconds: TimeInterval) -> [[CGFloat]] {
+        var out = Array(repeating: [CGFloat](), count: elements.count)
+        let deadline = Date().addingTimeInterval(seconds)
+        while Date() < deadline {
+            for (i, element) in elements.enumerated() { out[i].append(element.frame.minX) }
+        }
+        return out
     }
 
     /// 행을 끝까지 밀어 **바로 확정**한다 — 관성이 붙은 기본 속도 드래그.
