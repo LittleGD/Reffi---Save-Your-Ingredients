@@ -716,9 +716,13 @@ private struct ToBuySearchSheet: View {
     private static let gridColumns = [GridItem(.adaptive(minimum: 74, maximum: 96), spacing: ReffiSpace.s2)]
 
     /// 삭제된 재료 픽커 시트의 **재료 배열 UI**를 그대로 되살린 자리 — 검색어가 비어 있는 동안 이
-    /// 그리드가 시트를 채운다. 치수·구조는 원본 그대로다: 적응형 74~96pt 열 + 56pt 실루엣 타일,
-    /// 섹션 간 s5 / 타일 간 s2, 모노 올캡 섹션 헤더. 순서도 원본과 같다 —
-    /// Frequent(빨리 담기 단축키) → 사전 전체를 카테고리로 묶은 섹션(`FoodGlyph.categoryOrder` — 냉장고 필터 칩과 같은 순서 상수).
+    /// 그리드가 시트를 채운다. 타일 치수는 원본 그대로다: 적응형 74~96pt 열 + 56pt 실루엣 타일.
+    /// **Frequent(빨리 담기 단축키) 한 섹션뿐이다(2026-08, 30차 단순화)** — 원래 그 아래 사전 전체를
+    /// `FoodGlyph.categoryOrder`로 묶은 카테고리 섹션(Veg·Dairy·Seafood…)이 이어졌지만, 223종 전체를
+    /// 펼친 배열은 스크린샷 한 장이 다 못 담을 만큼 길어 "빨리 담기"라는 시트의 목적과 어긋났다(사용자
+    /// 리포트). 사전은 여전히 `directAddRow` + 타이핑 검색(`searchGrid`)으로 전부 닿는다 — 이 배열은
+    /// 그 경로를 대체하지 않고, 타이핑 없이 끝내는 흔한 경우만 커버한다. `frequentIngredients()`가
+    /// 이력 부족분을 큐레이션 시드로 항상 채우므로(§FridgeStore) 이 섹션이 통째로 비는 일은 없다.
     /// **의미만 To buy 문맥이다**: 탭은 냉장고 반입이 아니라 `addToBuy`(장보기 메모)고, 시트는 닫히지
     /// 않으며, 이미 담긴 타일에는 결과 행과 같은 체크가 남는다.
     private var pickerGrid: some View {
@@ -728,14 +732,6 @@ private struct ToBuySearchSheet: View {
         }
         return LazyVStack(alignment: .leading, spacing: ReffiSpace.s5) {
             if !frequent.isEmpty { gridSection("Frequent", tiles: frequent, listed: listed) }
-            ForEach(IngredientLexicon.shared.categorySections, id: \.category) { section in
-                gridSection(LocalizedStringKey(section.category),
-                            tiles: section.entries.map {
-                                GridTile(id: "cat-\($0.id)", name: $0.displayName,
-                                         glyph: FoodGlyph(rawValue: $0.glyph) ?? .generic, key: $0.id)
-                            },
-                            listed: listed)
-            }
         }
     }
 
