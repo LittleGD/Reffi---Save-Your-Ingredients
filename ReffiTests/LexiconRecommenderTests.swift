@@ -75,7 +75,29 @@ struct LexiconTests {
         #expect(lex.search(query: "c", limit: 60).count == 47)   // 커스텀 60에선 전부 담김(자연 히트 < 60)
     }
 
-    // MARK: 카테고리 섹션 (To buy 검색 시트의 재료 배열)
+    /// **동률 최종 타이브레이크는 표시 이름의 로케일 알파벳순**이어야 한다(30차) — 내부 캐논 id는 항상
+    /// 영문 슬러그라, id 오름차순으로 동률을 가르면 한국어 로케일에서 사용자가 보는 순서와 어긋난다.
+    ///
+    /// "고기" 포함 매칭에서 rank(1)·length(3)이 정확히 겹치는 동률 집합이 소고기(beef)·닭고기(chicken)·
+    /// 양고기(lamb) 셋이다(`돼지고기`·`오리고기`는 length 4라 별도 동률 그룹 — 여기 대상이 아니다).
+    @Test func searchBreaksRankAndLengthTiesByLocalizedDisplayNameOrder() {
+        let tieIDs: Set<String> = ["beef", "chicken", "lamb"]
+        let hits = lex.search(query: "고기", limit: 60)
+        let tied = hits.filter { tieIDs.contains($0.id) }
+        #expect(tied.count == 3, "사전 데이터가 바뀌었다 — 세 항목이 '고기' 동률 집합이어야 이 테스트가 유효하다")
+
+        // 반환 순서는 표시 이름 오름차순(`localizedStandardCompare`)과 일치해야 한다 — 로케일 무관하게 성립.
+        let expected = tied.sorted { $0.displayName.localizedStandardCompare($1.displayName) == .orderedAscending }
+        #expect(tied.map(\.id) == expected.map(\.id))
+
+        // 회귀 고정 — 이 앱의 기본/QA 로케일(한국어)에서는 표시 이름 순서(닭고기·소고기·양고기)가 내부 id
+        // 알파벳순(beef·chicken·lamb)과 실제로 다르다. 이 값이 깨지면 표시 이름이 아니라 id로 도로 정렬된 것이다.
+        if Recipe.isKorean {
+            #expect(tied.map(\.id) == ["chicken", "beef", "lamb"])
+        }
+    }
+
+    // MARK: 카테고리 섹션 (To buy 검색 시트의 재료 배열 — 2026-08 30차부터 UI 소비처 없음, 모델만 유지)
 
     @Test func categorySectionsCoverEveryEntryExactlyOnce() {
         // 섹션 그리드가 사전의 단일 뷰라는 계약 — 한 항목이 빠지면 UI에서 영영 도달 불가해지고,

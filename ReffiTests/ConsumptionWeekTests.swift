@@ -2,7 +2,7 @@ import Testing
 import Foundation
 @testable import Reffi
 
-/// 이번 주 소비 집계 — History 히어로(숫자 헤드라인 + 추세 문장 + 종이 칩 일곱)가 읽는 규칙.
+/// 이번 주 소비 집계 — History 히어로(숫자 헤드라인 + 추세 화살표 + 종이 칩 일곱)가 읽는 규칙.
 /// 모든 케이스가 **고정 날짜 + 고정 캘린더**(타임존·주 시작일 명시)라 러너의 로케일에 흔들리지 않는다.
 struct ConsumptionWeekTests {
 
@@ -47,7 +47,7 @@ struct ConsumptionWeekTests {
         #expect(week.days.map(\.eaten) == [1, 0, 0, 1, 0, 0, 0])
         // 화면에서 눈으로 검산되는 불변식: 칸 일곱의 합 = 헤드라인의 분자.
         #expect(week.days.reduce(0) { $0 + $1.eaten } == week.eaten)
-        // 경계 1분 전 로그는 사라지지 않는다 — 지난 주 총계로 넘어간다(추세 문장이 읽는 값).
+        // 경계 1분 전 로그는 사라지지 않는다 — 지난 주 총계로 넘어간다(추세 화살표가 읽는 값).
         #expect(week.previousRemoved == 1)
         #expect(week.previousEaten == 1)
     }
@@ -123,7 +123,7 @@ struct ConsumptionWeekTests {
         #expect(week.wasteRate == nil)
         #expect(week.days.allSatisfy { $0.eaten == 0 })
         // 두 로그(8/10·8/12)는 **지난 주** 창에 있다. 지난 주 비율은 나오지만 이번 주가 비었으므로
-        // 추세 문장은 서지 않는다 — 한쪽만 있는 비교는 비교가 아니다.
+        // 추세 화살표는 서지 않는다 — 한쪽만 있는 비교는 비교가 아니다.
         #expect(week.previousRemoved == 2)
         #expect(week.previousEatenRate == 50)
         #expect(week.trend == nil)
@@ -212,7 +212,7 @@ struct ConsumptionWeekTests {
         #expect(ConsumptionWeek.name(of: week.days[6], calendar: cal) == "Saturday")
     }
 
-    // MARK: 지난 주 창 — 추세 문장의 분모
+    // MARK: 지난 주 창 — 추세 화살표의 분모
 
     /// 지난 주 창은 **[이번 주 시작 −7일, 이번 주 시작)** 이다. 두 창은 붙어 있고 겹치지 않는다:
     /// 이번 주 시작 자정 로그는 이번 주에만, 그 1초 전 로그는 지난 주에만 선다.
@@ -381,5 +381,55 @@ struct ConsumptionWeekTests {
     private func trend(this: (Int, Int), previous: (Int, Int)) -> ConsumptionWeek.Trend? {
         ConsumptionWeek.Summary(days: [], eaten: this.0, removed: this.1,
                                 previousEaten: previous.0, previousRemoved: previous.1).trend
+    }
+}
+
+#if DEBUG
+/// 칩 캡션 힌트 닫기(31차)의 QA 인자 파싱 — `ShoppingListContent.swipeHintConfig` 선례와 같은 이유로
+/// 뷰에서 떼어 낸 순수 함수를 시뮬레이터 없이 고정한다.
+struct HistoryChipHintArgTests {
+    @Test func detectsForceArgument() {
+        #expect(HistoryContent.chipHintForced(in: ["-history.chipHintForce"]))
+        #expect(HistoryContent.chipHintForced(in: ["-fridgeTab", "-history.chipHintForce", "-toBuy"]))
+    }
+
+    @Test func absentByDefault() {
+        #expect(!HistoryContent.chipHintForced(in: []))
+        #expect(!HistoryContent.chipHintForced(in: ["-fridgeTab", "-showHistory"]))
+    }
+
+    /// 플래그 주입 인자(`-history.chipHintDismissed YES`)와 이름이 겹치지 않는다 — `configDoesNot
+    /// MatchTheSeenFlagArgument`와 같은 이유(접두어 매칭이면 그 인자만 줘도 강제가 켜져 버린다).
+    @Test func doesNotMatchTheDismissedFlagArgument() {
+        #expect(!HistoryContent.chipHintForced(in: ["-history.chipHintDismissed", "YES"]))
+    }
+}
+#endif
+
+/// 추세 화살표(33차) — `HistoryContent.trendArrow`의 상태→(아이콘·색·UI 테스트 식별자) 매핑을
+/// 시뮬레이터 없이 고정한다. `ConsumptionWeek.Trend`의 판정 자체(better/worse/same)는 위
+/// `trendComparesThisWeekAgainstLastWeek` 등이 이미 잠갔다 — 여기는 그 결과를 화면 자산으로
+/// 옮기는 마지막 한 단만 본다.
+struct HistoryTrendArrowTests {
+    @Test func betterYieldsFreshUpArrow() {
+        let arrow = HistoryContent.trendArrow(.better)
+        #expect(arrow?.testID == "history.hero.trendArrow.up")
+        #expect(arrow?.color == ReffiColor.freshDark)
+    }
+
+    @Test func worseYieldsUrgentDownArrow() {
+        let arrow = HistoryContent.trendArrow(.worse)
+        #expect(arrow?.testID == "history.hero.trendArrow.down")
+        #expect(arrow?.color == ReffiColor.urgentDark)
+    }
+
+    /// 비슷한 주엔 화살표 자체가 없다 — 방향을 우기지 않는다(33차 사용자 지침).
+    @Test func sameYieldsNoArrow() {
+        #expect(HistoryContent.trendArrow(.same) == nil)
+    }
+
+    /// 지난 주 데이터가 없어 추세를 낼 수 없을 때(`nil`)도 화살표는 없다.
+    @Test func noTrendYieldsNoArrow() {
+        #expect(HistoryContent.trendArrow(nil) == nil)
     }
 }

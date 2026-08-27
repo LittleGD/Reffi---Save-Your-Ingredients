@@ -39,12 +39,13 @@ final class ReffiFlowUITests: XCTestCase {
             .matching(NSPredicate(format: "label BEGINSWITH %@", "Eaten this week:")).firstMatch
     }
 
-    /// 히어로의 **추세 한 문장**(지난 주 대비). 세 변형 중 어느 것이 뜨는지는 실행일의 데이터가
-    /// 정하므로 셋을 다 받는다 — 이 헬퍼가 참이면 "문장이 섰다", 거짓이면 "서지 않았다"다.
-    private func heroTrendSentence(_ app: XCUIApplication) -> XCUIElement {
-        app.descendants(matching: .any).matching(NSPredicate(
-            format: "label BEGINSWITH 'Up from ' OR label BEGINSWITH 'Down from ' "
-                  + "OR label == 'About the same as last week.'")).firstMatch
+    /// 히어로의 **추세 화살표**(지난 주 대비, 33차부터 문장이 아니라 화살표다). 방향은 화면 문구가
+    /// 아니라 값 덩이에 붙은 UI 테스트 식별자로 잡는다(`HistoryContent.trendArrow` 선례,
+    /// `history.hero.trendArrow.up`/`.down`) — 비슷한 주(`.same`)는 식별자 자체가 없다.
+    private func heroTrendArrowExists(_ app: XCUIApplication, direction: String) -> Bool {
+        app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier == %@", "history.hero.trendArrow.\(direction)"))
+            .firstMatch.exists
     }
 
     /// 온보딩을 처음부터 시작. `-skipAuth`로 게스트 상태를 로컬에 고정해, 셋업 완료 후
@@ -157,7 +158,7 @@ final class ReffiFlowUITests: XCTestCase {
         attach(app, named: "fridge-tab-to-buy")
 
         // History 탭 — 맨 위는 패인 헤드라인("Kitchen ledger"), 그 아래가 이번 주 히어로(숫자 헤드라인 +
-        // 추세 한 문장 + 종이 칩 일곱)고, 30일 정산서는 다시 그 아래다. 헤드라인 이름이 탭 라벨
+        // 추세 화살표 + 종이 칩 일곱)고, 30일 정산서는 다시 그 아래다. 헤드라인 이름이 탭 라벨
         // ("History")과 **다른 것이 요점**이다 — 같은 말이면 한 화면에 같은 이름이 두 번 선다.
         historyTab.tap()
         let ledgerHeadline = app.staticTexts["Kitchen ledger"]
@@ -176,12 +177,25 @@ final class ReffiFlowUITests: XCTestCase {
             .matching(NSPredicate(format: "label == %@", "Nothing cleared out this week yet.")).firstMatch
         XCTAssertTrue(rateHeadline.waitForExistence(timeout: 4) || emptyHeadline.exists,
                       "헤드라인은 비율이나 빈 창 안내 중 하나를 읽어 준다(NaN·빈 라벨 금지)")
-        // 추세 문장 — 샘플 이력은 **어느 요일에 돌려도 두 창이 모두 비지 않는다**:
+        // 추세 화살표 — 샘플 이력은 **어느 요일에 돌려도 두 창이 모두 비지 않는다**:
         // 이번 주에는 오늘(daysAgo 0) 로그가 있고, 지난 주 창(daysAgo offset+1…offset+7)에는
-        // daysAgo 2·3·4·5·7·9·11·13 중 최소 셋이 언제나 들어온다. 그래서 이 문장은 **반드시 선다**
-        // (세 변형 중 어느 것이 뜨는지는 실행일에 달렸으므로 셋 다 받는다).
-        XCTAssertTrue(heroTrendSentence(app).waitForExistence(timeout: 4),
-                      "두 창이 모두 차 있으면 추세 문장이 서야 한다")
+        // daysAgo 2·3·4·5·7·9·11·13 중 최소 셋이 언제나 들어온다. 그래서 추세는 **반드시 뭔가로
+        // 정해진다** — 다만 33차부터 "비슷한 주"(.same)는 화살표 자체가 없어, "화살표가 선다"를
+        // 무조건 기대할 수 없다. 대신 **접근성 라벨이 말하는 방향과 화살표 식별자가 일치하는가**를
+        // 본다(라벨은 화면엔 없는 세부까지 그대로 읽어 준다, §13.10 — 세 변형 다 받는 것과 같은 이유).
+        let trendLabel = rateHeadline.label
+        if trendLabel.contains("Up from") {
+            XCTAssertTrue(heroTrendArrowExists(app, direction: "up"), "라벨이 상승을 말하면 위 화살표가 있어야 한다")
+            XCTAssertFalse(heroTrendArrowExists(app, direction: "down"), "상승 라벨에 아래 화살표가 함께 있으면 안 된다")
+        } else if trendLabel.contains("Down from") {
+            XCTAssertTrue(heroTrendArrowExists(app, direction: "down"), "라벨이 하락을 말하면 아래 화살표가 있어야 한다")
+            XCTAssertFalse(heroTrendArrowExists(app, direction: "up"), "하락 라벨에 위 화살표가 함께 있으면 안 된다")
+        } else if trendLabel.contains("About the same") {
+            XCTAssertFalse(heroTrendArrowExists(app, direction: "up"), "비슷한 주엔 화살표가 없어야 한다")
+            XCTAssertFalse(heroTrendArrowExists(app, direction: "down"), "비슷한 주엔 화살표가 없어야 한다")
+        } else {
+            XCTFail("헤드라인 라벨이 추세 세 변형 중 어느 것도 말하지 않는다: \(trendLabel)")
+        }
         // 칩 행 — 오늘 칸은 언제 돌려도 정확히 하나이고, 일곱 칸이 모두 한 문장으로 읽힌다.
         let todayCell = app.descendants(matching: .any)
             .matching(NSPredicate(format: "label BEGINSWITH %@", "Today, ")).firstMatch
@@ -553,6 +567,39 @@ final class ReffiFlowUITests: XCTestCase {
         let start = origin.withOffset(CGVector(dx: app.frame.midX, dy: midY))
         let end = origin.withOffset(CGVector(dx: app.frame.midX - 150, dy: midY))
         start.press(forDuration: 0.05, thenDragTo: end)
+    }
+
+    // MARK: History — 칩 캡션 힌트 닫기(31차)
+
+    /// **닫으면 영구히 사라진다**: 힌트의 게이트가 `@AppStorage`라 밀기 힌트 테스트와 같은 이유로
+    /// **프로세스 경계를 넘어야** 관측된다(`testToBuy_SwipeHint_...`와 같은 두 런치 패턴). 첫 런치는
+    /// `-history.chipHintForce`로 반드시 뜨게 한 뒤 닫고, 둘째 런치는 강제 인자 대신 플래그를
+    /// UserDefaults 인자로 직접 주입해 "닫힌 채 재현"을 검증한다(강제 인자를 또 주면 그 자체로
+    /// 언제나 다시 뜨므로 "플래그가 실제로 걸렸는가"를 검증할 수 없다).
+    func testHistory_ChipHint_DismissesPermanently() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-skipAuth", "-onboarding.done", "YES", "-uiTestSampleFridge",
+                               "-showHistory", "-history.chipHintForce"]
+        app.launch()
+
+        let caption = app.staticTexts["A chip a day. Green is what you ate."]
+        XCTAssertTrue(caption.waitForExistence(timeout: 10), "새 설치엔 칩 캡션 힌트가 떠야 한다")
+        let dismiss = app.buttons["Dismiss hint"]
+        XCTAssertTrue(dismiss.exists, "닫기 X가 접근성에 있어야 한다")
+        attach(app, named: "history-chip-hint-visible")
+
+        dismiss.tap()
+        waitForDisappearance(caption, "닫으면 그 자리에서 사라져야 한다")
+        attach(app, named: "history-chip-hint-dismissed")
+
+        // 둘째 런치 — 강제 인자 없이, 플래그만 UserDefaults 인자로 주입한다.
+        let second = XCUIApplication()
+        second.launchArguments = ["-skipAuth", "-onboarding.done", "YES", "-uiTestSampleFridge",
+                                  "-showHistory", "-history.chipHintDismissed", "YES"]
+        second.launch()
+        XCTAssertTrue(second.staticTexts["Kitchen ledger"].waitForExistence(timeout: 10), "History 패인")
+        XCTAssertFalse(second.staticTexts["A chip a day. Green is what you ate."].exists,
+                       "닫힌 뒤에는 다음 런치에도 다시 뜨지 않아야 한다")
     }
 
 

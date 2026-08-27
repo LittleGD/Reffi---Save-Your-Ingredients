@@ -227,10 +227,13 @@ struct OrderMemoCard: View {
         onFire()
     }
 
-    /// 부족 재료 줄 — "Short: …" + **To buy 원탭 알약**(§13.5).
+    /// 부족 재료 표시 — `onPickMissing`이 있으면 **전폭 패널 버튼**(아래 `shortPanel`, 2026-08 32차
+    /// option C), 없으면(미리보기·공유 카드처럼 store에 닿지 못하는 렌더) 사실만 말하는 텍스트 한
+    /// 줄로 그친다 — 뷰가 게이팅 없이 store로 보내는 다른 탭 규약과 달리, 여기는 **누를 곳이 아예
+    /// 없는 렌더**라 위약 버튼을 세우지 않는다(`add(name:...)` 주석의 위약 버튼 금지와 같은 원칙).
     ///
     /// 여기까지가 '이 티켓을 못 하는 이유'인데, 그 다음 행동(장보기 메모에 적기)은 화면 두 개 건너에
-    /// 있었다. 알약은 그 왕복을 없앤다 — 다만 **무엇을 담을지는 고르게 한다**(2026-08 owner request):
+    /// 있었다. 패널은 그 왕복을 없앤다 — 다만 **무엇을 담을지는 고르게 한다**(2026-08 owner request):
     /// 부족 재료 중 이미 집에 있는 것이 섞이면 전량 담기는 목록에 없는 줄을 얹는다. 고르는 UI는
     /// 티켓 위가 아니라 **덱 위 팝업**에 산다 — 티켓은 단서 카드라는 규율(§13.5)은 그대로다.
     ///
@@ -238,44 +241,79 @@ struct OrderMemoCard: View {
     /// 정보다. 담을 때만 `toBuyEntry`가 이름을 장보기용으로 정리한다.
     ///
     /// **제스처 우선순위** — 카드 본문엔 탭 제스처가 없고 플릭은 덱의 `frontDrag`(`.gesture`,
-    /// minimumDistance 14)라, 알약의 탭은 버튼이 가져간다("Cook this" CTA가 같은 카드 안에서
-    /// 이미 성립하는 선례). 알약 위에서 시작한 **드래그**는 그대로 덱으로 흘러 플릭이 산다.
-    private var shortLine: some View {
-        HStack(alignment: .firstTextBaseline, spacing: ReffiSpace.s2) {
+    /// minimumDistance 14)라, 패널의 탭은 버튼이 가져간다("Cook this" CTA가 같은 카드 안에서
+    /// 이미 성립하는 선례). 패널 위에서 시작한 **드래그**는 그대로 덱으로 흘러 플릭이 산다.
+    @ViewBuilder private var shortLine: some View {
+        if let onPickMissing {
+            shortPanel(onPickMissing)
+        } else {
             Text("Short: \(result.missing.map(\.displayName).joined(separator: ", "))")
                 .reffiType(.metaText)
                 .foregroundStyle(ReffiColor.ink2).lineLimit(2)
-            if let onPickMissing { addMissingPill(onPickMissing) }
+                .padding(.top, 1)
         }
-        .padding(.top, 1)
     }
 
-    /// To buy 담기 알약 — **문을 여는 버튼**이다. 라벨과 면은 그대로 두고(진입점의 정체는 바뀌지
-    /// 않았다) 결과 보고만 팝업으로 옮겼다: 예전의 '담김' 라벨 플래시(≈1.5초)는 담긴 개수를 말할 수
-    /// 없어 "이미 다 있었다"와 "새로 담았다"가 같은 그림이었는데, 이제 알림 팝업이 그 둘을 가른다.
-    private func addMissingPill(_ pick: @escaping ([Recipe.Item]) -> Void) -> some View {
-        Button {
+    /// 부족 재료 패널 — 하나의 **전폭 버튼**(owner 디자인 리뷰 "option C", 2026-08 32차). 예전엔 회색
+    /// "Short: …" 텍스트 옆에 작은 파란 알약이 따로 붙어 있었는데, 알약이 본문 속에서 시각적으로
+    /// 작아 discoverability 리스크로 지적됐다(부족 재료를 읽고도 담기로 잘 이어지지 않았다) — 패널
+    /// 전체를 탭 표면으로 만들면 "부족하다"는 사실 자체가 곧 행동 진입점이 된다.
+    ///
+    /// **면은 톱니가 아니라 `PaperRect`다** — 이 카드(`OrderMemoCard`) 자체가 이미 바깥 톱니
+    /// (`ReceiptShape(tooth: .ticket)`)이고, 안쪽 행 구분은 톱니가 아니라 절취선(`ReffiRule(.ticket)`,
+    /// §13.1)이 맡는다. 카드 속에 중첩된 다른 행동 표면(검색 시트의 직접 입력 담기 행 등)도 전부
+    /// `PaperRect`를 쓴다 — 톱니를 한 번 더 중첩하면 "오려 낸 종이 안에 또 오려 낸 종이"로 겹쳐
+    /// 읽혀 이 카드의 기존 문법과 어긋난다(레퍼런스 목업의 톱니 스트립 대신 이 판단을 택했다).
+    ///
+    /// **discoverability 완화**(option C가 안고 가는 리스크에 대한 대응) — 패널 전체가 버튼
+    /// 트레잇 + `.paperPress` 눌림을 갖고, 우측 ＋ 블롭(`PaperBlob(sides: 9)` — `PaperIconLabel`의
+    /// 블롭과 같은 셰이프, §13.5)이 늘 보이는 행동 아이콘 역할을 한다. 접근성 라벨도 "N개 부족"
+    /// 사실에서 끝나지 않고 "Add to list"까지 붙여 행동을 스스로 말한다.
+    ///
+    /// 탭하면 **25차 3단 팝업**(고르기 → 알림 → 이동)이 그대로 열린다 — 그 흐름과 발주 후 동작은
+    /// 이 라운드에서 손대지 않는다. 라벨·면 색은 To buy 계열(§13.5, `blueLight`/`blueDark`)이라
+    /// "이 카드에서 유일하게 다른 화면으로 이어지는 문"임을 색으로 먼저 말한다.
+    private func shortPanel(_ pick: @escaping ([Recipe.Item]) -> Void) -> some View {
+        let count = result.missing.count
+        let names = result.missing.map(\.displayName).joined(separator: ", ")
+        return Button {
             pick(result.missing)
         } label: {
-            HStack(spacing: 3) {
-                ReffiIcon.add.reffi(11, .bold)
-                Text("Add to list").reffiType(.pillLabel)
+            HStack(spacing: ReffiSpace.s3) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("^[\(count) ingredient](inflect: true) short")
+                        .reffiType(.metaText)
+                        .foregroundStyle(ReffiColor.blueDark)
+                        .lineLimit(1)
+                    // 표기는 `displayName`(=`toBuyEntry`와 같은 해석)이라 카드 위 재료 이름 블록과
+                    // 다른 규칙을 쓰지 않는다 — 여기서 새로 사전을 조회하지 않는다.
+                    Text(verbatim: names)
+                        .reffiType(.metaText)
+                        .foregroundStyle(ReffiColor.ink2)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                ZStack {
+                    let blob = PaperBlob(sides: 9, seed: number &+ 3)
+                    blob.fill(ReffiColor.blueDark)
+                    ReffiIcon.add.reffi(13, .bold).foregroundStyle(ReffiColor.onAccent)
+                }
+                .frame(width: 30, height: 30)
             }
-            .foregroundStyle(ReffiColor.blueDark)
-            .padding(.horizontal, ReffiSpace.s2 + 2)
-            .padding(.vertical, 4)
+            .padding(.horizontal, ReffiSpace.s3)
+            .padding(.vertical, ReffiSpace.s2 + 2)
+            .frame(minHeight: ReffiChrome.tapMin, alignment: .leading)   // §7.3 터치 타깃
             .background {
-                let shape = PaperRect(cornerRadius: ReffiRadius.sm, seed: number &+ 7)
+                let shape = PaperRect(cornerRadius: ReffiRadius.md, seed: number &+ 7)
                 shape.fill(ReffiColor.blueLight)
                     .paperEdge(shape, tint: ReffiColor.paperEdgeAccent(ReffiColor.blueDark))
             }
-            // 시각은 작아도 히트 영역은 44pt(§7.3) — 투명 여백으로 확보한다.
-            .frame(minWidth: ReffiChrome.tapMin, minHeight: ReffiChrome.tapMin)
             .contentShape(Rectangle())
         }
         .buttonStyle(.paperPress)
-        .accessibilityLabel(Text("Add to list"))
-        .accessibilityValue(Text(verbatim: result.missing.map(\.displayName).joined(separator: ", ")))
+        .accessibilityLabel(Text("^[\(count) ingredient](inflect: true) short. Add to list."))
+        .accessibilityValue(Text(verbatim: names))
         .accessibilityHint(Text("Opens a list of the missing ingredients to pick from"))
     }
 

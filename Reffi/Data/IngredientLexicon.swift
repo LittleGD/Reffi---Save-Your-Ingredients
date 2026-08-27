@@ -54,8 +54,12 @@ struct IngredientLexicon {
 
     /// 사전 전체를 `FoodGlyph.categoryLabel`로 묶은 섹션 — 항목이 있는 카테고리만,
     /// `FoodGlyph.categoryOrder`(냉장고 필터 칩과 공유하는 단일 순서 상수)대로, 섹션 안은 표기 오름차순.
-    /// To buy 검색 시트의 재료 배열이 소비한다.
     /// 로드 때 한 번만 만든다: 그리드가 body 평가마다 223종을 다시 묶고 정렬하면 키 입력이 끊긴다.
+    ///
+    /// **UI 소비처 없음(2026-08, 30차)** — To buy 검색 시트가 빈 쿼리 상태에서 이 섹션 배열 대신
+    /// `Frequent`만 보여주도록 단순화되면서 화면상의 유일한 소비처가 사라졌다. 그래도 이 프로퍼티와
+    /// 아래 테스트(`LexiconTests.categorySections*`)는 그대로 둔다 — 모델 계약은 UI 사용 여부와 무관하게
+    /// 유지한다는 저장소 선례(사전 전체를 카테고리로 묶어 노출하는 다른 화면이 생기면 바로 재사용 가능).
     let categorySections: [(category: String, entries: [Entry])]
 
     init(bundle: Bundle = .main) {
@@ -182,7 +186,11 @@ struct IngredientLexicon {
     /// `canonicalID`(단건 정규화)와 목적이 다르다: 여기선 후보 **목록**을 만든다.
     /// - 한 글자 쿼리는 prefix만 본다 — "무"·"배" 같은 한 글자가 아무 이름 안쪽에나 걸리면 목록이 무의미해진다
     ///   (색인이 한 글자 표기를 포함 매칭에서 빼는 것과 같은 이유).
-    /// - 정렬: prefix 적중 > 짧은 이름(쿼리를 더 꽉 채운 이름) > id(동률에서도 순서가 흔들리지 않게).
+    /// - 정렬: prefix 적중 > 짧은 이름(쿼리를 더 꽉 채운 이름) > 표시 이름의 로케일 알파벳순(`categorySections`와
+    ///   같은 `localizedStandardCompare`) > id(그래도 완전히 같으면 — 동의어 등 — 결정성을 지킨다).
+    ///   내부 캐논 id(항상 영문 슬러그)로 동률을 가르면 한국어 로케일에서 사용자가 보는 순서와 어긋난다
+    ///   (예: "고기" 검색의 동률 집합 소고기·닭고기·양고기는 id순 beef·chicken·lamb이 아니라 표시 이름
+    ///   가나다순 닭고기·소고기·양고기여야 한다 — `LexiconRecommenderTests` 30차 회귀 고정).
     /// - 초성 검색은 범위 밖(자모 분해 유틸이 앱에 없다).
     func search(query: String, limit: Int = 20) -> [Entry] {
         let q = Self.norm(query)
@@ -205,7 +213,10 @@ struct IngredientLexicon {
             .sorted {
                 if $0.rank != $1.rank { return $0.rank < $1.rank }
                 if $0.length != $1.length { return $0.length < $1.length }
-                return entries[$0.index].id < entries[$1.index].id
+                let (a, b) = (entries[$0.index], entries[$1.index])
+                let byDisplayName = a.displayName.localizedStandardCompare(b.displayName)
+                if byDisplayName != .orderedSame { return byDisplayName == .orderedAscending }
+                return a.id < b.id   // 표시 이름까지 같으면(동의어 등) id로 완전 결정성을 지킨다.
             }
             .prefix(limit)
             .map { entries[$0.index] }
