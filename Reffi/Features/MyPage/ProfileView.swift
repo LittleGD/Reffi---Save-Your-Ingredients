@@ -287,7 +287,7 @@ struct ProfileView: View {
             // 감각 영수증과 같은 토글 행 문법(SettingsToggle) — 여백·타이포·VoiceOver 처리를 공유한다.
             SettingsToggle(title: "Expiry alerts",
                            caption: "A morning reminder for what expires today and tomorrow",
-                           isOn: $alertsEnabled)
+                           isOn: $alertsEnabled, seed: 0)
             .onChange(of: alertsEnabled) { _, on in
                 if on {
                     // 켤 때만 권한 요청 — 거부되면 토글을 되돌리고 안내(§소프트 애스크).
@@ -328,11 +328,11 @@ struct ProfileView: View {
         ReceiptCard(title: String(localized: "Feel")) {
             SettingsToggle(title: "Collision haptics",
                            caption: "Feel ingredients knock into each other on the counter",
-                           isOn: $hapticsEnabled)
+                           isOn: $hapticsEnabled, seed: 1)
             ReceiptRule()
             SettingsToggle(title: "Tilt gravity",
                            caption: "Tilt your phone and the ingredients roll that way",
-                           isOn: $tiltEnabled)
+                           isOn: $tiltEnabled, seed: 2)
         }
     }
 
@@ -490,10 +490,15 @@ struct ReceiptRule: View {
 /// VoiceOver는 **제목을 라벨로, 설명을 힌트로** 읽는다 — 두 줄을 한 라벨로 이어 붙이면
 /// 스위치를 훑는 동안 행마다 설명 문장이 통째로 낭독돼 목록을 지나가기가 어려워진다.
 /// 상태(켬/끔)와 조작은 SwiftUI Toggle 기본 동작 그대로다.
+///
+/// 스위치 재질은 `PaperToggleStyle`(§13.11, 2026-08 34차) — 스톡 캡슐 대신 손으로 자른 종이
+/// 트랙+손잡이다. 스타일은 시각만 바꾸므로 위 VoiceOver 계약(라벨=제목·힌트=설명·값=켬/끔)은
+/// 그대로 유지된다. `seed`는 호출부가 인스턴스마다 다르게 줘 나란히 선 토글끼리 종이 결이 겹치지 않게 한다.
 struct SettingsToggle: View {
     let title: LocalizedStringKey
     let caption: LocalizedStringKey
     @Binding var isOn: Bool
+    var seed: Int = 0
 
     var body: some View {
         Toggle(isOn: $isOn) {
@@ -502,7 +507,7 @@ struct SettingsToggle: View {
                 Text(caption).reffiType(.caption).foregroundStyle(ReffiColor.ink2)
             }
         }
-        .tint(ReffiColor.blue)
+        .toggleStyle(PaperToggleStyle(seed: seed))
         .accessibilityLabel(title)
         .accessibilityHint(caption)
         .padding(.horizontal, ReffiSpace.s5)
