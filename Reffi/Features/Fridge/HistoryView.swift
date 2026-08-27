@@ -11,6 +11,7 @@ struct HistoryContent: View {
     var bottomPadding: CGFloat = ReffiSpace.s6
 
     @Environment(FridgeStore.self) private var store
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// 정산서에 세우는 자주 버린 재료 줄 수 — 영수증 한 장이 삼키는 상한.
     private static let topTossedLimit = 3
@@ -22,6 +23,42 @@ struct HistoryContent: View {
 
     /// 지금 타임라인에 세운 행 수 — "더 보기"가 한 페이지씩 늘린다.
     @State private var timelineShown = HistoryContent.timelinePage
+
+    // MARK: - 칩 캡션 힌트 닫기(28차 칩 히어로의 캡션을 31차에 닫을 수 있게)
+
+    /// 칩 문법(면색=먹었는가·배지=버림 개수) 설명 캡션을 사용자가 닫았는가 — 설치당 한 번이라
+    /// `@AppStorage`다(`toBuy.swipeHintSeen`과 같은 점 구분 네임스페이스 규약). 한 번 닫으면 다시
+    /// 뜨지 않는다 — 문법을 한 번 읽고 나면 또 볼 필요가 없다(owner 판단).
+    @AppStorage("history.chipHintDismissed") private var chipHintDismissed = false
+
+    #if DEBUG
+    /// `-history.chipHintForce` 파싱 — 유닛 테스트가 인자 배열을 직접 넣어 검증한다(`swipeHintConfig`와
+    /// 같은 결 — 뷰에서 분기를 늘리는 대신 순수 함수로 뗀다).
+    static func chipHintForced(in arguments: [String]) -> Bool {
+        arguments.contains("-history.chipHintForce")
+    }
+    /// 프로세스당 한 번만 파싱(`swipeHint` 선례).
+    private static let forcesChipHint = chipHintForced(in: ProcessInfo.processInfo.arguments)
+    #endif
+
+    /// 힌트 강제 표시(QA, DEBUG 전용) — 이미 닫힌 뒤에도 플래그와 무관하게 다시 보이게 한다
+    /// (`-toBuy.swipeHint` 강제 인자와 같은 결). 반대로 "닫힌 채로 재현"은 UserDefaults 인자
+    /// `-history.chipHintDismissed YES`를 쓴다 — `-toBuy.swipeHintSeen YES` 선례 그대로,
+    /// NSUserDefaults가 커맨드라인 인자를 자동으로 도메인에 얹어 주므로 이쪽은 커스텀 파싱이 필요 없다.
+    /// 강제 표시 세션에서도 **이번 세션의 X는 이긴다** — `-toBuy.swipeHint`에서 사용자의 실제
+    /// 스와이프가 재생을 취소하는 규약과 같다. 이게 없으면 강제 세션에선 X가 죽은 버튼이 된다.
+    @State private var chipHintDismissedNow = false
+
+    private var showsChipHint: Bool {
+        if chipHintDismissedNow { return false }
+        #if DEBUG
+        if Self.forcesChipHint { return true }
+        #endif
+        return !chipHintDismissed
+    }
+
+    /// 닫은 뒤 VoiceOver 포커스가 사라진 요소에 뜬 채로 남지 않게 칩 행으로 옮긴다.
+    @AccessibilityFocusState private var chipRowFocused: Bool
 
     private var logs: [RemovalLog] { store.history }
     /// 정산서(수치·비율)는 라벨 그대로 **최근 30일** 기준. 타임라인은 전체.
@@ -130,10 +167,11 @@ struct HistoryContent: View {
             headlineBlock(week)
             VStack(spacing: ReffiSpace.s3) {
                 chipRow(week)
-                Text("A chip a day. Green is what you ate.")
-                    .reffiType(.caption)
-                    .foregroundStyle(ReffiColor.ink2)
-                    .multilineTextAlignment(.center)
+                    .accessibilityFocused($chipRowFocused)
+                // 닫히면 이 행 자체가 트리에서 빠진다 — 위 VStack의 s3 간격도 함께 사라져
+                // 칩 행 아래에 빈 여백이 남지 않는다(간격은 형제 쌍에 붙는 값이라 형제가 하나뿐이면
+                // 저절로 없어진다).
+                if showsChipHint { chipHintNotice }
             }
         }
         .frame(maxWidth: .infinity)
@@ -141,6 +179,43 @@ struct HistoryContent: View {
         .padding(.vertical, ReffiSpace.s5)
         .background { PaperGlyphPile(glyphs: pileGlyphs) }
         .padding(.horizontal, -ReffiGrid.margin)
+    }
+
+    /// 칩 문법 설명 캡션 — 이제 **닫을 수 있는 조용한 힌트**다(2026-08, 31차). 문구는 그대로("A chip
+    /// a day. Green is what you ate.") — 칩 문법(면색=먹었는가·배지=버림 개수)을 한 번 읽고 나면
+    /// 다시 볼 필요가 없다는 것이 owner 판단이다. **알림(alert)이 아니라 힌트**라 시각은 조용하게
+    /// 유지한다 — 캡션과 같은 톤(`ink2`)의 작은 X 하나, 카드 면·그림자 없음. `PaperCloseButton`은
+    /// 시트·커버를 닫는 더 무거운 문법이라 여기 쓰지 않는다 — 검색 필드의 "Clear search" X와 같은 결.
+    private var chipHintNotice: some View {
+        HStack(spacing: ReffiSpace.s2) {
+            Text("A chip a day. Green is what you ate.")
+                .reffiType(.caption)
+                .foregroundStyle(ReffiColor.ink2)
+                .multilineTextAlignment(.leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Button(action: dismissChipHint) {
+                ReffiIcon.close.reffi(14)
+                    .foregroundStyle(ReffiColor.ink2)
+                    .frame(width: 30, height: 30)
+                    // 시각은 30pt, 히트 영역은 44pt(§7.3) — 투명 여백으로 확보한다.
+                    .frame(minWidth: ReffiChrome.tapMin, minHeight: ReffiChrome.tapMin)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.reffiPress)   // §7.2 — 조용한 힌트라 종이 프레스가 아니라 스케일 프레스
+            .accessibilityLabel(Text("Dismiss hint"))
+        }
+        .transition(.opacity)
+    }
+
+    /// 힌트 닫기 — 모션 축소 시 애니메이션 없이 **즉시** 사라지되(§7.4), 값은 똑같이 기록된다("재생을
+    /// 시도했다"가 아니라 "닫았다"이므로 축소 여부와 무관하게 영구적이어야 한다). 닫힌 요소에 VoiceOver
+    /// 포커스가 뜬 채로 남지 않게 칩 행으로 옮긴다.
+    private func dismissChipHint() {
+        withAnimation(ReffiMotion.gated(ReffiMotion.exit, reduce: reduceMotion)) {
+            chipHintDismissed = true
+            chipHintDismissedNow = true
+        }
+        chipRowFocused = true
     }
 
     /// 값 덩이 — 큰 비율 + 창 이름·표본 한 줄, 그 아래 추세 한 문장.

@@ -555,6 +555,39 @@ final class ReffiFlowUITests: XCTestCase {
         start.press(forDuration: 0.05, thenDragTo: end)
     }
 
+    // MARK: History — 칩 캡션 힌트 닫기(31차)
+
+    /// **닫으면 영구히 사라진다**: 힌트의 게이트가 `@AppStorage`라 밀기 힌트 테스트와 같은 이유로
+    /// **프로세스 경계를 넘어야** 관측된다(`testToBuy_SwipeHint_...`와 같은 두 런치 패턴). 첫 런치는
+    /// `-history.chipHintForce`로 반드시 뜨게 한 뒤 닫고, 둘째 런치는 강제 인자 대신 플래그를
+    /// UserDefaults 인자로 직접 주입해 "닫힌 채 재현"을 검증한다(강제 인자를 또 주면 그 자체로
+    /// 언제나 다시 뜨므로 "플래그가 실제로 걸렸는가"를 검증할 수 없다).
+    func testHistory_ChipHint_DismissesPermanently() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-skipAuth", "-onboarding.done", "YES", "-uiTestSampleFridge",
+                               "-showHistory", "-history.chipHintForce"]
+        app.launch()
+
+        let caption = app.staticTexts["A chip a day. Green is what you ate."]
+        XCTAssertTrue(caption.waitForExistence(timeout: 10), "새 설치엔 칩 캡션 힌트가 떠야 한다")
+        let dismiss = app.buttons["Dismiss hint"]
+        XCTAssertTrue(dismiss.exists, "닫기 X가 접근성에 있어야 한다")
+        attach(app, named: "history-chip-hint-visible")
+
+        dismiss.tap()
+        waitForDisappearance(caption, "닫으면 그 자리에서 사라져야 한다")
+        attach(app, named: "history-chip-hint-dismissed")
+
+        // 둘째 런치 — 강제 인자 없이, 플래그만 UserDefaults 인자로 주입한다.
+        let second = XCUIApplication()
+        second.launchArguments = ["-skipAuth", "-onboarding.done", "YES", "-uiTestSampleFridge",
+                                  "-showHistory", "-history.chipHintDismissed", "YES"]
+        second.launch()
+        XCTAssertTrue(second.staticTexts["Kitchen ledger"].waitForExistence(timeout: 10), "History 패인")
+        XCTAssertFalse(second.staticTexts["A chip a day. Green is what you ate."].exists,
+                       "닫힌 뒤에는 다음 런치에도 다시 뜨지 않아야 한다")
+    }
+
 
     // MARK: 로그인 화면 요소
 

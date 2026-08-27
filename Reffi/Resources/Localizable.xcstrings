@@ -1289,6 +1289,16 @@
         }
       }
     },
+    "Dismiss hint": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "힌트 닫기"
+          }
+        }
+      }
+    },
     "Down from %@ last week.": {
       "localizations": {
         "ko": {
@@ -3741,6 +3751,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "냉장고와 기록은 이 기기에 그대로 남아요. 언제든 다시 로그인할 수 있어요."
+          }
+        }
+      }
+    },
+    "^[%lld ingredient](inflect: true) short": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "부족한 재료 %lld개"
+          }
+        }
+      }
+    },
+    "^[%lld ingredient](inflect: true) short. Add to list.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "부족한 재료 %lld개. 담기."
           }
         }
       }

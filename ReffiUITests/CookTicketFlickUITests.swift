@@ -174,25 +174,36 @@ final class CookTicketFlickUITests: XCTestCase {
 
     // MARK: - ⑦ 부족 재료 → To buy 원탭 (§13.5 ⑨)
 
-    /// Short 줄("Short: …") — 표기는 시드에서 오므로 접두사로만 잡는다.
+    /// 부족 재료 유무 판정 — 32차부터 "Short: …" 텍스트가 아니라 **패널 버튼**의 존재가 그 증거다.
+    /// 버튼에 접근성 라벨을 주면 자식 `Text`들은 개별 접근성 원소로 더는 노출되지 않으므로(SwiftUI가
+    /// 라벨 있는 버튼을 원소 하나로 접는다), `app.staticTexts`가 아니라 `shortPanelButton`과 같은
+    /// 버튼 조회여야 한다.
     private func shortLine(_ app: XCUIApplication) -> XCUIElement {
-        app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Short: '")).firstMatch
+        shortPanelButton(app)
     }
 
-    /// 앞 티켓의 To buy 알약을 손가락이 닿는 자리까지 들인다.
-    /// 알약은 `middleScroll`(카드 안쪽 세로 ScrollView) 안에 있어, 재료가 많거나 큰 글자에서는
+    /// 부족 재료 진입점 — **전폭 패널 버튼**(32차, 옛 "Short:" 텍스트 + 옆 알약을 하나로 합쳤다).
+    /// 라벨이 "N ingredients short. Add to list."로 개수형이라 `confirmAddButton`과 같은 이유로
+    /// 정규식(접미어) 매칭이다 — 정확한 문자열이 아니라 값이 낀 문장이라 `app.buttons["..."]`
+    /// 정확 일치로는 못 집는다.
+    private func shortPanelButton(_ app: XCUIApplication) -> XCUIElement {
+        app.buttons.matching(NSPredicate(format: "label ENDSWITH %@", "Add to list.")).firstMatch
+    }
+
+    /// 앞 티켓의 부족 재료 패널을 손가락이 닿는 자리까지 들인다.
+    /// 패널은 `middleScroll`(카드 안쪽 세로 ScrollView) 안에 있어, 재료가 많거나 큰 글자에서는
     /// 접힌 아래쪽에 있을 수 있다 — 그때만 본문을 위로 민다. **세로 드래그는 덱의 축 잠금에서
     /// '커밋 없음'이라 티켓을 넘기지 않는다**(계약 ③), 즉 안쪽 스크롤만 움직인다.
     private func revealAddToBuyPill(_ app: XCUIApplication) -> Bool {
-        let pill = app.buttons["Add to list"]
-        guard pill.waitForExistence(timeout: 3) else { return false }
-        if pill.isHittable { return true }
+        let panel = shortPanelButton(app)
+        guard panel.waitForExistence(timeout: 3) else { return false }
+        if panel.isHittable { return true }
         let anchor = app.staticTexts["ON THE TICKET"]
         guard anchor.exists else { return false }
         let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0))
             .withOffset(CGVector(dx: 0, dy: anchor.frame.maxY + 40))
         start.press(forDuration: 0.1, thenDragTo: start.withOffset(CGVector(dx: 0, dy: -120)))
-        return pill.isHittable
+        return panel.isHittable
     }
 
     /// 스크린샷 첨부 — 실패했을 때만이 아니라 **항상** 남긴다(이 흐름은 눈으로 봐야 납득되는 배선이다).
@@ -212,15 +223,15 @@ final class CookTicketFlickUITests: XCTestCase {
     }
 
     /// 확정 CTA — 라벨이 개수형("Add 2 items" / "Add 1 item")이라 정규식으로 잡는다.
-    /// 진입 알약("Add to list")과 라벨이 갈려 있어 이 조회가 알약을 집지 않는다.
+    /// 진입 패널("N ingredients short. Add to list.")과 라벨이 갈려 있어 이 조회가 패널을 집지 않는다.
     private func confirmAddButton(_ app: XCUIApplication) -> XCUIElement {
         app.buttons.matching(NSPredicate(format: "label MATCHES %@", "Add [0-9]+ items?")).firstMatch
     }
 
-    /// 알약을 눌러 고르기 팝업까지 연다 — 열렸으면 true.
+    /// 부족 재료 패널을 눌러 고르기 팝업까지 연다 — 열렸으면 true.
     @discardableResult
     private func openPickDialog(_ app: XCUIApplication) -> Bool {
-        app.buttons["Add to list"].tap()
+        shortPanelButton(app).tap()
         return app.staticTexts["Pick what to add"].waitForExistence(timeout: 5)
     }
 
@@ -250,7 +261,7 @@ final class CookTicketFlickUITests: XCTestCase {
     func testTicketDeck_AddFlow_PicksItemsThenLandsOnToBuyPane() throws {
         let app = launchDeck()
         try XCTSkipUnless(frontTicketWithShortLine(app),
-                          "덱을 한 바퀴 돌 동안 'Short:' 부족 재료가 있는 티켓이 없었다 — 시드가 바뀌었는지 확인 필요")
+                          "덱을 한 바퀴 돌 동안 부족 재료 패널이 있는 티켓이 없었다 — 시드가 바뀌었는지 확인 필요")
         attachScreenshot(app, named: "a-ticket-with-pill")
 
         XCTAssertTrue(openPickDialog(app), "알약을 누르면 고르기 팝업이 떠야 한다")
@@ -313,7 +324,7 @@ final class CookTicketFlickUITests: XCTestCase {
     /// 이 길이 없으면 팝업을 연 순간부터 담기를 무르는 방법이 사라진다.
     func testTicketDeck_AddFlow_CloseAddsNothing() throws {
         let app = launchDeck()
-        try XCTSkipUnless(frontTicketWithShortLine(app), "'Short:' 부족 재료가 있는 티켓이 없었다")
+        try XCTSkipUnless(frontTicketWithShortLine(app), "부족 재료 패널이 있는 티켓이 없었다")
         XCTAssertTrue(openPickDialog(app), "고르기 팝업")
 
         // 덱 커버의 닫기 X와 라벨이 같으므로 식별자로 가른다.
@@ -336,7 +347,7 @@ final class CookTicketFlickUITests: XCTestCase {
     /// 마지막 질문의 취소는 **이동만** 거절한다 — 담기는 이미 끝났고, 화면은 덱에 머문다.
     func testTicketDeck_AddFlow_CancelKeepsYouOnTheTicket() throws {
         let app = launchDeck()
-        try XCTSkipUnless(frontTicketWithShortLine(app), "'Short:' 부족 재료가 있는 티켓이 없었다")
+        try XCTSkipUnless(frontTicketWithShortLine(app), "부족 재료 패널이 있는 티켓이 없었다")
         XCTAssertTrue(openPickDialog(app), "고르기 팝업")
         confirmAddButton(app).tap()
         XCTAssertTrue(app.buttons["OK"].waitForExistence(timeout: 5), "담김 알림")
@@ -364,12 +375,12 @@ final class CookTicketFlickUITests: XCTestCase {
     /// 기본 1.25초 창은 자동화로 재현이 어려워 `-fireDismissDelay 6`으로 창만 넓힌다(메커니즘은 동일).
     func testTicketDeck_AddFlowDuringFireWindow_DefersDeckDismissThenResumes() throws {
         let app = launchDeck(extraArguments: ["-fireDismissDelay", "6"])
-        try XCTSkipUnless(frontTicketWithShortLine(app), "'Short:' 부족 재료가 있는 티켓이 없었다")
+        try XCTSkipUnless(frontTicketWithShortLine(app), "부족 재료 패널이 있는 티켓이 없었다")
 
         let firedAt = Date()
         fireFrontTicket(app)
-        XCTAssertTrue(app.buttons["Add to list"].waitForExistence(timeout: 3),
-                      "발주 직후에도 담기 알약은 남아 있어야 한다")
+        XCTAssertTrue(shortPanelButton(app).waitForExistence(timeout: 3),
+                      "발주 직후에도 담기 패널은 남아 있어야 한다")
         XCTAssertTrue(openPickDialog(app), "발주 창 안에서 고르기 팝업이 떠야 한다")
 
         // 지연 닫기 시점(발주 + 6초)을 **일부러 넘긴다**.
@@ -434,11 +445,11 @@ final class CookTicketFlickUITests: XCTestCase {
     func testTicketDeck_AddToBuyPill_SurvivesFiring() throws {
         let app = launchDeck()
         try XCTSkipUnless(frontTicketWithShortLine(app),
-                          "'Short:' 부족 재료가 있는 티켓이 없었다 — 시드 확인 필요")
+                          "부족 재료 패널이 있는 티켓이 없었다 — 시드 확인 필요")
 
         fireFrontTicket(app)
-        XCTAssertTrue(app.buttons["Add to list"].exists,
-                      "발주 직후에도 담기 알약은 남아 있어야 한다(부족하다는 사실은 발주로 바뀌지 않는다)")
+        XCTAssertTrue(shortPanelButton(app).exists,
+                      "발주 직후에도 담기 패널은 남아 있어야 한다(부족하다는 사실은 발주로 바뀌지 않는다)")
         // 발주 전환은 그대로 이어진다 — 담기 흐름이 그것을 붙잡지 않는다.
         XCTAssertTrue(app.staticTexts["ORDER · FIRED"].waitForExistence(timeout: 15),
                       "발주 1.25초 뒤 덱이 닫히고 조리 화면으로 넘어가야 한다")

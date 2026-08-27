@@ -81,6 +81,7 @@ xcrun simctl io booted screenshot reffi-home.png
 
 **냉장고** — 페이지가 상단 탭 셋(In stock · To buy · History)으로 갈렸다. 아래 셋은 **커버가 아니라 해당 탭으로 착지**한다(매핑 정본은 `FridgeTab.initial(from:)`, 회귀는 `FridgeTabLaunchArgTests`가 잡는다).
 - `-showHistory` History **탭** 직행(단독 지정해도 냉장고 탭에 착지) · `-fridgeExpand` 첫 재료 펼침 · `-fridgeExpandSolo` 재료 1개만 남기고 펼침(네비 클리어런스 QA)
+- `-history.chipHintForce` 이번 주 히어로의 칩 캡션 힌트("A chip a day. Green is what you ate.", 31차부터 닫기 가능)를 **설치당 한 번**인 `@AppStorage("history.chipHintDismissed")`와 무관하게 강제로 보여준다(`-toBuy.swipeHint` 강제 인자와 같은 결 — 이미 닫은 설치에서도 QA가 다시 볼 수 있다). 반대로 "닫힌 채로 재현"은 UserDefaults 인자 `-history.chipHintDismissed YES`를 쓴다(`-toBuy.swipeHintSeen YES` 선례)
 - `-fridgeEdit` 첫 재료 편집 시트(+`-loadSample`) · `-fridge.sortOpen` 정렬 드롭다운(`PaperDropdown`) 자동 오픈 · `-fridge.categoryOpen` 카테고리 필터 드롭다운 자동 오픈(둘 다 주면 정렬이 이긴다 — 화면당 하나만 열린다)
 - `-fridge.compact YES` 간편보기 · `-fridge.sort recent|freshest|expiry` 정렬 (둘 다 `@AppStorage` 키를 덮는 UserDefaults 인자)
 - `-toBuy.sampleMemo` 장보기 메모 **두 줄 시드**("Fish sauce brand X" · "Rice vinegar brand Y" — 정본은 `RootTabView.sampleMemoNames`). To buy 패인을 겨눈 인자들은 목록에 줄이 있어야 볼 것이 생기는데 새 설치의 메모는 비어 있고 채우는 경로가 검색 시트 여닫기뿐이라, 인자 하나로 화면에 닿는다는 규약이 이 패인에서만 깨져 있었다. `-uiTestSampleFridge`와 같이 주면 **리셋 뒤에** 담긴다(순서가 보장돼 있다). 이름이 사전 밖 자유 표기인 것은 의도다 — 샘플 냉장고 재료와 캐논이 겹치면 흡수 의미론에 걸려 줄이 서지 않는다

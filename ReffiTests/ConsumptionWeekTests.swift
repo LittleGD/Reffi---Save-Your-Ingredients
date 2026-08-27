@@ -383,3 +383,25 @@ struct ConsumptionWeekTests {
                                 previousEaten: previous.0, previousRemoved: previous.1).trend
     }
 }
+
+#if DEBUG
+/// 칩 캡션 힌트 닫기(31차)의 QA 인자 파싱 — `ShoppingListContent.swipeHintConfig` 선례와 같은 이유로
+/// 뷰에서 떼어 낸 순수 함수를 시뮬레이터 없이 고정한다.
+struct HistoryChipHintArgTests {
+    @Test func detectsForceArgument() {
+        #expect(HistoryContent.chipHintForced(in: ["-history.chipHintForce"]))
+        #expect(HistoryContent.chipHintForced(in: ["-fridgeTab", "-history.chipHintForce", "-toBuy"]))
+    }
+
+    @Test func absentByDefault() {
+        #expect(!HistoryContent.chipHintForced(in: []))
+        #expect(!HistoryContent.chipHintForced(in: ["-fridgeTab", "-showHistory"]))
+    }
+
+    /// 플래그 주입 인자(`-history.chipHintDismissed YES`)와 이름이 겹치지 않는다 — `configDoesNot
+    /// MatchTheSeenFlagArgument`와 같은 이유(접두어 매칭이면 그 인자만 줘도 강제가 켜져 버린다).
+    @Test func doesNotMatchTheDismissedFlagArgument() {
+        #expect(!HistoryContent.chipHintForced(in: ["-history.chipHintDismissed", "YES"]))
+    }
+}
+#endif
