@@ -40,6 +40,12 @@ enum ReffiIcon {
     /// 아이콘만 없는 그래픽을 약속하고 있었다. 기호는 화면이 실제로 보여 주는 것과 맞춘다.
     static var report: Ph { .chartBar }
     static var check: Ph { .check }
+    /// History 히어로 추세 화살표(§13.10, 33차) — 값 덩이 곁의 작은 세모. 캐럿 쌍(위/아래)을 쓰는
+    /// 이유는 둘 다 원래부터 있어 **회전 없이** 방향이 선다는 데 있다(`.triangle`은 위쪽 한 종류뿐이라
+    /// 아래는 180도 돌려야 하는데, 돌린 글리프는 대칭이 아니라 살짝 기울어 보인다 — Phosphor 아이콘이
+    /// 완전한 점대칭이 아니다).
+    static var trendUp: Ph { .caretUp }
+    static var trendDown: Ph { .caretDown }
 
     // 재료 추가 시트
     static var receipt: Ph { .receipt }

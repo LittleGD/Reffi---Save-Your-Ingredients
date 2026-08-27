@@ -463,16 +463,6 @@
         }
       }
     },
-    "About the same as last week.": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "지난주와 비슷해요."
-          }
-        }
-      }
-    },
     "Account": {
       "localizations": {
         "ko": {
@@ -1299,16 +1289,6 @@
         }
       }
     },
-    "Down from %@ last week.": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "지난주 %@에서 내렸어요."
-          }
-        }
-      }
-    },
     "Eat it today, waste nothing": {
       "localizations": {
         "ko": {
@@ -1335,6 +1315,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "이번 주 먹은 비율 %1$lld퍼센트, %3$lld개 중 %2$lld개"
+          }
+        }
+      }
+    },
+    "Eaten this week: %lld percent, %lld of ^[%lld items](inflect: true). About the same as last week's %lld percent.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이번 주 먹은 비율 %1$lld퍼센트, %3$lld개 중 %2$lld개. 지난주 %4$lld퍼센트와 비슷해요."
+          }
+        }
+      }
+    },
+    "Eaten this week: %lld percent, %lld of ^[%lld items](inflect: true). Down from %lld percent last week.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이번 주 먹은 비율 %1$lld퍼센트, %3$lld개 중 %2$lld개. 지난주 %4$lld퍼센트에서 내렸어요."
+          }
+        }
+      }
+    },
+    "Eaten this week: %lld percent, %lld of ^[%lld items](inflect: true). Up from %lld percent last week.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이번 주 먹은 비율 %1$lld퍼센트, %3$lld개 중 %2$lld개. 지난주 %4$lld퍼센트에서 올랐어요."
           }
         }
       }
@@ -3520,16 +3530,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "단위: %@"
-          }
-        }
-      }
-    },
-    "Up from %@ last week.": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "지난주 %@에서 올랐어요."
           }
         }
       }

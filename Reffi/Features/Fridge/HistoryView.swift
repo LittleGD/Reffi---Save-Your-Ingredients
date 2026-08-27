@@ -1,7 +1,8 @@
 import SwiftUI
+import PhosphorSwift
 
 /// History 본문 — 소비/버림 이력을 종이컷 카드로(§13).
-/// ① 이번 주 히어로(숫자 헤드라인 + 추세 문장 + 종이 칩 일곱) ② 정산서(먹음·버림·요리 세 행 +
+/// ① 이번 주 히어로(숫자 헤드라인 + 추세 화살표 + 종이 칩 일곱) ② 정산서(먹음·버림·요리 세 행 +
 /// 낭비율 도장 + 자주 버린 재료 TOP 3) ③ 타임라인.
 ///
 /// **커버 크롬(헤더·닫기)을 갖지 않는 임베더블 본문**이다 — 냉장고 History 탭이 이 뷰를 그대로 얹고,
@@ -82,6 +83,21 @@ struct HistoryContent: View {
 
     private var rateColor: Color { Self.rateColor(rate) }
 
+    /// 추세 화살표(33차) — 값 덩이 곁에 서는 작은 세모의 아이콘·색·UI 테스트 식별자.
+    /// **`.same`이거나 지난 주 데이터가 없으면(`nil`) 화살표 자체가 없다** — `ConsumptionWeek.Trend`가
+    /// 이미 "비슷한 주"인지 판정했고, 여기서는 그 결과를 그림 하나로 옮길 뿐이다(비슷한 주에 방향을
+    /// 우기지 않는다). 색은 낭비율과 같은 축(나아짐 = `freshDark`, 나빠짐 = `urgentDark`) — 옛
+    /// 추세 문장(26차)이 쓰던 색 그대로다. `testID`는 화면 문구가 아니라 식별자로 상태를 잡는
+    /// UI 테스트 훅이다(`ticket.menuName` 선례) — 화살표가 없는 주는 식별자도 없어, "없음"이 곧
+    /// 테스트가 확인하는 상태가 된다.
+    static func trendArrow(_ trend: ConsumptionWeek.Trend?) -> (icon: Ph, color: Color, testID: String)? {
+        switch trend {
+        case .better: (ReffiIcon.trendUp, ReffiColor.freshDark, "history.hero.trendArrow.up")
+        case .worse:  (ReffiIcon.trendDown, ReffiColor.urgentDark, "history.hero.trendArrow.down")
+        case .same, nil: nil
+        }
+    }
+
     /// 자주 버린 재료 — 버림 이력을 **매칭 키**(표기 무관)로 묶어 많은 순, 정산 기간(30일)과 같은 모수.
     /// 표기로 묶으면 언어를 바꾸기 전후에 담은 같은 재료가 두 줄로 갈린다.
     /// 3종 미만이면 **있는 만큼만** 세운다(빈 줄을 채우지 않는다).
@@ -96,7 +112,7 @@ struct HistoryContent: View {
     }
 
     var body: some View {
-        // 집계는 **본문당 한 번**만 돈다. computed로 두면 헤드라인·칩 행·추세 문장·접근성 라벨이
+        // 집계는 **본문당 한 번**만 돈다. computed로 두면 헤드라인·칩 행·추세 화살표·접근성 라벨이
         // 각자 이력을 다시 훑고, 그 사이에 자정이 지나면 한 화면 안에서 두 값이 다른 주를 가리킬 수 있다.
         let week = ConsumptionWeek.summary(of: logs)
         ScrollView {
@@ -145,7 +161,7 @@ struct HistoryContent: View {
             .accessibilityAddTraits(.isHeader)
     }
 
-    // MARK: ① 이번 주 히어로 — 숫자 헤드라인 + 추세 한 문장 + 종이 칩 일곱
+    // MARK: ① 이번 주 히어로 — 숫자 헤드라인 + 추세 화살표 + 종이 칩 일곱
     //
     // **창은 이번 주다**(정산서의 30일이 아니라). 바로 아래 칩 행이 이번 주 7일이므로, 헤드라인만
     // 30일이면 한 블록 안에서 서로 다른 두 책을 읽게 된다 — 옛 도넛이 링과 가운데 숫자에 다른 분모를
@@ -218,54 +234,71 @@ struct HistoryContent: View {
         chipRowFocused = true
     }
 
-    /// 값 덩이 — 큰 비율 + 창 이름·표본 한 줄, 그 아래 추세 한 문장.
+    /// 값 덩이 — 큰 비율 + 작은 추세 화살표, 그 아래 창 이름 한 줄.
+    ///
+    /// **33차, 사용자 지침으로 단순화**: 옛 세 줄(숫자 헤드라인 · 분자·분모 캡션 · 추세 문장 pill)이
+    /// 헤드라인을 과밀하게 만든다는 지적에 따라 화면은 **큰 비율 + 작은 화살표 + 캡션 한 줄**로 준다.
+    /// 지워진 두 조각의 자리는 사라지지 않는다 — 분자·분모는 아래 요일 칩 행이(칩 각 칸이 이미
+    /// 자기 날의 먹음·버림 개수를 든다, §13.10), 추세의 방향은 이 화살표가 잇는다. 분류 자체
+    /// (`ConsumptionWeek.Trend` — better/worse/same)는 그대로 살아 있고, 화살표는 그 결과를
+    /// 그림 하나로 옮길 뿐이다.
     private func headlineBlock(_ week: ConsumptionWeek.Summary) -> some View {
-        VStack(spacing: ReffiSpace.s2) {
-            VStack(spacing: 2) {
-                if let rate = week.eatenRate {
-                    // `reffiNum(.hero)`(32)가 숫자 계열의 **맨 위 단**이다(§3.4). 34를 새로 만들지
-                    // 않는 이유: 그 절이 크기를 자유 파라미터로 두었다가 여덟 종이 유통된 사고를
-                    // 닫으며 세 단만 남긴 곳이라, 화면 하나를 위해 넷째 단을 여는 순간 그 규율이 풀린다.
+        VStack(spacing: 2) {
+            if let rate = week.eatenRate {
+                // `reffiNum(.hero)`(32)가 숫자 계열의 **맨 위 단**이다(§3.4). 34를 새로 만들지
+                // 않는 이유: 그 절이 크기를 자유 파라미터로 두었다가 여덟 종이 유통된 사고를
+                // 닫으며 세 단만 남긴 곳이라, 화면 하나를 위해 넷째 단을 여는 순간 그 규율이 풀린다.
+                HStack(alignment: .firstTextBaseline, spacing: ReffiSpace.s1) {
                     Text(rate.formatted(.percent))
                         .font(.reffiNum(.hero))
                         .foregroundStyle(ReffiColor.ink)
-                    // **창 이름과 분자·분모를 한 줄에 둔다**(22차 근거 유지). 비율만 세우면 히어로의
-                    // 가장 큰 숫자가 사용자의 행동에 반응하지 않는 구간이 생긴다 — 이번 주에 버린 게
-                    // 없으면 뭘 더 먹어도 100%에 고정된다(실측: 먹음 판정 후 요일 칸은 0→1, 정산서는
-                    // 7→8로 움직였는데 링의 100%만 그대로였고, 그것이 "안 바뀐다"는 제보의 정체였다).
-                    // 이 줄은 판정마다 반드시 움직이고, 동시에 **표본 크기**를 드러내 아래 30일
-                    // 정산서의 낭비율과 나란히 놓였을 때의 모순감도 함께 푼다(2개 중 2개 vs 13개 중 5개).
-                    HStack(spacing: ReffiSpace.s1) {
-                        Text("eaten this week").reffiType(.metaText)
-                        Text(verbatim: "·").reffiType(.metaText)
-                        Text("\(week.eaten) of \(week.removed)").font(.reffiNum(.meta))
+                    if let arrow = Self.trendArrow(week.trend) {
+                        // 12pt = `reffiNum(.meta)`와 같은 단(§3.4 세 단 규율을 화살표에도 그대로
+                        // 적용 — 32pt 숫자 곁에 임의 크기를 새로 두지 않는다). `.fill` 무게라야
+                        // 이 크기에서 얇은 선이 아니라 꽉 찬 세모로 읽힌다.
+                        //
+                        // **밴드 위에 직접 얹고 종이 받침을 두지 않는다** — 옛 추세 문장(26차)은
+                        // 텍스트라 §2.6의 본문 기준(4.5:1)을 못 넘어 종이 조각이 필요했지만
+                        // (밴드 위 `freshDark` 실측 4.25:1), 이 화살표는 **그림**이라 §2.6의
+                        // 비텍스트 기준(3:1)이 적용되고 같은 잉크의 4.25:1은 그 기준을 이미 넘는다.
+                        arrow.icon.reffi(ReffiNumScale.meta.size, .fill)
+                            .foregroundStyle(arrow.color)
+                            // 아이콘엔 글자 베이스라인이 없어 기본 정렬 가이드가 어중간한 자리에
+                            // 앉는다 — 밑변을 숫자의 베이스라인에 직접 맞춘다.
+                            .alignmentGuide(.firstTextBaseline) { $0[.bottom] }
                     }
-                    // `muted`가 아니라 `ink2`다 — `muted`는 히어로 밴드(`paperPass`) 위에서 4.03:1
-                    // (라이트) / 4.17:1(다크)로 4.5:1을 못 넘고, 밴드에는 실루엣 더미까지 깔린다.
-                    // `ink2`는 같은 면에서 7.02 / 7.66이다(§2.6).
-                    .foregroundStyle(ReffiColor.ink2)
-                } else {
-                    // 처리 0건 — 0%는 "다 버렸다"는 없는 판정이다. 숫자를 아예 세우지 않는다.
-                    // 자리를 비우지 않고 `subhead`(18) 한 줄로 채우는 이유: 값 덩이가 통째로
-                    // 사라지면 아래 칩 행이 밴드 한가운데로 올라와 히어로가 다른 화면처럼 보인다.
-                    // `heading`(24)을 쓰지 않는 것은 바로 위 패인 헤드라인이 그 단이라, 같은 크기가
-                    // 둘이면 무엇이 무엇을 이름 붙이는지가 사라지기 때문이다(§3.2 위계).
-                    Text("Nothing this week")
-                        .reffiType(.subhead)
-                        .foregroundStyle(ReffiColor.ink)
                 }
-            }
-            .lineLimit(1)
-            .minimumScaleFactor(0.7)
-            .multilineTextAlignment(.center)
-            // 값 덩이는 숫자 하나가 아니라 "무엇의 몇 퍼센트인가"다 — 분자·분모까지 한 문장으로 읽는다.
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(headlineLabel(week))
-
-            if let trend = week.trend, let previous = week.previousEatenRate {
-                trendSentence(trend, previous: previous)
+                // 캡션은 창 이름 하나만 남는다 — "N of M" 분자·분모(22차)가 이 자리에 있던 근거는
+                // "비율만 있으면 판정마다 반드시 움직이는 값이 없다"는 것이었는데, 지금은 바로 아래
+                // 요일 칩 행의 각 칸이 이미 그 값(그날의 먹음·버림 개수)을 들고 있어(§13.10) 한
+                // 블록 안에 같은 숫자가 두 번 설 이유가 없다(33차, 사용자 피드백 — 헤드라인 과밀).
+                // `muted`가 아니라 `ink2`다 — `muted`는 히어로 밴드(`paperPass`) 위에서 4.03:1
+                // (라이트) / 4.17:1(다크)로 4.5:1을 못 넘고, 밴드에는 실루엣 더미까지 깔린다.
+                // `ink2`는 같은 면에서 7.02 / 7.66이다(§2.6).
+                Text("eaten this week").reffiType(.metaText).foregroundStyle(ReffiColor.ink2)
+            } else {
+                // 처리 0건 — 0%는 "다 버렸다"는 없는 판정이다. 숫자를 아예 세우지 않는다.
+                // 자리를 비우지 않고 `subhead`(18) 한 줄로 채우는 이유: 값 덩이가 통째로
+                // 사라지면 아래 칩 행이 밴드 한가운데로 올라와 히어로가 다른 화면처럼 보인다.
+                // `heading`(24)을 쓰지 않는 것은 바로 위 패인 헤드라인이 그 단이라, 같은 크기가
+                // 둘이면 무엇이 무엇을 이름 붙이는지가 사라지기 때문이다(§3.2 위계).
+                Text("Nothing this week")
+                    .reffiType(.subhead)
+                    .foregroundStyle(ReffiColor.ink)
             }
         }
+        .lineLimit(1)
+        .minimumScaleFactor(0.7)
+        .multilineTextAlignment(.center)
+        // 값 덩이는 숫자 하나가 아니라 "무엇의 몇 퍼센트인가"다 — 화면에서 화살표 하나로 줄인 추세를
+        // 소리에서는 그대로 문장으로 편다(분자·분모·추세 방향·지난 주 값까지, 아래 `headlineLabel`).
+        // 화면 혼잡이 33차의 문제였지 VoiceOver 정보량이 문제가 아니었다 — 말은 공짜다.
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(headlineLabel(week))
+        // 화살표의 **UI 테스트 훅** — 화면 문구가 아니라 식별자로 방향을 잡는다(`ticket.menuName`
+        // 선례). 화살표가 없는 주(`.same`·지난 주 데이터 없음)는 식별자도 빈 문자열이라, 특정
+        // 방향 식별자의 부재 자체가 테스트가 확인하는 상태가 된다.
+        .accessibilityIdentifier(Self.trendArrow(week.trend)?.testID ?? "")
     }
 
     private func headlineLabel(_ week: ConsumptionWeek.Summary) -> Text {
@@ -274,44 +307,22 @@ struct HistoryContent: View {
         }
         // `^[...](inflect: true)` — 분모 1일 때 "1 of 1 items"로 읽히지 않게 자동 문법 일치(en 전용;
         // ko는 수 일치가 없어 번역값에 마크업이 없다).
-        return Text("Eaten this week: \(rate) percent, \(week.eaten) of ^[\(week.removed) items](inflect: true)")
-    }
-
-    /// 추세 한 문장 — 이번 주 먹은 비율을 **지난 주** 같은 비율과 견준다.
-    ///
-    /// 문장이 지난 주 값을 그대로 싣는 이유: "나아졌어요"만 있으면 무엇에 견줬는지가 화면 밖에 있고,
-    /// 숫자가 있으면 사용자가 다음 주에 스스로 검산할 수 있다. 색은 낭비율 축과 같은 방향이다
-    /// (초록 = 덜 버렸다). **두 창 중 하나라도 비면 이 줄 자체가 서지 않는다** — 비교할 것이 없는데
-    /// 문장을 세우면 없는 지난 주를 지어내는 셈이 된다(`Summary.trend`가 그때 `nil`이다).
-    ///
-    /// **문장이 종이 조각 위에 앉는 이유는 실측이다.** 밴드 위에 그냥 놓았더니 라이트 모드 최악
-    /// 대비가 `freshDark` **4.25:1**이었다(캡처 픽셀 실측, 배경은 밴드 좌우 띠의 2백분위 = 밝은
-    /// 실루엣 위). 같은 자리의 `ink2` 캡션은 5.78로 통과하므로 원인은 배경이 아니라 **잉크**다 —
-    /// 색이 곧 정보인 문장이라 잉크를 어둡게 바꿀 수는 없다. 더미 농도를 조이는 길도 재 봤는데
-    /// 4.5를 넘기려면 실루엣 이탈 폭을 0.162 → 0.12로(≈30%) 깎아야 해서, 문장 하나 때문에 배경
-    /// 전체를 약하게 만드는 거래가 된다. 대신 **불투명한 바닥을 문장에만 준다**: `paper` 면 위에서
-    /// 세 변형의 최악이 5.04:1이고(라이트/다크 전부), 그 면은 조용한 날 칩이 이미 쓰는 바로 그
-    /// 종이라 밴드에 문법이 늘지 않는다. 셰이프도 기존 와이드 종이컷(`PaperCutRect`)을 쓴다.
-    @ViewBuilder
-    private func trendSentence(_ trend: ConsumptionWeek.Trend, previous: Int) -> some View {
-        let last = previous.formatted(.percent)
-        let shape = PaperCutRect(seed: 6)
-        Group {
-            switch trend {
-            case .better:
-                Text("Up from \(last) last week.").foregroundStyle(ReffiColor.freshDark)
-            case .worse:
-                Text("Down from \(last) last week.").foregroundStyle(ReffiColor.urgentDark)
-            case .same:
-                Text("About the same as last week.").foregroundStyle(ReffiColor.ink2)
-            }
+        //
+        // 추세는 **문장 전체를 케이스별로 완결한다**(조각을 이어 붙이지 않는다) — 번역이 어순을
+        // 자유롭게 정할 수 있어야 한다(`dayLabel`과 같은 결). 지난 주 값을 그대로 싣는 이유는 옛
+        // 추세 문장(26차)의 근거를 그대로 잇는다: "나아졌어요"만 있으면 무엇에 견줬는지가 안 들리고,
+        // 숫자가 있으면 사용자가 스스로 검산할 수 있다.
+        guard let trend = week.trend, let previous = week.previousEatenRate else {
+            return Text("Eaten this week: \(rate) percent, \(week.eaten) of ^[\(week.removed) items](inflect: true)")
         }
-        .reffiType(.caption)
-        .multilineTextAlignment(.center)
-        .padding(.horizontal, ReffiSpace.s3)
-        .padding(.vertical, ReffiSpace.s1)
-        .background(shape.fill(ReffiColor.paper))
-        .paperEdge(shape)
+        switch trend {
+        case .better:
+            return Text("Eaten this week: \(rate) percent, \(week.eaten) of ^[\(week.removed) items](inflect: true). Up from \(previous) percent last week.")
+        case .worse:
+            return Text("Eaten this week: \(rate) percent, \(week.eaten) of ^[\(week.removed) items](inflect: true). Down from \(previous) percent last week.")
+        case .same:
+            return Text("Eaten this week: \(rate) percent, \(week.eaten) of ^[\(week.removed) items](inflect: true). About the same as last week's \(previous) percent.")
+        }
     }
 
     /// 칩 한 조각 — 폭은 일곱 칸이 **SE급(375pt)에서도 한 줄에 서는** 상한에서 왔다:
