@@ -700,7 +700,9 @@ struct MainView: View {
     }
 
     private func cookElapsed(_ cook: FridgeStore.CookSession) -> some View {
+        // 상대 시간 표기는 기기 로케일을 따른다(38차 — 앱 언어 선택과 분리, `AppLanguage.swift` 근거).
         Text(cook.startedAt, style: .relative)
+            .environment(\.locale, .autoupdatingCurrent)
             .reffiType(.metaText)
             .foregroundStyle(ReffiColor.ink2)
     }

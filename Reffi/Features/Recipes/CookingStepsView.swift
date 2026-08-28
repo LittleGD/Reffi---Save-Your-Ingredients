@@ -261,7 +261,9 @@ struct CookingStepsView: View {
                 // 위계가 아니라 어색한 이격으로만 보였다. 데이터형 메타 하나로 묶는다(§3.5).
                 HStack(spacing: 4) {
                     Text("Started")
+                    // 상대 시간 표기는 기기 로케일을 따른다(38차 결정 — 앱 언어와 분리, 아래 근거).
                     Text(cook.startedAt, style: .relative)
+                        .environment(\.locale, .autoupdatingCurrent)
                 }
                 .reffiType(.metaText).foregroundStyle(ReffiColor.ink2)
             }

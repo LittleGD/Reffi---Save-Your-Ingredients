@@ -2994,6 +2994,16 @@
         }
       }
     },
+    "Some text updates right away. Restart Reffi to apply everywhere.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "일부 문구는 바로 바뀌어요. 전부 적용하려면 Reffi를 다시 실행하세요."
+          }
+        }
+      }
+    },
     "Sort: %@": {
       "localizations": {
         "ko": {
@@ -3100,16 +3110,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "보관: %@"
-          }
-        }
-      }
-    },
-    "Switch between English and Korean in iOS Settings.": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "iOS 설정에서 영어와 한국어를 바꿀 수 있어요."
           }
         }
       }

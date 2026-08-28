@@ -199,12 +199,14 @@ struct IngredientEditView: View {
             HStack {
                 Text("Use by").reffiType(.body).foregroundStyle(ReffiColor.ink)
                 Spacer()
+                // 날짜 휠·달력 표기는 기기 로케일을 따른다(38차 — 앱 언어 선택과 분리).
                 DatePicker("", selection: $draft.expiresAt,
                            in: Ingredient.day(offset: -30)...Ingredient.day(offset: 365),
                            displayedComponents: .date)
                     .labelsHidden()
                     .datePickerStyle(.compact)
                     .tint(ReffiColor.blue)
+                    .environment(\.locale, .autoupdatingCurrent)
             }
             .frame(minHeight: 40)
 
@@ -219,6 +221,7 @@ struct IngredientEditView: View {
                     .labelsHidden()
                     .datePickerStyle(.compact)
                     .tint(ReffiColor.blue)
+                    .environment(\.locale, .autoupdatingCurrent)
             }
             .frame(minHeight: 40)
         }

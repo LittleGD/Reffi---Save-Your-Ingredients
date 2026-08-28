@@ -655,4 +655,48 @@ final class ReffiFlowUITests: XCTestCase {
         guestRow.tap()
         XCTAssertTrue(app.buttons["Sign up"].waitForExistence(timeout: 4), "탭하면 로그인/가입 시트가 떠야 한다")
     }
+
+    // MARK: 앱 내 언어 전환(38차)
+
+    /// `.environment(\.locale)`이 실제로 라이브 반영되는지 확인한다 — `SettingsRow.label`·
+    /// `QuietButton.title`은 `LocalizedStringKey`라 재실행 없이 곧바로 새 언어로 뜬다는 것이
+    /// `AppLanguage.swift`가 문서화한 "정직한 경계"의 절반이다(나머지 절반 — `String(localized:)`로
+    /// 굳힌 값의 재실행 필요성 — 은 실행 중 검증이 불가능해 여기서 다루지 않는다). `Delete account`를
+    /// 증인으로 쓴다 — 방금 만진 행을 다시 조회하는 것보다 독립적이라 더 신뢰할 수 있다.
+    /// **정리**: 이 테스트는 실제로 `AppStorage`를 바꾸므로, 본문 끝에서 System default로 되돌리는
+    /// UI 조작과 **별도로** `addTeardownBlock`을 맨 먼저 등록한다 — 본문 어디서 실패해 조기 종료돼도
+    /// (예: 첫 회귀 당시처럼) `-resetLanguage`로 강제 리셋해 다음 테스트로의 캐스케이드를 막는다.
+    func testProfile_LanguagePicker_SwitchesToKoreanLive() {
+        addTeardownBlock {
+            let reset = XCUIApplication()
+            reset.launchArguments = ["-skipAuth", "-onboarding.done", "YES", "-resetLanguage"]
+            reset.launch()
+            reset.terminate()
+        }
+
+        let app = XCUIApplication()
+        app.launchArguments = ["-skipAuth", "-onboarding.done", "YES", "-profileTab", "-profileBottom"]
+        app.launch()
+
+        let languageRow = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] %@", "App language")).firstMatch
+        XCTAssertTrue(languageRow.waitForExistence(timeout: 8), "언어 행이 있어야 한다")
+        languageRow.tap()
+
+        let koreanOption = app.buttons["한국어"]
+        XCTAssertTrue(koreanOption.waitForExistence(timeout: 4), "드롭다운에 한국어 옵션이 떠야 한다")
+        koreanOption.tap()
+
+        XCTAssertTrue(app.buttons["계정 삭제"].waitForExistence(timeout: 4),
+                      "LocalizedStringKey 라벨은 재실행 없이 즉시 새 언어로 바뀌어야 한다")
+
+        // 되돌리기 — 행의 값이 이제 "한국어"이므로 그 문자열로 다시 찾아 System default를 고른다.
+        let languageRowAfter = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] %@", "한국어")).firstMatch
+        XCTAssertTrue(languageRowAfter.waitForExistence(timeout: 4))
+        languageRowAfter.tap()
+        let systemOption = app.buttons["시스템 기본값"]
+        XCTAssertTrue(systemOption.waitForExistence(timeout: 4))
+        systemOption.tap()
+        XCTAssertTrue(app.buttons["Delete account"].waitForExistence(timeout: 4),
+                      "System default로 되돌리면 영어 라벨도 즉시 돌아와야 한다")
+    }
 }

@@ -16,7 +16,6 @@ struct ProfileView: View {
     @Environment(AuthStore.self) private var auth
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.openURL) private var openURL
 
     // 알림 SSOT — ExpiryNotifier의 @AppStorage 키를 직접 읽어 실제 스케줄에 반영한다.
     @AppStorage(ExpiryNotifier.enabledKey) private var alertsEnabled = false
@@ -25,6 +24,10 @@ struct ProfileView: View {
     // 감각 SSOT — 같은 키를 홈(MainView)과 모든 햅틱 호출부(`.reffiFeedback`)가 함께 읽는다.
     @AppStorage(ReffiFeedback.hapticsKey) private var hapticsEnabled = true
     @AppStorage(ReffiFeedback.tiltKey) private var tiltEnabled = true
+
+    // 앱 내 언어 SSOT(38차) — `RootGateView`가 같은 키로 루트 `.environment(\.locale)`을 건다.
+    @AppStorage(AppLanguage.key) private var languageRaw = AppLanguage.system.rawValue
+    @State private var languagePickerOpen = false
 
     @State private var sheet: Sheet?
     @State private var showLogout = false
@@ -103,6 +106,14 @@ struct ProfileView: View {
         }
         .sheet(isPresented: $showAuth) { AuthView() }
         .sheet(isPresented: $showMyRecipes) { MyRecipesView() }
+        // 언어 픽커(38차) — `PaperDropdown` 루트 오버레이(ScrollView 클리핑 밖, `FridgeView` 정렬
+        // 드롭다운과 같은 문법이나 트리거가 하나뿐이라 시트용 `paperDropdownOverlay`를 그대로 쓴다.
+        .paperDropdownOverlay(isPresented: languagePickerOpen,
+                              options: AppLanguage.allCases,
+                              selected: AppLanguage.resolve(stored: languageRaw),
+                              label: { $0.displayName(in: currentDisplayLocale) },
+                              seed: 4,
+                              onDismiss: { languagePickerOpen = false }) { applyLanguage($0) }
         // 룰⑧ — 로그아웃은 세션만 해지하는 상태 전환이다. 냉장고·이력·프로필은 이 기기에
         // 그대로 남고, 소유자 키도 직전 계정 id로 유지된다(AuthStore.signOut / accountUserID).
         // 뒤이어 붙는 익명 게스트 세션은 소유자 대조 대상이 아니라 콜드 런치를 거쳐도 와이프가 없다
@@ -348,25 +359,38 @@ struct ProfileView: View {
         }
     }
 
-    // MARK: - 언어 영수증 — 앱별 언어는 iOS 설정이 정본. 인앱 가짜 스위처(재시작 필요·번들 스위즐)
-    // 대신 설정 딥링크로 보낸다(위약 금지). en·ko .lproj가 둘 다 있어 설정에 언어 행이 항상 노출된다.
+    // MARK: - 언어 영수증(2026-08, 38차) — 인앱 픽커로 전환.
+    // 이전엔 iOS 설정 딥링크가 정본이었다(§Data 79번째 줄 옛 근거). `.environment(\.locale)` +
+    // `AppleLanguages` 오버라이드로 실제 전환이 가능해져 딥링크를 걷었다 — `AppLanguage.swift`가
+    // 그 경계(즉시 반영 vs 재실행 필요)를 정직하게 문서화한다.
+    /// "지금 화면이 보여 주는 언어" — 행 값과 드롭다운 옵션 라벨(38차)이 같은 기준으로 리졸브되게
+    /// 명시적으로 못 박는다(`AppLanguage.displayName(in:)` 문서 참고 — `.system` 라벨은
+    /// `.environment(\.locale)`에 기대면 방금 바꾼 언어를 못 따라간다).
+    private var currentDisplayLocale: Locale { AppLanguage.resolve(stored: languageRaw).resolvedLocale }
+
     private var languageReceipt: some View {
         ReceiptCard(title: String(localized: "Language")) {
-            SettingsRow(label: "App language", value: currentLanguageName) {
-                if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
+            SettingsRow(label: "App language",
+                        value: AppLanguage.resolve(stored: languageRaw).displayName(in: currentDisplayLocale)) {
+                languagePickerOpen.toggle()
+            }
+            .anchorPreference(key: DropdownAnchorKey.self, value: .bounds) {
+                languagePickerOpen ? $0 : nil
             }
             ReceiptRule()
-            Text("Switch between English and Korean in iOS Settings.")
+            Text("Some text updates right away. Restart Reffi to apply everywhere.")
                 .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
                 .padding(.horizontal, ReffiSpace.s5)
                 .padding(.vertical, ReffiSpace.s3)
         }
     }
 
-    /// 현재 앱 언어의 엔도님(English·한국어) — 로케일에서 파생한 데이터 값이라 xcstrings 등록 대상이 아니다.
-    private var currentLanguageName: String {
-        let code = Locale.current.language.languageCode?.identifier ?? "en"
-        return Locale(identifier: code).localizedString(forLanguageCode: code)?.capitalized ?? code
+    /// 언어 선택 커밋 — `PaperDropdown`이 고르자마자 스스로 닫으므로(`paperDropdownOverlay`) 여기선
+    /// 값만 반영한다. 순서가 중요하다: AppStorage를 먼저 써야 `.environment(\.locale)`이 같은 프레임에
+    /// 새 값으로 다시 걸린다.
+    private func applyLanguage(_ language: AppLanguage) {
+        languageRaw = language.rawValue
+        language.applyAppleLanguagesOverride()
     }
 
     // MARK: - 데이터 관리 영수증 (샘플 불러오기·전체 초기화)

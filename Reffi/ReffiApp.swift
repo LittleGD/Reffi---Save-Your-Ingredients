@@ -23,6 +23,13 @@ struct ReffiApp: App {
         if args.contains("-skipOnboarding") {
             UserDefaults.standard.set(true, forKey: "onboarding.done")
         }
+        // UI 테스트용(38차) — 언어 선택을 강제로 system으로 되돌린다. 언어 전환 테스트가 AppStorage를
+        // 실제로 바꾸므로, 같은 스위트의 다음 테스트가 영어 문자열 단언에서 깨지지 않게 하는
+        // 방어선이다(테스트 본문의 UI 되돌리기가 실패해도 이 플래그가 캐스케이드를 막는다).
+        if args.contains("-resetLanguage") {
+            UserDefaults.standard.removeObject(forKey: AppLanguage.key)
+            UserDefaults.standard.removeObject(forKey: "AppleLanguages")
+        }
         #endif
     }
 
@@ -122,9 +129,16 @@ private struct RootGateView: View {
     @Environment(FridgeStore.self) private var store
     @Environment(ProfileStore.self) private var profile
     @AppStorage("onboarding.done") private var onboardingDone = false
+    /// 앱 내 언어 선택(38차) — App이 아닌 여기(View)에 둬 `@AppStorage` 변경이 확실히 리렌더를
+    /// 트리거하게 한다(위 `onboardingDone`과 같은 이유, 파일 상단 주석 참고).
+    @AppStorage(AppLanguage.key) private var languageRaw = AppLanguage.system.rawValue
 
     var body: some View {
         gate
+            // `LocalizedStringKey` 문자열(대부분의 버튼·행 라벨)은 이 오버라이드로 곧바로 반영된다.
+            // `String(localized:)`로 이미 굳힌 값은 그대로다 — `AppLanguage.applyAppleLanguagesOverride()`가
+            // 다음 실행을 위해 별도로 처리한다(정직한 경계는 `AppLanguage.swift` 문서 참고).
+            .environment(\.locale, AppLanguage.resolve(stored: languageRaw).resolvedLocale)
             // 계정 전환 감지 와이프 — 정식 계정 user id가 바뀌면(다른 계정 로그인) 이전 소유자의
             // 로컬 냉장고·프로필이 새 계정에 새지 않게 초기화한다. onChange는 최초 세션 복원
             // (nil→id)에도 발화하므로 소유자 최초 기록·익명→가입 승계(같은 id)도 여기서 다룬다.
