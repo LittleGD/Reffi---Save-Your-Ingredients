@@ -138,17 +138,20 @@ struct CookingStepsView: View {
                 .presentationDetents([.medium])
                 .presentationDragIndicator(.visible)   // 룰④ — 하단 시트는 dragIndicator(핸들) 필수, 닫기 신호 확보
         }
-        .confirmationDialog(Text("Put ingredients back?"), isPresented: $showCancelConfirm,
-                            titleVisibility: .visible) {
-            Button("Cancel cooking", role: .destructive) {
-                withAnimation(ReffiMotion.gated(ReffiMotion.pop, reduce: reduceMotion)) {
-                    store.cancelCooking()
-                }
-            }
-            Button("Keep cooking", role: .cancel) {}
-        } message: {
-            Text("Nothing is logged. Reserved ingredients return to the fridge.")
-        }
+        // 종이 확인으로 전환(2026-08, 35차 사용자 결정) — design_system.md §14.7이 조리 취소를
+        // "그대로 시스템" 목록에서 뺀 경우다. primary에 `role: .destructive`를 줘 `PaperDialog`가
+        // 파랑 대신 urgentDark 솔리드로 그리게 한다(파괴 행동에 파랑을 쓰지 않는다).
+        // 뒷배경 탭 = Keep cooking(질문형 안전 기본값, §14.7).
+        .paperDialog(isPresented: $showCancelConfirm,
+                     title: "Put ingredients back?",
+                     message: "Nothing is logged. Reserved ingredients return to the fridge.",
+                     backdropDismisses: true,
+                     primary: PaperDialogAction("Cancel cooking", role: .destructive) {
+                         withAnimation(ReffiMotion.gated(ReffiMotion.pop, reduce: reduceMotion)) {
+                             store.cancelCooking()
+                         }
+                     },
+                     secondary: PaperDialogAction("Keep cooking") {})
     }
 
     // MARK: - 하단 도킹 CTA
@@ -173,14 +176,16 @@ struct CookingStepsView: View {
                 }
 
                 // 조리 포기 — 예약을 해제하고 재료를 되돌린다(기록 없음). fire의 안전한 반대 방향.
-                Button { showCancelConfirm = true } label: {
-                    Text("Cancel cooking, put ingredients back")
-                        .reffiType(.caption)
-                        .foregroundStyle(ReffiColor.ink2)
-                        .frame(maxWidth: .infinity, minHeight: ReffiChrome.tapMin)
-                        .contentShape(Rectangle())
+                // 종이 버튼화(2026-08, 35차) — 예전엔 캡션 텍스트 한 줄이라 버튼으로 읽히지 않았고
+                // 라벨도 길었다. `QuietButton`(면 없는 텍스트 버튼 — ProfileView의 "Reset all data"·
+                // "Delete account"와 같은 문법, `tint: urgentDark`로 파괴 성향의 잉크색만 준다)으로
+                // 바꾸고 라벨은 "Cancel cooking"(다이얼로그 실행 버튼과 같은 키)으로 줄인다 — "재료를
+                // 되돌린다"는 세부는 화면에서 지워지지 않고 다이얼로그 메시지 + 아래 접근성 힌트에
+                // 그대로 남는다. 파랑 "Finish cooking"과 경쟁하지 않도록 면 없는 조용한 등급을 유지한다.
+                QuietButton(title: "Cancel cooking", tint: ReffiColor.urgentDark) {
+                    showCancelConfirm = true
                 }
-                .buttonStyle(.reffiPress)
+                .accessibilityHint(Text("Nothing is logged. Reserved ingredients return to the fridge."))
             }
         }
     }

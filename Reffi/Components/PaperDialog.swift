@@ -91,24 +91,31 @@ struct PaperDialog: View {
 
     /// 버튼 줄 — 종이컷 CTA(`PaperButton`)를 그대로 쓴다. 새 버튼 어휘를 만들지 않는다.
     /// 순서는 **취소 왼쪽 · 실행 오른쪽**(시스템 알림과 같은 손 방향이라 근육 기억이 깨지지 않는다).
+    /// 1차 버튼의 색은 `primary.role`이 정한다 — `.destructive`면 파랑 대신 `urgentDark` 솔리드
+    /// (2026-08, 35차: 파괴 행동에 파랑을 쓰지 않는다). 취소 쪽(`secondary`)은 역할과 무관하게 항상 중립이다.
     /// 세로 패딩 s4 + subhead 한 줄이면 실측 높이가 44pt를 넘는다(§7.3 터치 타깃).
     private var buttons: some View {
         HStack(spacing: ReffiSpace.s3) {
             if let secondary {
                 PaperButton(title: secondary.title, kind: .secondary, seed: seed &+ 5, action: secondary.handler)
             }
-            PaperButton(title: primary.title, kind: .primary, seed: seed &+ 2, action: primary.handler)
+            PaperButton(title: primary.title, kind: primary.role == .destructive ? .destructive : .primary,
+                       seed: seed &+ 2, action: primary.handler)
         }
     }
 }
 
 /// 종이 다이얼로그의 버튼 하나 — 문구와 그때 할 일.
+/// `role`(2026-08, 35차) — 시스템 `Button(role:)`과 같은 개념을 그대로 옮겼다. `.destructive`면
+/// `PaperDialog.buttons`가 이 액션을 `urgentDark` 솔리드로 그린다. 기본 `nil`이라 기존 호출부는 그대로다.
 struct PaperDialogAction {
     let title: LocalizedStringKey
     let handler: () -> Void
+    var role: ButtonRole? = nil
 
-    init(_ title: LocalizedStringKey, handler: @escaping () -> Void) {
+    init(_ title: LocalizedStringKey, role: ButtonRole? = nil, handler: @escaping () -> Void) {
         self.title = title
+        self.role = role
         self.handler = handler
     }
 }
@@ -174,7 +181,9 @@ private struct PaperDialogModifier: ViewModifier {
     }
 
     private func wrapped(_ action: PaperDialogAction) -> PaperDialogAction {
-        PaperDialogAction(action.title) { close(then: action.handler) }
+        // role을 함께 옮겨야 한다 — 안 옮기면 destructive 지정이 여기서 조용히 사라져
+        // 파괴 버튼이 파랑 primary로 되돌아간다(35차, 이 모디파이어가 `.paperDialog(...)`의 유일한 실경로).
+        PaperDialogAction(action.title, role: action.role) { close(then: action.handler) }
     }
 
     /// 먼저 내리고, 그 다음에 행동한다 — 행동이 다음 다이얼로그를 띄우더라도 같은 업데이트에서 교대된다.

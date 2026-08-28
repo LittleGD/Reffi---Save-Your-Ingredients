@@ -840,16 +840,6 @@
         }
       }
     },
-    "Cancel cooking, put ingredients back": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "조리 취소, 재료 되돌리기"
-          }
-        }
-      }
-    },
     "Category": {
       "localizations": {
         "ko": {

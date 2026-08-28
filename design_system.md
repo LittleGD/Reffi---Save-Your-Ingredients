@@ -1196,6 +1196,12 @@ SheetHeader(title: LocalizedStringKey, showsClose: Bool = false, onClose: (() ->
   시스템 알림과 같은 손 방향이라 근육 기억이 깨지지 않는다). **딤 탭은 알림형에서 무시, 질문형에서 취소**다:
   알림형이 조용히 닫히면 사용자는 무슨 일이 일어났는지 모른 채 이어질 질문을 못 받고, 질문형은 실수로 닫아도
   잃는 게 없되 취소와 **다른** 결과를 내면 그 실수가 의도하지 않은 이동이 된다.
+- **`PaperDialogAction.role: .destructive`(2026-08, 35차).** 1차 행동이 파괴 성향이면 `role: .destructive`를
+  준다 — `PaperDialog`가 그 버튼을 파랑 대신 **`urgentDark` 솔리드**(`PaperButtonLabel.Kind.destructive`)로
+  그린다. 파스텔 `urgent`가 아니라 `urgentDark`인 이유는 §2.6 실측표의 "각 색-dark 솔리드 + white = AA+"
+  (urgent 5.92) 행이 정확히 이 조합이기 때문이다 — 파스텔 `urgent` 위에 흰 글자를 얹는 건 §2.6이 명시적으로
+  금지한다. 단면·그레인·그림자는 `.primary`와 동일(`paperEdgeOnFill`) — 색만 갈리고 재질 문법은 하나다.
+  취소 쪽(`secondary`)은 역할과 무관하게 항상 중립(`sub`)이다. 첫 사용처는 조리 취소 확인(아래).
 - **`PaperChecklistDialog` = 고르기형(2026-08, 25차).** 같은 문법에 셋을 더한다: **우상단 X**(`PaperCloseButton`,
   룰 ① — 아무것도 하지 않고 닫는 길), **체크 행 목록**, **하단 전폭 1차 CTA**(라벨은 **개수형** — 스캔 후보 담기 CTA와 같은 키를 쓴다:
   진입 알약과 라벨이 갈려야 무엇을 누르는지가 흐려지지 않고, 0건이면 "Add 0 items"가 disabled로 남아 이유까지 설명한다). 체크는 **왼쪽**에 선다(세로로 훑을 때
@@ -1206,6 +1212,14 @@ SheetHeader(title: LocalizedStringKey, showsClose: Bool = false, onClose: (() ->
 - **접근성** — 컨테이너에 `.isModal`(뜬 동안 뒤 화면이 VoiceOver에서 사라진다), 등장 시 제목에
   `@AccessibilityFocusState` 포커스 + `.isHeader`, 이스케이프 제스처는 **딤 탭과 같은 행동**(정해지지 않았으면 1차 행동).
   체크 행은 이름 라벨 + `Checked`/`Not checked` 값 + 힌트 + 켜짐일 때 `.isSelected`. 딤에는 라벨을 달지 않는다.
-- **다른 팝업은 그대로 시스템이다.** 로그아웃·계정삭제·샘플 로드·조리 취소·삭제·Discard는 인터랙션 룰 ⑧이 정한
-  `.alert`/`.confirmationDialog` 자리다 — 파괴 확인에는 시스템 알림의 무게가 오히려 맞는다.
+- **경계 개정(2026-08, 35차) — 조리 취소만 종이로 넘어왔다.** 로그아웃·계정삭제·샘플 로드·삭제·Discard는
+  여전히 인터랙션 룰 ⑧이 정한 `.alert`/`.confirmationDialog` 자리다(파괴 확인에는 시스템 알림의 무게가
+  맞는다는 원칙 자체는 안 바뀌었다). **조리 취소**(`CookingStepsView`의 "Put ingredients back?")는 사용자
+  결정으로 `PaperDialog`(위 `.destructive` role)로 옮겼다 — 근거는 이 확인이 룰 ⑧ 분류상 "복구 불가능"도
+  "데이터 삭제"도 아니라는 데 있다: 예약만 풀고 재료를 냉장고로 되돌릴 뿐 아무것도 지우거나 기록하지 않는
+  점에서 로그아웃과 같은 축("데이터 미삭제 상태 전환")에 가깝다. 로그아웃이 `.confirmationDialog`로 남은
+  것과 달리 조리 취소를 종이로 옮긴 것은 일관성보다 **화면 재질**을 앞세운 예외다 — 조리 티켓 자체가 이미
+  전면 종이 화면이라, 그 화면 안에서 시스템 알림이 뜨면 재질이 끊긴다는 §14.7 도입부의 근거가 이 화면에는
+  가장 강하게 적용된다. **다른 파괴 확인은 경계를 유지한다** — 이번 변경이 "파괴 확인은 전부 종이로"라는
+  일반 규칙으로 확대된 것은 아니다.
 
