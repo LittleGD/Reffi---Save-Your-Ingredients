@@ -370,20 +370,26 @@ struct ProfileView: View {
     }
 
     // MARK: - 데이터 관리 영수증 (샘플 불러오기·전체 초기화)
+    /// "Load the sample fridge"는 **게스트에서만** 보인다(2026-08, 36차 owner decision) — 로그인 계정은
+    /// 실 데이터를 다루므로 샘플로 갈아엎는 진입점 자체를 주지 않는다. 로그인 상태의 유일한 소스는
+    /// `accountReceipt`가 이미 읽는 `auth.isGuest`와 같다(§Account 영수증). 행과 그 아래 절취선을
+    /// **함께** 조건문에 묶어, 숨을 때 짝 잃은 `ReceiptRule`이 남지 않게 한다.
     private var dataReceipt: some View {
         ReceiptCard(title: String(localized: "Data")) {
-            QuietButton(title: "Load the sample fridge", icon: ReffiIcon.fridge, tint: ReffiColor.blueDark) {
-                if store.isPristine {
-                    withAnimation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion)) {
-                        store.loadSampleData()
+            if Self.showsSampleLoad(isGuest: auth.isGuest) {
+                QuietButton(title: "Load the sample fridge", icon: ReffiIcon.fridge, tint: ReffiColor.blueDark) {
+                    if store.isPristine {
+                        withAnimation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion)) {
+                            store.loadSampleData()
+                        }
+                    } else {
+                        showSampleConfirm = true
                     }
-                } else {
-                    showSampleConfirm = true
                 }
+                .padding(.horizontal, ReffiSpace.s3)
+                .padding(.vertical, ReffiSpace.s1)
+                ReceiptRule()
             }
-            .padding(.horizontal, ReffiSpace.s3)
-            .padding(.vertical, ReffiSpace.s1)
-            ReceiptRule()
             QuietButton(title: "Reset all data", icon: ReffiIcon.toss, tint: ReffiColor.urgentDark) {
                 showResetConfirm = true
             }
@@ -391,6 +397,10 @@ struct ProfileView: View {
             .padding(.vertical, ReffiSpace.s1)
         }
     }
+
+    /// 순수 규칙(뷰 밖에서 유닛 테스트로 고정 — `FridgeTab.initial(from:)`과 같은 문법):
+    /// 샘플 로드 행은 게스트에게만 보인다.
+    static func showsSampleLoad(isGuest: Bool) -> Bool { isGuest }
 
     // MARK: - 계정 영수증
     private var accountReceipt: some View {

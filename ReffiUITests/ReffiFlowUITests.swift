@@ -617,4 +617,21 @@ final class ReffiFlowUITests: XCTestCase {
         XCTAssertTrue(app.buttons["Browse without an account"].exists)
         XCTAssertTrue(app.buttons["Sign up"].exists, "가입 모드 전환 링크")
     }
+
+    // MARK: 프로필 Data 영수증 — 게스트 전용 샘플 로드 행(36차)
+
+    /// 기본 테스트 환경(`-skipAuth`)은 게스트다(RUN.md) — 이 경로에서 Data 영수증에 두 행(샘플 로드 +
+    /// Reset)이 모두 있어야 한다. 로그인 계정 쪽(Reset만 남는 경로)은 실제 Supabase 세션이 필요해
+    /// 이 UI 테스트로는 재현하지 못한다 — 그 경로는 `ProfileDataVisibilityTests`의 순수 규칙
+    /// (`ProfileView.showsSampleLoad(isGuest:)`)이 대신 고정한다.
+    func testProfile_GuestDataSection_ShowsSampleLoadAndReset() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-skipAuth", "-onboarding.done", "YES", "-profileTab", "-profileBottom"]
+        app.launch()
+
+        XCTAssertTrue(app.buttons["Load the sample fridge"].waitForExistence(timeout: 8),
+                      "게스트는 샘플 로드 행을 봐야 한다")
+        XCTAssertTrue(app.buttons["Reset all data"].waitForExistence(timeout: 4),
+                      "Reset 행은 게스트에서도 항상 있어야 한다")
+    }
 }
