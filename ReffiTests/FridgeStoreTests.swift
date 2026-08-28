@@ -295,6 +295,35 @@ struct FridgeStoreTests {
         #expect(store.activeCook?.completedSteps == [2])
     }
 
+    // MARK: 주방 전표 구세션 폴백 (39차-b)
+
+    /// 실기기 리포트 재현 — 39차 이전에 발주된 세션은 `steps` 필드 자체가 없다(nil). 레시피 자체는
+    /// 살아 있고 단계도 있으면, 스냅샷이 비어도 링크가 죽지 않고 원본에서 되찾아야 한다
+    /// (`heroIcon(for:)`와 같은 폴백 축).
+    @Test func resolvedStepsFallsBackToLiveRecipeWhenSnapshotIsNil() {
+        let recipe = Recipe.userRecipe(name: "Grilled Salmon Teishoku", ingredientNames: ["Salmon"],
+                                       minutes: 20, steps: ["Grill the salmon", "Serve with rice"])
+        let result = FridgeStore.CookSession.resolvedSteps(snapshot: nil, recipeID: recipe.id, in: [recipe])
+        #expect(result == ["Grill the salmon", "Serve with rice"])
+    }
+
+    /// 레시피가 지워졌거나(id가 배열에 없음) id 자체가 없는 구세션 — 되찾을 원본이 없으니 nil이고,
+    /// 그 자리에서 링크는 안 선다(없는 단계를 있는 척하지 않는다, `intro(for:)`와 같은 태도).
+    @Test func resolvedStepsIsNilWhenRecipeIsGoneAndSnapshotIsEmpty() {
+        #expect(FridgeStore.CookSession.resolvedSteps(snapshot: nil, recipeID: "deleted-id", in: []) == nil)
+        #expect(FridgeStore.CookSession.resolvedSteps(snapshot: [], recipeID: nil, in: []) == nil)
+    }
+
+    /// 스냅샷이 있으면(정상 발주 경로, 39차 본선) 항상 스냅샷이 이긴다 — 발주 시점 진실이 정본이라,
+    /// 발주 뒤 레시피 단계가 편집돼도 이 티켓은 흔들리지 않는다(`count`·`minutes`와 같은 축).
+    @Test func resolvedStepsPrefersSnapshotOverLiveRecipe() {
+        let recipe = Recipe.userRecipe(name: "Edited Later", ingredientNames: ["Item"],
+                                       minutes: 5, steps: ["New step from a later edit"])
+        let result = FridgeStore.CookSession.resolvedSteps(snapshot: ["Fired-time step"], recipeID: recipe.id,
+                                                            in: [recipe])
+        #expect(result == ["Fired-time step"])
+    }
+
     /// `resetAllData()`가 실제로 지우는 것들(2026-08, 37차 — 게스트→계정 전환 보존 불변식의 절반).
     /// `RootGateView.reconcileDataOwner`가 **다른 계정으로 전환**(`DataOwner.shouldWipe` == true)할
     /// 때만 부르는 함수라, 이 계약이 무엇을 지우는지 고정해 두면 "언제 부르는가"(아래

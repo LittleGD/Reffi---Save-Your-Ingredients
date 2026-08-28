@@ -76,6 +76,14 @@ struct CookingStepsView: View {
         return .session(name: cook.recipeName, id: cook.recipeID)
     }
 
+    /// 참고 단계 — 판정 자체는 `FridgeStore.CookSession.resolvedSteps(snapshot:recipeID:in:)`(순수 규칙,
+    /// 유닛 테스트로 고정)에 위임한다. 여기서는 그 규칙에 `store.recipes`를 넘기기만 한다.
+    /// 링크 게이트(`if let steps = resolvedSteps(...)`)와 시트 콘텐츠가 **이 함수 하나만** 부르므로,
+    /// 시트가 렌더하는 배열과 `completedSteps`가 가리키는 배열이 항상 같다 — 인덱스가 어긋날 길이 없다.
+    private func resolvedSteps(for cook: FridgeStore.CookSession) -> [String]? {
+        FridgeStore.CookSession.resolvedSteps(snapshot: cook.steps, recipeID: cook.recipeID, in: store.recipes)
+    }
+
     /// 세션의 요리 소개 — 히어로 아이콘과 **같은 체인**으로 원본 레시피를 되찾아 한 줄을 읽는다.
     /// 아이콘과 달리 폴백이 없다: 조리 중 레시피가 지워졌거나(id 유실) 소개가 없는 커스텀 레시피면
     /// nil이고, 그 자리엔 아무것도 그리지 않는다. 세션 스냅샷에 소개문을 또 박지 않는 이유도 같다 —
@@ -160,7 +168,7 @@ struct CookingStepsView: View {
         .sheet(isPresented: $showKitchenCopy) {
             if let cook = store.activeCook {
                 KitchenCopySheet(recipeName: cook.recipeName,
-                                  steps: cook.steps ?? [],
+                                  steps: resolvedSteps(for: cook) ?? [],
                                   completedSteps: Set(cook.completedSteps ?? [])) { index in
                     store.toggleCookStep(index)
                 }
@@ -389,7 +397,10 @@ struct CookingStepsView: View {
             // 필(pill) 대신 밑줄 텍스트로 조용히: 파랑 CTA(영상·Finish cooking)와 경쟁하지 않으면서도
             // 35차가 걷어낸 옛 텍스트 버튼("캡션처럼 읽혀 눌리지 않던")과 달리 밑줄로 탭 가능 신호를
             // 명시한다(design_system.md §Quiet 텍스트 링크). 시각은 작게, 히트 영역은 §7.3 44pt.
-            if let steps = cook.steps, !steps.isEmpty {
+            // **39차-b**: 스냅샷만 보면 39차 이전에 발주된 구세션은 `cook.steps`가 nil이라 이 링크가
+            // 실제 단계 있는 레시피에서도 안 섰다(실기기 리포트) — `resolvedSteps(for:)`가 스냅샷 →
+            // 원본 레시피 순으로 폴백해 게이트와 시트 콘텐츠가 항상 같은 답을 보게 한다.
+            if let steps = resolvedSteps(for: cook) {
                 QuietButton(title: "See the cooking details?", tint: ReffiColor.ink2, underline: true) {
                     showKitchenCopy = true
                 }

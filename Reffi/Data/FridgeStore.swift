@@ -48,6 +48,19 @@ final class FridgeStore {
         var steps: [String]?              // 단계 레시피(발주 시점 스냅샷) — 없거나 빈 배열이면 링크 자체가 안 선다
         var completedSteps: [Int]?        // 체크한 단계 인덱스(주방 전표 시트에서 토글)
         var usedIDs: [UUID]?              // 예약된 재료 — v1 세션(발주 즉시 소비)엔 없음
+
+        /// 순수 규칙(2026-08, 39차-b) — `CookingStepsView.resolvedSteps(for:)`가 부르는 판정만 떼어낸다
+        /// (`DataOwner.shouldWipe`·`FridgeTab.initial(from:)`과 같은 문법 — 뷰를 띄우지 않고 유닛
+        /// 테스트로 경로를 고정한다). **스냅샷이 우선**(`count`·`minutes`와 같은 축 — 발주 뒤 레시피가
+        /// 바뀌어도 이 값은 흔들리지 않는다), 없으면 `recipeID`로 넘겨받은 레시피 배열에서 찾아
+        /// 폴백한다(39차 이전에 발주된 구세션엔 `steps` 필드 자체가 없었다 — 실기기 리포트로 발견,
+        /// heroIcon 체인과 같은 이유). 레시피가 지워졌거나 id가 없으면 nil.
+        static func resolvedSteps(snapshot: [String]?, recipeID: String?, in recipes: [Recipe]) -> [String]? {
+            if let steps = snapshot, !steps.isEmpty { return steps }
+            guard let id = recipeID, let recipe = recipes.first(where: { $0.id == id }) else { return nil }
+            let fallback = recipe.displaySteps
+            return fallback.isEmpty ? nil : fallback
+        }
     }
 
     /// 장보기 목록에 손으로 얹은 한 줄. 키가 아니라 **항목**으로 저장한다 — 정규화 키만 남기면
