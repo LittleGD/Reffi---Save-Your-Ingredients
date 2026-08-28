@@ -634,4 +634,25 @@ final class ReffiFlowUITests: XCTestCase {
         XCTAssertTrue(app.buttons["Reset all data"].waitForExistence(timeout: 4),
                       "Reset 행은 게스트에서도 항상 있어야 한다")
     }
+
+    // MARK: 게스트→계정 전환 행(37차)
+
+    /// 게스트의 Account 영수증은 이제 정적 안내문 + 별도 "Log in / Sign up" 버튼(중복 진입점, 13차 교훈)
+    /// 대신 행 전체가 하나의 탭 타깃인 `SettingsRow`다(라벨 "Guest mode" + 값 문구가 한 Button
+    /// 접근성 요소로 병합된다 — Toggle과 같은 병합 규칙). 로그인 계정 쪽(Signed in + Log out 행)은
+    /// 실제 Supabase 세션이 있어야 재현돼 이 UI 테스트로는 다루지 못한다 — 그 갈림은
+    /// `accountReceipt`의 `if auth.isGuest` 분기 자체(뷰 로직)만으로 보장된다.
+    func testProfile_GuestAccountRow_ShowsDeviceOnlyCopyAndOpensAuth() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-skipAuth", "-onboarding.done", "YES", "-profileTab", "-profileBottom"]
+        app.launch()
+
+        let guestRow = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] %@", "Guest mode")).firstMatch
+        XCTAssertTrue(guestRow.waitForExistence(timeout: 8), "게스트는 탭 가능한 단일 Guest mode 행을 봐야 한다")
+        XCTAssertTrue(guestRow.label.contains("stays on this device"),
+                      "곁 문구는 서버 백업을 약속하지 않고 기기 보관만 정직하게 말해야 한다")
+
+        guestRow.tap()
+        XCTAssertTrue(app.buttons["Sign up"].waitForExistence(timeout: 4), "탭하면 로그인/가입 시트가 떠야 한다")
+    }
 }

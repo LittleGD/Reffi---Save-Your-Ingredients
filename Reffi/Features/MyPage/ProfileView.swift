@@ -405,26 +405,34 @@ struct ProfileView: View {
     // MARK: - 계정 영수증
     private var accountReceipt: some View {
         ReceiptCard(title: String(localized: "Account")) {
-            // 로그인 상태 행 — 이메일(로그인) 또는 게스트 안내.
-            HStack {
-                Text(auth.isGuest ? "Guest mode" : "Signed in")
-                    .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
-                Spacer()
-                Text(auth.userEmail ?? String(localized: "Sign up to keep your data"))
-                    .reffiType(.caption).foregroundStyle(ReffiColor.ink)
-                    .lineLimit(1).truncationMode(.middle)
+            if auth.isGuest {
+                // 게스트는 상태 표시와 진입점을 한 행으로 합친다(2026-08, 37차) — 예전엔 탭 안 되는
+                // "Guest mode · Sign up to keep your data" 안내 줄 바로 아래 별도 "Log in / Sign up"
+                // 버튼이 있어, 안내문은 액션처럼 읽히는데 정작 탭이 안 되고 진짜 액션은 한 칸 아래
+                // 떨어져 있었다. `SettingsRow`(라벨+값+셰브런, 전체가 탭 표면)로 하나의 명확한
+                // 진입점만 남긴다 — 같은 목적지(인증 시트)로 가는 입구를 화면에 흩뿌리지 않는다.
+                // 카피는 정직하게: 서버 백업은 없으므로 약속하지 않고, 로컬 기기에 남는다는 사실만 말한다.
+                SettingsRow(label: "Guest mode", value: String(localized: "Your data stays on this device")) {
+                    showAuth = true   // 익명 세션을 유지한 채 시트에서 전환/로그인(승계 보장).
+                }
+            } else {
+                HStack {
+                    Text("Signed in")
+                        .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
+                    Spacer()
+                    Text(auth.userEmail ?? "")
+                        .reffiType(.caption).foregroundStyle(ReffiColor.ink)
+                        .lineLimit(1).truncationMode(.middle)
+                }
+                .padding(.horizontal, ReffiSpace.s5)
+                .padding(.vertical, ReffiSpace.s3)
+                ReceiptRule()
+                QuietButton(title: "Log out", icon: ReffiIcon.go, tint: ReffiColor.blueDark) {
+                    showLogout = true
+                }
+                .padding(.horizontal, ReffiSpace.s3)
+                .padding(.vertical, ReffiSpace.s1)
             }
-            .padding(.horizontal, ReffiSpace.s5)
-            .padding(.vertical, ReffiSpace.s3)
-            ReceiptRule()
-            QuietButton(title: auth.isGuest ? "Log in / Sign up" : "Log out",
-                        icon: ReffiIcon.go, tint: ReffiColor.blueDark) {
-                // 게스트는 익명 세션을 유지한 채 시트에서 전환/로그인(승계 보장).
-                if auth.isGuest { showAuth = true }
-                else { showLogout = true }
-            }
-            .padding(.horizontal, ReffiSpace.s3)
-            .padding(.vertical, ReffiSpace.s1)
             ReceiptRule()
             // toss(재료 버림)와 의미 충돌 방지 — 탈퇴는 별도 아이콘(x).
             QuietButton(title: "Delete account", icon: ReffiIcon.close, tint: ReffiColor.urgentDark) {

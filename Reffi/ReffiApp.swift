@@ -107,6 +107,14 @@ enum DataOwner {
         d.removeObject(forKey: key)
         d.set(true, forKey: migratedKey)
     }
+
+    /// 순수 규칙(2026-08, 37차) — `RootGateView.reconcileDataOwner`가 실제로 로컬 데이터를
+    /// 지워야 하는가만 판단한다. `UserDefaults`·store·profile을 전혀 건드리지 않아 뷰를 띄우지
+    /// 않고 유닛 테스트로 세 경로(같은 계정 재로그인·익명→가입 승계·다른 계정 전환)를 고정할 수 있다
+    /// (`FridgeTab.initial(from:)`과 같은 문법). `reconcileDataOwner`의 주석에 적힌 세 경로 그대로다.
+    static func shouldWipe(previous: String?, newID: String) -> Bool {
+        previous != nil && previous != newID
+    }
 }
 
 private struct RootGateView: View {
@@ -150,7 +158,7 @@ private struct RootGateView: View {
         guard let newID else { return }
         let previous = UserDefaults.standard.string(forKey: DataOwner.key)
         guard previous != newID else { return }   // 같은 소유자(익명→가입 승계 포함) — 변화 없음
-        if previous != nil {
+        if DataOwner.shouldWipe(previous: previous, newID: newID) {
             // 다른 계정으로 전환 — 이전 소유자 데이터 제거.
             store.resetAllData()
             profile.resetAll()

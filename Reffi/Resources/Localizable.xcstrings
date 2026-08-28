@@ -2943,16 +2943,6 @@
         }
       }
     },
-    "Sign up to keep your data": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "가입하고 데이터를 지켜보세요"
-          }
-        }
-      }
-    },
     "Signed in": {
       "localizations": {
         "ko": {
@@ -3731,6 +3721,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "수정한 내용은 저장되지 않아요."
+          }
+        }
+      }
+    },
+    "Your data stays on this device": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "데이터는 이 기기에 그대로 남아요"
           }
         }
       }

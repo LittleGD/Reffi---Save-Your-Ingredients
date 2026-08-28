@@ -255,6 +255,38 @@ struct FridgeStoreTests {
         #expect(!store.ingredients.isEmpty)
     }
 
+    /// `resetAllData()`가 실제로 지우는 것들(2026-08, 37차 — 게스트→계정 전환 보존 불변식의 절반).
+    /// `RootGateView.reconcileDataOwner`가 **다른 계정으로 전환**(`DataOwner.shouldWipe` == true)할
+    /// 때만 부르는 함수라, 이 계약이 무엇을 지우는지 고정해 두면 "언제 부르는가"(아래
+    /// `DataOwnerTests`)와 합쳐 전체 그림이 완성된다. 지시문이 지목한 네 데이터셋(ingredients·
+    /// history·manualToBuy·activeCook)을 전부 확인한다 — `history`는 `cook()`만으로는 안 쌓인다
+    /// (소비 확정은 `finishCooking()`이 한다, §요리 완료)는 점에 유의해 Item0을 실제로 완주시키고,
+    /// Item1로 두 번째 세션을 새로 열어 activeCook도 함께 채운다(둘이 서로 다른 재료라 충돌 없음).
+    @Test func resetAllDataClearsEveryDataset() {
+        let store = makeStore()
+        let recipe0 = Recipe.userRecipe(name: "Test0", ingredientNames: ["Item0"], minutes: 10, steps: [])
+        store.addUserRecipe(recipe0)
+        store.cook(RecipeRecommender.result(for: recipe0, ingredients: store.sorted))
+        store.finishCooking()   // Item0 소비 확정 — history에 실제로 한 줄 남는다(activeCook은 다시 nil)
+        #expect(!store.history.isEmpty)
+        #expect(!store.userRecipes.isEmpty)
+
+        let recipe1 = Recipe.userRecipe(name: "Test1", ingredientNames: ["Item1"], minutes: 10, steps: [])
+        store.cook(RecipeRecommender.result(for: recipe1, ingredients: store.sorted))
+        _ = store.addToBuy(name: "Milk")
+        #expect(store.activeCook != nil)
+        #expect(!store.manualToBuy.isEmpty)
+        #expect(!store.ingredients.isEmpty)
+
+        store.resetAllData()
+
+        #expect(store.ingredients.isEmpty)
+        #expect(store.history.isEmpty)
+        #expect(store.manualToBuy.isEmpty)
+        #expect(store.activeCook == nil)
+        #expect(store.userRecipes.isEmpty)
+    }
+
     // MARK: 리뷰 회귀 (2026-07-02 코드리뷰 확정 결함)
 
     @Test func finishUndoRestoresLeftoverQuantityAndSession() {
