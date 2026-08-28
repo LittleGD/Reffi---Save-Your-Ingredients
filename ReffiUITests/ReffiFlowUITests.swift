@@ -165,11 +165,6 @@ final class ReffiFlowUITests: XCTestCase {
         XCTAssertTrue(ledgerHeadline.waitForExistence(timeout: 4),
                       "History 패인의 첫 블록은 헤드라인이다")
         XCTAssertFalse(app.staticTexts["Grocery memo"].exists, "To buy 헤드라인은 함께 사라져야 한다")
-        let heroCaption = app.staticTexts["A chip a day. Green is what you ate."]
-        XCTAssertTrue(heroCaption.waitForExistence(timeout: 4),
-                      "히어로는 헤드라인 바로 아래에 선다")
-        XCTAssertTrue(ledgerHeadline.frame.maxY <= heroCaption.frame.minY,
-                      "헤드라인이 히어로보다 위에 있어야 한다")
         // 값 덩이는 두 상태 중 정확히 하나로 읽힌다 — 이번 주 처리 건이 있으면 비율, 없으면 빈 창 안내.
         // (샘플 이력의 날짜는 상대값이라, 실행일이 주의 어디냐에 따라 둘 다 정상이다.)
         let rateHeadline = heroRateHeadline(app)
@@ -177,6 +172,16 @@ final class ReffiFlowUITests: XCTestCase {
             .matching(NSPredicate(format: "label == %@", "Nothing cleared out this week yet.")).firstMatch
         XCTAssertTrue(rateHeadline.waitForExistence(timeout: 4) || emptyHeadline.exists,
                       "헤드라인은 비율이나 빈 창 안내 중 하나를 읽어 준다(NaN·빈 라벨 금지)")
+        // **히어로의 랜드마크는 값 덩이다 — 칩 캡션이 아니다.** 캡션("A chip a day…")은 31차부터
+        // 닫을 수 있고 닫힘이 **설치에 영구 기록**되므로(`history.chipHintDismissed`), 캡션을
+        // 랜드마크로 쓰면 `testHistory_ChipHint_DismissesPermanently`가 한 번 돈 시뮬레이터에서
+        // 이 테스트가 **영원히** 실패한다. 한 번의 실행 안에서는 알파벳 순서가 F < H라 가려져,
+        // 전체 실행은 초록불인데 같은 기기에 두 번째로 돌리면 깨진다(실측으로 확인).
+        // 값 덩이는 닫히지 않으므로 같은 함정이 없다.
+        let heroValue = rateHeadline.exists ? rateHeadline : emptyHeadline
+        XCTAssertTrue(heroValue.exists, "히어로는 헤드라인 바로 아래에 선다")
+        XCTAssertTrue(ledgerHeadline.frame.maxY <= heroValue.frame.minY,
+                      "헤드라인이 히어로보다 위에 있어야 한다")
         // 추세 화살표 — 샘플 이력은 **어느 요일에 돌려도 두 창이 모두 비지 않는다**:
         // 이번 주에는 오늘(daysAgo 0) 로그가 있고, 지난 주 창(daysAgo offset+1…offset+7)에는
         // daysAgo 2·3·4·5·7·9·11·13 중 최소 셋이 언제나 들어온다. 그래서 추세는 **반드시 뭔가로
@@ -224,10 +229,10 @@ final class ReffiFlowUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Tally · past 30 days"].exists,
                       "30일 정산서는 히어로 아래에 그대로 있다")
         // 스와이프 폭은 기기·모션 설정에 따라 다르다 — 횟수를 못 박지 않고 조건으로 민다.
-        for _ in 0..<4 where heroCaption.isHittable { app.swipeUp() }
+        for _ in 0..<4 where heroValue.isHittable { app.swipeUp() }
         XCTAssertTrue(app.staticTexts["Tally · past 30 days"].waitForExistence(timeout: 4),
                       "스크롤하면 정산서가 화면으로 올라온다")
-        XCTAssertFalse(heroCaption.isHittable, "히어로는 스크롤과 함께 걷힌다")
+        XCTAssertFalse(heroValue.isHittable, "히어로는 스크롤과 함께 걷힌다")
         XCTAssertFalse(ledgerHeadline.isHittable, "헤드라인도 스크롤 콘텐츠라 함께 걷힌다")
         XCTAssertTrue(historyTab.isHittable, "탭 행은 스크롤 밖 고정 크롬이라 남아 있어야 한다")
         attach(app, named: "fridge-tab-history-scrolled")

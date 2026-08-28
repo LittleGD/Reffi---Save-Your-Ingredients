@@ -14,6 +14,17 @@ struct HistoryContent: View {
     @Environment(FridgeStore.self) private var store
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+    /// 추세 화살표의 실제 크기(35차) — 기준 20pt에 **히어로 숫자와 같은 램프**를 건다.
+    /// `relativeTo:`가 `.largeTitle`인 것은 우연이 아니라 짝 맞추기다: 숫자가
+    /// `reffiNum(.hero)` = `.custom(size: 32, relativeTo: .largeTitle)`이라, 같은 텍스트
+    /// 스타일을 기준으로 잡아야 둘이 **같은 비율로** 커진다(다른 스타일을 잡으면 접근성
+    /// 크기 어디선가 화살표만 앞서거나 뒤처진다). 이 앱에서 아이콘이 타입을 따라 커지는
+    /// 것은 여기가 처음이다 — `ReffiIcon.reffi(_:)`는 고정 프레임이고 그대로 둔다:
+    /// 다른 아이콘은 **글자 곁이 아니라 자기 자리**에 서는 크롬·장식이라 같은 근거가 없다.
+    /// 이 화살표만 다른 이유는 33차에 추세 문장을 걷어내며 **화면상 유일한 추세 전달자**가
+    /// 됐다는 것이다 — 큰 글자를 쓰는 사용자에게서 정보가 사라지면 안 된다.
+    @ScaledMetric(relativeTo: .largeTitle) private var trendArrowSize: CGFloat = 20
+
     /// 정산서에 세우는 자주 버린 재료 줄 수 — 영수증 한 장이 삼키는 상한.
     private static let topTossedLimit = 3
 
@@ -263,11 +274,14 @@ struct HistoryContent: View {
                         // 않는다 — 이 앱의 아이콘은 10~44pt 자유 크기고 20pt는 이미 쓰던 크기다.
                         // `.fill` 무게라야 이 크기에서 얇은 선이 아니라 꽉 찬 세모로 읽힌다.
                         //
+                        // **20은 이제 기준값이고 실제 크기는 `trendArrowSize`가 낸다(35차)** —
+                        // 위 프로퍼티가 숫자와 같은 램프로 키운다.
+                        //
                         // **밴드 위에 직접 얹고 종이 받침을 두지 않는다** — 옛 추세 문장(26차)은
                         // 텍스트라 §2.6의 본문 기준(4.5:1)을 못 넘어 종이 조각이 필요했지만
                         // (밴드 위 `freshDark` 실측 4.25:1), 이 화살표는 **그림**이라 §2.6의
                         // 비텍스트 기준(3:1)이 적용되고 같은 잉크의 4.25:1은 그 기준을 이미 넘는다.
-                        arrow.icon.reffi(20, .fill)
+                        arrow.icon.reffi(trendArrowSize, .fill)
                             .foregroundStyle(arrow.color)
                             // 아이콘엔 글자 베이스라인이 없어 기본 정렬 가이드가 어중간한 자리에
                             // 앉는다 — 밑변을 숫자의 베이스라인에 직접 맞춘다.
