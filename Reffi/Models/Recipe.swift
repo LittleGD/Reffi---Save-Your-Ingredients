@@ -54,6 +54,13 @@ struct Recipe: Identifiable, Codable, Equatable {
     // MARK: - 표시 접근자
 
     var displayName: String { Self.isKorean ? (name.ko ?? name.en) : name.en }
+    /// 로케일 조리 단계(39차 — 33c8861에서 참조 소멸로 삭제됐다가 주방 전표 시트를 위해 되살아났다).
+    /// 커스텀 레시피는 편집기가 단계를 더 이상 입력받지 않아 보통 빈 배열이다 — 그 경우 호출부가
+    /// 옵트인 링크 자체를 안 그린다(§CookingStepsView).
+    var displaySteps: [String] {
+        if Self.isKorean, let ko = steps.ko, !ko.isEmpty { return ko }
+        return steps.en
+    }
     /// 로케일 표시 소개 — **없으면 nil**이고 호출부는 그 자리에 아무것도 그리지 않는다(자리표시 금지).
     /// 공백만 남은 값도 nil로 접는다 — 빈 캡션이 여백만 벌리는 것을 막는다.
     var displayIntro: String? {

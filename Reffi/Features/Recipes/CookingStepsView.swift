@@ -4,11 +4,14 @@ import UIKit
 
 /// 조리 세션 티켓(§13.6) — 발주 직후, 그리고 메인의 Cooking now 카드에서 열리는 조리 화면.
 /// 발주된 티켓 한 장이 그대로 조리 중 상태판이 된다: 무엇을 몇 개로 굽고 있는지, 언제 시작했는지,
-/// 그리고 **어떻게 만드는지는 영상**이 맡는다(앱은 단서까지, 디테일은 유튜브).
+/// 그리고 **어떻게 만드는지는 여전히 영상이 1차 경로**다(앱은 단서까지, 디테일은 유튜브).
 /// 세션(시작 시각·예약 재료)은 store에 영속화되어 앱을 껐다 켜도 이어진다.
 ///
-/// 단계 체크리스트는 없앴다 — 텍스트 단계를 따라가는 건 실제 조리 중에 아무도 하지 않고,
-/// 영상 한 번이 단계 열 줄보다 정확하다. 파일명은 진입점 참조가 흩어져 있어 그대로 둔다.
+/// **점진적 공개로 단계가 돌아왔다(2026-08, 39차 — 33c8861 오너 테제의 부분 반전).** 티켓 본문
+/// 자체엔 여전히 단계 텍스트가 한 글자도 없다 — 대신 단계가 있는 레시피에만 조용한 밑줄 링크
+/// ("See the cooking details?")가 서고, 탭하면 `KitchenCopySheet`가 하단에서 올라온다. 영상 CTA는
+/// 이 링크의 유무와 무관하게 항상 1차 자리를 지킨다(§videoButton). 파일명은 진입점 참조가
+/// 흩어져 있어 그대로 둔다.
 struct CookingStepsView: View {
     @Environment(FridgeStore.self) private var store
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -19,6 +22,10 @@ struct CookingStepsView: View {
     @State private var finishHaptic = 0
     @State private var showFinishSheet = false
     @State private var showCancelConfirm = false
+    /// 주방 전표 시트 열림(39차). 단계가 없으면 이 값을 켤 링크 자체가 안 서므로 방어적 nil 처리가
+    /// 필요 없다 — 시트 콘텐츠는 그 시점의 `store.activeCook`에서 다시 읽는다(진행 중 세션의 체크
+    /// 상태가 store에 바로 반영되므로, 여기 로컬 스냅샷을 따로 들지 않는다).
+    @State private var showKitchenCopy = false
     @State private var leftovers: Set<UUID> = []   // '조금 남았어요'로 표시한 재료
     @State private var shareImage: Image?   // 공유 카드 오프스크린 렌더 결과 — 아래 ShareCardKey가 바뀔 때만 갱신
     /// 커버 헤더의 실측 높이 — 티켓 상단 여백이 여기서 파생된다(형제 `RecipeMemoCarousel`과 같은 규칙).
@@ -128,6 +135,16 @@ struct CookingStepsView: View {
         // 뜨지 않고, 메인·시트의 하단 CTA 관례와 같은 자리에서 엄지로 닿는다. 본문(티켓)만 스크롤한다.
         .dockedCTA(over: ReffiColor.paperPass) { bottomBar }
         .reffiFeedback(.success, trigger: finishHaptic)
+        #if DEBUG
+        // `-cookTicket.kitchenCopy` — 주방 전표 시트를 곧장 연다(39차, `-cookTicket` 선례를 그대로
+        // 잇는 점 네임스페이스 플래그). `-cookTicket`이 이미 seed 레시피로 발주하고(전량 단계 보유)
+        // 이 화면을 여니, 여기선 시트 하나만 더 올리면 된다 — 화면이 자리 잡을 짧은 유예 후에.
+        .onAppear {
+            if ProcessInfo.processInfo.arguments.contains("-cookTicket.kitchenCopy") {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { showKitchenCopy = true }
+            }
+        }
+        #endif
         // 완료·취소(또는 발주 undo)로 세션이 사라지면 자동으로 닫힌다.
         .onChange(of: store.activeCook == nil) { _, gone in
             if gone { onClose() }
@@ -137,6 +154,19 @@ struct CookingStepsView: View {
             finishSheet
                 .presentationDetents([.medium])
                 .presentationDragIndicator(.visible)   // 룰④ — 하단 시트는 dragIndicator(핸들) 필수, 닫기 신호 확보
+        }
+        // 주방 전표(39차) — 티켓 안 "See the cooking details?" 링크가 연다. 체크는 store에 바로
+        // 반영되므로(`toggleCookStep`) 시트를 닫았다 열어도, 앱을 껐다 켜도 유지된다.
+        .sheet(isPresented: $showKitchenCopy) {
+            if let cook = store.activeCook {
+                KitchenCopySheet(recipeName: cook.recipeName,
+                                  steps: cook.steps ?? [],
+                                  completedSteps: Set(cook.completedSteps ?? [])) { index in
+                    store.toggleCookStep(index)
+                }
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)   // 룰④
+            }
         }
         // 종이 확인으로 전환(2026-08, 35차 사용자 결정) — design_system.md §14.7이 조리 취소를
         // "그대로 시스템" 목록에서 뺀 경우다. primary에 `role: .destructive`를 줘 `PaperDialog`가
@@ -354,10 +384,18 @@ struct CookingStepsView: View {
                 }
             }
 
-            // 기대치 정렬 — 앱은 단서까지, 디테일은 영상. 단계가 사라진 자리를 설명하는 한 줄.
-            Text("Cook it your way. The video has the details.")
-                .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
-                .fixedSize(horizontal: false, vertical: true)
+            // 조용한 옵트인 링크(2026-08, 39차) — 옛 "Cook it your way. The video has the details."
+            // 캡션을 대신한다. **단계가 있을 때만** 선다(대부분의 커스텀 레시피는 없다 — §KitchenCopySheet).
+            // 필(pill) 대신 밑줄 텍스트로 조용히: 파랑 CTA(영상·Finish cooking)와 경쟁하지 않으면서도
+            // 35차가 걷어낸 옛 텍스트 버튼("캡션처럼 읽혀 눌리지 않던")과 달리 밑줄로 탭 가능 신호를
+            // 명시한다(design_system.md §Quiet 텍스트 링크). 시각은 작게, 히트 영역은 §7.3 44pt.
+            if let steps = cook.steps, !steps.isEmpty {
+                QuietButton(title: "See the cooking details?", tint: ReffiColor.ink2, underline: true) {
+                    showKitchenCopy = true
+                }
+                .frame(maxWidth: .infinity)   // 부모 VStack이 leading이라 명시적으로 가운데 정렬
+                .accessibilityHint(Text("Opens the full list of cooking steps"))
+            }
 
         }
         .padding(.horizontal, ReffiSpace.s5)

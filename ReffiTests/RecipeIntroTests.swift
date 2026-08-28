@@ -122,4 +122,39 @@ struct RecipeIntroTests {
         #expect(decoded.displayIntro == nil)
         #expect(decoded.displayName == "Legacy")
     }
+
+    // MARK: - displaySteps 표시 규칙(39차 — 33c8861에서 삭제됐다 주방 전표 시트를 위해 되살아났다)
+
+    private func recipe(steps: Recipe.LocalizedSteps) -> Recipe {
+        Recipe(id: "t", name: Recipe.LocalizedName(en: "Test", ko: "테스트"), intro: nil,
+               cuisine: nil, minutes: 10,
+               ingredients: [Recipe.Item(ref: nil, en: "x", ko: nil)],
+               steps: steps, isUser: nil)
+    }
+
+    /// `displayName`·`displayIntro`와 **같은 축**으로 고른다 — 한 조리 세션에서 이름은 한글인데
+    /// 주방 전표 단계만 영문이면 안 된다.
+    @Test func displayStepsFollowsLocaleLikeDisplayName() {
+        let r = recipe(steps: Recipe.LocalizedSteps(en: ["Chop", "Stir"], ko: ["썬다", "볶는다"]))
+        #expect(r.displaySteps == (Recipe.isKorean ? ["썬다", "볶는다"] : ["Chop", "Stir"]))
+    }
+
+    @Test func displayStepsFallsBackToEnglishWhenKoreanMissing() {
+        let r = recipe(steps: Recipe.LocalizedSteps(en: ["Only English"], ko: nil))
+        #expect(r.displaySteps == ["Only English"])
+    }
+
+    /// `ko`가 `nil`이 아니라 **빈 배열**인 경우도 영문으로 접는다 — `displaySteps`의 가드가
+    /// `!ko.isEmpty`까지 확인하는 이유다(닐 체크만 하면 빈 배열이 "번역 있음"으로 오인된다).
+    @Test func displayStepsFallsBackToEnglishWhenKoreanIsEmpty() {
+        let r = recipe(steps: Recipe.LocalizedSteps(en: ["Only English"], ko: []))
+        #expect(r.displaySteps == ["Only English"])
+    }
+
+    @Test func displayStepsIsEmptyForRecipesWithoutSteps() {
+        // 커스텀 레시피는 편집기가 단계를 더 이상 입력받지 않아 보통 빈 배열이다(33c8861) —
+        // 그래서 티켓의 "See the cooking details?" 링크가 커스텀 레시피에는 안 선다.
+        let custom = Recipe.userRecipe(name: "내 레시피", ingredientNames: ["계란"], minutes: 10)
+        #expect(custom.displaySteps.isEmpty)
+    }
 }

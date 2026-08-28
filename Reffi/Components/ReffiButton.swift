@@ -8,6 +8,10 @@ struct QuietButton: View {
     let title: LocalizedStringKey
     var icon: Ph?
     var tint: Color = ReffiColor.blueDark
+    /// 조용한 텍스트 링크 신호(39차 부활 — 35차가 걷어낸 "캡션처럼 읽히는" 옛 텍스트 버튼과 다른 점이
+    /// 바로 이 밑줄이다). 기본 false라 기존 호출부(파괴 성향 보조 액션 등)는 전부 그대로다 —
+    /// 이 신호는 **정보를 더 보여주는** 링크에만 켠다(design_system.md 참고).
+    var underline: Bool = false
     let action: () -> Void
 
     var body: some View {
@@ -17,6 +21,7 @@ struct QuietButton: View {
                 Text(title)
                     .font(ReffiTextRole.caption.font)
                     .tracking(ReffiTextRole.caption.tracking)
+                    .underline(underline)
             }
             .foregroundStyle(tint)
             .padding(.vertical, ReffiSpace.s2)

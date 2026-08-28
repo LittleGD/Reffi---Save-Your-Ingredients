@@ -66,9 +66,11 @@ struct FridgeStoreTests {
         #expect(snap.userRecipes?.isEmpty == true)
     }
 
-    @Test func decodesSnapshotWithRemovedCookStepKeys() throws {
-        // 단계 체크리스트 제거 전에 저장된 파일 — CookSession에 더 이상 없는 steps·completedSteps 키가 남아 있다.
-        // 모르는 키는 무시되고 진행 중 세션(이름·개수·예약 재료)은 그대로 살아야 한다.
+    /// 39차 — `steps`·`completedSteps`가 CookSession에 되살아났다(33c8861에서 걷혔던 필드,
+    /// 주방 전표 시트를 위해 부활). 이 테스트는 그 필드가 있는 파일(주방 전표에서 체크해 저장된
+    /// 세션)이 실제로 디코드되는지 확인한다 — 예전엔 "모르는 키라 무시된다"였던 테스트를
+    /// 뒤집는다(옛 이름·주석은 git 이력 참고, 지금은 반대가 참이다).
+    @Test func decodesCookSessionWithStepsAndCompletedSteps() throws {
         let json = """
         {"schemaVersion":2,"ingredients":[],"history":[],"dismissedToBuy":[],"counterIDs":[],
         "activeCook":{"recipeName":"Bibimbap","startedAt":773236800,"count":3,
@@ -81,6 +83,23 @@ struct FridgeStoreTests {
         #expect(cook.count == 3)
         #expect(cook.minutes == nil)              // 없던 필드는 nil — 공유 카드가 시간 줄을 생략한다
         #expect(cook.usedIDs?.count == 1)         // 예약(되돌릴 수 있는 재료)은 온전히 보존
+        #expect(cook.steps == ["chop", "stir"])   // 39차 — 이제 살아 있어 실제로 디코드된다
+        #expect(cook.completedSteps == [0])
+    }
+
+    /// 33c8861~39차 사이(단계 텍스트가 화면 어디에도 없던 시절)에 저장된 파일 — `steps`·
+    /// `completedSteps` 키 자체가 없다. `Optional`이라 안전하게 nil로 접혀야 한다 — 그래야
+    /// 그 세션을 이어 보는 티켓에 주방 전표 링크가 서지 않는다(단계 없음 = 링크 없음, §CookingStepsView).
+    @Test func decodesLegacyCookSessionWithoutStepKeys() throws {
+        let json = """
+        {"schemaVersion":2,"ingredients":[],"history":[],"dismissedToBuy":[],"counterIDs":[],
+        "activeCook":{"recipeName":"Bibimbap","startedAt":773236800,"count":3,
+        "usedIDs":["3E29D5C3-99D5-44A5-BB80-1E1B62F0A6DF"]}}
+        """.replacingOccurrences(of: "\n", with: "")
+        let snap = try #require(FridgeStore.decodeSnapshot(Data(json.utf8)))
+        let cook = try #require(snap.activeCook)
+        #expect(cook.steps == nil)
+        #expect(cook.completedSteps == nil)
     }
 
     @Test func recipesPoolIsCustomPlusSeed() {
@@ -253,6 +272,27 @@ struct FridgeStoreTests {
         store.loadSampleData()
         #expect(store.activeCook == nil)   // 유령 'Cooking now' 카드 방지
         #expect(!store.ingredients.isEmpty)
+    }
+
+    /// `cook()`이 발주 시점 레시피의 `displaySteps`를 세션에 스냅샷하는지, `toggleCookStep`이
+    /// 켜고 끄기를 올바르게 뒤집는지(39차 — 주방 전표 시트의 유일한 쓰기 경로). 인덱스 정렬도
+    /// 확인한다 — 시트가 `completedSteps`를 순서 그대로 신뢰하고 그리므로 뒤집힌 순서는 곧 버그다.
+    @Test func cookSnapshotsStepsAndToggleCookStepFlipsCompletion() {
+        let store = makeStore()
+        let recipe = Recipe.userRecipe(name: "Test", ingredientNames: ["Item0"], minutes: 10,
+                                       steps: ["Chop", "Stir", "Plate"])
+        store.cook(RecipeRecommender.result(for: recipe, ingredients: store.sorted))
+        #expect(store.activeCook?.steps == ["Chop", "Stir", "Plate"])
+        #expect(store.activeCook?.completedSteps == nil)   // 아직 아무것도 체크 안 함
+
+        store.toggleCookStep(0)
+        #expect(store.activeCook?.completedSteps == [0])
+
+        store.toggleCookStep(2)
+        #expect(store.activeCook?.completedSteps == [0, 2])   // 정렬 유지, 1은 여전히 미완료
+
+        store.toggleCookStep(0)   // 다시 탭하면 꺼진다
+        #expect(store.activeCook?.completedSteps == [2])
     }
 
     /// `resetAllData()`가 실제로 지우는 것들(2026-08, 37차 — 게스트→계정 전환 보존 불변식의 절반).

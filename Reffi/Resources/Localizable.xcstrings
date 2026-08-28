@@ -335,6 +335,34 @@
         }
       }
     },
+    "%lld steps": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "1 step"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld steps"
+                }
+              }
+            }
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld단계"
+          }
+        }
+      }
+    },
     "%lld times": {
       "localizations": {
         "en": {
@@ -1014,16 +1042,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Google로 계속하기"
-          }
-        }
-      }
-    },
-    "Cook it your way. The video has the details.": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "자기 방식대로 요리하세요. 자세한 건 영상에 있어요."
           }
         }
       }
@@ -2386,6 +2404,16 @@
         }
       }
     },
+    "Opens the full list of cooking steps": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "조리 단계 전체 목록을 열어요"
+          }
+        }
+      }
+    },
     "Opens the share sheet": {
       "localizations": {
         "ko": {
@@ -2868,6 +2896,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "재료 검색"
+          }
+        }
+      }
+    },
+    "See the cooking details?": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "조리 과정을 볼까요?"
           }
         }
       }
@@ -3380,6 +3418,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "목록에 담을지 켜고 끕니다"
+          }
+        }
+      }
+    },
+    "Toggles whether this step is done": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 단계를 완료했는지 켜고 끕니다"
           }
         }
       }
