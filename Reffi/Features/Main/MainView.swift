@@ -511,8 +511,16 @@ struct MainView: View {
 
     // MARK: - Header
 
+    /// `statusBlock`의 `margin`·`s5`는 이미 세 루트 페이지의 상단 오프셋을 맞춘 값이다(23차 주석) —
+    /// 하지만 그 값은 바깥 패딩일 뿐, 이 VStack 자체가 내용 폭(워드마크 글자 폭)만큼만 좁게 잡히면
+    /// `body`의 바깥 VStack(정렬 지정 없음 = 기본 `.center`)이 이 좁은 블록을 통째로 화면 가운데로
+    /// 밀어 버린다 — 실측(43차, 스크린샷 대조): 워드마크가 margin(16)이 아니라 사실상 센터 정렬로
+    /// 떴다. Fridge `titleRow`가 쓰는 `.frame(maxWidth: .infinity, alignment: .leading)`를 그대로
+    /// `wordmark`에 옮겨 헤더가 전체 폭을 먹고 leading에 고정되게 한다 — 타이틀→캡션 간격도 같은 김에
+    /// Fridge `fridgeHeader`의 "제목-본문 간격" 문법(s3)으로 올린다(옛 값 s1은 이 정렬 버그와 무관하게
+    /// 그냥 좁았다).
     private func header(_ counter: CounterDigest) -> some View {
-        VStack(alignment: .leading, spacing: ReffiSpace.s1) {
+        VStack(alignment: .leading, spacing: ReffiSpace.s3) {
             wordmark
             // 미션 헤더(D) — 오늘의 상태를 한 문장으로. 누계(Ate/Tossed)는 MyPage가 맡는다.
             missionText(counter)
@@ -521,9 +529,12 @@ struct MainView: View {
         }
     }
 
-    /// 브랜드 워드마크 — 비번역 라틴(Story Script).
+    /// 브랜드 워드마크 — 비번역 라틴(Story Script). `maxWidth: .infinity` + leading은 글자를 늘이는
+    /// 게 아니라(텍스트는 여전히 제 폭만큼만 그려진다) 이 뷰의 **레이아웃 폭**을 전체로 넓혀 위 `header`
+    /// VStack이 화면 가운데로 밀리지 않게 고정하는 앵커다 — Fridge `titleRow`와 동일한 트릭.
     private var wordmark: some View {
         Text(verbatim: "Reffi").reffiType(.display).foregroundStyle(ReffiColor.ink)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func missionText(_ counter: CounterDigest) -> Text {
