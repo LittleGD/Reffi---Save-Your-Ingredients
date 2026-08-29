@@ -51,20 +51,17 @@ struct MyRecipesView: View {
         .presentationDragIndicator(.visible)              // 룰 ④: 핸들이 주 닫기 신호
         .presentationBackground(ReffiColor.canvas)
         .reffiFeedback(.warning, trigger: deleteHaptic)
-        // 룰⑧ — 커스텀 레시피 삭제는 **복구 불가능**이라 alert다(2026-08-13 재분류).
-        // dialog로 둘 근거였던 "pendingUndo 토스트가 뜬다"는 이 경로에 성립하지 않는다:
-        // undo 모델은 재료·이력 스냅샷 전용이고 `deleteUserRecipe`는 사용자가 직접 쓴 콘텐츠를
-        // 되살릴 장부 없이 지운다(감사 R4-3). 계정삭제·전체초기화·샘플로드와 같은 강도로 올린다.
-        .alert("Delete this recipe?", isPresented: $showDeleteConfirm) {
-            Button("Delete", role: .destructive) {
-                if let target = deleteTarget { store.deleteUserRecipe(id: target.id) }  // 스토어가 persist까지 수행.
-                deleteHaptic += 1
-                deleteTarget = nil
-            }
-            Button("Cancel", role: .cancel) { deleteTarget = nil }
-        } message: {
-            Text("Removes it from your recipes. This can't be undone. Built-in recipes stay.")
-        }
+        // 40차 — 팝업 전수 종이화(§14.7 개정). 강도(복구 불가능)와 무관하게 PaperDialog로 옮긴다 —
+        // 행동 배선·햅틱·카피는 그대로다. Cancel도 `deleteTarget`을 비우는 원본 핸들러를 그대로 옮긴다.
+        .paperDialog(isPresented: $showDeleteConfirm, title: "Delete this recipe?",
+                    message: "Removes it from your recipes. This can't be undone. Built-in recipes stay.",
+                    seed: 1, backdropDismisses: true,
+                    primary: PaperDialogAction("Delete", role: .destructive) {
+                        if let target = deleteTarget { store.deleteUserRecipe(id: target.id) }  // 스토어가 persist까지 수행.
+                        deleteHaptic += 1
+                        deleteTarget = nil
+                    },
+                    secondary: PaperDialogAction("Cancel", role: .cancel) { deleteTarget = nil })
         .sheet(isPresented: $creating) { RecipeEditorView(recipe: nil) }
         .sheet(item: $editing) { RecipeEditorView(recipe: $0) }
     }
@@ -214,23 +211,21 @@ struct RecipeEditorView: View {
         .interactiveDismissDisabled(isDirty)         // 룰 ⑨: 변경 있으면 스와이프 실수로 닫히지 않음
         .reffiFeedback(.success, trigger: savedHaptic)
         .reffiFeedback(.warning, trigger: deleteHaptic)
-        .confirmationDialog(Text("Discard changes?"), isPresented: $showDiscardConfirm,
-                            titleVisibility: .visible) {
-            Button("Discard", role: .destructive) { dismiss() }
-        } message: {
-            Text("Your edits won't be saved.")
-        }
-        // 룰⑧ — 복구 불가능 → alert(목록 쪽 삭제와 같은 강도·같은 카피).
-        .alert("Delete this recipe?", isPresented: $showDeleteConfirm) {
-            Button("Delete", role: .destructive) {
-                if let existing = recipe { store.deleteUserRecipe(id: existing.id) }
-                deleteHaptic += 1
-                dismiss()
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("Removes it from your recipes. This can't be undone. Built-in recipes stay.")
-        }
+        // 40차 — 팝업 전수 종이화(§14.7 개정). 목록 쪽 삭제(위)와 같은 컴포넌트·같은 카피·같은 배선.
+        .paperDialog(isPresented: $showDiscardConfirm, title: "Discard changes?",
+                    message: "Your edits won't be saved.",
+                    seed: 2, backdropDismisses: true,
+                    primary: PaperDialogAction("Discard", role: .destructive) { dismiss() },
+                    secondary: PaperDialogAction("Cancel", role: .cancel) {})
+        .paperDialog(isPresented: $showDeleteConfirm, title: "Delete this recipe?",
+                    message: "Removes it from your recipes. This can't be undone. Built-in recipes stay.",
+                    seed: 3, backdropDismisses: true,
+                    primary: PaperDialogAction("Delete", role: .destructive) {
+                        if let existing = recipe { store.deleteUserRecipe(id: existing.id) }
+                        deleteHaptic += 1
+                        dismiss()
+                    },
+                    secondary: PaperDialogAction("Cancel", role: .cancel) {})
         .onAppear { load() }
     }
 

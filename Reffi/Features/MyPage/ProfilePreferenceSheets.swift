@@ -57,12 +57,12 @@ struct NicknameEditSheet: View {
         }
         .onAppear { draft = profile.nickname }
         .interactiveDismissDisabled(isDirty)   // 룰⑨ — 변경 있으면 스와이프 실수로 닫히지 않는다
-        .confirmationDialog(Text("Discard changes?"), isPresented: $showDiscardConfirm,
-                            titleVisibility: .visible) {
-            Button("Discard", role: .destructive) { dismiss() }
-        } message: {
-            Text("Your changes won't be saved.")
-        }
+        // 40차 — 팝업 전수 종이화(§14.7 개정).
+        .paperDialog(isPresented: $showDiscardConfirm, title: "Discard changes?",
+                    message: "Your changes won't be saved.",
+                    seed: 1, backdropDismisses: true,
+                    primary: PaperDialogAction("Discard", role: .destructive) { dismiss() },
+                    secondary: PaperDialogAction("Cancel", role: .cancel) {})
     }
 
     /// 미저장 변경이 있으면 즉시 닫지 않고 Discard 확인을 띄운다(룰⑨).

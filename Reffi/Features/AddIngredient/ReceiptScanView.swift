@@ -481,12 +481,12 @@ private struct CandidateEditSheet: View {
         .onChange(of: candidate.quantity.value) { _, _ in isDirty = true }
         .onChange(of: candidate.quantity.unit) { _, _ in isDirty = true }
         .onChange(of: candidate.place) { _, _ in isDirty = true }
-        .confirmationDialog(Text("Discard changes?"), isPresented: $showDiscardConfirm,
-                            titleVisibility: .visible) {
-            Button("Discard", role: .destructive) { dismiss() }
-        } message: {
-            Text("Your changes won't be saved.")
-        }
+        // 40차 — 팝업 전수 종이화(§14.7 개정).
+        .paperDialog(isPresented: $showDiscardConfirm, title: "Discard changes?",
+                    message: "Your changes won't be saved.",
+                    seed: 1, backdropDismisses: true,
+                    primary: PaperDialogAction("Discard", role: .destructive) { dismiss() },
+                    secondary: PaperDialogAction("Cancel", role: .cancel) {})
     }
 
     private var header: some View {

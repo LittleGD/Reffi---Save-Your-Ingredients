@@ -114,66 +114,55 @@ struct ProfileView: View {
                               label: { $0.displayName(in: currentDisplayLocale) },
                               seed: 4,
                               onDismiss: { languagePickerOpen = false }) { applyLanguage($0) }
-        // 룰⑧ — 로그아웃은 세션만 해지하는 상태 전환이다. 냉장고·이력·프로필은 이 기기에
-        // 그대로 남고, 소유자 키도 직전 계정 id로 유지된다(AuthStore.signOut / accountUserID).
-        // 뒤이어 붙는 익명 게스트 세션은 소유자 대조 대상이 아니라 콜드 런치를 거쳐도 와이프가 없다
-        // (ReffiApp.reconcileDataOwner 보장 ①). → 파괴가 아니므로 confirmationDialog가 맞다.
-        // 룰⑦ 파괴 확인 햅틱(.warning)도 넣지 않는다 — 지우는 데이터가 없어 파괴 분류가 아니다.
-        .confirmationDialog(Text("Log out of Reffi?"), isPresented: $showLogout, titleVisibility: .visible) {
-            Button("Log out", role: .destructive) { Task { await auth.signOut() } }
-        } message: {
-            // 정직한 카피 — 확인 강도를 낮춘 만큼 결과를 명시한다(데이터는 남는다).
-            Text("Your fridge and history stay on this device. Log back in anytime.")
-        }
-        // 룰⑧ — 계정삭제는 복구 불가능 → alert(중앙 고정, 실수 방지) 유지.
-        .alert("Delete account", isPresented: $showDelete) {
-            Button("Delete", role: .destructive) {
-                destructiveHaptic += 1   // 룰⑦ — 파괴 확정(.warning)
-                Task {
-                    await auth.signOut()      // scope .local — 오프라인에서도 로그아웃
-                    store.resetAllData()      // 이 기기 냉장고·이력 삭제
-                    profile.resetAll()        // 프로필·취향 초기화
-                    // 소유자 키도 함께 해제 — 남겨두면 이후 게스트 구간에 새로 쌓은 데이터가
-                    // 다음 가입 시 '다른 계정 전환'으로 오인돼 조용히 와이프된다(승계 안내와 모순).
-                    UserDefaults.standard.removeObject(forKey: DataOwner.key)
-                    // 온보딩 플래그는 유지 — 재온보딩을 강제하지 않는다.
-                }
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            // 정직한 카피 — 서버 계정 완전 삭제는 준비 중(AuthStore TODO: Edge Function).
-            Text("This erases this device's data and signs you out. Full server account deletion is coming soon.")
-        }
-        // 룰⑧ — 순수 알림성(권한 안내) → alert 유지.
-        .alert(Text("Notifications are off"), isPresented: $showDenied) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text("Allow notifications for Reffi in Settings to get expiry alerts.")
-        }
-        // 룰⑧ — 샘플 로드는 복구 불가능(loadSampleData가 pendingUndo를 먼저 지운다) → alert.
-        .alert("Load the sample fridge?", isPresented: $showSampleConfirm) {
-            Button("Replace with sample data", role: .destructive) {
-                destructiveHaptic += 1   // 룰⑦ — 파괴 확정(.warning)
-                withAnimation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion)) {
-                    store.loadSampleData()
-                }
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("Your current ingredients and history will be replaced.")
-        }
-        // 룰⑧ — 전체초기화는 복구 불가능 → confirmationDialog에서 alert로 재분류.
-        .alert("Reset all data?", isPresented: $showResetConfirm) {
-            Button("Reset everything", role: .destructive) {
-                destructiveHaptic += 1   // 룰⑦ — 파괴 확정(.warning)
-                withAnimation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion)) {
-                    store.resetAllData()
-                }
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("Ingredients and history will be deleted. This can't be undone.")
-        }
+        // 40차 — 팝업 전수 종이화. 시스템 alert·confirmationDialog를 전부 PaperDialog로 옮긴다
+        // (design_system.md §14.7 개정 — 룰⑧의 "파괴 확인은 시스템에 남긴다" 경계는 이 라운드의
+        // 사용자 결정으로 폐기됐다). 행동 배선·role·햅틱·카피는 원본과 완전히 동일하다 — 의미는
+        // 얼리고 재질만 바꾼다. 딤 탭은 취소 행동이 있는 질문형만 취소로 받는다(§14.7).
+        .paperDialog(isPresented: $showLogout, title: "Log out of Reffi?",
+                    message: "Your fridge and history stay on this device. Log back in anytime.",
+                    seed: 1, backdropDismisses: true,
+                    primary: PaperDialogAction("Log out", role: .destructive) { Task { await auth.signOut() } },
+                    secondary: PaperDialogAction("Cancel", role: .cancel) {})
+        .paperDialog(isPresented: $showDelete, title: "Delete account",
+                    message: "This erases this device's data and signs you out. Full server account deletion is coming soon.",
+                    seed: 2, backdropDismisses: true,
+                    primary: PaperDialogAction("Delete", role: .destructive) {
+                        destructiveHaptic += 1   // 룰⑦ — 파괴 확정(.warning)
+                        Task {
+                            await auth.signOut()      // scope .local — 오프라인에서도 로그아웃
+                            store.resetAllData()      // 이 기기 냉장고·이력 삭제
+                            profile.resetAll()        // 프로필·취향 초기화
+                            // 소유자 키도 함께 해제 — 남겨두면 이후 게스트 구간에 새로 쌓은 데이터가
+                            // 다음 가입 시 '다른 계정 전환'으로 오인돼 조용히 와이프된다(승계 안내와 모순).
+                            UserDefaults.standard.removeObject(forKey: DataOwner.key)
+                            // 온보딩 플래그는 유지 — 재온보딩을 강제하지 않는다.
+                        }
+                    },
+                    secondary: PaperDialogAction("Cancel", role: .cancel) {})
+        .paperDialog(isPresented: $showDenied, title: "Notifications are off",
+                    message: "Allow notifications for Reffi in Settings to get expiry alerts.",
+                    seed: 3,
+                    primary: PaperDialogAction("OK", role: .cancel) {})
+        .paperDialog(isPresented: $showSampleConfirm, title: "Load the sample fridge?",
+                    message: "Your current ingredients and history will be replaced.",
+                    seed: 4, backdropDismisses: true,
+                    primary: PaperDialogAction("Replace with sample data", role: .destructive) {
+                        destructiveHaptic += 1   // 룰⑦ — 파괴 확정(.warning)
+                        withAnimation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion)) {
+                            store.loadSampleData()
+                        }
+                    },
+                    secondary: PaperDialogAction("Cancel", role: .cancel) {})
+        .paperDialog(isPresented: $showResetConfirm, title: "Reset all data?",
+                    message: "Ingredients and history will be deleted. This can't be undone.",
+                    seed: 5, backdropDismisses: true,
+                    primary: PaperDialogAction("Reset everything", role: .destructive) {
+                        destructiveHaptic += 1   // 룰⑦ — 파괴 확정(.warning)
+                        withAnimation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion)) {
+                            store.resetAllData()
+                        }
+                    },
+                    secondary: PaperDialogAction("Cancel", role: .cancel) {})
         .reffiFeedback(.warning, trigger: destructiveHaptic)
         // 시스템 설정에서 권한을 나중에 회수한 경우 — 토글이 켜진 채 조용히 실패하지 않게 동기화.
         .task { await syncAuthorization() }
