@@ -46,11 +46,8 @@ struct MainView: View {
     @State private var showAdd = false
     @State private var carouselSnapshot: [RecipeRecommender.Result] = []   // 커버 입력 동결(발주 중 재랭크 방지)
     /// 빈 덱에서 호명할 위험 재고 이름 — **비-fresh 전체**(soon + urgent). 덱과 **같은 틱**에 얼린다
-    /// (아래 `snapshotCarousel`). 아래 `uncoveredSnapshot`은 **urgent만** 세는 더 좁은 축이라
-    /// 이름을 atRisk 계열로 갈라 둔다 — 한쪽 기준으로 다른 쪽을 고치면 두 문구가 조용히 어긋난다.
+    /// (아래 `snapshotCarousel`).
     @State private var atRiskSnapshot: [String] = []
-    /// 덱이 다루지 못한 오늘 만료(urgent) 재료 이름 — 브리지 행의 입력. 역시 같은 틱에 얼린다.
-    @State private var uncoveredSnapshot: [String] = []
     @State private var firedTicket = false         // 커버당 발주 1회 — 슬램 창의 더블 파이어 방지
     @State private var coverGeneration = 0         // 지연 닫기 타이머가 새로 연 커버를 닫지 못하게
     /// 담기 흐름(팝업 3단)이 덱 위에 떠 있다 — 켜져 있는 동안 발주 지연 닫기를 **미룬다**.
@@ -232,7 +229,6 @@ struct MainView: View {
             RecipeMemoCarousel(results: carouselSnapshot,
                                hasIngredients: !store.ingredients.isEmpty,
                                atRiskNames: atRiskSnapshot,
-                               uncoveredNames: uncoveredSnapshot,
                                onClose: { showCarousel = false },
                                onFire: fire,
                                onAddMissing: { store.addMissingToBuy($0) },
@@ -517,21 +513,7 @@ struct MainView: View {
 
     private func header(_ counter: CounterDigest) -> some View {
         VStack(alignment: .leading, spacing: ReffiSpace.s1) {
-            // 워드마크와 날짜는 **한 줄이 들어갈 때만** 한 줄이다. 큰 글자에선 둘이 같은 줄에서 폭을
-            // 다투다 날짜가 'Wednesday…'로 잘렸는데(AX5 실측), 날짜는 잘리면 요일·월·일 중 뒤 둘이
-            // 통째로 사라지는 쪽이라 축약이 답이 아니다. 라벨을 줄이는 대신 **배치를 바꾼다** —
-            // 판정 커버(`outcomeRow`)와 같은 처방이고, 한 줄이 들어가는 크기에선 렌더가 그대로다.
-            ViewThatFits(in: .horizontal) {
-                HStack(alignment: .center) {
-                    wordmark
-                    Spacer(minLength: ReffiSpace.s3)
-                    todayStamp
-                }
-                VStack(alignment: .leading, spacing: 2) {
-                    wordmark
-                    todayStamp
-                }
-            }
+            wordmark
             // 미션 헤더(D) — 오늘의 상태를 한 문장으로. 누계(Ate/Tossed)는 MyPage가 맡는다.
             missionText(counter)
                 .reffiType(.caption)
@@ -539,17 +521,9 @@ struct MainView: View {
         }
     }
 
-    /// 브랜드 워드마크 — 비번역 라틴(Story Script). 두 배치가 같은 한 장을 본다(손으로 두 번 쓰면 어긋난다).
+    /// 브랜드 워드마크 — 비번역 라틴(Story Script).
     private var wordmark: some View {
         Text(verbatim: "Reffi").reffiType(.display).foregroundStyle(ReffiColor.ink)
-    }
-
-    /// 오늘 날짜 — 분 단위 타임라인으로 갱신해 자정이 지나도 어제 날짜가 남지 않는다.
-    private var todayStamp: some View {
-        TimelineView(.everyMinute) { ctx in
-            Text(ctx.date.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))
-                .font(.reffiNum(.meta)).foregroundStyle(ReffiColor.ink2)
-        }
     }
 
     private func missionText(_ counter: CounterDigest) -> Text {
@@ -947,17 +921,16 @@ struct MainView: View {
 
     // MARK: - Cook / Fire the Ticket
 
-    /// 커버 입력 3종(덱·호명 이름·미커버 임박)을 **한 번에** 얼린다.
-    /// 따로 계산하면 발주로 store가 바뀌는 사이에 서로 다른 시점의 재고를 보게 되고,
-    /// 브리지 행이 덱에 실제로 있는 재료를 "안 쓴다"고 말하는 자기모순이 생긴다.
+    /// 커버 입력 2종(덱·호명 이름)을 **한 번에** 얼린다.
+    /// 따로 계산하면 발주로 store가 바뀌는 사이에 서로 다른 시점의 재고를 보게 된다.
     private func snapshotCarousel() {
         let results = carouselResults
         let stock = store.available
         carouselSnapshot = results
         // 호명은 문장 안에 들어가는 **표시 이름**이다 — 저장 `name`은 담던 순간 표기라 로케일이 박제된다
-        // (§Ingredient.displayName). 브리지 문구와 그 옆 영상 검색어가 같은 배열을 쓰므로 여기 한 곳만 고르면 된다.
+        // (§Ingredient.displayName). 빈 덱 문구와 그 옆 영상 검색어가 같은 배열(`atRiskSnapshot`)을
+        // 쓰므로 여기 한 곳만 고르면 된다.
         atRiskSnapshot = stock.filter { $0.freshness != .fresh }.map(\.displayName)   // available은 이미 임박순
-        uncoveredSnapshot = RecipeRecommender.uncoveredUrgent(ingredients: stock, results: results).map(\.displayName)
     }
 
     private func cook() {

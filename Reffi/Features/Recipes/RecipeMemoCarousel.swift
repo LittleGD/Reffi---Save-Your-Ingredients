@@ -11,11 +11,7 @@ struct RecipeMemoCarousel: View {
     var hasIngredients: Bool = false
     /// 빈 덱에서 **호명할** 위험 재고 표시명 — **비-fresh 전체**(soon + urgent), 마감 임박순
     /// (호출부가 얼린 스냅샷). 비어 있으면(전부 신선하거나 재고 없음) 기존 일반 카피가 그대로 뜬다.
-    /// 아래 `uncoveredNames`는 **urgent만** 세는 더 좁은 축이라 이름을 계열로 갈라 둔다.
     var atRiskNames: [String] = []
-    /// 덱은 살아 있는데 **어떤 티켓도 쓰지 않는** 오늘 만료(`urgent`) 재료
-    /// (`RecipeRecommender.uncoveredUrgent`). 비어 있으면 브리지 행 자체를 그리지 않는다.
-    var uncoveredNames: [String] = []
     var onClose: () -> Void
     var onFire: (RecipeRecommender.Result) -> Void = { _ in }
     /// 고른 재료를 실제로 담는다 — **새로 담긴 수**를 돌려준다(이미 있던 것은 세지 않는다, §13.5).
@@ -39,9 +35,6 @@ struct RecipeMemoCarousel: View {
     /// 오른쪽 플릭(Cook) → 앞 티켓의 발주 트리거. 발주 상태는 카드가 소유하므로(슬램 연출 구동)
     /// 부모는 이 카운터로 카드의 `fire()`를 부른다 — "Cook this" 버튼과 같은 경로를 태우려는 것이다.
     @State private var fireTrigger = 0
-    /// 미커버 브리지 행의 실측 높이 — 카드 예산에서 빼려면 고정값이 아니라 실제 높이가 필요하다
-    /// (Dynamic Type을 키우면 한 줄도 두 배가 된다). 0 = 아직 안 그렸거나 행이 없음.
-    @State private var bridgeHeight: CGFloat = 0
     // MARK: 담기 3단 팝업 상태 — 선택(체크리스트) → 알림(담김) → 질문(이동)
     /// 이번 흐름이 다루는 부족 재료. 팝업이 뜬 뒤 덱을 넘겨도 목록이 바뀌지 않게 **스냅샷**으로 든다.
     @State private var pickItems: [Recipe.Item] = []
@@ -75,18 +68,14 @@ struct RecipeMemoCarousel: View {
             // topInset = safe top + 헤더 실측 높이 + 뒤티켓 peek(28), botInset = safe bottom + 12.
             // 기존 124/86과 유사한 시각을 유지하되 기기별 노치·홈 인디케이터에 안전하다.
             // 헤더 예산은 **실측**이다(`headerHeight`) — 72로 박아 두면 큰 글씨에서 부제가 두 줄로
-            // 접히는 순간 헤더가 그 아래 브리지 행을 덮는다(ZStack에서 topBar가 마지막에 그려진다).
-            // 미커버 브리지 행이 있으면 그 실측 높이(+간격)만큼 카드 예산에서 더 뺀다 —
-            // 행은 카드 **위**에 서므로 겹칠 자리가 아니라 자기 자리를 가져가야 한다.
+            // 접히는 순간 헤더가 그 아래 카드를 덮는다(ZStack에서 topBar가 마지막에 그려진다).
             let headerBottom = geo.safeAreaInsets.top + headerHeight
-            let bridgeBudget = showsBridge ? bridgeHeight + ReffiSpace.s2 : 0
-            let topInset = headerBottom + bridgeBudget + 28
+            let topInset = headerBottom + 28
             let botInset = geo.safeAreaInsets.bottom + 12
             let cardHeight = max(0, geo.size.height - topInset - botInset)
             ZStack(alignment: .top) {
                 ReffiColor.paperPass.ignoresSafeArea()
                 if results.isEmpty { emptyState } else { ticketDeck(cardHeight: cardHeight, topInset: topInset) }
-                if showsBridge { bridgeRow.padding(.top, headerBottom) }
                 topBar
             }
         }
@@ -415,11 +404,11 @@ struct RecipeMemoCarousel: View {
             .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { headerHeight = $0 }
     }
 
-    // MARK: - 영상 브리지 (덱이 임박 재료를 못 다룰 때의 출구)
+    // MARK: - 빈 덱 영상 안내 (덱이 임박 재료를 못 다룰 때의 출구)
 
     /// 호명 대상 — **최대 2종**. 셋 이상을 다 부르면 안내가 목록이 되어버린다(티켓이 아니라 리스트
     /// 화면이 할 일). 나머지는 덱·냉장고가 계속 들고 있다. 문구와 영상 버튼이 **같은 배열**을 본다 —
-    /// 버튼이 첫 번째만 열면 두 번째로 부른 재료에는 브리지가 메우려던 침묵이 그대로 남는다.
+    /// 버튼이 첫 번째만 열면 두 번째로 부른 재료는 호명만 되고 검색으로 이어지지 않는다.
     private func spoken(_ names: [String]) -> [String] {
         Array(names.prefix(2))
     }
@@ -427,46 +416,6 @@ struct RecipeMemoCarousel: View {
     /// 호명 문구용 이름 묶음 — 호명 대상을 ", "로 잇는다.
     private func named(_ names: [String]) -> String {
         spoken(names).joined(separator: ", ")
-    }
-
-    /// 브리지 행은 **덱이 있을 때만** 뜬다 — 빈 덱의 출구는 빈 상태 자체가 담당한다(중복 안내 금지).
-    private var showsBridge: Bool { !results.isEmpty && !uncoveredNames.isEmpty }
-
-    /// 미커버 임박 브리지 — 티켓 덱 위 **한 줄짜리** 종이 행. "이 티켓들이 안 쓰는 재료"를 말하고
-    /// 그 자리에서 영상 검색으로 보낸다. 덱이 압박(“오늘 N개 위험”)만 하고 정작 그 재료를 다루지
-    /// 않는 침묵을 메우는 것이 목적이라, 다룰 게 없으면(=`uncoveredNames` 비면) 아예 그리지 않는다.
-    private var bridgeRow: some View {
-        HStack(spacing: ReffiSpace.s2) {
-            // 재료 이름은 영·한 모두 문장 **끝**에 온다 — 한 줄로 묶으면 큰 글씨에서 잘려 나가는 부분이
-            // 정확히 이 행의 유일한 payload다. 두 줄까지 접고 그 전에 더 깊이 축소한다(행 높이는 실측이라
-            // 자라도 카드를 덮지 않는다).
-            Text("Nothing on these tickets uses \(named(uncoveredNames)).")
-                .reffiType(.metaText).foregroundStyle(ReffiColor.ink2)
-                .lineLimit(2).minimumScaleFactor(0.7)
-            Spacer(minLength: ReffiSpace.s2)
-            Button {
-                openURL(RecipeVideoSearch.urlForIngredients(spoken(uncoveredNames)))
-            } label: {
-                ReffiIcon.youtube.reffi(18, .fill)
-                    .foregroundStyle(ReffiColor.urgentDark)
-                    .frame(width: ReffiChrome.tapMin, height: ReffiChrome.tapMin)   // 시각 18pt, 히트 44pt(§7.3)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.paperPress)
-            .accessibilityLabel(Text("Open recipe videos"))
-            .accessibilityHint(Text("Opens YouTube in your browser"))
-        }
-        .padding(.leading, ReffiSpace.s4)
-        .padding(.trailing, ReffiSpace.s1)
-        .frame(minHeight: ReffiChrome.tapMin)
-        .background {
-            let shape = PaperRect(cornerRadius: ReffiRadius.sm, seed: 5)
-            shape.fill(ReffiColor.paper)
-                .paperEdge(shape)
-        }
-        .padding(.horizontal, ReffiGrid.margin + 8)
-        // 실측 높이를 카드 예산으로 되돌린다 — 고정값으로 잡으면 큰 글씨에서 카드 머리를 덮는다.
-        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { bridgeHeight = $0 }
     }
 
     /// 빈 덱 — 원인 기반 안내: 재료가 있는데 매칭 0이면 **그 임박 재료를 호명하고** 영상으로 보낸다.

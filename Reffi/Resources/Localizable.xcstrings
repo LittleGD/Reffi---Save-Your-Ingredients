@@ -2254,16 +2254,6 @@
         }
       }
     },
-    "Nothing on these tickets uses %@.": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "이 티켓들이 쓰지 않는 재료: %@"
-          }
-        }
-      }
-    },
     "Nothing recognized": {
       "localizations": {
         "ko": {
