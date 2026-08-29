@@ -3623,6 +3623,16 @@
         }
       }
     },
+    "Videos": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "영상"
+          }
+        }
+      }
+    },
     "Vietnamese": {
       "localizations": {
         "ko": {

@@ -8,10 +8,11 @@ import UIKit
 /// 세션(시작 시각·예약 재료)은 store에 영속화되어 앱을 껐다 켜도 이어진다.
 ///
 /// **점진적 공개로 단계가 돌아왔다(2026-08, 39차 — 33c8861 오너 테제의 부분 반전).** 티켓 본문
-/// 자체엔 여전히 단계 텍스트가 한 글자도 없다 — 대신 단계가 있는 레시피에만 조용한 밑줄 링크
-/// ("See the cooking details?")가 서고, 탭하면 `KitchenCopySheet`가 하단에서 올라온다. 영상 CTA는
-/// 이 링크의 유무와 무관하게 항상 1차 자리를 지킨다(§videoButton). 파일명은 진입점 참조가
-/// 흩어져 있어 그대로 둔다.
+/// 자체엔 여전히 단계 텍스트가 한 글자도 없다 — 대신 단계가 있는 레시피에만 요리 아이콘 바로 아래
+/// 조용한 톤(`kind: .secondary`)의 종이 버튼("See the cooking details?", 41차 — 39차의 밑줄 링크를
+/// 대체)이 서고, 탭하면 `KitchenCopySheet`가 하단에서 올라온다. 영상 CTA는 이 버튼의 유무와 무관하게
+/// 항상 조리법의 1차 경로를 맡는다(§videoButton) — 톤만 낮췄을 뿐 자리가 없어지는 게 아니다.
+/// 파일명은 진입점 참조가 흩어져 있어 그대로 둔다.
 struct CookingStepsView: View {
     @Environment(FridgeStore.self) private var store
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -370,6 +371,23 @@ struct CookingStepsView: View {
             .frame(maxWidth: .infinity)   // leading VStack 안에서 가운데로
             .padding(.vertical, ReffiSpace.s2)
 
+            // 상세 링크 → 종이컷 버튼(2026-08, 41차 owner decision) — 옛 밑줄 텍스트 링크를 걷어내고
+            // 요리 아이콘 바로 아래, 영상·공유 행보다 먼저 서는 `PaperButton`(§13.5 변형)으로 올린다.
+            // **단계가 있을 때만** 선다(대부분의 커스텀 레시피는 없다 — §KitchenCopySheet). 화면엔
+            // 이제 종이 버튼이 셋(디테일·영상·Finish cooking)이라 위계는 톤으로 가른다 — 영상 CTA는
+            // 강조 톤(urgentLight/urgentDark 커스텀 면)을 그대로 유지하고, 이 버튼은 `kind: .secondary`
+            // (sub 면 + ink 잉크, "Maybe later"·`PaperDialog` 보조 버튼과 같은 등급)로 눌러 셋 중
+            // 가장 조용하게 읽히게 한다 — 자리는 먼저 만나지만 톤은 낮다.
+            // **39차-b**: 스냅샷만 보면 39차 이전에 발주된 구세션은 `cook.steps`가 nil이라 이 링크가
+            // 실제 단계 있는 레시피에서도 안 섰다(실기기 리포트) — `resolvedSteps(for:)`가 스냅샷 →
+            // 원본 레시피 순으로 폴백해 게이트와 시트 콘텐츠가 항상 같은 답을 보게 한다.
+            if let steps = resolvedSteps(for: cook) {
+                PaperButton(title: "See the cooking details?", kind: .secondary, seed: 6) {
+                    showKitchenCopy = true
+                }
+                .accessibilityHint(Text("Opens the full list of cooking steps"))
+            }
+
             // 조리법의 1차 경로 — 레시피명으로 유튜브 검색을 연다. 아이콘+라벨 와이드 CTA(아이콘 단독 아님).
             // 공유는 그 옆의 보조 행동이라 조용한 종이컷 아이콘(§13.5)으로 남긴다.
             HStack(spacing: ReffiSpace.s4) {
@@ -391,23 +409,6 @@ struct CookingStepsView: View {
                         .accessibilityHidden(true)
                 }
             }
-
-            // 조용한 옵트인 링크(2026-08, 39차) — 옛 "Cook it your way. The video has the details."
-            // 캡션을 대신한다. **단계가 있을 때만** 선다(대부분의 커스텀 레시피는 없다 — §KitchenCopySheet).
-            // 필(pill) 대신 밑줄 텍스트로 조용히: 파랑 CTA(영상·Finish cooking)와 경쟁하지 않으면서도
-            // 35차가 걷어낸 옛 텍스트 버튼("캡션처럼 읽혀 눌리지 않던")과 달리 밑줄로 탭 가능 신호를
-            // 명시한다(design_system.md §Quiet 텍스트 링크). 시각은 작게, 히트 영역은 §7.3 44pt.
-            // **39차-b**: 스냅샷만 보면 39차 이전에 발주된 구세션은 `cook.steps`가 nil이라 이 링크가
-            // 실제 단계 있는 레시피에서도 안 섰다(실기기 리포트) — `resolvedSteps(for:)`가 스냅샷 →
-            // 원본 레시피 순으로 폴백해 게이트와 시트 콘텐츠가 항상 같은 답을 보게 한다.
-            if let steps = resolvedSteps(for: cook) {
-                QuietButton(title: "See the cooking details?", tint: ReffiColor.ink2, underline: true) {
-                    showKitchenCopy = true
-                }
-                .frame(maxWidth: .infinity)   // 부모 VStack이 leading이라 명시적으로 가운데 정렬
-                .accessibilityHint(Text("Opens the full list of cooking steps"))
-            }
-
         }
         .padding(.horizontal, ReffiSpace.s5)
         .padding(.vertical, ReffiSpace.s5 + 2)
@@ -423,7 +424,9 @@ struct CookingStepsView: View {
         Button { openURL(youtubeSearchURL(for: recipeName)) } label: {
             HStack(spacing: ReffiSpace.s2) {
                 ReffiIcon.youtube.reffi(20, .fill).foregroundStyle(ReffiColor.urgentDark)
-                Text("Open recipe videos")
+                // 라벨은 짧게(2026-08, 41차 owner 요청) — 화면 라벨은 "Videos"로 줄이고,
+                // 전체 뜻("Open recipe videos")은 accessibilityLabel(아래)이 그대로 맡는다.
+                Text("Videos")
                     .font(ReffiTextRole.subhead.font)
                     .tracking(ReffiTextRole.subhead.tracking)
                     .foregroundStyle(ReffiColor.urgentDark)
@@ -441,6 +444,7 @@ struct CookingStepsView: View {
             }
         }
         .buttonStyle(.paperPress)
+        .accessibilityLabel(Text("Open recipe videos"))
         .accessibilityHint(Text("Opens YouTube in your browser"))
     }
 
