@@ -180,17 +180,17 @@ struct CookingStepsView: View {
         // 종이 확인으로 전환(2026-08, 35차 사용자 결정) — design_system.md §14.7이 조리 취소를
         // "그대로 시스템" 목록에서 뺀 경우다. primary에 `role: .destructive`를 줘 `PaperDialog`가
         // 파랑 대신 urgentDark 솔리드로 그리게 한다(파괴 행동에 파랑을 쓰지 않는다).
-        // 뒷배경 탭 = Keep cooking(질문형 안전 기본값, §14.7).
+        // 뒷배경 탭 = Keep(질문형 안전 기본값, §14.7).
         .paperDialog(isPresented: $showCancelConfirm,
                      title: "Put ingredients back?",
                      message: "Nothing is logged. Reserved ingredients return to the fridge.",
                      backdropDismisses: true,
-                     primary: PaperDialogAction("Cancel cooking", role: .destructive) {
+                     primary: PaperDialogAction("Stop", role: .destructive) {
                          withAnimation(ReffiMotion.gated(ReffiMotion.pop, reduce: reduceMotion)) {
                              store.cancelCooking()
                          }
                      },
-                     secondary: PaperDialogAction("Keep cooking") {})
+                     secondary: PaperDialogAction("Keep") {})
     }
 
     // MARK: - 하단 도킹 CTA
@@ -316,18 +316,10 @@ struct CookingStepsView: View {
     /// - Parameter ticketWidth: 영수증 종이의 실측 폭 — 히어로 아이콘이 그 절반으로 선다.
     private func ticket(_ cook: FridgeStore.CookSession, ticketWidth: CGFloat) -> some View {
         VStack(alignment: .leading, spacing: ReffiSpace.s3) {
-            // 헤더 — 오더 티켓과 같은 모노 크롬. 공유 카드(RecipeShareCard)와 같은 규칙으로
-            // 셀 게 없으면(count 0) 수치를 아예 빼, 두 종이가 서로 다른 말을 하지 않게 한다.
-            HStack(alignment: .firstTextBaseline) {
-                Text(verbatim: "ORDER · FIRED")
-                    .reffiType(.monoTicketLabel).foregroundStyle(ReffiColor.urgentDark)
-                Spacer()
-                if cook.count > 0 {
-                    Text("\(cook.count) used")
-                        .reffiType(.metaText)
-                        .foregroundStyle(ReffiColor.ink2)
-                }
-            }
+            // 헤더 — 오더 티켓과 같은 모노 크롬. "N used" 수치는 조리 화면에서 뺐다(2026-08, 42차)
+            // — 공유 카드(RecipeShareCard)는 별도 표면이라 그대로 둔다.
+            Text(verbatim: "ORDER · FIRED")
+                .reffiType(.monoTicketLabel).foregroundStyle(ReffiColor.urgentDark)
 
             // 메뉴명 — 조리 티켓에선 이름만 한 줄로 둔다. 아이콘은 아래 히어로 블록이 맡는다.
             Text(verbatim: cook.recipeName)

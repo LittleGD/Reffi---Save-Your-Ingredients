@@ -654,7 +654,7 @@ final class ReffiFlowUITests: XCTestCase {
 
         let guestRow = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] %@", "Guest mode")).firstMatch
         XCTAssertTrue(guestRow.waitForExistence(timeout: 8), "게스트는 탭 가능한 단일 Guest mode 행을 봐야 한다")
-        XCTAssertTrue(guestRow.label.contains("stays on this device"),
+        XCTAssertTrue(guestRow.label.contains("On this device"),
                       "곁 문구는 서버 백업을 약속하지 않고 기기 보관만 정직하게 말해야 한다")
 
         guestRow.tap()

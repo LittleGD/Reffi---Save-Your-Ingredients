@@ -1203,6 +1203,10 @@ SheetHeader(title: LocalizedStringKey, showsClose: Bool = false, onClose: (() ->
   좌우 여백 `s6`. 딤은 `easeOut(dur2)`로 들고 나고 카드는 `pop` 스프링으로 튀어 오른다(§7.5, 판정 커버와 같은 방식).
   Reduce Motion이면 둘 다 즉시. 버튼을 누르면 **먼저 내리고 그 다음 행동**한다(시스템 알림과 같은 순서) —
   두 장을 이어 띄우는 흐름도 프레젠테이션 큐가 아니라 **같은 업데이트에서 교대**된다.
+- **버튼 라벨은 동사 한 단어로 줄인다(2026-08, 42차).** `PaperButton`은 폭이 좁아 두 단어 라벨이 종종 두 줄로
+  꺾인다 — "Reset everything"→"Reset", "Replace with sample data"→"Replace", "Cancel cooking"/"Keep cooking"→
+  "Stop"/"Keep"(파괴 행동의 primary를 "Cancel"로 쓰면 닫기 버튼으로 오독되니 금지). 관용구로 굳어 한 줄에
+  들어가는 "Log out"만 예외다.
 - **`ReceiptShape`(톱니)를 쓰지 않는다.** 티켓 덱 위에 뜨는 팝업이 톱니를 두르면 "티켓이 한 장 더 나온 것"으로
   읽힌다. 다이얼로그는 티켓이 아니라 **묻는 종이**다.
 - **`PaperDialog` = 알림형·질문형.** 행동이 하나면 알림, 둘이면 질문(취소 왼쪽 중립 · 실행 오른쪽 파랑 —

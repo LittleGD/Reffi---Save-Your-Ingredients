@@ -1841,22 +1841,22 @@
         }
       }
     },
+    "Keep": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "계속"
+          }
+        }
+      }
+    },
     "Keep a few ingredients on, then start cooking.": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
             "value": "재료를 몇 개 올려두고 요리를 시작하세요."
-          }
-        }
-      }
-    },
-    "Keep cooking": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "계속 조리하기"
           }
         }
       }
@@ -2354,6 +2354,16 @@
         }
       }
     },
+    "On this device": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 기기에만"
+          }
+        }
+      }
+    },
     "Open recipe videos": {
       "localizations": {
         "ko": {
@@ -2728,12 +2738,22 @@
         }
       }
     },
-    "Replace with sample data": {
+    "Replace": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "샘플 데이터로 교체"
+            "value": "교체"
+          }
+        }
+      }
+    },
+    "Reset": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "초기화"
           }
         }
       }
@@ -2754,16 +2774,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "모든 데이터를 초기화할까요?"
-          }
-        }
-      }
-    },
-    "Reset everything": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "전부 초기화"
           }
         }
       }
@@ -3118,6 +3128,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "재고가 냉동 보관 중이거나 조리에 쓰일 예정이에요. 냉장고 탭에서 확인해 보세요."
+          }
+        }
+      }
+    },
+    "Stop": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "중단"
           }
         }
       }
@@ -3769,16 +3789,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "수정한 내용은 저장되지 않아요."
-          }
-        }
-      }
-    },
-    "Your data stays on this device": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "데이터는 이 기기에 그대로 남아요"
           }
         }
       }
