@@ -9,8 +9,9 @@ import UIKit
 ///
 /// **점진적 공개로 단계가 돌아왔다(2026-08, 39차 — 33c8861 오너 테제의 부분 반전).** 티켓 본문
 /// 자체엔 여전히 단계 텍스트가 한 글자도 없다 — 대신 단계가 있는 레시피에만 요리 아이콘 바로 아래
-/// 조용한 톤(`kind: .secondary`)의 종이 버튼("See the cooking details?", 41차 — 39차의 밑줄 링크를
-/// 대체)이 서고, 탭하면 `KitchenCopySheet`가 하단에서 올라온다. 영상 CTA는 이 버튼의 유무와 무관하게
+/// 조용한 톤(`kind: .secondary`)의 종이 버튼("Steps", 44차 — 오늘 확립된 한 단어 버튼 문법(Videos·
+/// Share·Stop·Keep)에 맞춰 "See the cooking details?"에서 축약. 41차엔 39차의 밑줄 링크를 대체)이
+/// 서고, 탭하면 `KitchenCopySheet`가 하단에서 올라온다. 영상 CTA는 이 버튼의 유무와 무관하게
 /// 항상 조리법의 1차 경로를 맡는다(§videoButton) — 톤만 낮췄을 뿐 자리가 없어지는 게 아니다.
 /// 파일명은 진입점 참조가 흩어져 있어 그대로 둔다.
 struct CookingStepsView: View {
@@ -164,8 +165,8 @@ struct CookingStepsView: View {
                 .presentationDetents([.medium])
                 .presentationDragIndicator(.visible)   // 룰④ — 하단 시트는 dragIndicator(핸들) 필수, 닫기 신호 확보
         }
-        // 주방 전표(39차) — 티켓 안 "See the cooking details?" 링크가 연다. 체크는 store에 바로
-        // 반영되므로(`toggleCookStep`) 시트를 닫았다 열어도, 앱을 껐다 켜도 유지된다.
+        // 주방 전표(39차) — 티켓 안 "Steps"(44차, 옛 "See the cooking details?") 링크가 연다.
+        // 체크는 store에 바로 반영되므로(`toggleCookStep`) 시트를 닫았다 열어도, 앱을 껐다 켜도 유지된다.
         .sheet(isPresented: $showKitchenCopy) {
             if let cook = store.activeCook {
                 KitchenCopySheet(recipeName: cook.recipeName,
@@ -374,9 +375,10 @@ struct CookingStepsView: View {
             // 실제 단계 있는 레시피에서도 안 섰다(실기기 리포트) — `resolvedSteps(for:)`가 스냅샷 →
             // 원본 레시피 순으로 폴백해 게이트와 시트 콘텐츠가 항상 같은 답을 보게 한다.
             if let steps = resolvedSteps(for: cook) {
-                PaperButton(title: "See the cooking details?", kind: .secondary, seed: 6) {
+                PaperButton(title: "Steps", kind: .secondary, seed: 6) {
                     showKitchenCopy = true
                 }
+                .accessibilityLabel(Text("See the cooking steps"))
                 .accessibilityHint(Text("Opens the full list of cooking steps"))
             }
 

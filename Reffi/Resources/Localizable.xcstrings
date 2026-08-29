@@ -2900,16 +2900,6 @@
         }
       }
     },
-    "See the cooking details?": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "조리 과정을 볼까요?"
-          }
-        }
-      }
-    },
     "Selected": {
       "localizations": {
         "ko": {
@@ -3118,6 +3108,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "%2$lld단계 중 %1$lld단계"
+          }
+        }
+      }
+    },
+    "Steps": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "단계"
           }
         }
       }

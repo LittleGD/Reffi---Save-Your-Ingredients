@@ -477,7 +477,7 @@ final class CookTicketFlickUITests: XCTestCase {
         // 단계를 갖고 있으므로(recipes-seed.json 실측 80/80) 이 경로에선 항상 옵트인 링크가 대신 선다.
         XCTAssertFalse(app.staticTexts["Cook it your way. The video has the details."].exists,
                        "옛 기대치 캡션은 더 이상 없어야 한다")
-        XCTAssertTrue(app.buttons["See the cooking details?"].waitForExistence(timeout: 4),
+        XCTAssertTrue(app.buttons["See the cooking steps"].waitForExistence(timeout: 4),
                       "단계가 있는 레시피엔 주방 전표를 여는 조용한 링크가 서야 한다")
 
         // 히어로 아래 요리 소개 한 줄 — 시드 레시피에는 반드시 있다(§13.6 4-1).
@@ -505,7 +505,7 @@ final class CookTicketFlickUITests: XCTestCase {
         app.launchArguments = ["-skipOnboarding", "-skipAuth", "-uiTestSampleFridge", "-cookTicket"]
         app.launch()
 
-        let link = app.buttons["See the cooking details?"]
+        let link = app.buttons["See the cooking steps"]
         XCTAssertTrue(link.waitForExistence(timeout: 30))
         link.tap()
 
@@ -561,7 +561,7 @@ final class CookTicketFlickUITests: XCTestCase {
                       "-cookTicket.noSteps로도 조리 화면이 열려야 한다")
         XCTAssertTrue(app.buttons["Open recipe videos"].waitForExistence(timeout: 10),
                       "단계가 없어도 영상 CTA는 그대로여야 한다")
-        XCTAssertFalse(app.buttons["See the cooking details?"].exists,
+        XCTAssertFalse(app.buttons["See the cooking steps"].exists,
                        "단계가 없는 레시피엔 주방 전표 링크가 서면 안 된다")
     }
 }

@@ -27,7 +27,7 @@ struct Recipe: Identifiable, Codable, Equatable {
     var cuisine: String?
     var minutes: Int
     var ingredients: [Item]
-    /// 조리 단계 — 티켓의 "See the cooking details?" 링크가 여는 주방 전표(`KitchenCopySheet`)가
+    /// 조리 단계 — 티켓의 "Steps"(44차, 옛 "See the cooking details?") 링크가 여는 주방 전표(`KitchenCopySheet`)가
     /// `displaySteps`로 화면에 그린다(1차 경로는 여전히 영상). 시드 JSON과 이미 저장된 커스텀
     /// 레시피가 이 키를 갖고 있으므로 지우면 기존 데이터 디코드가 깨진다.
     var steps: LocalizedSteps
