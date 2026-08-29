@@ -335,6 +335,34 @@
         }
       }
     },
+    "%lld steps": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "1 step"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld steps"
+                }
+              }
+            }
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld단계"
+          }
+        }
+      }
+    },
     "%lld times": {
       "localizations": {
         "en": {
@@ -840,16 +868,6 @@
         }
       }
     },
-    "Cancel cooking, put ingredients back": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "조리 취소, 재료 되돌리기"
-          }
-        }
-      }
-    },
     "Category": {
       "localizations": {
         "ko": {
@@ -1024,16 +1042,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Google로 계속하기"
-          }
-        }
-      }
-    },
-    "Cook it your way. The video has the details.": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "자기 방식대로 요리하세요. 자세한 건 영상에 있어요."
           }
         }
       }
@@ -2396,6 +2404,16 @@
         }
       }
     },
+    "Opens the full list of cooking steps": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "조리 단계 전체 목록을 열어요"
+          }
+        }
+      }
+    },
     "Opens the share sheet": {
       "localizations": {
         "ko": {
@@ -2882,6 +2900,16 @@
         }
       }
     },
+    "See the cooking details?": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "조리 과정을 볼까요?"
+          }
+        }
+      }
+    },
     "Selected": {
       "localizations": {
         "ko": {
@@ -2953,16 +2981,6 @@
         }
       }
     },
-    "Sign up to keep your data": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "가입하고 데이터를 지켜보세요"
-          }
-        }
-      }
-    },
     "Signed in": {
       "localizations": {
         "ko": {
@@ -3010,6 +3028,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "조금 남았어요"
+          }
+        }
+      }
+    },
+    "Some text updates right away. Restart Reffi to apply everywhere.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "일부 문구는 바로 바뀌어요. 전부 적용하려면 Reffi를 다시 실행하세요."
           }
         }
       }
@@ -3120,16 +3148,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "보관: %@"
-          }
-        }
-      }
-    },
-    "Switch between English and Korean in iOS Settings.": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "iOS 설정에서 영어와 한국어를 바꿀 수 있어요."
           }
         }
       }
@@ -3400,6 +3418,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "목록에 담을지 켜고 끕니다"
+          }
+        }
+      }
+    },
+    "Toggles whether this step is done": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 단계를 완료했는지 켜고 끕니다"
           }
         }
       }
@@ -3741,6 +3769,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "수정한 내용은 저장되지 않아요."
+          }
+        }
+      }
+    },
+    "Your data stays on this device": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "데이터는 이 기기에 그대로 남아요"
           }
         }
       }

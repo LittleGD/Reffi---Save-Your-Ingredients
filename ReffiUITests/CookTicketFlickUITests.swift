@@ -455,10 +455,13 @@ final class CookTicketFlickUITests: XCTestCase {
                       "발주 1.25초 뒤 덱이 닫히고 조리 화면으로 넘어가야 한다")
     }
 
-    // MARK: - ⑥ 단계 텍스트 없음 · 영상 CTA
+    // MARK: - ⑥ 단계 텍스트 없음 · 영상 CTA · 주방 전표(39차)
 
-    /// 티켓은 "무엇을 만들지"의 단서까지만 준다 — 조리법(단계)은 어느 티켓에도 없고,
-    /// 조리 화면의 영상 CTA가 조리법의 1차 경로다(2026-08 owner decision, §13.6 4-1).
+    /// 티켓 본문은 여전히 "무엇을 만들지"의 단서까지만 준다 — 단계 텍스트는 티켓 어디에도 없고,
+    /// 영상 CTA는 여전히 조리법의 1차 경로다(§13.6 4-1, 39차가 유지한 절반의 테제). 다른 절반 —
+    /// "단계는 아예 안 보여준다" — 은 이번에 부분적으로 뒤집혔다: 옛 기대치 캡션 대신 조용한
+    /// 옵트인 링크가 서고(시드 레시피는 전량 단계를 갖고 있어 이 경로에서 항상 뜬다), 단계
+    /// 자체는 여전히 티켓 표면엔 한 글자도 없다 — 링크 뒤 시트에만 산다.
     func testCookTicket_NoStepText_AndVideoCTAIsThePrimaryPath() {
         let app = XCUIApplication()
         app.launchArguments = ["-skipOnboarding", "-skipAuth", "-uiTestSampleFridge", "-cookTicket"]
@@ -470,8 +473,12 @@ final class CookTicketFlickUITests: XCTestCase {
         // 영상이 조리법의 1차 경로 — 아이콘 단독이 아니라 라벨 있는 와이드 CTA다.
         XCTAssertTrue(app.buttons["Open recipe videos"].waitForExistence(timeout: 10),
                       "조리 화면엔 영상 CTA가 있어야 한다")
-        XCTAssertTrue(app.staticTexts["Cook it your way. The video has the details."].exists,
-                      "단계가 사라진 자리를 설명하는 기대치 한 줄이 있어야 한다")
+        // 옛 "Cook it your way. The video has the details." 캡션은 걷혔다 — 시드 레시피는 전량
+        // 단계를 갖고 있으므로(recipes-seed.json 실측 80/80) 이 경로에선 항상 옵트인 링크가 대신 선다.
+        XCTAssertFalse(app.staticTexts["Cook it your way. The video has the details."].exists,
+                       "옛 기대치 캡션은 더 이상 없어야 한다")
+        XCTAssertTrue(app.buttons["See the cooking details?"].waitForExistence(timeout: 4),
+                      "단계가 있는 레시피엔 주방 전표를 여는 조용한 링크가 서야 한다")
 
         // 히어로 아래 요리 소개 한 줄 — 시드 레시피에는 반드시 있다(§13.6 4-1).
         // 문구는 시드에서 오므로 테스트에 박지 않고 식별자로 집는다(`ticket.menuName` 선례).
@@ -482,8 +489,79 @@ final class CookTicketFlickUITests: XCTestCase {
                        "요리 소개가 빈 문자열이면 캡션이 여백만 벌린다")
         attachScreenshot(app, named: "cook-ticket-hero-and-intro")   // 시각 표면이라 눈으로 볼 근거를 남긴다
 
-        // 단계 섹션·체크리스트는 완전히 제거됐다(위약 UI 금지).
+        // 단계 섹션·체크리스트는 여전히 티켓 표면엔 없다(위약 UI 금지 — 39차도 이 불변식은 지킨다).
         XCTAssertFalse(app.staticTexts["STEPS"].exists, "조리 화면에 단계 섹션이 남아 있으면 안 된다")
         XCTAssertFalse(app.staticTexts["PREP"].exists, "조리 화면에 PREP 섹션이 남아 있으면 안 된다")
+    }
+
+    /// 주방 전표 시트 — 링크 → 열기 → 체크 → 닫기 → 다시 열기 → 여전히 체크됨(같은 세션 내 왕복).
+    /// 완전한 앱 재실행 왕복은 `FridgeStoreTests.decodesCookSessionWithStepsAndCompletedSteps`·
+    /// `cookSnapshotsStepsAndToggleCookStepFlipsCompletion`(유닛)이 대신 고정한다 — 정직하게 기록해
+    /// 둔다: `-uiTestSampleFridge`가 매 런치 샘플을 강제 리셋해 UI 테스트로 재실행 영속성을
+    /// 재현하려면 그 인자를 뺀 두 번째 런치가 필요한데, 그러면 이 스위트의 다른 테스트들과
+    /// 격리가 깨진다(먼저 어떤 상태가 남았는지에 의존하게 된다).
+    func testKitchenCopySheet_ChecksPersistAcrossOpenClose() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-skipOnboarding", "-skipAuth", "-uiTestSampleFridge", "-cookTicket"]
+        app.launch()
+
+        let link = app.buttons["See the cooking details?"]
+        XCTAssertTrue(link.waitForExistence(timeout: 30))
+        link.tap()
+
+        // 크라운 헤더 — "KITCHEN COPY · <레시피명>"은 레시피명이 시드에서 오므로 접두사만 확인.
+        // 존재 확인 외에, 닫기 드래그의 시작점으로도 재사용한다(아래) — 스크롤 리스트 **밖**의
+        // 고정 영역이라 드래그 시작점으로 안전하다.
+        let crownHeader = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "KITCHEN COPY ·")).firstMatch
+        XCTAssertTrue(crownHeader.waitForExistence(timeout: 6), "주방 전표 시트가 열리면 크라운 헤더가 있어야 한다")
+
+        // 첫 단계 행을 찾아 체크 — 단계 문장은 시드 데이터라 텍스트를 박지 않고 첫 번째 버튼으로 집는다.
+        // **`app.scrollViews.buttons`로 앱 전체를 뒤지면 안 된다**(실측으로 잡은 함정 — 처음엔 그렇게
+        // 짰다가 매번 "not hittable"로 깨졌다): 시트 밑에 딤 처리된 `CookingStepsView` 배경도 자기
+        // ScrollView와 버튼("Open recipe videos" 등)을 그대로 트리에 남겨 두고, 문서 순서상 그쪽이
+        // 시트보다 먼저 걸린다 — `.firstMatch`가 시트의 체크 행이 아니라 배경의 "Open recipe videos"를
+        // 집어 버렸다(`app.debugDescription` 캡처로 정확한 프레임까지 대조해 확인). 그 버튼이 안 눌리는
+        // 건 버그가 아니라 **정확한 동작**이다 — 모달 시트 밑 콘텐츠는 히트 테스트에서 빠지는 게 맞다.
+        // 시트 자신의 리스트에만 식별자(`kitchenCopy.steps`, `KitchenCopySheet.swift`)를 달아 좁힌다.
+        let firstStep = app.scrollViews["kitchenCopy.steps"].buttons.firstMatch
+        XCTAssertTrue(firstStep.waitForExistence(timeout: 4), "체크할 단계 행이 있어야 한다")
+        let stepLabel = firstStep.label
+        XCTAssertFalse(firstStep.isSelected, "처음엔 아무 단계도 체크돼 있지 않아야 한다")
+        firstStep.tap()
+        XCTAssertTrue(firstStep.isSelected, "탭하면 그 단계가 체크 상태가 돼야 한다")
+
+        // 닫기 — 시스템 시트의 스와이프 다운 드래그(핸들 제스처)로 닫는다.
+        // `app.swipeDown()`(앱 전체 기준 제스처)은 안 된다 — 실측: 시작점이 리스트(`ScrollView`)
+        // 안쪽에 찍혀 시트 드래그가 아니라 리스트 스크롤로 먹혔다(시트가 안 닫힘). 크라운 헤더는
+        // 그 리스트 **밖**의 고정 영역이라, 거기서 시작해 충분히 길게(500pt) 끌어야 인터랙티브
+        // 디스미스 임계를 확실히 넘는다.
+        let dragStart = crownHeader.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        let dragEnd = dragStart.withOffset(CGVector(dx: 0, dy: 500))
+        dragStart.press(forDuration: 0.05, thenDragTo: dragEnd)
+        // 닫힘은 애니메이션이라 즉시 `.exists`를 재면 전환 중간에 걸릴 수 있다 — 짧게 유예한 뒤 확인한다.
+        Thread.sleep(forTimeInterval: 0.6)
+        let crown = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "KITCHEN COPY ·")).firstMatch
+        XCTAssertFalse(crown.exists, "스와이프 다운으로 시트가 닫혀야 한다")
+
+        link.tap()   // 다시 열기
+        let reopenedStep = app.scrollViews["kitchenCopy.steps"].buttons.matching(NSPredicate(format: "label == %@", stepLabel)).firstMatch
+        XCTAssertTrue(reopenedStep.waitForExistence(timeout: 4))
+        XCTAssertTrue(reopenedStep.isSelected, "닫았다 다시 열어도 체크 상태가 세션에 남아 있어야 한다")
+    }
+
+    /// 단계가 없는 레시피(커스텀 레시피, 33c8861 — 편집기가 단계를 더 이상 받지 않는다)로 발주하면
+    /// 링크 자체가 서지 않아야 한다 — "링크 부재 · 나머지는 그대로"(지시문 3번). 영상 CTA는 이
+    /// 경로에서도 그대로다.
+    func testCookTicket_NoStepsRecipe_HidesTheKitchenCopyLink() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-skipOnboarding", "-skipAuth", "-uiTestSampleFridge", "-cookTicket.noSteps"]
+        app.launch()
+
+        XCTAssertTrue(app.staticTexts["ORDER · FIRED"].waitForExistence(timeout: 30),
+                      "-cookTicket.noSteps로도 조리 화면이 열려야 한다")
+        XCTAssertTrue(app.buttons["Open recipe videos"].waitForExistence(timeout: 10),
+                      "단계가 없어도 영상 CTA는 그대로여야 한다")
+        XCTAssertFalse(app.buttons["See the cooking details?"].exists,
+                       "단계가 없는 레시피엔 주방 전표 링크가 서면 안 된다")
     }
 }

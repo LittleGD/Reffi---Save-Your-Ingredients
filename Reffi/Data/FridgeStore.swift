@@ -34,16 +34,33 @@ final class FridgeStore {
     /// 발주 후 "지금 요리 중" 세션(§13.6 C) — 메인 상단 카드의 소스. Finish/Cancel로 닫는다.
     private(set) var activeCook: CookSession?
 
-    /// 조리 세션 스냅샷. 단계(steps·completedSteps)는 더 이상 담지 않는다 — 앱이 조리 단계를 보여주지
-    /// 않으므로(조리법은 영상 링크가 맡는다) 저장할 이유가 없다. 옛 파일에 남은 두 키는 디코드 시
-    /// 그냥 무시된다(Codable은 모르는 키를 버린다) — 마이그레이션 불필요.
+    /// 조리 세션 스냅샷. `steps`·`completedSteps`는 33c8861(조리법을 영상에 전담시킨 라운드)에서
+    /// 걷혔다가 39차에서 되살아났다 — 이번엔 티켓 본문이 아니라 **옵트인 시트**(주방 전표)로만
+    /// 노출한다는 점이 다르다(progressive disclosure: 티켓은 여전히 단계 텍스트가 없고, 영상이
+    /// 여전히 1차 경로다). 옛 파일이 두 키를 안 갖고 있어도(그 사이 저장된 세션) `Optional`이라
+    /// 문제없이 디코드된다.
     struct CookSession: Codable, Equatable {
         var recipeName: String
         var recipeID: String?             // 원본 레시피 되찾기(히어로 아이콘 체인) — 구버전 세션엔 없음
         var startedAt: Date
         var count: Int                    // 발주로 예약한 재료 수
         var minutes: Int?                 // 조리 시간(공유 카드 표시용) — 구버전 세션엔 없음
+        var steps: [String]?              // 단계 레시피(발주 시점 스냅샷) — 없거나 빈 배열이면 링크 자체가 안 선다
+        var completedSteps: [Int]?        // 체크한 단계 인덱스(주방 전표 시트에서 토글)
         var usedIDs: [UUID]?              // 예약된 재료 — v1 세션(발주 즉시 소비)엔 없음
+
+        /// 순수 규칙(2026-08, 39차-b) — `CookingStepsView.resolvedSteps(for:)`가 부르는 판정만 떼어낸다
+        /// (`DataOwner.shouldWipe`·`FridgeTab.initial(from:)`과 같은 문법 — 뷰를 띄우지 않고 유닛
+        /// 테스트로 경로를 고정한다). **스냅샷이 우선**(`count`·`minutes`와 같은 축 — 발주 뒤 레시피가
+        /// 바뀌어도 이 값은 흔들리지 않는다), 없으면 `recipeID`로 넘겨받은 레시피 배열에서 찾아
+        /// 폴백한다(39차 이전에 발주된 구세션엔 `steps` 필드 자체가 없었다 — 실기기 리포트로 발견,
+        /// heroIcon 체인과 같은 이유). 레시피가 지워졌거나 id가 없으면 nil.
+        static func resolvedSteps(snapshot: [String]?, recipeID: String?, in recipes: [Recipe]) -> [String]? {
+            if let steps = snapshot, !steps.isEmpty { return steps }
+            guard let id = recipeID, let recipe = recipes.first(where: { $0.id == id }) else { return nil }
+            let fallback = recipe.displaySteps
+            return fallback.isEmpty ? nil : fallback
+        }
     }
 
     /// 장보기 목록에 손으로 얹은 한 줄. 키가 아니라 **항목**으로 저장한다 — 정규화 키만 남기면
@@ -386,6 +403,7 @@ final class FridgeStore {
         activeCook = CookSession(recipeName: result.recipe.displayName, recipeID: result.recipe.id,
                                  startedAt: Date(),
                                  count: used.count, minutes: result.recipe.minutes,
+                                 steps: result.recipe.displaySteps,
                                  usedIDs: used.map(\.id))
         let reserved = reservedIDs
         counterIDs.removeAll { reserved.contains($0) }
@@ -393,6 +411,17 @@ final class FridgeStore {
         beginUndo(.fired(recipe: result.recipe.displayName, count: used.count),
                   logIDs: [], counterSnapshot: counterBefore, previousSession: replaced)
         persist()
+    }
+
+    /// 단계 체크 토글(39차 — 33c8861에서 걷혔다 주방 전표 시트로 되살아났다) — 조리 진행 상태도
+    /// 영속화(중간에 앱을 꺼도 이어서). 재료는 그대로라 알림 재구성은 건너뛴다.
+    func toggleCookStep(_ index: Int) {
+        guard var cook = activeCook else { return }
+        var done = Set(cook.completedSteps ?? [])
+        if !done.insert(index).inserted { done.remove(index) }
+        cook.completedSteps = done.sorted()
+        activeCook = cook
+        persist(reschedulesAlerts: false)   // 재료 불변 — 알림 재구성 불필요
     }
 
     /// 요리 완료 — 예약 재료의 소비를 **확정**한다(이력 기록·재고 차감은 여기서).

@@ -16,7 +16,6 @@ struct ProfileView: View {
     @Environment(AuthStore.self) private var auth
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.openURL) private var openURL
 
     // 알림 SSOT — ExpiryNotifier의 @AppStorage 키를 직접 읽어 실제 스케줄에 반영한다.
     @AppStorage(ExpiryNotifier.enabledKey) private var alertsEnabled = false
@@ -25,6 +24,10 @@ struct ProfileView: View {
     // 감각 SSOT — 같은 키를 홈(MainView)과 모든 햅틱 호출부(`.reffiFeedback`)가 함께 읽는다.
     @AppStorage(ReffiFeedback.hapticsKey) private var hapticsEnabled = true
     @AppStorage(ReffiFeedback.tiltKey) private var tiltEnabled = true
+
+    // 앱 내 언어 SSOT(38차) — `RootGateView`가 같은 키로 루트 `.environment(\.locale)`을 건다.
+    @AppStorage(AppLanguage.key) private var languageRaw = AppLanguage.system.rawValue
+    @State private var languagePickerOpen = false
 
     @State private var sheet: Sheet?
     @State private var showLogout = false
@@ -103,66 +106,63 @@ struct ProfileView: View {
         }
         .sheet(isPresented: $showAuth) { AuthView() }
         .sheet(isPresented: $showMyRecipes) { MyRecipesView() }
-        // 룰⑧ — 로그아웃은 세션만 해지하는 상태 전환이다. 냉장고·이력·프로필은 이 기기에
-        // 그대로 남고, 소유자 키도 직전 계정 id로 유지된다(AuthStore.signOut / accountUserID).
-        // 뒤이어 붙는 익명 게스트 세션은 소유자 대조 대상이 아니라 콜드 런치를 거쳐도 와이프가 없다
-        // (ReffiApp.reconcileDataOwner 보장 ①). → 파괴가 아니므로 confirmationDialog가 맞다.
-        // 룰⑦ 파괴 확인 햅틱(.warning)도 넣지 않는다 — 지우는 데이터가 없어 파괴 분류가 아니다.
-        .confirmationDialog(Text("Log out of Reffi?"), isPresented: $showLogout, titleVisibility: .visible) {
-            Button("Log out", role: .destructive) { Task { await auth.signOut() } }
-        } message: {
-            // 정직한 카피 — 확인 강도를 낮춘 만큼 결과를 명시한다(데이터는 남는다).
-            Text("Your fridge and history stay on this device. Log back in anytime.")
-        }
-        // 룰⑧ — 계정삭제는 복구 불가능 → alert(중앙 고정, 실수 방지) 유지.
-        .alert("Delete account", isPresented: $showDelete) {
-            Button("Delete", role: .destructive) {
-                destructiveHaptic += 1   // 룰⑦ — 파괴 확정(.warning)
-                Task {
-                    await auth.signOut()      // scope .local — 오프라인에서도 로그아웃
-                    store.resetAllData()      // 이 기기 냉장고·이력 삭제
-                    profile.resetAll()        // 프로필·취향 초기화
-                    // 소유자 키도 함께 해제 — 남겨두면 이후 게스트 구간에 새로 쌓은 데이터가
-                    // 다음 가입 시 '다른 계정 전환'으로 오인돼 조용히 와이프된다(승계 안내와 모순).
-                    UserDefaults.standard.removeObject(forKey: DataOwner.key)
-                    // 온보딩 플래그는 유지 — 재온보딩을 강제하지 않는다.
-                }
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            // 정직한 카피 — 서버 계정 완전 삭제는 준비 중(AuthStore TODO: Edge Function).
-            Text("This erases this device's data and signs you out. Full server account deletion is coming soon.")
-        }
-        // 룰⑧ — 순수 알림성(권한 안내) → alert 유지.
-        .alert(Text("Notifications are off"), isPresented: $showDenied) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text("Allow notifications for Reffi in Settings to get expiry alerts.")
-        }
-        // 룰⑧ — 샘플 로드는 복구 불가능(loadSampleData가 pendingUndo를 먼저 지운다) → alert.
-        .alert("Load the sample fridge?", isPresented: $showSampleConfirm) {
-            Button("Replace with sample data", role: .destructive) {
-                destructiveHaptic += 1   // 룰⑦ — 파괴 확정(.warning)
-                withAnimation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion)) {
-                    store.loadSampleData()
-                }
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("Your current ingredients and history will be replaced.")
-        }
-        // 룰⑧ — 전체초기화는 복구 불가능 → confirmationDialog에서 alert로 재분류.
-        .alert("Reset all data?", isPresented: $showResetConfirm) {
-            Button("Reset everything", role: .destructive) {
-                destructiveHaptic += 1   // 룰⑦ — 파괴 확정(.warning)
-                withAnimation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion)) {
-                    store.resetAllData()
-                }
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("Ingredients and history will be deleted. This can't be undone.")
-        }
+        // 언어 픽커(38차) — `PaperDropdown` 루트 오버레이(ScrollView 클리핑 밖, `FridgeView` 정렬
+        // 드롭다운과 같은 문법이나 트리거가 하나뿐이라 시트용 `paperDropdownOverlay`를 그대로 쓴다.
+        .paperDropdownOverlay(isPresented: languagePickerOpen,
+                              options: AppLanguage.allCases,
+                              selected: AppLanguage.resolve(stored: languageRaw),
+                              label: { $0.displayName(in: currentDisplayLocale) },
+                              seed: 4,
+                              onDismiss: { languagePickerOpen = false }) { applyLanguage($0) }
+        // 40차 — 팝업 전수 종이화. 시스템 alert·confirmationDialog를 전부 PaperDialog로 옮긴다
+        // (design_system.md §14.7 개정 — 룰⑧의 "파괴 확인은 시스템에 남긴다" 경계는 이 라운드의
+        // 사용자 결정으로 폐기됐다). 행동 배선·role·햅틱·카피는 원본과 완전히 동일하다 — 의미는
+        // 얼리고 재질만 바꾼다. 딤 탭은 취소 행동이 있는 질문형만 취소로 받는다(§14.7).
+        .paperDialog(isPresented: $showLogout, title: "Log out of Reffi?",
+                    message: "Your fridge and history stay on this device. Log back in anytime.",
+                    seed: 1, backdropDismisses: true,
+                    primary: PaperDialogAction("Log out", role: .destructive) { Task { await auth.signOut() } },
+                    secondary: PaperDialogAction("Cancel", role: .cancel) {})
+        .paperDialog(isPresented: $showDelete, title: "Delete account",
+                    message: "This erases this device's data and signs you out. Full server account deletion is coming soon.",
+                    seed: 2, backdropDismisses: true,
+                    primary: PaperDialogAction("Delete", role: .destructive) {
+                        destructiveHaptic += 1   // 룰⑦ — 파괴 확정(.warning)
+                        Task {
+                            await auth.signOut()      // scope .local — 오프라인에서도 로그아웃
+                            store.resetAllData()      // 이 기기 냉장고·이력 삭제
+                            profile.resetAll()        // 프로필·취향 초기화
+                            // 소유자 키도 함께 해제 — 남겨두면 이후 게스트 구간에 새로 쌓은 데이터가
+                            // 다음 가입 시 '다른 계정 전환'으로 오인돼 조용히 와이프된다(승계 안내와 모순).
+                            UserDefaults.standard.removeObject(forKey: DataOwner.key)
+                            // 온보딩 플래그는 유지 — 재온보딩을 강제하지 않는다.
+                        }
+                    },
+                    secondary: PaperDialogAction("Cancel", role: .cancel) {})
+        .paperDialog(isPresented: $showDenied, title: "Notifications are off",
+                    message: "Allow notifications for Reffi in Settings to get expiry alerts.",
+                    seed: 3,
+                    primary: PaperDialogAction("OK", role: .cancel) {})
+        .paperDialog(isPresented: $showSampleConfirm, title: "Load the sample fridge?",
+                    message: "Your current ingredients and history will be replaced.",
+                    seed: 4, backdropDismisses: true,
+                    primary: PaperDialogAction("Replace with sample data", role: .destructive) {
+                        destructiveHaptic += 1   // 룰⑦ — 파괴 확정(.warning)
+                        withAnimation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion)) {
+                            store.loadSampleData()
+                        }
+                    },
+                    secondary: PaperDialogAction("Cancel", role: .cancel) {})
+        .paperDialog(isPresented: $showResetConfirm, title: "Reset all data?",
+                    message: "Ingredients and history will be deleted. This can't be undone.",
+                    seed: 5, backdropDismisses: true,
+                    primary: PaperDialogAction("Reset everything", role: .destructive) {
+                        destructiveHaptic += 1   // 룰⑦ — 파괴 확정(.warning)
+                        withAnimation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion)) {
+                            store.resetAllData()
+                        }
+                    },
+                    secondary: PaperDialogAction("Cancel", role: .cancel) {})
         .reffiFeedback(.warning, trigger: destructiveHaptic)
         // 시스템 설정에서 권한을 나중에 회수한 경우 — 토글이 켜진 채 조용히 실패하지 않게 동기화.
         .task { await syncAuthorization() }
@@ -287,7 +287,7 @@ struct ProfileView: View {
             // 감각 영수증과 같은 토글 행 문법(SettingsToggle) — 여백·타이포·VoiceOver 처리를 공유한다.
             SettingsToggle(title: "Expiry alerts",
                            caption: "A morning reminder for what expires today and tomorrow",
-                           isOn: $alertsEnabled)
+                           isOn: $alertsEnabled, seed: 0)
             .onChange(of: alertsEnabled) { _, on in
                 if on {
                     // 켤 때만 권한 요청 — 거부되면 토글을 되돌리고 안내(§소프트 애스크).
@@ -328,11 +328,11 @@ struct ProfileView: View {
         ReceiptCard(title: String(localized: "Feel")) {
             SettingsToggle(title: "Collision haptics",
                            caption: "Feel ingredients knock into each other on the counter",
-                           isOn: $hapticsEnabled)
+                           isOn: $hapticsEnabled, seed: 1)
             ReceiptRule()
             SettingsToggle(title: "Tilt gravity",
                            caption: "Tilt your phone and the ingredients roll that way",
-                           isOn: $tiltEnabled)
+                           isOn: $tiltEnabled, seed: 2)
         }
     }
 
@@ -348,42 +348,61 @@ struct ProfileView: View {
         }
     }
 
-    // MARK: - 언어 영수증 — 앱별 언어는 iOS 설정이 정본. 인앱 가짜 스위처(재시작 필요·번들 스위즐)
-    // 대신 설정 딥링크로 보낸다(위약 금지). en·ko .lproj가 둘 다 있어 설정에 언어 행이 항상 노출된다.
+    // MARK: - 언어 영수증(2026-08, 38차) — 인앱 픽커로 전환.
+    // 이전엔 iOS 설정 딥링크가 정본이었다(§Data 79번째 줄 옛 근거). `.environment(\.locale)` +
+    // `AppleLanguages` 오버라이드로 실제 전환이 가능해져 딥링크를 걷었다 — `AppLanguage.swift`가
+    // 그 경계(즉시 반영 vs 재실행 필요)를 정직하게 문서화한다.
+    /// "지금 화면이 보여 주는 언어" — 행 값과 드롭다운 옵션 라벨(38차)이 같은 기준으로 리졸브되게
+    /// 명시적으로 못 박는다(`AppLanguage.displayName(in:)` 문서 참고 — `.system` 라벨은
+    /// `.environment(\.locale)`에 기대면 방금 바꾼 언어를 못 따라간다).
+    private var currentDisplayLocale: Locale { AppLanguage.resolve(stored: languageRaw).resolvedLocale }
+
     private var languageReceipt: some View {
         ReceiptCard(title: String(localized: "Language")) {
-            SettingsRow(label: "App language", value: currentLanguageName) {
-                if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
+            SettingsRow(label: "App language",
+                        value: AppLanguage.resolve(stored: languageRaw).displayName(in: currentDisplayLocale)) {
+                languagePickerOpen.toggle()
+            }
+            .anchorPreference(key: DropdownAnchorKey.self, value: .bounds) {
+                languagePickerOpen ? $0 : nil
             }
             ReceiptRule()
-            Text("Switch between English and Korean in iOS Settings.")
+            Text("Some text updates right away. Restart Reffi to apply everywhere.")
                 .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
                 .padding(.horizontal, ReffiSpace.s5)
                 .padding(.vertical, ReffiSpace.s3)
         }
     }
 
-    /// 현재 앱 언어의 엔도님(English·한국어) — 로케일에서 파생한 데이터 값이라 xcstrings 등록 대상이 아니다.
-    private var currentLanguageName: String {
-        let code = Locale.current.language.languageCode?.identifier ?? "en"
-        return Locale(identifier: code).localizedString(forLanguageCode: code)?.capitalized ?? code
+    /// 언어 선택 커밋 — `PaperDropdown`이 고르자마자 스스로 닫으므로(`paperDropdownOverlay`) 여기선
+    /// 값만 반영한다. 순서가 중요하다: AppStorage를 먼저 써야 `.environment(\.locale)`이 같은 프레임에
+    /// 새 값으로 다시 걸린다.
+    private func applyLanguage(_ language: AppLanguage) {
+        languageRaw = language.rawValue
+        language.applyAppleLanguagesOverride()
     }
 
     // MARK: - 데이터 관리 영수증 (샘플 불러오기·전체 초기화)
+    /// "Load the sample fridge"는 **게스트에서만** 보인다(2026-08, 36차 owner decision) — 로그인 계정은
+    /// 실 데이터를 다루므로 샘플로 갈아엎는 진입점 자체를 주지 않는다. 로그인 상태의 유일한 소스는
+    /// `accountReceipt`가 이미 읽는 `auth.isGuest`와 같다(§Account 영수증). 행과 그 아래 절취선을
+    /// **함께** 조건문에 묶어, 숨을 때 짝 잃은 `ReceiptRule`이 남지 않게 한다.
     private var dataReceipt: some View {
         ReceiptCard(title: String(localized: "Data")) {
-            QuietButton(title: "Load the sample fridge", icon: ReffiIcon.fridge, tint: ReffiColor.blueDark) {
-                if store.isPristine {
-                    withAnimation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion)) {
-                        store.loadSampleData()
+            if Self.showsSampleLoad(isGuest: auth.isGuest) {
+                QuietButton(title: "Load the sample fridge", icon: ReffiIcon.fridge, tint: ReffiColor.blueDark) {
+                    if store.isPristine {
+                        withAnimation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion)) {
+                            store.loadSampleData()
+                        }
+                    } else {
+                        showSampleConfirm = true
                     }
-                } else {
-                    showSampleConfirm = true
                 }
+                .padding(.horizontal, ReffiSpace.s3)
+                .padding(.vertical, ReffiSpace.s1)
+                ReceiptRule()
             }
-            .padding(.horizontal, ReffiSpace.s3)
-            .padding(.vertical, ReffiSpace.s1)
-            ReceiptRule()
             QuietButton(title: "Reset all data", icon: ReffiIcon.toss, tint: ReffiColor.urgentDark) {
                 showResetConfirm = true
             }
@@ -392,29 +411,41 @@ struct ProfileView: View {
         }
     }
 
+    /// 순수 규칙(뷰 밖에서 유닛 테스트로 고정 — `FridgeTab.initial(from:)`과 같은 문법):
+    /// 샘플 로드 행은 게스트에게만 보인다.
+    static func showsSampleLoad(isGuest: Bool) -> Bool { isGuest }
+
     // MARK: - 계정 영수증
     private var accountReceipt: some View {
         ReceiptCard(title: String(localized: "Account")) {
-            // 로그인 상태 행 — 이메일(로그인) 또는 게스트 안내.
-            HStack {
-                Text(auth.isGuest ? "Guest mode" : "Signed in")
-                    .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
-                Spacer()
-                Text(auth.userEmail ?? String(localized: "Sign up to keep your data"))
-                    .reffiType(.caption).foregroundStyle(ReffiColor.ink)
-                    .lineLimit(1).truncationMode(.middle)
+            if auth.isGuest {
+                // 게스트는 상태 표시와 진입점을 한 행으로 합친다(2026-08, 37차) — 예전엔 탭 안 되는
+                // "Guest mode · Sign up to keep your data" 안내 줄 바로 아래 별도 "Log in / Sign up"
+                // 버튼이 있어, 안내문은 액션처럼 읽히는데 정작 탭이 안 되고 진짜 액션은 한 칸 아래
+                // 떨어져 있었다. `SettingsRow`(라벨+값+셰브런, 전체가 탭 표면)로 하나의 명확한
+                // 진입점만 남긴다 — 같은 목적지(인증 시트)로 가는 입구를 화면에 흩뿌리지 않는다.
+                // 카피는 정직하게: 서버 백업은 없으므로 약속하지 않고, 로컬 기기에 남는다는 사실만 말한다.
+                SettingsRow(label: "Guest mode", value: String(localized: "Your data stays on this device")) {
+                    showAuth = true   // 익명 세션을 유지한 채 시트에서 전환/로그인(승계 보장).
+                }
+            } else {
+                HStack {
+                    Text("Signed in")
+                        .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
+                    Spacer()
+                    Text(auth.userEmail ?? "")
+                        .reffiType(.caption).foregroundStyle(ReffiColor.ink)
+                        .lineLimit(1).truncationMode(.middle)
+                }
+                .padding(.horizontal, ReffiSpace.s5)
+                .padding(.vertical, ReffiSpace.s3)
+                ReceiptRule()
+                QuietButton(title: "Log out", icon: ReffiIcon.go, tint: ReffiColor.blueDark) {
+                    showLogout = true
+                }
+                .padding(.horizontal, ReffiSpace.s3)
+                .padding(.vertical, ReffiSpace.s1)
             }
-            .padding(.horizontal, ReffiSpace.s5)
-            .padding(.vertical, ReffiSpace.s3)
-            ReceiptRule()
-            QuietButton(title: auth.isGuest ? "Log in / Sign up" : "Log out",
-                        icon: ReffiIcon.go, tint: ReffiColor.blueDark) {
-                // 게스트는 익명 세션을 유지한 채 시트에서 전환/로그인(승계 보장).
-                if auth.isGuest { showAuth = true }
-                else { showLogout = true }
-            }
-            .padding(.horizontal, ReffiSpace.s3)
-            .padding(.vertical, ReffiSpace.s1)
             ReceiptRule()
             // toss(재료 버림)와 의미 충돌 방지 — 탈퇴는 별도 아이콘(x).
             QuietButton(title: "Delete account", icon: ReffiIcon.close, tint: ReffiColor.urgentDark) {
@@ -490,10 +521,15 @@ struct ReceiptRule: View {
 /// VoiceOver는 **제목을 라벨로, 설명을 힌트로** 읽는다 — 두 줄을 한 라벨로 이어 붙이면
 /// 스위치를 훑는 동안 행마다 설명 문장이 통째로 낭독돼 목록을 지나가기가 어려워진다.
 /// 상태(켬/끔)와 조작은 SwiftUI Toggle 기본 동작 그대로다.
+///
+/// 스위치 재질은 `PaperToggleStyle`(§13.11, 2026-08 34차) — 스톡 캡슐 대신 손으로 자른 종이
+/// 트랙+손잡이다. 스타일은 시각만 바꾸므로 위 VoiceOver 계약(라벨=제목·힌트=설명·값=켬/끔)은
+/// 그대로 유지된다. `seed`는 호출부가 인스턴스마다 다르게 줘 나란히 선 토글끼리 종이 결이 겹치지 않게 한다.
 struct SettingsToggle: View {
     let title: LocalizedStringKey
     let caption: LocalizedStringKey
     @Binding var isOn: Bool
+    var seed: Int = 0
 
     var body: some View {
         Toggle(isOn: $isOn) {
@@ -502,7 +538,7 @@ struct SettingsToggle: View {
                 Text(caption).reffiType(.caption).foregroundStyle(ReffiColor.ink2)
             }
         }
-        .tint(ReffiColor.blue)
+        .toggleStyle(PaperToggleStyle(seed: seed))
         .accessibilityLabel(title)
         .accessibilityHint(caption)
         .padding(.horizontal, ReffiSpace.s5)

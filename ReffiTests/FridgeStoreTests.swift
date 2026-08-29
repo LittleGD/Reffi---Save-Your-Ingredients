@@ -66,9 +66,11 @@ struct FridgeStoreTests {
         #expect(snap.userRecipes?.isEmpty == true)
     }
 
-    @Test func decodesSnapshotWithRemovedCookStepKeys() throws {
-        // 단계 체크리스트 제거 전에 저장된 파일 — CookSession에 더 이상 없는 steps·completedSteps 키가 남아 있다.
-        // 모르는 키는 무시되고 진행 중 세션(이름·개수·예약 재료)은 그대로 살아야 한다.
+    /// 39차 — `steps`·`completedSteps`가 CookSession에 되살아났다(33c8861에서 걷혔던 필드,
+    /// 주방 전표 시트를 위해 부활). 이 테스트는 그 필드가 있는 파일(주방 전표에서 체크해 저장된
+    /// 세션)이 실제로 디코드되는지 확인한다 — 예전엔 "모르는 키라 무시된다"였던 테스트를
+    /// 뒤집는다(옛 이름·주석은 git 이력 참고, 지금은 반대가 참이다).
+    @Test func decodesCookSessionWithStepsAndCompletedSteps() throws {
         let json = """
         {"schemaVersion":2,"ingredients":[],"history":[],"dismissedToBuy":[],"counterIDs":[],
         "activeCook":{"recipeName":"Bibimbap","startedAt":773236800,"count":3,
@@ -81,6 +83,23 @@ struct FridgeStoreTests {
         #expect(cook.count == 3)
         #expect(cook.minutes == nil)              // 없던 필드는 nil — 공유 카드가 시간 줄을 생략한다
         #expect(cook.usedIDs?.count == 1)         // 예약(되돌릴 수 있는 재료)은 온전히 보존
+        #expect(cook.steps == ["chop", "stir"])   // 39차 — 이제 살아 있어 실제로 디코드된다
+        #expect(cook.completedSteps == [0])
+    }
+
+    /// 33c8861~39차 사이(단계 텍스트가 화면 어디에도 없던 시절)에 저장된 파일 — `steps`·
+    /// `completedSteps` 키 자체가 없다. `Optional`이라 안전하게 nil로 접혀야 한다 — 그래야
+    /// 그 세션을 이어 보는 티켓에 주방 전표 링크가 서지 않는다(단계 없음 = 링크 없음, §CookingStepsView).
+    @Test func decodesLegacyCookSessionWithoutStepKeys() throws {
+        let json = """
+        {"schemaVersion":2,"ingredients":[],"history":[],"dismissedToBuy":[],"counterIDs":[],
+        "activeCook":{"recipeName":"Bibimbap","startedAt":773236800,"count":3,
+        "usedIDs":["3E29D5C3-99D5-44A5-BB80-1E1B62F0A6DF"]}}
+        """.replacingOccurrences(of: "\n", with: "")
+        let snap = try #require(FridgeStore.decodeSnapshot(Data(json.utf8)))
+        let cook = try #require(snap.activeCook)
+        #expect(cook.steps == nil)
+        #expect(cook.completedSteps == nil)
     }
 
     @Test func recipesPoolIsCustomPlusSeed() {
@@ -253,6 +272,88 @@ struct FridgeStoreTests {
         store.loadSampleData()
         #expect(store.activeCook == nil)   // 유령 'Cooking now' 카드 방지
         #expect(!store.ingredients.isEmpty)
+    }
+
+    /// `cook()`이 발주 시점 레시피의 `displaySteps`를 세션에 스냅샷하는지, `toggleCookStep`이
+    /// 켜고 끄기를 올바르게 뒤집는지(39차 — 주방 전표 시트의 유일한 쓰기 경로). 인덱스 정렬도
+    /// 확인한다 — 시트가 `completedSteps`를 순서 그대로 신뢰하고 그리므로 뒤집힌 순서는 곧 버그다.
+    @Test func cookSnapshotsStepsAndToggleCookStepFlipsCompletion() {
+        let store = makeStore()
+        let recipe = Recipe.userRecipe(name: "Test", ingredientNames: ["Item0"], minutes: 10,
+                                       steps: ["Chop", "Stir", "Plate"])
+        store.cook(RecipeRecommender.result(for: recipe, ingredients: store.sorted))
+        #expect(store.activeCook?.steps == ["Chop", "Stir", "Plate"])
+        #expect(store.activeCook?.completedSteps == nil)   // 아직 아무것도 체크 안 함
+
+        store.toggleCookStep(0)
+        #expect(store.activeCook?.completedSteps == [0])
+
+        store.toggleCookStep(2)
+        #expect(store.activeCook?.completedSteps == [0, 2])   // 정렬 유지, 1은 여전히 미완료
+
+        store.toggleCookStep(0)   // 다시 탭하면 꺼진다
+        #expect(store.activeCook?.completedSteps == [2])
+    }
+
+    // MARK: 주방 전표 구세션 폴백 (39차-b)
+
+    /// 실기기 리포트 재현 — 39차 이전에 발주된 세션은 `steps` 필드 자체가 없다(nil). 레시피 자체는
+    /// 살아 있고 단계도 있으면, 스냅샷이 비어도 링크가 죽지 않고 원본에서 되찾아야 한다
+    /// (`heroIcon(for:)`와 같은 폴백 축).
+    @Test func resolvedStepsFallsBackToLiveRecipeWhenSnapshotIsNil() {
+        let recipe = Recipe.userRecipe(name: "Grilled Salmon Teishoku", ingredientNames: ["Salmon"],
+                                       minutes: 20, steps: ["Grill the salmon", "Serve with rice"])
+        let result = FridgeStore.CookSession.resolvedSteps(snapshot: nil, recipeID: recipe.id, in: [recipe])
+        #expect(result == ["Grill the salmon", "Serve with rice"])
+    }
+
+    /// 레시피가 지워졌거나(id가 배열에 없음) id 자체가 없는 구세션 — 되찾을 원본이 없으니 nil이고,
+    /// 그 자리에서 링크는 안 선다(없는 단계를 있는 척하지 않는다, `intro(for:)`와 같은 태도).
+    @Test func resolvedStepsIsNilWhenRecipeIsGoneAndSnapshotIsEmpty() {
+        #expect(FridgeStore.CookSession.resolvedSteps(snapshot: nil, recipeID: "deleted-id", in: []) == nil)
+        #expect(FridgeStore.CookSession.resolvedSteps(snapshot: [], recipeID: nil, in: []) == nil)
+    }
+
+    /// 스냅샷이 있으면(정상 발주 경로, 39차 본선) 항상 스냅샷이 이긴다 — 발주 시점 진실이 정본이라,
+    /// 발주 뒤 레시피 단계가 편집돼도 이 티켓은 흔들리지 않는다(`count`·`minutes`와 같은 축).
+    @Test func resolvedStepsPrefersSnapshotOverLiveRecipe() {
+        let recipe = Recipe.userRecipe(name: "Edited Later", ingredientNames: ["Item"],
+                                       minutes: 5, steps: ["New step from a later edit"])
+        let result = FridgeStore.CookSession.resolvedSteps(snapshot: ["Fired-time step"], recipeID: recipe.id,
+                                                            in: [recipe])
+        #expect(result == ["Fired-time step"])
+    }
+
+    /// `resetAllData()`가 실제로 지우는 것들(2026-08, 37차 — 게스트→계정 전환 보존 불변식의 절반).
+    /// `RootGateView.reconcileDataOwner`가 **다른 계정으로 전환**(`DataOwner.shouldWipe` == true)할
+    /// 때만 부르는 함수라, 이 계약이 무엇을 지우는지 고정해 두면 "언제 부르는가"(아래
+    /// `DataOwnerTests`)와 합쳐 전체 그림이 완성된다. 지시문이 지목한 네 데이터셋(ingredients·
+    /// history·manualToBuy·activeCook)을 전부 확인한다 — `history`는 `cook()`만으로는 안 쌓인다
+    /// (소비 확정은 `finishCooking()`이 한다, §요리 완료)는 점에 유의해 Item0을 실제로 완주시키고,
+    /// Item1로 두 번째 세션을 새로 열어 activeCook도 함께 채운다(둘이 서로 다른 재료라 충돌 없음).
+    @Test func resetAllDataClearsEveryDataset() {
+        let store = makeStore()
+        let recipe0 = Recipe.userRecipe(name: "Test0", ingredientNames: ["Item0"], minutes: 10, steps: [])
+        store.addUserRecipe(recipe0)
+        store.cook(RecipeRecommender.result(for: recipe0, ingredients: store.sorted))
+        store.finishCooking()   // Item0 소비 확정 — history에 실제로 한 줄 남는다(activeCook은 다시 nil)
+        #expect(!store.history.isEmpty)
+        #expect(!store.userRecipes.isEmpty)
+
+        let recipe1 = Recipe.userRecipe(name: "Test1", ingredientNames: ["Item1"], minutes: 10, steps: [])
+        store.cook(RecipeRecommender.result(for: recipe1, ingredients: store.sorted))
+        _ = store.addToBuy(name: "Milk")
+        #expect(store.activeCook != nil)
+        #expect(!store.manualToBuy.isEmpty)
+        #expect(!store.ingredients.isEmpty)
+
+        store.resetAllData()
+
+        #expect(store.ingredients.isEmpty)
+        #expect(store.history.isEmpty)
+        #expect(store.manualToBuy.isEmpty)
+        #expect(store.activeCook == nil)
+        #expect(store.userRecipes.isEmpty)
     }
 
     // MARK: 리뷰 회귀 (2026-07-02 코드리뷰 확정 결함)

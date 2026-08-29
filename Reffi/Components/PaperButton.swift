@@ -7,7 +7,11 @@ import SwiftUI
 /// 면 규격은 `PaperButton`과 **한 곳**에서 나온다 — 손으로 재조립하면 fill 토큰·질감·그림자가
 /// 화면마다 갈려 앱에 secondary CTA가 두 종류로 보인다(감사 R4-2).
 struct PaperButtonLabel: View {
-    enum Kind { case primary, secondary }
+    /// `destructive`(2026-08, 35차) — urgent 계열 솔리드 면. urgent(파스텔)가 아니라 **urgentDark**를
+    /// 쓴다: §2.6 실측표의 "각 색-dark 솔리드 + white = AA+"(urgent 5.92) 행이 정확히 이 조합이다 —
+    /// 파스텔 `urgent` 위에 흰 글자를 얹는 건 §2.6이 명시적으로 금지한다("따뜻한 파스텔 면 위 글자는
+    /// ink, 흰 글자 금지"). `blue`(면 전용)와 같은 축의 "채운 면" 색이라 취급한다.
+    enum Kind { case primary, secondary, destructive }
 
     let title: LocalizedStringKey
     var kind: Kind = .primary
@@ -18,10 +22,21 @@ struct PaperButtonLabel: View {
     /// "조건 미충족이라 못 누름"과 구분되지 않는다. 문구는 호출부가 동작 지목형으로 바꾼다.
     var isBusy: Bool = false
 
-    private var fill: Color { kind == .primary ? ReffiColor.blue : ReffiColor.sub }
-    // blue 면 위 콘텐츠는 `onAccent`다(§2.7) — 흰색인 근거가 `blue`의 다크 L 상한에 묶여 있으므로
-    // 리터럴 `.white`가 아니라 토큰으로 부른다. ink 면 위의 `onInk`와는 다른 토큰이다.
-    private var foreground: Color { kind == .primary ? ReffiColor.onAccent : ReffiColor.ink }
+    private var fill: Color {
+        switch kind {
+        case .primary: ReffiColor.blue
+        case .secondary: ReffiColor.sub
+        case .destructive: ReffiColor.urgentDark
+        }
+    }
+    // blue·urgentDark 면 위 콘텐츠는 `onAccent`다(§2.7) — 흰색인 근거가 각 색의 다크 L 상한에
+    // 묶여 있으므로 리터럴 `.white`가 아니라 토큰으로 부른다. ink 면 위의 `onInk`와는 다른 토큰이다.
+    private var foreground: Color {
+        switch kind {
+        case .primary, .destructive: ReffiColor.onAccent
+        case .secondary: ReffiColor.ink
+        }
+    }
 
     var body: some View {
         HStack(spacing: ReffiSpace.s2) {

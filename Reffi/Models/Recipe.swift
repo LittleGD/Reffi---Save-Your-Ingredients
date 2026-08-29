@@ -27,8 +27,9 @@ struct Recipe: Identifiable, Codable, Equatable {
     var cuisine: String?
     var minutes: Int
     var ingredients: [Item]
-    /// 조리 단계 — 화면에 그리는 경로는 없다(티켓은 단서까지, 조리법은 영상). 시드 JSON과 이미 저장된
-    /// 커스텀 레시피가 이 키를 갖고 있어 **디코드 호환**을 위해 유지한다. 지우면 기존 데이터가 깨진다.
+    /// 조리 단계 — 티켓의 "See the cooking details?" 링크가 여는 주방 전표(`KitchenCopySheet`)가
+    /// `displaySteps`로 화면에 그린다(1차 경로는 여전히 영상). 시드 JSON과 이미 저장된 커스텀
+    /// 레시피가 이 키를 갖고 있으므로 지우면 기존 데이터 디코드가 깨진다.
     var steps: LocalizedSteps
     /// 사용자 커스텀 여부 — 커스텀만 편집·삭제 가능(시드 생략 시 nil = false).
     var isUser: Bool?
@@ -54,6 +55,13 @@ struct Recipe: Identifiable, Codable, Equatable {
     // MARK: - 표시 접근자
 
     var displayName: String { Self.isKorean ? (name.ko ?? name.en) : name.en }
+    /// 로케일 조리 단계(39차 — 33c8861에서 참조 소멸로 삭제됐다가 주방 전표 시트를 위해 되살아났다).
+    /// 커스텀 레시피는 편집기가 단계를 더 이상 입력받지 않아 보통 빈 배열이다 — 그 경우 호출부가
+    /// 옵트인 링크 자체를 안 그린다(§CookingStepsView).
+    var displaySteps: [String] {
+        if Self.isKorean, let ko = steps.ko, !ko.isEmpty { return ko }
+        return steps.en
+    }
     /// 로케일 표시 소개 — **없으면 nil**이고 호출부는 그 자리에 아무것도 그리지 않는다(자리표시 금지).
     /// 공백만 남은 값도 nil로 접는다 — 빈 캡션이 여백만 벌리는 것을 막는다.
     var displayIntro: String? {

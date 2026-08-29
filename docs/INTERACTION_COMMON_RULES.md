@@ -96,6 +96,21 @@
 - **샘플로드 정정(2026-07-26)**: 최초 초안은 샘플로드를 "되돌리기 가능(undo 토스트 있음)"으로 분류했으나 사실이 아니다. `FridgeStore.loadSampleData()`는 `ingredients`·`history`를 샘플로 통째 대체하기 전에 `pendingUndo = nil`로 **undo를 먼저 지운다**(`FridgeStore.swift:717`) → 확정 후 복구 불가. 따라서 `.alert`로 분류를 옮긴다.
 - **적용**: 위 기준으로 각 호출부 재분류.
   - 반영 완료(2026-07-26): `ProfileView`의 샘플로드 호출부를 `.alert` + 명시 Cancel + 룰 ⑦ `.warning` 햅틱으로 이관했다(결과 명시 메시지는 유지).
+- **팝업 재질 전면 개정(2026-08, 40차) — "alert vs confirmationDialog" 갈래 자체가 사라졌다.** 사용자 지시
+  ("앱 내 팝업 케이스를 다 파악해서 다 종이컷 스타일로 바꿔 달라")로, 위에서 정한 심각도별 시스템 컴포넌트
+  분류(복구 불가능=`.alert` / 되돌리기 가능=`.confirmationDialog` / 상태전환=`.confirmationDialog` /
+  순수 알림성=`.alert`)는 **재질 선택 기준으로서는 폐기**됐다 — 남아 있던 시스템 `.alert`/
+  `.confirmationDialog` 12곳(`ProfileView` 5·`MyRecipesView`+`RecipeEditorView` 3·
+  `ProfilePreferenceSheets`(NicknameEditSheet) 1·`IngredientEditView` 2·`ReceiptScanView`
+  CandidateEditSheet 1)을 전부 `PaperDialog`(design_system.md §14.7)로 옮겼다. **이 절이 정한 심각도
+  분류 자체는 여전히 유효하고 계속 쓰인다** — 다만 그 결과가 이제 가리키는 것은 "어느 시스템 컴포넌트를
+  쓰는가"가 아니라 "`PaperDialogAction`에 `role: .destructive`를 주는가·`.warning` 햅틱을 붙이는가·
+  Cancel(`secondary`)을 두는가"다. 예: 계정삭제·전체초기화·샘플로드(복구 불가능)는 여전히 파괴 확인
+  강도(명시 Cancel + `.destructive` + `.warning` 햅틱 + "돌릴 수 없다" 카피)를 그대로 유지한 채 재질만
+  paper로 바뀌었고, 로그아웃(상태전환·비파괴)은 여전히 `.warning` 햅틱 없이 role만 `.destructive`로
+  옮겨 시각 무게는 유지하되 파괴 분류는 아니라는 원래 뜻을 지킨다. 행동 배선·카피는 전 케이스 동결.
+  이 문서의 "확정 룰"(심각도 판정 축)은 미래의 새 팝업에도 계속 적용한다 — 다만 "그래서 어느
+  SwiftUI API를 쓰는가"라는 질문 자체가 이제 "언제나 PaperDialog"로 답이 고정됐다.
 
 ### 룰 ⑨ — 미저장 보호 = 변경 시 Discard 확인
 - **현행 편차**: `interactiveDismissDisabled`가 앱 전체 0건. 편집 시트가 스와이프 실수로 닫히면 입력 유실.

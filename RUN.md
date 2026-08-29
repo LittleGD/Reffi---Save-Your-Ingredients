@@ -58,6 +58,7 @@ xcrun simctl io booted screenshot reffi-home.png
 - `-onboardingSetupAutoAdvance` 셋업 장 자동 순환(전환 QA용)
 - `-skipAuth` 게스트로 게이트 통과 · `-authGate` 게스트 해제 (인증 콘솔 설정은 `docs/AUTH_SETUP.md`)
 - `-resetNickname` 저장된 닉네임을 미설정 취급 — 이번 런치에서 곧장 자동 닉네임 생성을 재현(`NicknameGenerator` QA)
+- `-resetLanguage` 앱 내 언어 선택(`AppLanguage.key`)과 `AppleLanguages` 오버라이드를 함께 지워 System default로 되돌린다 — 언어 전환 UI 테스트가 실제로 `AppStorage`를 바꾸므로, 같은 스위트의 다음 테스트가 영어 문자열 단언에서 깨지지 않게 테스트 종료 시 강제 리셋하는 용도(38차)
 
 **탭 · 데이터**
 - `-fridgeTab` `-profileTab` 탭 직행 · `-profileBottom` 프로필 하단(Data·Account)까지 스크롤
@@ -66,7 +67,8 @@ xcrun simctl io booted screenshot reffi-home.png
 **메인 (물리 씬 · 티켓)**
 - `-previewCarousel` 추천 캐러셀 바로 열기 · `-previewAdd` 재료 추가 시트 바로 열기
 - `-cookCarousel` 티켓 덱 자동 오픈(플릭 방향 의미론 UI 테스트가 쓴다). ⚠️ `store.available`(예약 제외 재고)이 비어 있으면 `loadSampleData()`를 부른다 — **추가가 아니라 전체 대체**다: 조리 세션이 모든 재료를 예약 중이거나 냉장고만 비고 이력·장보기 메모가 남은 상태에서 단독으로 주면 그 데이터가 되돌릴 수 없이 지워진다. UI 테스트는 `-uiTestSampleFridge`와 같이 주므로 그 경로에선 무동작
-- `-cookTicket` 샘플로 강제 발주 후 조리 티켓(`CookingStepsView`) 바로 열기
+- `-cookTicket` 샘플로 강제 발주 후 조리 티켓(`CookingStepsView`) 바로 열기 · `-cookTicket.kitchenCopy`는 그 위에 주방 전표 시트(`KitchenCopySheet`)까지 곧장 연다(39차 — seed 레시피는 전량 단계를 갖고 있어 `-cookTicket` 조합만으로 충분하다)
+- `-cookTicket.noSteps`(39차) 커스텀(0단계) 레시피로 강제 발주 — "단계 없음 → 주방 전표 링크 없음" 경로를 UI 테스트가 재현할 수 있게 한다(`-cookTicket`과 배타적으로 쓴다)
 - `-fireDismissDelay <초>` 발주 후 티켓 덱 커버가 닫히기까지의 유예(기본 1.25초)를 넓힌다. 담기 팝업이 그 창 안에서 뜰 때 닫기가 실제로 **미뤄지는지**를 UI 테스트가 재현하려면 1.25초로는 너무 좁다(`MainView.fireDismissDelay(from:)`, 유닛 테스트가 파싱을 고정한다)
 - `-tiltLab` 기울기 실험실 하단 오버레이 — X/Y 슬라이더로 씬 중력을 직접 주입한다. 시뮬레이터엔 자이로가 없어 굴러가는 모양·컨테인먼트 QA는 사실상 이 경로로만 가능하다. SHAKE 버튼 + `HAPTIC n/s` 카운터(햅틱 하드웨어가 없으니 발화 수가 유일한 관측 수단 — 정지한 더미에서 0으로 떨어지는지도 여기서 본다)
 - `-tiltLab.x <-1…1>` `-tiltLab.y <-1…1>` 중력 방향 주입(실험실도 함께 켜짐). 값 파싱은 `ProcessInfo.arguments` 직접 순회 — UserDefaults 인자로 두면 `-tiltLab.x -0.9`의 음수를 다음 키로 오인해 바인딩을 통째로 잃는다

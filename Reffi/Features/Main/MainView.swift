@@ -307,6 +307,21 @@ struct MainView: View {
                 // fire 직후 같은 프레임의 커버 프레젠테이션은 씹힌다(-fridgeExpand 선례) — 한 박자 늦게 연다.
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { showSteps = true }
             }
+            // `-cookTicket.noSteps`(39차) — 커스텀 레시피(편집기가 단계를 더 이상 안 받아 기본
+            // 빈 배열, 33c8861)로 강제 발주해 "단계 없음 → 주방 전표 링크 없음" 경로를 UI 테스트가
+            // 재현할 수 있게 한다. 재료명은 샘플 시드의 첫 재료를 그대로 써 매칭을 보장한다
+            // (`RecipeRecommender.result`가 이름으로 맞춰야 `cook()`이 실제로 발주된다).
+            if args.contains("-cookTicket.noSteps") {
+                if store.activeCook == nil {
+                    store.loadSampleData()
+                    if let firstName = store.sorted.first?.name {
+                        let noStepRecipe = Recipe.userRecipe(name: "No-Step Test Dish",
+                                                              ingredientNames: [firstName], minutes: 10)
+                        store.cook(RecipeRecommender.result(for: noStepRecipe, ingredients: store.sorted))
+                    }
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { showSteps = true }
+            }
         }
         #endif
     }
@@ -700,7 +715,9 @@ struct MainView: View {
     }
 
     private func cookElapsed(_ cook: FridgeStore.CookSession) -> some View {
+        // 상대 시간 표기는 기기 로케일을 따른다(38차 — 앱 언어 선택과 분리, `AppLanguage.swift` 근거).
         Text(cook.startedAt, style: .relative)
+            .environment(\.locale, .autoupdatingCurrent)
             .reffiType(.metaText)
             .foregroundStyle(ReffiColor.ink2)
     }
