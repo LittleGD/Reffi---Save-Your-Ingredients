@@ -652,7 +652,7 @@ iPhone 쪽 한계는 넷이다 — ① 액추에이터가 **하나**(좌·우 2�
 - [ ] 점선 구분을 손으로 그리지 않고 `ReffiRule(.receipt|.ticket)`을 썼는가(§13.8)
 - [ ] 성과 지표를 차트가 아니라 영수증 정산서로 세웠는가 — 한 축(건수)·도장 하나·모수 일치, 순서 없는 축에 신선도 색 재사용 금지(§13.9/§2.4)
 - [ ] 카드 그림자를 인라인 `.shadow(...)`가 아니라 `reffiShadowCard()`/`reffiShadowCardCompact()`로 얹었는가(§6.4)
-- [ ] 앱이 **묻거나 고르게 하는** 팝업을 시스템 `.alert`이 아니라 `PaperDialog`/`PaperChecklistDialog`로 세웠는가 — 파괴 확인만 시스템 자리다(§14.7)
+- [ ] 앱 내 팝업을 **예외 없이** `PaperDialog`/`PaperChecklistDialog`로 세웠는가 — 40차가 "파괴 확인은 시스템에 남는다"는 경계를 폐지했다. 파괴 성향 1차 행동엔 `role: .destructive`(`urgentDark` 솔리드)를 준다. 종이가 아닌 유일한 팝업류는 OS 알림 권한 요청 — `.alert`이 아니라 iOS가 앱 밖에서 그리는 시스템 시트라 앱이 재질을 정할 수 없다(플랫폼 제약)(§14.7)
 
 ---
 

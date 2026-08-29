@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// 종이컷 토글(§13.11) — 스톡 `Toggle`의 캡슐 스위치를 손으로 자른 종이로 재질만 바꾼 `ToggleStyle`.
+/// 종이컷 토글(§13.5) — 스톡 `Toggle`의 캡슐 스위치를 손으로 자른 종이로 재질만 바꾼 `ToggleStyle`.
 /// 트랙은 `PaperRect(cornerRadius: .pill)`이 pill 스케일에서 스스로 라우팅하는 `PaperCutRect` 8각 필
 /// (§13.1 "완벽한 캡슐 금지"), 손잡이는 `PaperBlob(sides: 9)` 종이 조각 — 둘 다 새로 만들지 않고
 /// 앱이 이미 쓰는 프리미티브를 그대로 부른다.

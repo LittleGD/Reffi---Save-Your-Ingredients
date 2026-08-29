@@ -240,7 +240,7 @@ struct ProfileView: View {
 
     // MARK: - 요리 취향 영수증
     private var tasteReceipt: some View {
-        ReceiptCard(title: String(localized: "Taste")) {
+        ReceiptCard(title: "Taste") {
             SettingsRow(label: "Cuisines", value: profile.cuisines.summaryText,
                         valueColor: profile.cuisines.isEmpty ? ReffiColor.muted : ReffiColor.blueDark) {
                 sheet = .cuisines
@@ -256,7 +256,7 @@ struct ProfileView: View {
 
     // MARK: - 가구 인원 영수증 — 레시피 양·쇼핑 수량의 근거. 인라인 칩 단일 선택(Remind me 문법).
     private var householdReceipt: some View {
-        ReceiptCard(title: String(localized: "Household")) {
+        ReceiptCard(title: "Household") {
             VStack(alignment: .leading, spacing: ReffiSpace.s3) {
                 Text("We'll size your restock amounts to match.")
                     .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
@@ -283,7 +283,7 @@ struct ProfileView: View {
 
     // MARK: - 알림 영수증 — ExpiryNotifier 실배선(토글=권한요청·롤백, 시각=스케줄 반영).
     private var notifyReceipt: some View {
-        ReceiptCard(title: String(localized: "Notifications")) {
+        ReceiptCard(title: "Notifications") {
             // 감각 영수증과 같은 토글 행 문법(SettingsToggle) — 여백·타이포·VoiceOver 처리를 공유한다.
             SettingsToggle(title: "Expiry alerts",
                            caption: "A morning reminder for what expires today and tomorrow",
@@ -325,7 +325,7 @@ struct ProfileView: View {
     // 기울임은 이 토글과 무관하게 꺼지고(시스템 우선), 토글은 Reduce Motion을 쓰지 않는 사람이
     // "그래도 폰이 흔들리는 건 싫다"고 말하는 자리다.
     private var feelReceipt: some View {
-        ReceiptCard(title: String(localized: "Feel")) {
+        ReceiptCard(title: "Feel") {
             SettingsToggle(title: "Collision haptics",
                            caption: "Feel ingredients knock into each other on the counter",
                            isOn: $hapticsEnabled, seed: 1)
@@ -338,7 +338,7 @@ struct ProfileView: View {
 
     // MARK: - 내 레시피 영수증 (커스텀 — 추천 풀에 합류)
     private var recipesReceipt: some View {
-        ReceiptCard(title: String(localized: "My recipes")) {
+        ReceiptCard(title: "My recipes") {
             SettingsRow(label: "Custom recipes",
                         value: store.userRecipes.isEmpty ? String(localized: "None yet") : "\(store.userRecipes.count)",
                         valueColor: store.userRecipes.isEmpty ? ReffiColor.muted : ReffiColor.blueDark,
@@ -358,7 +358,7 @@ struct ProfileView: View {
     private var currentDisplayLocale: Locale { AppLanguage.resolve(stored: languageRaw).resolvedLocale }
 
     private var languageReceipt: some View {
-        ReceiptCard(title: String(localized: "Language")) {
+        ReceiptCard(title: "Language") {
             SettingsRow(label: "App language",
                         value: AppLanguage.resolve(stored: languageRaw).displayName(in: currentDisplayLocale)) {
                 languagePickerOpen.toggle()
@@ -388,7 +388,7 @@ struct ProfileView: View {
     /// `accountReceipt`가 이미 읽는 `auth.isGuest`와 같다(§Account 영수증). 행과 그 아래 절취선을
     /// **함께** 조건문에 묶어, 숨을 때 짝 잃은 `ReceiptRule`이 남지 않게 한다.
     private var dataReceipt: some View {
-        ReceiptCard(title: String(localized: "Data")) {
+        ReceiptCard(title: "Data") {
             if Self.showsSampleLoad(isGuest: auth.isGuest) {
                 QuietButton(title: "Load the sample fridge", icon: ReffiIcon.fridge, tint: ReffiColor.blueDark) {
                     if store.isPristine {
@@ -417,7 +417,7 @@ struct ProfileView: View {
 
     // MARK: - 계정 영수증
     private var accountReceipt: some View {
-        ReceiptCard(title: String(localized: "Account")) {
+        ReceiptCard(title: "Account") {
             if auth.isGuest {
                 // 게스트는 상태 표시와 진입점을 한 행으로 합친다(2026-08, 37차) — 예전엔 탭 안 되는
                 // "Guest mode · Sign up to keep your data" 안내 줄 바로 아래 별도 "Log in / Sign up"
@@ -463,7 +463,17 @@ struct ProfileView: View {
 /// 톱니(절취) 엣지 + 헤더 + 점선 룰, 면은 그레인 없는 깨끗한 흰 종이.
 /// 헤더 라벨은 번역되는 문자열이라 올캡 모노 크롬이 아니라 `caption`을 쓴다(§3.5).
 struct ReceiptCard<Content: View>: View {
-    let title: String
+    /// **`String`이 아니라 `LocalizedStringKey`인 것이 요점이다(41차).** 둘의 차이는 로컬라이즈가
+    /// **언제** 일어나는가다: `Text(String)`은 verbatim 렌더라 조회가 호출부의 `String(localized:)`
+    /// 시점에 끝나고, 그 조회는 `Bundle.main` = **다음 실행**을 봐야 바뀐다. `LocalizedStringKey`면
+    /// 조회가 SwiftUI로 넘어가 루트의 `.environment(\.locale)`(38차 앱 내 언어 전환)을 그대로 따른다.
+    ///
+    /// 38차 직후 실측했을 때 영수증 제목 여덟(Taste·Household·Notifications·Feel·My recipes·
+    /// Language·Data·Account)만 재실행 전까지 영어로 남아, 한글 행 라벨 위에 영어 섹션 헤더가
+    /// 얹히는 그림이 됐다. `AppLanguage`가 문서화한 "정직한 경계"는 **보간으로 굳은 문자열**에나
+    /// 해당하는 제약이고, 이 제목들은 그냥 리터럴이라 애초에 그 경계 안에 있을 이유가 없었다.
+    /// 되돌리지 말 것 — `String(localized:)`로 감싸는 순간 여덟이 다시 경계 밖으로 나간다.
+    let title: LocalizedStringKey
     var stamp: String? = nil        // 제목 옆 고무 도장(DDayStamp) — 스트릭 등
     var trailing: String? = nil     // 헤더 우측 보조(날짜 등)
     @ViewBuilder var content: Content
@@ -522,7 +532,7 @@ struct ReceiptRule: View {
 /// 스위치를 훑는 동안 행마다 설명 문장이 통째로 낭독돼 목록을 지나가기가 어려워진다.
 /// 상태(켬/끔)와 조작은 SwiftUI Toggle 기본 동작 그대로다.
 ///
-/// 스위치 재질은 `PaperToggleStyle`(§13.11, 2026-08 34차) — 스톡 캡슐 대신 손으로 자른 종이
+/// 스위치 재질은 `PaperToggleStyle`(§13.5, 2026-08 34차) — 스톡 캡슐 대신 손으로 자른 종이
 /// 트랙+손잡이다. 스타일은 시각만 바꾸므로 위 VoiceOver 계약(라벨=제목·힌트=설명·값=켬/끔)은
 /// 그대로 유지된다. `seed`는 호출부가 인스턴스마다 다르게 줘 나란히 선 토글끼리 종이 결이 겹치지 않게 한다.
 struct SettingsToggle: View {
