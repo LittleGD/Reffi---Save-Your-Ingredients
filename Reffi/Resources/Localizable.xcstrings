@@ -733,12 +733,34 @@
         }
       }
     },
+    "Anything opened yet?": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "개봉한 게 있나요?"
+          }
+        }
+      }
+    },
     "App language": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
             "value": "앱 언어"
+          }
+        }
+      }
+    },
+    "Apply": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "적용"
           }
         }
       }
@@ -800,6 +822,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "취소"
+          }
+        }
+      }
+    },
+    "Check ingredient spellings or restock to see more tickets.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "재료 이름을 확인하거나 장을 보면 티켓이 늘어나요."
           }
         }
       }
@@ -2071,17 +2104,6 @@
         }
       }
     },
-    "No tickets from what's in your fridge yet.\nCheck the ingredient names, restock, or add your own recipe in Profile.": {
-      "extractionState": "manual",
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "지금 냉장고에 있는 재료로 만들 티켓이 아직 없어요.\n재료 이름을 확인하거나, 장을 보거나, 프로필에서 내 레시피를 추가해 보세요."
-          }
-        }
-      }
-    },
     "No tickets yet": {
       "localizations": {
         "ko": {
@@ -2128,6 +2150,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "아직"
+          }
+        }
+      }
+    },
+    "Not in dictionary": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "사전에 없음"
           }
         }
       }
@@ -2848,6 +2881,17 @@
         }
       }
     },
+    "Sealed items keep their long dates until opened. Checked ones switch to the after-opening use-by date.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "밀봉 식품은 개봉 전까지 기한이 깁니다. 체크한 항목은 개봉 후 소비기한으로 바뀌어요."
+          }
+        }
+      }
+    },
     "Search ingredients": {
       "localizations": {
         "ko": {
@@ -3436,6 +3480,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@에 맞췄어요"
+          }
+        }
+      }
+    },
+    "Turn %@ and %@ into your own recipe. Add it in Profile.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ 그리고 %2$@, 이 조합으로 나만의 레시피를 만들어 보세요! 프로필에서 바로 추가할 수 있어요."
+          }
+        }
+      }
+    },
+    "Turn %@ into your own recipe. Add it in Profile.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 하나로 나만의 레시피를 만들어 보세요! 프로필에서 바로 추가할 수 있어요."
           }
         }
       }

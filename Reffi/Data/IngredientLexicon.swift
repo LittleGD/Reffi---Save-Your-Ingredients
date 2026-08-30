@@ -16,6 +16,15 @@ struct IngredientLexicon {
         /// sauceBottle)용 명시 플래그 — 채식 하드 필터가 글리프만 보면 이들이 통과한다.
         /// 생략(nil) = 글리프 판정에 맡긴다. 지식은 코드가 아니라 JSON에 둔다(프로젝트 규칙).
         var animal: Bool?
+        /// 상위(총칭) 캐논 — 구체 재료가 총칭을 요구하는 레시피를 **채울 수 있다**는 단방향 선언(44차).
+        /// 팽이버섯은 "버섯" 레시피를 만들 수 있지만(parent: mushroom), 총칭 버섯이 표고 전용
+        /// 레시피를 채우지는 못한다 — 방향이 뒤집히면 오매칭이 재고 파괴로 이어진다(발주=소비).
+        /// 한 단계만 본다(체인 없음). 가향유(flavored-milk)처럼 총칭 레시피에 넣으면 다른 음식이
+        /// 되는 변형에는 **일부러 달지 않는다**.
+        var parent: String?
+        /// 밀봉 가공식품(캔·병·레토르트) 플래그 — 개봉 전에는 장기, 개봉 후에는 `shelfLife.opened`가
+        /// 기한이 된다(44차 오너 결정: 미개봉 방치 방지를 위해 2주 주기 개봉 확인을 묻는다).
+        var sealed: Bool?
 
         struct Names: Decodable {
             var en: [String]
@@ -27,6 +36,9 @@ struct IngredientLexicon {
             var freezer: Int?
             var pantry: Int?
             var room: Int?
+            /// **개봉 후** 냉장 소비기한(일) — `sealed` 항목 전용(44차). 개봉 전 값은 위 슬롯이
+            /// 그대로 담당한다(스팸: pantry 1095 = 미개봉, opened 5 = 개봉 후).
+            var opened: Int?
         }
 
         /// 로케일 대표 표기.
@@ -48,6 +60,9 @@ struct IngredientLexicon {
     let entries: [Entry]
     private let byID: [String: Entry]
     private let exactKeyword: [String: String]          // 정규화 표기 → id (한 글자 포함)
+    /// 오타 허용 계층용 자모 분해 색인 — 정확 표기 전수의 (자모열, id). 로드 때 한 번 분해해 둔다:
+    /// 퍼지 조회는 전 계층 미스에서만 돌지만, 그때마다 1,100여 표기를 다시 분해하면 미스가 비싸진다.
+    private let fuzzyKeys: [(key: [Character], id: String)]
     private let containsKeywords: [(keyword: String, id: String)]  // 2글자+ — 길이 내림차순
     /// 타이핑 검색용 정규화 이름(en+ko) — `entries`와 같은 순서. 키 입력마다 사전 전체를
     /// 다시 정규화하지 않으려고 로드 때 한 번만 만든다(어차피 아래 키워드 색인이 같은 값을 훑는다).
@@ -99,6 +114,22 @@ struct IngredientLexicon {
         searchNames = names
         normalizedNamesByID = normalizedByID
         exactKeyword = exact
+        // 퍼지 대상에서 **경합 표기**를 제외한다(44차 리서치: 서로 다른 재료끼리 문자 1획 차인
+        // 실표기 쌍이 342건 — 오이/오리, 새우/생수, beef/beet). 다른 id의 표기와 자모 거리 1 이내인
+        // 표기는 오타 교정의 목적지가 될 수 없다 — 그 지대에서는 한 획 차이가 오타가 아니라
+        // 다른 재료다. 로드 때 한 번 전산으로 걸러 두면 런타임 규칙이 데이터를 따라 자란다.
+        let decomposed = exact.filter { Self.fuzzyEligible($0.key) }
+            .map { (key: Self.typoKey($0.key), id: $0.value) }
+        var byLen: [Int: [(key: [Character], id: String)]] = [:]
+        for e in decomposed { byLen[e.key.count, default: []].append(e) }
+        fuzzyKeys = decomposed.filter { e in
+            for len in (e.key.count - 1)...(e.key.count + 1) {
+                for other in byLen[len] ?? [] where other.id != e.id {
+                    if Self.withinOneEdit(e.key, other.key) { return false }
+                }
+            }
+            return true
+        }
         // 긴 키워드 우선("green onion"이 "onion"보다 먼저) — 포함 매칭의 특이도 보장.
         // 길이 동률은 **등재 순서**를 명시적 2차 키로 고정한다. 동률 승자에 실제 판정이 걸려 있는데
         // ("초코우유"의 우유 vs 초코 — 둘 다 2글자), Swift `sorted(by:)`는 안정 정렬을 보장하지
@@ -154,11 +185,105 @@ struct IngredientLexicon {
             let s = cached as String
             return s == Self.cacheMiss ? nil : s
         }
-        let result = exactKeyword[n]
+        let raw = exactKeyword[n]
             ?? headNounID(normalized: n)
             ?? containsKeywords.first { n.contains($0.keyword) }?.id
+            ?? fuzzyCanonicalID(normalized: n)
+        let result = raw.map { speciesGuarded($0, input: n) }
         matchCache.setObject((result ?? Self.cacheMiss) as NSString, forKey: n as NSString)
         return result
+    }
+
+    /// 정육 부위의 **종 토큰 가드**(44차 리서치 요구사항) — 부위명은 접두 관행으로 종이 갈리는데
+    /// ("등심"=소, "돼지등심"=돼지), 등재 안 된 조합("돼지고기 등심")은 머리말이 부위(소 기본값)를
+    /// 잡아 종이 뒤집힌다. 해석 결과가 부위(parent가 정육 총칭)인데 입력에 **다른 종**의 토큰이
+    /// 있으면 그 종의 총칭으로 강등한다 — 부위 정밀도는 잃지만 종은 절대 틀리지 않는다
+    /// (발주=재고 소비: 돼지 등심이 소 재고를 지우면 안 된다).
+    private static let speciesTokens: [(species: String, tokens: [String])] = [
+        ("beef", ["한우", "육우", "소고기", "쇠고기", "비프", "beef"]),
+        ("pork", ["돼지", "한돈", "포크", "돈까스", "돈가스", "pork"]),
+        ("chicken", ["닭", "치킨", "chicken"]),
+        ("duck", ["오리", "duck"]),
+        ("lamb", ["양고기", "양갈비", "램", "lamb", "mutton"]),
+    ]
+
+    private func speciesGuarded(_ id: String, input n: String) -> String {
+        // 가드 대상: 부위(parent가 정육 종) **또는 종 총칭 자체**(44차 검증 보강) — "돼지 불고기용"이
+        // 용도명 매칭으로 beef에 떨어질 때도 종 토큰이 판정을 뒤집어야 한다.
+        let parent = byID[id]?.parent
+            ?? (Self.speciesTokens.contains { $0.species == id } ? id : nil)
+        guard let parent, Self.speciesTokens.contains(where: { $0.species == parent }) else { return id }
+        for (species, tokens) in Self.speciesTokens where species != parent {
+            if tokens.contains(where: { n.contains($0) }) { return species }
+        }
+        return id
+    }
+
+    // MARK: - 오타 허용(퍼지) 계층 — 44차
+
+    /// ④ 오타 허용 — 앞 세 계층이 전부 미스일 때만, **정확 표기 사전에 대해서만** 편집 거리 1을
+    /// 받는다("양송기"→양송이, "tomatoe"→tomato). 발주=재고 소비라 공격적 교정은 금지 — 가드 셋:
+    /// ① **한글 3음절/영문 5자 미만은 입력·목적지 모두 제외**(44차 검증에서 강화). 자모 수 게이트는
+    ///   받침 하나면 2음절도 통과해(방어=자모 5), 사전 **밖** 실존 재료가 흡수됐다 — 방어→장어,
+    ///   냉이→팽이, 율무→열무, malt→salt 실측. 2음절 한글은 식재료 최소쌍의 지대라 통째로 뺀다.
+    /// ② 거리 1 안에 **서로 다른 두 재료**가 다투면 교정하지 않는다(nil).
+    /// ③ 부분문자열이 아니라 표기 전체끼리만 비교한다(포함 매칭에 퍼지를 얹으면 특이도가 무너진다).
+    /// 비교 축은 여전히 **자모**다 — 음절 비교로는 "계/게"(1획)와 "계/닭"(전혀 다름)이 같은 거리다.
+    private func fuzzyCanonicalID(normalized n: String) -> String? {
+        guard Self.fuzzyEligible(n) else { return nil }
+        let key = Self.typoKey(n)
+        var found: String?
+        for (k, id) in fuzzyKeys {
+            guard abs(k.count - key.count) <= 1, Self.withinOneEdit(key, k) else { continue }
+            if let f = found, f != id { return nil }   // 두 재료가 다투면 교정 포기(안전한 실패)
+            found = id
+        }
+        return found
+    }
+
+    /// 퍼지 입력·목적지 공통 길이 게이트 — 한글 음절 3+ 또는 순수 비한글 5자+.
+    static func fuzzyEligible(_ s: String) -> Bool {
+        let syllables = s.unicodeScalars.filter { (0xAC00...0xD7A3).contains($0.value) }.count
+        if syllables > 0 { return syllables >= 3 }
+        return s.count >= 5
+    }
+
+    private static let choseong = Array("ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ")
+    private static let jungseong = Array("ㅏㅐㅑㅒㅓㅔㅕㅖㅗㅘㅙㅚㅛㅜㅝㅞㅟㅠㅡㅢㅣ")
+    private static let jongseong: [Character?] =
+        [nil] + Array("ㄱㄲㄳㄴㄵㄶㄷㄹㄺㄻㄼㄽㄾㄿㅀㅁㅂㅄㅅㅆㅇㅈㅊㅋㅌㅍㅎ").map { Optional($0) }
+
+    /// 오타 비교 키 — 한글 음절은 초/중/종 자모로 분해하고 그 외 문자는 그대로 잇는다.
+    static func typoKey(_ s: String) -> [Character] {
+        var out: [Character] = []
+        for ch in s {
+            guard ch.unicodeScalars.count == 1, let scalar = ch.unicodeScalars.first,
+                  (0xAC00...0xD7A3).contains(scalar.value) else { out.append(ch); continue }
+            let idx = Int(scalar.value - 0xAC00)
+            out.append(Self.choseong[idx / 588])
+            out.append(Self.jungseong[(idx % 588) / 28])
+            if let jong = Self.jongseong[idx % 28] { out.append(jong) }
+        }
+        return out
+    }
+
+    /// 편집 거리 ≤ 1 판정(치환 1 또는 삽입/삭제 1) — 전체 DP 없이 한 번의 선형 스캔으로 끝낸다.
+    static func withinOneEdit(_ a: [Character], _ b: [Character]) -> Bool {
+        let (n, m) = (a.count, b.count)
+        if abs(n - m) > 1 { return false }
+        if n == m {
+            var diff = 0
+            for i in 0..<n where a[i] != b[i] { diff += 1; if diff > 1 { return false } }
+            return true
+        }
+        let (long, short) = n > m ? (a, b) : (b, a)
+        var i = 0, j = 0, skipped = false
+        while i < long.count && j < short.count {
+            if long[i] == short[j] { i += 1; j += 1 }
+            else if skipped { return false }
+            else { skipped = true; i += 1 }
+        }
+        return true
     }
 
     /// 정확 일치 전용 조회 — 서술형 텍스트(레시피 no-ref 라인)가 포함 매칭으로
@@ -295,6 +420,19 @@ struct IngredientLexicon {
         if let e = byID[nameOrID] { return e.staple }
         return entry(for: nameOrID)?.staple ?? false
     }
+
+    /// 총칭(상위) 캐논 — 한 단계만, 실존하는 id일 때만(44차 계층 매칭).
+    /// 자기 참조·오타 parent는 nil로 접어 무한 루프·유령 매칭을 원천 차단한다.
+    func parentID(of id: String) -> String? {
+        guard let p = byID[id]?.parent, p != id, byID[p] != nil else { return nil }
+        return p
+    }
+
+    /// 밀봉 가공식품 여부(44차 개봉 라이프사이클) — 캐논 ID 기준.
+    func isSealed(id: String) -> Bool { byID[id]?.sealed ?? false }
+
+    /// **개봉 후** 냉장 소비기한(일) — sealed 항목 전용. 없으면 nil(개봉 추적 대상 아님).
+    func openedShelfLifeDays(id: String) -> Int? { byID[id]?.shelfLife.opened }
 
     /// 보관 위치별 기본 소비기한(일). 해당 보관에 값이 없으면 냉장 → 실온보관 → 실온 순으로 폴백.
     /// 냉장 하나만 폴백하면 fridge=null인 건조·상온 식품(소금·파스타 등)이 사전에 pantry 값을

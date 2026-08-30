@@ -2914,7 +2914,7 @@
         "en": "Indonesian fried rice, darkened and sweetened with kecap manis.",
         "ko": "달콤한 간장에 볶아 진한 색을 낸 인도네시아의 볶음밥."
       },
-      "cuisine": "other",
+      "cuisine": "thai",
       "minutes": 20,
       "ingredients": [
         {
@@ -5135,7 +5135,7 @@
         "en": "Pork loin pounded thin, breaded and fried until crisp.",
         "ko": "돼지 등심을 얇게 두드려 빵가루를 입혀 바삭하게 튀긴 커틀릿."
       },
-      "cuisine": "other",
+      "cuisine": "french",
       "minutes": 30,
       "ingredients": [
         {
@@ -5598,7 +5598,7 @@
         "en": "Salmon fillet seared skin-down and basted with lemon butter.",
         "ko": "연어를 껍질부터 바싹 구워 레몬 버터를 끼얹은 스테이크."
       },
-      "cuisine": "other",
+      "cuisine": "american",
       "minutes": 20,
       "ingredients": [
         {
@@ -5664,7 +5664,7 @@
         "en": "Shrimp cooked fast in garlic and butter, finished with lemon.",
         "ko": "새우를 마늘 버터에 재빨리 익혀 레몬을 뿌려 낸 요리."
       },
-      "cuisine": "other",
+      "cuisine": "spanish",
       "minutes": 15,
       "ingredients": [
         {
@@ -5791,7 +5791,7 @@
         "en": "Clear soup of whatever vegetables are on hand, simmered until soft.",
         "ko": "있는 채소를 두루 넣고 맑게 끓여 낸 채소 수프."
       },
-      "cuisine": "other",
+      "cuisine": "american",
       "minutes": 35,
       "ingredients": [
         {

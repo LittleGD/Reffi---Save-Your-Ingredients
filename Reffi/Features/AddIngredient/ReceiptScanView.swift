@@ -250,7 +250,10 @@ struct ReceiptScanView: View {
                 VStack(alignment: .leading, spacing: ReffiSpace.s0) {
                     HStack(spacing: ReffiSpace.s2) {
                         Text(verbatim: c.name).reffiType(.body).foregroundStyle(ReffiColor.ink)
-                        if c.showsEstimateBadge { estimateBadge }
+                        // 미매칭(44차)은 전용 배지 하나만 — 추정 배지까지 겹치면 칩 둘이 다툰다
+                        // (미매칭이면 기한이 추정인 건 자명하다).
+                        if c.canonicalID == nil { unknownBadge }
+                        else if c.showsEstimateBadge { estimateBadge }
                     }
                     Text(verbatim: c.rawLine).reffiType(.caption).foregroundStyle(ReffiColor.muted)
                         .lineLimit(1)
@@ -298,6 +301,19 @@ struct ReceiptScanView: View {
             .fixedSize()
     }
 
+    /// 사전 미매칭 배지(44차) — 이 줄이 왜 기본 꺼짐인지 행 스스로 말한다. 등록하면 자유 표기
+    /// 재고가 된다(캐논 없음). 추정 배지와 같은 문법(soon 팔레트 종이 칩) — 새 컴포넌트 아님.
+    private var unknownBadge: some View {
+        Text("Not in dictionary")
+            .reffiType(.pillLabel)
+            .foregroundStyle(ReffiColor.soonDark)
+            .padding(.horizontal, ReffiSpace.s2)
+            .padding(.vertical, ReffiSpace.s0)
+            .background(ReffiColor.soonLight, in: PaperCutRect(seed: 4))
+            .lineLimit(1)
+            .fixedSize()
+    }
+
     private func toggleSelection(_ id: UUID) {
         if selected.contains(id) { selected.remove(id) } else { selected.insert(id) }
     }
@@ -339,7 +355,9 @@ struct ReceiptScanView: View {
             let placeGuess = ReceiptParser.storeName(from: lines) ?? ""
             await MainActor.run {
                 candidates = found.map { EditableCandidate($0, place: placeGuess) }
-                selected = Set(candidates.map(\.id))   // 기본 전체 선택 — 빼는 쪽이 마찰이 적다
+                // 기본 선택은 **사전 매칭 후보만**(빼는 쪽이 마찰이 적다) — 미매칭 라인(44차)은
+                // OCR 파편일 수 있어 기본 꺼짐으로 두고, 사용자가 배지("사전에 없음")를 보고 켠다.
+                selected = Set(candidates.filter { $0.canonicalID != nil }.map(\.id))
                 phase = .review
             }
         }

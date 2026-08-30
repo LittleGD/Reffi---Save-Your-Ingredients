@@ -12,6 +12,10 @@ struct RecipeMemoCarousel: View {
     /// 빈 덱에서 **호명할** 위험 재고 표시명 — **비-fresh 전체**(soon + urgent), 마감 임박순
     /// (호출부가 얼린 스냅샷). 비어 있으면(전부 신선하거나 재고 없음) 기존 일반 카피가 그대로 뜬다.
     var atRiskNames: [String] = []
+    /// 빈 덱 + 전부 신선일 때 **초대 문안이 호명할** 전체 재고 표시명 — 마감 임박순·중복 제거
+    /// (호출부가 얼린 스냅샷, 44차). `atRiskNames`가 비었을 때만 읽는다 — 임박 재료가 있으면
+    /// 위기 호명이 우선이고, 둘이 같은 이름을 다른 문장으로 두 번 부르면 안 된다.
+    var fridgeNames: [String] = []
     var onClose: () -> Void
     var onFire: (RecipeRecommender.Result) -> Void = { _ in }
     /// 고른 재료를 실제로 담는다 — **새로 담긴 수**를 돌려준다(이미 있던 것은 세지 않는다, §13.5).
@@ -457,13 +461,27 @@ struct RecipeMemoCarousel: View {
                 }
                 .accessibilityHint(Text("Opens YouTube in your browser"))
             } else if hasIngredients {
-                // 재고는 있는데 덱이 빈 경우. 원인이 **둘**이라 문안도 둘을 함께 말한다:
-                // ① 재료가 모자람(부족 3개 이상은 `maxMissingForRecommendation`이 거른다)
-                // ② 재료 이름이 사전과 안 맞아 `used`가 비어 후보에서 빠짐(`rank`의 `!$0.used.isEmpty`).
-                // ②는 여전히 살아 있는 경로라 원인을 ①로 단정하면, 오타로 등록한 사용자는 장을 봐도
-                // 덱이 계속 비고 진짜 해법(이름 확인)은 화면 어디에도 없게 된다.
-                Text("No tickets from what's in your fridge yet.\nCheck the ingredient names, restock, or add your own recipe in Profile.")
-                    .reffiType(.body).foregroundStyle(ReffiColor.ink2).multilineTextAlignment(.center)
+                // 재고는 있는데 후보가 0인 경우. 진단("이름이 틀렸을 수 있다")을 앞세우던 문안을
+                // **행동 초대**로 뒤집는다(44차 오너 결정) — 지금 있는 재료 두 종을 호명해 "나만의
+                // 레시피"로 이끌고, 같은 이름으로 영상 검색을 연다. 오타·미등재로 후보에서 빠진
+                // 경로의 해법(이름 확인·장보기)은 캡션 한 줄로 남긴다 — 긍정 문안이 그 경로를
+                // 지우면 오타로 등록한 사용자는 장을 봐도 덱이 계속 빈다(§13.6).
+                let names = spoken(fridgeNames)
+                if names.count >= 2 {
+                    Text("Turn \(names[0]) and \(names[1]) into your own recipe. Add it in Profile.")
+                        .reffiType(.body).foregroundStyle(ReffiColor.ink2).multilineTextAlignment(.center)
+                } else if let first = names.first {
+                    Text("Turn \(first) into your own recipe. Add it in Profile.")
+                        .reffiType(.body).foregroundStyle(ReffiColor.ink2).multilineTextAlignment(.center)
+                }
+                if !names.isEmpty {
+                    PaperButton(title: "Open recipe videos", fullWidth: false, seed: 5) {
+                        openURL(RecipeVideoSearch.urlForIngredients(names))
+                    }
+                    .accessibilityHint(Text("Opens YouTube in your browser"))
+                }
+                Text("Check ingredient spellings or restock to see more tickets.")
+                    .reffiType(.caption).foregroundStyle(ReffiColor.ink2).multilineTextAlignment(.center)
             } else {
                 Text("Add a few ingredients, then start cooking.")
                     .reffiType(.body).foregroundStyle(ReffiColor.ink2).multilineTextAlignment(.center)

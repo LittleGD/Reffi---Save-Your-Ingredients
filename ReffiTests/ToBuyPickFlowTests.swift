@@ -75,11 +75,12 @@ struct ToBuyPickFlowTests {
 
     // MARK: ③ 결과 알림 수 — "이미 있었다"는 줄 수가 아니라 **목록 키 수**로 센다
 
-    /// 두 항목이 같은 장보기 표제어로 풀리면(커스텀 레시피의 "다진 마늘"+"마늘 한 쪽") 목록엔 한
+    /// 두 항목이 같은 장보기 표제어로 풀리면(커스텀 레시피의 "깐 마늘"+"마늘 한 쪽") 목록엔 한
     /// 줄만 생긴다 — `picked.count - added`로 세면 나머지 하나가 "이미 있었다"로 둔갑해 결과
     /// 알림("The rest were already on your list.")이 거짓말을 한다.
+    /// (예전 픽스처의 minced garlic은 44차 분리로 자기 캐논이 되어, 같은 캐논 쌍을 깐마늘로 바꿨다.)
     @Test func alreadyCountCollapsesSameCanonPicks() {
-        let garlicTwice = [Recipe.Item(ref: nil, en: "minced garlic", ko: nil),
+        let garlicTwice = [Recipe.Item(ref: nil, en: "peeled garlic", ko: nil),
                            Recipe.Item(ref: nil, en: "fresh garlic", ko: nil)]
         // 사전 실측 고정 — 두 표기 모두 머리말 일치로 garlic 하나에 붙는다(전제가 무너지면 여기서 깨진다).
         #expect(Set(garlicTwice.map { RecipeRecommender.toBuyEntry(for: $0).canonicalID }) == ["garlic"])

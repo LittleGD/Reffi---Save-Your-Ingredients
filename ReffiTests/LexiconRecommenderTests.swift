@@ -66,13 +66,12 @@ struct LexiconTests {
     }
 
     @Test func searchLimit60CoversToBuySearchSheetPath() {
-        // `ToBuySearchSheet`가 실제로 넘기는 상한(60) — 기본값(20)만 덮던 공백. 쿼리 "c"는 (en+ko
-        // prefix·contains 합쳐) 54개 항목에 걸린다(41차 사전 242종 기준 — 신규 캐논 등재로 47→54).
-        // 기본 상한(20)에서는 잘리지만, 60을 넘기면 커스텀 limit이 실제로 관철돼 전부(< 60) 담긴다.
-        // 정확히 60개를 채우는 단일 쿼리는 이 사전 규모에서 존재하지 않는다 — 그래서
-        // "상한이 넘어간다"가 아니라 "커스텀 limit이 기본값 대신 적용된다"를 검증축으로 삼는다.
+        // `ToBuySearchSheet`가 실제로 넘기는 상한(60) — 기본값(20)만 덮던 공백. 쿼리 "c"의 자연
+        // 히트는 44차 사전 278종 기준 60을 넘는다(부위·분리 신설의 en 표기들). 그래서 검증축이
+        // 자연스러워졌다: 기본 호출은 20에서, 커스텀 60 호출은 60에서 각각 잘린다 — 두 상한이
+        // 모두 관철된다는 직접 증거다.
         #expect(lex.search(query: "c").count == 20)              // 기본 상한(20)에 잘림
-        #expect(lex.search(query: "c", limit: 60).count == 54)   // 커스텀 60에선 전부 담김(자연 히트 < 60)
+        #expect(lex.search(query: "c", limit: 60).count == 60)   // 커스텀 상한(60)에 잘림
     }
 
     /// **동률 최종 타이브레이크는 표시 이름의 로케일 알파벳순**이어야 한다(30차) — 내부 캐논 id는 항상
@@ -231,6 +230,89 @@ struct LexiconTests {
         #expect(lex.canonicalID(for: "서울우유1L") == "milk")                   // 포함 폴백은 살아 있다
     }
 
+    /// **오타 허용 계층(44차)** — 전 계층 미스에서만, 자모 편집 거리 1·유일 승자·**한글 3음절/영문
+    /// 5자 이상**일 때만 교정한다(적대 검증에서 강화 — 2음절 지대에서는 방어→장어, 율무→열무처럼
+    /// 사전 밖 실존 재료가 흡수됐다). 교정 성공과 **교정 거부**를 함께 고정한다.
+    @Test func typoToleranceCorrectsSingleJamoSlips() {
+        #expect(lex.canonicalID(for: "양송기") == "button-mushroom")   // ㅇ→ㄱ 한 획(3음절)
+        #expect(lex.canonicalID(for: "tomatoe") == "tomato")           // 영문 삽입 1
+        #expect(lex.canonicalID(for: "brocoli") == "broccoli")         // 영문 탈락 1
+    }
+
+    @Test func typoToleranceRefusesShortAmbiguousAndDistance2() {
+        // 2음절 한글은 **전면 제외** — 식재료 최소쌍의 지대다. 사전에 없는 실존 재료가 등재 표기와
+        // 1획 차이면 그대로 흡수됐던 실측(방어→장어, 냉이→팽이, 율무→열무, 타임→라임)의 회귀 고정.
+        for name in ["방어", "냉이", "민어", "율무", "타임", "크릴", "게란", "오디"] {
+            #expect(lex.canonicalID(for: name) == nil, "\(name): 2음절 지대는 교정하지 않는다")
+        }
+        // 영문 4자 이하도 동일(malt→salt, port→pork 실측 회귀 고정).
+        for name in ["malt", "port", "mild", "silk"] {
+            #expect(lex.canonicalID(for: name) == nil, "\(name)")
+        }
+        // 거리 2는 받지 않는다 — 공격적 교정 금지("도마도"는 ㄷ→ㅌ 두 획).
+        #expect(lex.canonicalID(for: "도마도") == nil)
+        #expect(lex.canonicalID(for: "qqzzxx") == nil)
+    }
+
+    /// **정육 부위 해석(44차)** — 종 접두 관행(소는 무접두, 돼지는 돼지/돈)과 종 토큰 가드를 고정한다.
+    /// 등재 안 된 조합("돼지고기 등심")은 부위 정밀도를 버리고 종 총칭으로 강등한다 — 종이 뒤집혀
+    /// 소 재고가 소비되는 것이 최악의 실패다.
+    @Test func meatCutsResolveWithSpeciesGuard() {
+        #expect(lex.canonicalID(for: "등심") == "beef-loin")            // 무접두 = 소(소매 관행)
+        #expect(lex.canonicalID(for: "1++한우 등심") == "beef-loin")
+        #expect(lex.canonicalID(for: "돼지등심") == "pork-loin")
+        #expect(lex.canonicalID(for: "돼지고기 등심") == "pork")        // 미등재 조합 → 종 총칭 강등
+        #expect(lex.canonicalID(for: "닭안심") == "chicken-tenderloin") // 최장 일치가 '안심'(소)보다 먼저
+        #expect(lex.canonicalID(for: "갈비") == nil, "소·돼지·닭 3중 충돌 — 단독 갈비는 매핑 금지")
+        #expect(lex.canonicalID(for: "등갈비") == "pork-rib")           // 등갈비는 돼지 전용 표기
+        #expect(lex.canonicalID(for: "차돌박이") == "beef-brisket-point")
+        #expect(lex.canonicalID(for: "닭다리살") == "chicken-thigh")    // 닭다리(북채)와 다른 부위
+        #expect(lex.canonicalID(for: "닭다리") == "chicken-drumstick")
+        // 적대 검증 회귀 고정 — 종 가드의 오리·외래어 토큰과 총칭 강등.
+        #expect(lex.canonicalID(for: "오리안심") == "duck", "오리 부위가 소 안심으로 뒤집히면 안 된다")
+        #expect(lex.canonicalID(for: "치킨 안심") == "chicken")
+        #expect(lex.canonicalID(for: "돼지 불고기용") == "pork", "용도명이 beef 기본이어도 종 토큰이 이긴다")
+        #expect(lex.canonicalID(for: "불고기용") == "beef")             // 종 생략 정육 라벨 최빈 표기
+        // 전지·후지는 분유·사과를 삼키던 맨몸 토큰이라 뺐다(부사 후지 = 사과 품종).
+        #expect(lex.canonicalID(for: "부사 후지") == "apple")
+        #expect(lex.canonicalID(for: "전지분유") == nil)
+    }
+
+    /// **신선/가공 분리(44차)** — 같은 이름 아래 섞여 있던 형태를 갈라, 보관 칩 하나로 기한이
+    /// 2년↔2일을 널뛰던 결함을 데이터에서 제거한다.
+    @Test func processedFormsSeparateFromFreshOnes() {
+        for (name, want) in [("절임배추", "salted-napa"), ("사골육수", "broth-liquid"),
+                             ("훈제오리", "smoked-duck"), ("훈제연어", "smoked-salmon"),
+                             ("자반고등어", "salted-mackerel"), ("굴비", "salted-croaker"),
+                             ("다진마늘", "minced-garlic"), ("생미역", "fresh-seaweed"),
+                             ("착즙주스", "fresh-juice"), ("밥", "cooked-rice"),
+                             ("칼국수면", "fresh-noodle"), ("앤초비", "anchovy-fillet")] {
+            #expect(lex.canonicalID(for: name) == want, "\(name) → \(want)")
+        }
+        // 신선 쪽은 그대로 — 분리가 원형을 밀어내면 안 된다.
+        #expect(lex.canonicalID(for: "배추") == "napa-cabbage")
+        #expect(lex.canonicalID(for: "미역") == "seaweed")
+        #expect(lex.canonicalID(for: "멸치") == "anchovy")
+        // 분리 항목의 총칭 매칭(단방향): 사골육수는 stock 레시피 줄을 채운다.
+        #expect(RecipeRecommender.matches(
+            Ingredient(name: "사골육수", category: "기타", daysLeft: 3,
+                       quantity: Quantity(value: 1, unit: .pack), glyph: .generic),
+            Recipe.Item(ref: "stock", en: "stock", ko: "육수")))
+        // 훈제오리는 생오리 레시피(오리주물럭)를 채우지 않는다 — parent를 일부러 안 달았다.
+        #expect(!RecipeRecommender.matches(
+            Ingredient(name: "훈제오리", category: "육류", daysLeft: 10,
+                       quantity: Quantity(value: 1, unit: .pack), glyph: .poultry),
+            Recipe.Item(ref: "duck", en: "duck", ko: "오리고기")))
+    }
+
+    /// **경합 표기 퍼지 제외(44차)** — 서로 다른 재료끼리 자모 1획 차인 실표기(새우/생수, 오이/오리)는
+    /// 퍼지 목적지가 될 수 없다. "샤우"는 새우와 1획 차지만 새우 자체가 경합 지대라 교정하지 않는다.
+    @Test func contestedNamesAreExcludedFromTypoTolerance() {
+        #expect(lex.canonicalID(for: "샤우") == nil)
+        // 경합 없는 3음절+ 표기는 계속 교정된다(위 typoTolerance 테스트의 양송기가 그 증거).
+        #expect(lex.canonicalID(for: "양송기") == "button-mushroom")
+    }
+
     /// **소비기한 폴백 체인(41차)** — fridge가 null인 건조·상온 식품(소금·파스타)이 냉장 선택 시
     /// nil로 떨어지면 등록 경로의 D+3 최후 폴백이 "소금이 3일 뒤 임박"을 만든다.
     /// fridge → pantry → room 순으로 폴백해 사전이 아는 값이 반드시 나온다.
@@ -321,6 +403,22 @@ struct RecommenderTests {
         #expect(!ids.contains("spam-dish"), "스팸은 글리프(can)로는 안 걸린다 — animal 플래그가 잡아야 한다")
         #expect(!ids.contains("fish-sauce-dish"), "액젓도 동일(sauceBottle)")
         #expect(ids.contains("tofu-dish"))
+    }
+
+    /// **총칭 매칭은 단방향(44차)** — 구체 재고(팽이버섯)는 총칭 레시피(버섯)를 채우고,
+    /// 총칭 재고는 구체 전용 레시피(표고)를 채우지 못한다. 방향이 뒤집히면 발주가 엉뚱한 재고를
+    /// 소비한다(사전 `parent` 필드가 정본).
+    @Test func specificIngredientSatisfiesGenericRecipeLineOneWay() {
+        let generic = Recipe.Item(ref: "mushroom", en: "mushrooms", ko: "버섯")
+        #expect(RecipeRecommender.matches(ing("팽이버섯"), generic))
+        #expect(RecipeRecommender.matches(ing("표고버섯"), generic))
+        let specific = Recipe.Item(ref: "shiitake", en: "shiitake", ko: "표고버섯")
+        #expect(!RecipeRecommender.matches(ing("모둠버섯"), specific), "총칭이 구체를 채우면 안 된다")
+        // 부위·형태에도 같은 축: 삼겹살은 '돼지고기' 레시피를 채운다(김치찌개가 실사용 사례).
+        #expect(RecipeRecommender.matches(ing("삼겹살"), Recipe.Item(ref: "pork", en: "pork", ko: "돼지고기")))
+        #expect(RecipeRecommender.matches(ing("닭가슴살"), Recipe.Item(ref: "chicken", en: "chicken", ko: "닭고기")))
+        // 가향유는 일부러 parent가 없다 — 우유 레시피에 딸기우유가 들어가면 다른 음식이 된다.
+        #expect(!RecipeRecommender.matches(ing("딸기우유"), Recipe.Item(ref: "milk", en: "milk", ko: "우유")))
     }
 
     @Test func urgencyWeightsRanking() {
@@ -606,8 +704,10 @@ struct RecommenderTests {
     @Test func toBuyEntryTrustsRefOverParentheticalText() {
         // 시드 표기는 괄호 주석을 달고 다닌다("pork (or beef)") — 이름 역조회는 포함 매칭이라
         // 괄호 **안** 단어에 먼저 걸린다. ref가 있으면 그게 정본이고, 표기도 사전 표제어로 정리된다.
+        // (44차 종 토큰 가드가 이 옛 함정을 부수효과로 고쳐, 이제 역조회도 pork를 돌려준다 —
+        //  ref 우선 원칙의 근거는 가드가 못 미치는 서술형 일반 케이스에 그대로 남는다.)
         let pork = Recipe.Item(ref: "pork", en: "pork (or beef)", ko: nil)
-        #expect(IngredientLexicon.shared.canonicalID(for: pork.en) == "beef")   // 역조회의 함정(회귀 고정)
+        #expect(IngredientLexicon.shared.canonicalID(for: pork.en) == "pork")   // 종 가드가 함정을 정정
         let entry = RecipeRecommender.toBuyEntry(for: pork)
         #expect(entry.canonicalID == "pork")
         #expect(entry.glyph == .meat)
@@ -661,8 +761,10 @@ struct RecommenderTests {
         ).canonicalID == "paprika-powder")
 
         // ② 진짜 머리말은 살린다 — 수식이 붙어도 끝에 오는 표제어가 재료다.
+        // (minced garlic은 44차 신선/가공 분리로 자기 캐논(minced-garlic)이 됐다 — 다진마늘 병제품은
+        //  통마늘과 산화 속도가 달라 별도 항목이고, garlic 레시피 줄은 parent로 계속 채운다.)
         #expect(RecipeRecommender.toBuyEntry(
-            for: Recipe.Item(ref: nil, en: "minced garlic", ko: nil)).canonicalID == "garlic")
+            for: Recipe.Item(ref: nil, en: "minced garlic", ko: nil)).canonicalID == "minced-garlic")
         #expect(RecipeRecommender.toBuyEntry(
             for: Recipe.Item(ref: nil, en: "cold water", ko: nil)).canonicalID == "water")
     }

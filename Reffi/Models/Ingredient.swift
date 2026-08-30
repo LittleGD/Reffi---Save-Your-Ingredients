@@ -143,6 +143,11 @@ struct Ingredient: Identifiable, Codable, Equatable {
     var storage: StorageLocation  // 보관(냉장/냉동/실온) — 냉동은 신선도 시계가 달라진다
     var purchasedAt: Date         // 구매 시점
     var frozenAt: Date?           // 냉동 전환 시점 — 기록되면 재냉동 불가(1회 제한)
+    /// 개봉 시각(44차) — 밀봉 가공식품(사전 `sealed`)이 개봉되면 기록. nil = 미개봉(또는 비대상).
+    /// 기록되는 순간 실효 기한이 `개봉일 + 개봉 후 기한`으로 줄어든다(`effectiveExpiresAt`).
+    var openedAt: Date?
+    /// 마지막 "아직 미개봉" 확인 시각(44차) — 2주 주기 개봉 확인 프롬프트의 기준점. nil = 구매 시각 기준.
+    var sealedCheckAt: Date?
 
     /// 냉동 유예 — 얼리면 이 기간의 **새 D-day**를 받는다(무기한이 아님, §13.6 두 번째 기회 루프).
     static let freezerGraceDays = 14
@@ -178,6 +183,7 @@ struct Ingredient: Identifiable, Codable, Equatable {
 
     private enum CodingKeys: String, CodingKey {
         case id, name, category, canonicalID, expiresAt, quantity, glyph, place, storage, purchasedAt, frozenAt
+        case openedAt, sealedCheckAt   // 44차 개봉 라이프사이클 — 구파일엔 없음(옵셔널 디코드)
         case amount   // v1 레거시(자유 문자열) — 읽기 전용
     }
 
@@ -193,6 +199,8 @@ struct Ingredient: Identifiable, Codable, Equatable {
         storage = try c.decodeIfPresent(StorageLocation.self, forKey: .storage) ?? .fridge
         purchasedAt = try c.decode(Date.self, forKey: .purchasedAt)
         frozenAt = try c.decodeIfPresent(Date.self, forKey: .frozenAt)
+        openedAt = try c.decodeIfPresent(Date.self, forKey: .openedAt)
+        sealedCheckAt = try c.decodeIfPresent(Date.self, forKey: .sealedCheckAt)
         if let q = try c.decodeIfPresent(Quantity.self, forKey: .quantity) {
             quantity = q
         } else {
@@ -215,6 +223,8 @@ struct Ingredient: Identifiable, Codable, Equatable {
         try c.encode(storage, forKey: .storage)
         try c.encode(purchasedAt, forKey: .purchasedAt)
         try c.encodeIfPresent(frozenAt, forKey: .frozenAt)
+        try c.encodeIfPresent(openedAt, forKey: .openedAt)
+        try c.encodeIfPresent(sealedCheckAt, forKey: .sealedCheckAt)
     }
 
     /// 재료 동일성 키 — 표기(양파/onion) 무관. 캐논 ID가 있으면 그것, 없으면 이름 소문자(사전 밖·미해석).
@@ -288,11 +298,25 @@ struct Ingredient: Identifiable, Codable, Equatable {
 
     /// 실효 만료 시각 — 냉동 중(frozenAt 기록)이면 냉동 시점 + 유예, 아니면 원본 소비기한.
     /// 처음부터 냉동 보관으로 산 재료(frozenAt 없음)는 등록 시점의 소비기한을 그대로 쓴다.
+    /// 개봉된 밀봉식품(44차)은 `개봉일 + 개봉 후 기한`으로 줄어든다 — 원 기한과의 min이라
+    /// 개봉 기록이 기한을 **늘리는** 일은 없다(임박 직전에 개봉해도 임박은 그대로).
     var effectiveExpiresAt: Date {
         if storage == .freezer, let frozenAt {
             return Self.day(offset: Self.freezerGraceDays, from: frozenAt)
         }
+        if let openedAt, let id = canonicalID,
+           let days = IngredientLexicon.shared.openedShelfLifeDays(id: id) {
+            return min(expiresAt, Self.day(offset: days, from: openedAt))
+        }
         return expiresAt
+    }
+
+    /// 개봉 확인이 필요한가(44차) — 밀봉 항목이 미개봉인 채 마지막 확인(없으면 구매)에서 14일이
+    /// 지났다. 2주 주기로 "개봉했나요?"를 묻는 프롬프트의 판별 축 — 순수 함수라 뷰 밖에서 검증된다.
+    func sealedCheckDue(asOf now: Date = Date()) -> Bool {
+        guard openedAt == nil, storage != .freezer, let id = canonicalID,
+              IngredientLexicon.shared.isSealed(id: id) else { return false }
+        return Self.days(from: sealedCheckAt ?? purchasedAt, to: now) >= 14
     }
 
     /// 실효 D-day — 신선도·정렬·알림·작업대 보충의 공통 기준.
