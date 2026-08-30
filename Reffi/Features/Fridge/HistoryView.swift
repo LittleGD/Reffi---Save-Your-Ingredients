@@ -466,16 +466,13 @@ struct HistoryContent: View {
                     }
                 }
 
-                // 영수증 명세 마감 — 점선 룰 + 상호 + 번호(장식, 이력에서 유도). 기간은 헤더가 말한다.
+                // 영수증 명세 마감 — 점선 룰 + 상호. 기간은 헤더가 말한다.
+                // (한때 우측에 장식용 일련번호가 있었으나 의미를 기대하게 만드는 무의미한
+                //  숫자라 뺐다 — 2026-08-29 사용자 결정, 46차)
                 ReffiRule(.receipt)
-                HStack {
-                    Text(verbatim: "REFFI")
-                        .reffiType(.monoEyebrow)
-                        .foregroundStyle(ReffiColor.muted)
-                    Spacer()
-                    Text(receiptNo)
-                        .font(.reffiNum(.meta)).foregroundStyle(ReffiColor.muted)
-                }
+                Text(verbatim: "REFFI")
+                    .reffiType(.monoEyebrow)
+                    .foregroundStyle(ReffiColor.muted)
             }
         }
     }
@@ -523,11 +520,6 @@ struct HistoryContent: View {
     private var streakDays: Int {
         if let last = logs.filter(\.wasted).map(\.daysAgo).min() { return last }
         return logs.map(\.daysAgo).max() ?? 0
-    }
-
-    /// 영수증 번호 — 이력 수치에서 유도(장식, 안정적).
-    private var receiptNo: String {
-        String(format: "No. %04d", (eaten &* 31 &+ tossed &* 7 &+ rate) % 10000)
     }
 
     // MARK: ③ 타임라인
