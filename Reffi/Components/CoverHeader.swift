@@ -11,7 +11,7 @@ import SwiftUI
 /// - 타이틀은 2줄까지 접고 그 전에 축소한다(`minimumScaleFactor`) — 중앙 정렬이라 긴 한글 타이틀이
 ///   X와 부딪히기 쉬운데, 잘라내기보다 줄바꿈·축소를 먼저 쓴다.
 /// - **부제도 2줄에서 끊는다.** 제한이 없으면 큰 글씨에서 부제 혼자 헤더를 몇 줄이고 밀어내
-///   아래 콘텐츠(티켓 덱의 브리지 행 등)를 덮는다. 두 줄이면 두 방향 안내가 다 들어간다.
+///   아래 콘텐츠(티켓 덱의 카드 머리 등)를 덮는다. 두 줄이면 두 방향 안내가 다 들어간다.
 struct CoverHeader<Accessory: View>: View {
     let title: LocalizedStringKey
     var subtitle: LocalizedStringKey?

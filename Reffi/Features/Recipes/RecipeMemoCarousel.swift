@@ -51,9 +51,9 @@ struct RecipeMemoCarousel: View {
     @State private var alreadyCount = 0
     @State private var addHaptic = 0
 
-    /// 커버 헤더의 실측 높이 — 브리지 행과 카드가 **둘 다** 이 값 아래에 선다. 기본 텍스트 크기의
-    /// `CoverHeader`는 s4(16) + 44 + s3(12) = 72이라 초기값도 72지만, 큰 글씨에서 타이틀·부제가
-    /// 2줄로 접히면 그만큼 자란다 — 고정 72로 두면 헤더가 브리지 행을 통째로 덮는다.
+    /// 커버 헤더의 실측 높이 — 카드가 이 값 아래에 선다(41차에 브리지 행이 빠져 카드 혼자다).
+    /// 초기값 72는 근사일 뿐이고(부제 2줄·내부 간격 s3까지 실제로는 더 크다), 첫 프레임 직후
+    /// `onGeometryChange`가 실측으로 덮어쓴다 — 고정값으로 두면 큰 글씨에서 헤더가 카드 머리를 덮는다.
     @State private var headerHeight: CGFloat = 72
 
     /// 수평 플릭 커밋 임계(예측 변위 width) — 넘기면 부호가 곧 의미다(+ Cook / − Pass).

@@ -162,9 +162,9 @@ enum RecipeRecommender {
     /// 기준을 순위 계산 앞에 무조건 걸면 점수와 무관하게 후보가 지워진다. 앱 샘플 냉장고에서 실제로
     /// 최고점 두 장(비빔밥 8점·소고기 타코 7점)이 그렇게 빠졌는데, 둘 다 **재고를 4종씩 소진**하는
     /// 티켓이라 "장보기 계획"이라는 제외 근거가 성립하지 않았다. 더 나쁜 건 그때 D-1 시금치가 남는
-    /// 어느 티켓에도 들어가지 않았다는 것이다 — 커버리지 브리지(`uncoveredUrgent`)는 urgent만
-    /// 호명하므로 soon 재료는 어디에서도 이름이 불리지 않고, 메인 배너만 "위험"이라고 압박한 채
-    /// 화면 어디에도 행동 경로가 없다.
+    /// 어느 티켓에도 들어가지 않았다는 것이다 — 당시 커버리지 브리지(`uncoveredUrgent`)는 urgent만
+    /// 호명해 soon 재료는 어디에서도 이름이 불리지 않았고(브리지 자체는 41차에 UI에서 빠졌다),
+    /// 메인 배너만 "위험"이라고 압박한 채 화면 어디에도 행동 경로가 없었다.
     ///
     /// 그래서 정렬 **뒤에** 위에서부터 훑으며 거른다. 부족이 적으면 그냥 통과. 많으면 **두 조건을
     /// 모두** 만족할 때만 살린다:
@@ -256,7 +256,12 @@ enum RecipeRecommender {
     ///   - ingredients: 후보 재고(보통 `FridgeStore.available` — 이미 마감 임박순).
     ///   - results: 지금 덱에 올라간 티켓들(상위 3장 스냅샷).
     /// - Returns: 입력 순서를 유지한 미커버 urgent 재료. `.soon`·`.fresh`는 포함하지 않는다 —
-    ///   오늘이 아닌 재료까지 호명하면 브리지 행이 상시 표시돼 경고가 아니라 배경이 된다.
+    ///   오늘이 아닌 재료까지 호명하면 안내가 상시 표시돼 경고가 아니라 배경이 된다.
+    ///
+    /// **휴면 API(41차)** — 유일한 소비자였던 티켓 덱 위 브리지 행이 41차 덜어내기로 빠져 지금
+    /// UI 호출부가 없다. `PaperRing`과 같은 근거로 계약·테스트째 남긴다(§13.10 — 표면에서 물러날
+    /// 뿐, "덱이 안 쓰는 임박 재료" 판별이 다시 필요해지면 이 함수가 정답이다).
+    ///   `LexiconRecommenderTests`의 uncovered* 4건이 계약을 계속 고정한다.
     static func uncoveredUrgent(ingredients: [Ingredient], results: [Result]) -> [Ingredient] {
         guard ingredients.contains(where: { $0.freshness == .urgent }) else { return [] }
         let covered = Set(results.flatMap { $0.used.map(\.id) })
