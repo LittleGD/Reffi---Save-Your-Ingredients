@@ -1761,6 +1761,16 @@
         }
       }
     },
+    "How to cook": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "조리 방법"
+          }
+        }
+      }
+    },
     "In stock": {
       "localizations": {
         "ko": {
@@ -3108,16 +3118,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "%2$lld단계 중 %1$lld단계"
-          }
-        }
-      }
-    },
-    "Steps": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "단계"
           }
         }
       }
