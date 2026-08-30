@@ -48,6 +48,14 @@ struct MainView: View {
     /// 빈 덱에서 호명할 위험 재고 이름 — **비-fresh 전체**(soon + urgent). 덱과 **같은 틱**에 얼린다
     /// (아래 `snapshotCarousel`).
     @State private var atRiskSnapshot: [String] = []
+    /// 빈 덱 + 전부 신선일 때의 초대 문안이 호명할 전체 재고 이름 — 임박순·중복 제거(44차).
+    /// 위 두 스냅샷과 **같은 틱**에 얼린다 — 따로 계산하면 문구와 검색어가 다른 시점의 재고를 본다.
+    @State private var fridgeNamesSnapshot: [String] = []
+    // 개봉 확인(44차 오너 결정) — 밀봉 가공식품의 2주 주기 "개봉했나요?" 프롬프트 상태.
+    @State private var showSealedCheck = false
+    @State private var sealedCheckItems: [Ingredient] = []   // 스냅샷(다이얼로그가 뜬 동안 불변)
+    @State private var sealedChecked: Set<Int> = []          // 체크 = 개봉했다(행 인덱스)
+    @State private var sealedCheckPrompted = false           // 런치당 1회 — 탭 복귀마다 뜨면 잔소리다
     @State private var firedTicket = false         // 커버당 발주 1회 — 슬램 창의 더블 파이어 방지
     @State private var coverGeneration = 0         // 지연 닫기 타이머가 새로 연 커버를 닫지 못하게
     /// 담기 흐름(팝업 3단)이 덱 위에 떠 있다 — 켜져 있는 동안 발주 지연 닫기를 **미룬다**.
@@ -232,6 +240,7 @@ struct MainView: View {
             RecipeMemoCarousel(results: carouselSnapshot,
                                hasIngredients: !store.ingredients.isEmpty,
                                atRiskNames: atRiskSnapshot,
+                               fridgeNames: fridgeNamesSnapshot,
                                onClose: { showCarousel = false },
                                onFire: fire,
                                onAddMissing: { store.addMissingToBuy($0) },
@@ -271,6 +280,27 @@ struct MainView: View {
             dayTick += 1
             scene.sync(liveCounter)
         }
+        // 개봉 확인(44차 오너 결정) — 밀봉 가공식품이 미개봉인 채 2주가 지나면 묻는다.
+        // **확정(Apply)만 상태를 바꾼다**: 체크 = 개봉(실효 기한이 개봉 후 기한으로 줄어든다),
+        // 미체크 = 확인 시각 갱신(2주 뒤 재확인). X·딤 닫기는 아무것도 바꾸지 않아 다음 런치에
+        // 다시 뜬다 — 답을 안 받았는데 조용히 2주를 미루면 "묻는다"는 약속이 위약이 된다.
+        .overlay {
+            if showSealedCheck {
+                PaperChecklistDialog(
+                    title: "Anything opened yet?",
+                    message: "Sealed items keep their long dates until opened. Checked ones switch to the after-opening use-by date.",
+                    rows: sealedCheckItems.enumerated().map { i, ing in
+                        PaperChecklistDialog.Row(id: i, name: ing.displayName, glyph: ing.glyph)
+                    },
+                    checked: $sealedChecked,
+                    confirmTitle: "Apply",
+                    allowsEmptyConfirm: true,   // 미체크 = "전부 아직 안 열었다"는 유효한 답(2주 뒤 재확인)
+                    seed: 9,
+                    onConfirm: confirmSealedCheck,
+                    onClose: { showSealedCheck = false })
+            }
+        }
+        .onAppear { presentSealedCheckIfDue() }
         #if DEBUG
         // `-tiltLab` — 기울기 QA용 하단 오버레이. overlay라 헤더·배너·뱃지 행·CTA 레이아웃은 그대로다.
         .overlay(alignment: .bottom) { tiltLabOverlay }
@@ -947,6 +977,29 @@ struct MainView: View {
         }
     }
 
+    // MARK: - 개봉 확인(44차)
+
+    /// 밀봉 확인 프롬프트 — 대상이 있으면 런치당 한 번만 띄운다. 목록은 스냅샷으로 얼린다
+    /// (다이얼로그가 떠 있는 동안 재고가 바뀌어도 행 인덱스와 재료의 대응이 흔들리면 안 된다).
+    private func presentSealedCheckIfDue() {
+        guard !sealedCheckPrompted else { return }
+        let due = store.sealedCheckDue
+        guard !due.isEmpty else { return }
+        sealedCheckPrompted = true
+        sealedCheckItems = due
+        sealedChecked = []
+        showSealedCheck = true
+    }
+
+    private func confirmSealedCheck() {
+        let opened = Set(sealedChecked.compactMap { i in
+            sealedCheckItems.indices.contains(i) ? sealedCheckItems[i].id : nil
+        })
+        let still = Set(sealedCheckItems.map(\.id)).subtracting(opened)
+        store.applySealedCheck(opened: opened, stillSealed: still)
+        showSealedCheck = false
+    }
+
     // MARK: - Cook / Fire the Ticket
 
     /// 커버 입력 2종(덱·호명 이름)을 **한 번에** 얼린다.
@@ -959,6 +1012,12 @@ struct MainView: View {
         // (§Ingredient.displayName). 빈 덱 문구와 그 옆 영상 검색어가 같은 배열(`atRiskSnapshot`)을
         // 쓰므로 여기 한 곳만 고르면 된다.
         atRiskSnapshot = stock.filter { $0.freshness != .fresh }.map(\.displayName)   // available은 이미 임박순
+        // 초대 문안용 전체 재고 이름(44차) — 같은 재료를 두 줄로 등록해 둔 냉장고에서 "양파 그리고
+        // 양파"를 부르지 않게 표시 이름 기준으로 중복을 걷어낸다(순서는 임박순 유지).
+        var seen = Set<String>()
+        fridgeNamesSnapshot = stock.compactMap { ing in
+            seen.insert(ing.displayName).inserted ? ing.displayName : nil
+        }
     }
 
     private func cook() {

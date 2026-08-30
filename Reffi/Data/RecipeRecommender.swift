@@ -112,14 +112,22 @@ enum RecipeRecommender {
         return false
     }
 
-    /// 재료 ↔ 레시피 항목 매칭 — ① canonical ID 동일성 ② (사전 밖 커스텀 항목만) 정규화 정확 일치.
+    /// 재료 ↔ 레시피 항목 매칭 — ① canonical ID 동일성(+총칭 한 단계) ② (사전 밖 커스텀 항목만)
+    /// 정규화 정확 일치.
+    ///
+    /// **총칭 매칭은 단방향이다(44차)**: 구체 재고(팽이버섯)가 총칭을 요구하는 레시피(버섯)를
+    /// 채울 수 있고, 그 반대는 안 된다 — 표고 전용 레시피에 총칭 버섯이 매칭되면 발주가 엉뚱한
+    /// 재고를 소비한다. 어느 쌍이 총칭 관계인지는 사전의 `parent` 필드가 정본이다(지식은 JSON에).
     static func matches(_ ing: Ingredient, _ item: Recipe.Item) -> Bool {
         let ingName = norm(ing.name)
         guard !ingName.isEmpty else { return false }
         // 저장된 캐논 ID를 fast path로(해석 완료 재료) — nil이면 사전 조회(캐시)로 폴백.
         let ingID = ing.canonicalID ?? IngredientLexicon.shared.canonicalID(for: ing.name)
         let itemID = canonicalID(of: item)
-        if let a = ingID, let b = itemID { return a == b }
+        if let a = ingID, let b = itemID {
+            if a == b { return true }
+            return IngredientLexicon.shared.parentID(of: a) == b
+        }
         // 둘 중 하나라도 사전 밖(사용자 커스텀 표기) — 정확 일치만 허용, 부분문자열 금지.
         if ingName == norm(item.en) { return true }
         if let ko = item.ko, ingName == norm(ko) { return true }
@@ -392,12 +400,14 @@ struct RecipePreferences {
 }
 
 extension RecipePreferences {
-    /// 프로필 옵션(CuisineStyle) → 시드 cuisine 문자열 매핑. 시드 taxonomy(128레시피 기준, 41차:
-    /// korean 55 · american 18 · italian 12 · french 9 · chinese 8 · japanese 7 · mexican 5 ·
-    /// other 5 · indian 3 · thai 2 · vietnamese 2 · middle-eastern 2)와 프로필 옵션이 1:1이
-    /// 아니라서: western은 미국·프랑스(향후 spanish 포함) 계열로, mediterranean은 이탈리아·
-    /// 스페인·중동 계열로 넓혀 가점이 실제로 발화하게 한다(위약 옵션 금지 — MVP 원칙).
+    /// 프로필 옵션(CuisineStyle) → 시드 cuisine 문자열 매핑. 시드 taxonomy(128레시피 기준, 44차:
+    /// korean 55 · american 20 · italian 12 · french 10 · chinese 8 · japanese 7 · mexican 5 ·
+    /// thai 3 · indian 3 · vietnamese 2 · middle-eastern 2 · spanish 1)와 프로필 옵션이 1:1이
+    /// 아니라서: western은 미국·프랑스·스페인 계열로, mediterranean은 이탈리아·스페인·중동
+    /// 계열로 넓혀 가점이 실제로 발화하게 한다(위약 옵션 금지 — MVP 원칙).
     /// 겹치는 8종(korean 등)은 동일 문자열 그대로. vegetarian은 cuisine이 아니라 식이 필터.
+    /// 'other'는 44차에 0이 됐다 — 어느 옵션도 못 닿는 값이라 5편을 실제 계통으로 재분류했다
+    /// (감바스풍 새우 → spanish로 spanish 죽은 가지도 함께 해소).
     static let seedCuisines: [CuisineStyle: Set<String>] = [
         .korean:        ["korean"],
         .japanese:      ["japanese"],

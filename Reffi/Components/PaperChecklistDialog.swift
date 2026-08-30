@@ -27,6 +27,10 @@ struct PaperChecklistDialog: View {
     /// 체크된 행의 `id` 집합 — 호출부가 소유한다(팝업이 닫혀도 결과를 읽어야 한다).
     @Binding var checked: Set<Int>
     let confirmTitle: LocalizedStringKey
+    /// **0건 체크 확정 허용**(기본 false, 44차). 담기처럼 "0건 확정 = 아무 일도 없음"인 호출부는
+    /// 기본값이 맞지만, 개봉 확인처럼 **미체크가 그 자체로 유효한 답**("전부 아직 안 열었다")인
+    /// 호출부는 이 플래그 없이는 확정 버튼이 영구히 죽어 팝업이 매 런치 되살아난다.
+    var allowsEmptyConfirm: Bool = false
     /// 종이 삐뚤빼뚤함의 시드 — 이어 뜨는 다이얼로그들과 다른 종이로 보이게.
     var seed: Int = 0
     let onConfirm: () -> Void
@@ -77,10 +81,11 @@ struct PaperChecklistDialog: View {
             // 높이 예산은 `list`가 스스로 갖는다(실측과 `listMaxHeight` 중 작은 값 + 자체 스크롤) —
             // 여기서 ScrollView로 또 감싸면 중첩 스크롤이 되고 바깥 캡은 발동하지 않는다.
             list
-            // 하나도 체크되지 않으면 **누를 수 없다**(§7.2 disabled = opacity만). 눌리게 두고 0건을
-            // 담았다고 알리면 팝업 두 장이 "아무 일도 없었다"를 말하려고 뜨는 셈이다.
+            // 하나도 체크되지 않으면 기본적으로 **누를 수 없다**(§7.2 disabled = opacity만) — 담기에서
+            // 0건 확정은 "아무 일도 없었다"라 X와 같은 말이다. 단 미체크가 유효한 답인 호출부
+            // (개봉 확인의 "전부 아직")는 `allowsEmptyConfirm`으로 이 잠금을 푼다.
             PaperButton(title: confirmTitle, seed: seed &+ 2, action: onConfirm)
-                .disabled(checked.isEmpty)
+                .disabled(!allowsEmptyConfirm && checked.isEmpty)
         }
         .padding(ReffiSpace.s5)
         .background {

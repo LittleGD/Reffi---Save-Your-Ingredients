@@ -316,11 +316,13 @@ final class FridgeStore {
             if !capsCounter, !counterIDs.contains(ingredient.id) {
                 counterIDs.append(ingredient.id)   // 직접 추가 — 일시 초과 허용
             }
-            // 재입고면 '이번엔 안 사기'를 해제 — matchKey(캐논/이름) 기준으로 비교.
-            let key = ingredient.matchKey
-            dismissedToBuy = dismissedToBuy.filter { dismissKey($0) != key }
+            // 재입고면 '이번엔 안 사기'를 해제 — matchKey(캐논/이름) 기준 + **총칭 한 단계**(44차).
+            // 레시피 매칭이 parent를 인정하므로(삼겹살이 '돼지고기' 줄을 충족), 여기만 정확 일치면
+            // 그 줄은 재고가 있는데도 목록에 영원히 남는다 — '샀다'의 축도 같은 눈으로 본다.
+            let satisfied = Self.satisfiedKeys(of: ingredient)
+            dismissedToBuy = dismissedToBuy.filter { !satisfied.contains(dismissKey($0)) }
             // 직접 담아둔 장보기 메모도 함께 내린다 — 어느 입구로 들어왔든 '샀다'는 사실은 같다.
-            manualToBuy.removeAll { $0.matchKey == key }
+            manualToBuy.removeAll { satisfied.contains($0.matchKey) }
         }
         if capsCounter { replenishCounter() }   // 스캔 — 상한(6)까지 최임박 우선 등재, 나머지는 냉장고에
         persist()
@@ -336,6 +338,27 @@ final class FridgeStore {
             updated.canonicalID = IngredientLexicon.shared.canonicalID(for: ingredient.name)   // 이름 바뀌면 캐논 키 재해석
         }
         ingredients[i] = updated
+        persist()
+    }
+
+    // MARK: - 개봉 라이프사이클(44차 오너 결정)
+
+    /// 개봉 확인이 밀린 밀봉 재료 — 2주 프롬프트의 입력(임박순, 예약 제외).
+    /// 판별은 `Ingredient.sealedCheckDue`(순수 함수)에 있고 여기는 모으기만 한다.
+    var sealedCheckDue: [Ingredient] { available.filter { $0.sealedCheckDue() } }
+
+    /// 개봉 확인 결과 반영 — `opened`는 개봉 시각을 얻어 실효 기한이 `개봉일 + 개봉 후 기한`으로
+    /// 줄어들고, `stillSealed`는 확인 시각만 갱신해 2주 뒤 다시 묻는다. 기한이 실제로 변하므로
+    /// 알림은 기본 재스케줄을 탄다(persist 1회).
+    func applySealedCheck(opened: Set<UUID>, stillSealed: Set<UUID>, at now: Date = Date()) {
+        guard !(opened.isEmpty && stillSealed.isEmpty) else { return }
+        for i in ingredients.indices {
+            if opened.contains(ingredients[i].id) {
+                ingredients[i].openedAt = now
+            } else if stillSealed.contains(ingredients[i].id) {
+                ingredients[i].sealedCheckAt = now
+            }
+        }
         persist()
     }
 
@@ -701,8 +724,21 @@ final class FridgeStore {
     /// 자주 쓰는데(이력에 있는데) 지금 냉장고엔 없는 = 사야 할 식재료 **제안**. 빈도 많은 순.
     /// 비교는 전부 matchKey(캐논 ID 우선) — 표기(Milk/milk, 양파/onion)가 달라도 한 품목으로 묶인다.
     /// 표시는 최근 로그의 `displayName`(로케일 박제 방지 + 사용자 표기 보존, 전역 단일 정책).
+    /// 재료 하나가 충족시키는 키 집합 — 자기 matchKey + 총칭 한 단계(parent, 44차).
+    /// '이미 갖고 있는가'를 묻는 모든 축(재입고 해제·파생 제안)이 이 한 눈을 공유한다 —
+    /// 레시피 매칭(`RecipeRecommender.matches`)의 parent 인정과 갈라지면 덱은 충족이라는데
+    /// 장보기는 계속 사라고 하는 자기모순이 생긴다.
+    static func satisfiedKeys(of ingredient: Ingredient) -> Set<String> {
+        var keys: Set<String> = [ingredient.matchKey]
+        if let canon = ingredient.canonicalID,
+           let parent = IngredientLexicon.shared.parentID(of: canon) {
+            keys.insert(parent)
+        }
+        return keys
+    }
+
     private var derivedToBuy: [(name: String, glyph: FoodGlyph, key: String)] {
-        let inStock = Set(ingredients.map(\.matchKey))
+        let inStock = Set(ingredients.flatMap { Self.satisfiedKeys(of: $0) })
         let dismissed = Set(dismissedToBuy.map(dismissKey))
         let grouped = Dictionary(grouping: history) { $0.matchKey }
         return grouped
