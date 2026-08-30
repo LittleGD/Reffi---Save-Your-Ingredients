@@ -21,19 +21,25 @@ struct PaperButtonLabel: View {
     /// 문구를 통째로 바꿔 버리면 방금 누른 것이 무엇이었는지가 화면에서 사라지고, 디밍만으로는
     /// "조건 미충족이라 못 누름"과 구분되지 않는다. 문구는 호출부가 동작 지목형으로 바꾼다.
     var isBusy: Bool = false
+    /// 이 버튼이 **종이 카드 위**에 앉는가(§2.8·42차) — secondary 면은 부모가 캔버스냐 카드냐로
+    /// 토큰이 갈린다(`sub`는 캔버스 전용, 카드 위에선 다크에서 1.04로 사라진다 → `subRaised`).
+    /// `PaperDialog`처럼 종이 카드 안에서 버튼을 세우는 호출부만 켠다.
+    var onCard: Bool = false
 
     private var fill: Color {
         switch kind {
         case .primary: ReffiColor.blue
-        case .secondary: ReffiColor.sub
+        case .secondary: onCard ? ReffiColor.subRaised : ReffiColor.sub
         case .destructive: ReffiColor.urgentDark
         }
     }
-    // blue·urgentDark 면 위 콘텐츠는 `onAccent`다(§2.7) — 흰색인 근거가 각 색의 다크 L 상한에
-    // 묶여 있으므로 리터럴 `.white`가 아니라 토큰으로 부른다. ink 면 위의 `onInk`와는 다른 토큰이다.
+    // `blue` 면 위 콘텐츠는 `onAccent`(§2.7 — 흰색 근거가 blue의 다크 L 상한 .565에 묶여 있다).
+    // `urgentDark`는 다크에서 L .74로 **밝게 뒤집히는** 면이라 고정 흰색을 얹으면 2.43:1로 무너진다 —
+    // 그 위 콘텐츠는 `onInk`다(라이트 흰색 그대로 5.92, 다크 7.14 — `PaperDayChip`이 먼저 실측한 짝).
     private var foreground: Color {
         switch kind {
-        case .primary, .destructive: ReffiColor.onAccent
+        case .primary: ReffiColor.onAccent
+        case .destructive: ReffiColor.onInk
         case .secondary: ReffiColor.ink
         }
     }
@@ -77,6 +83,8 @@ struct PaperButton: View {
     var seed: Int = 0
     /// 진행 중 표시 — 라벨 옆 스피너(`PaperButtonLabel.isBusy`). 기본값이 있어 기존 호출부는 그대로다.
     var isBusy: Bool = false
+    /// 종이 카드 위에 앉는 버튼인가 — `PaperButtonLabel.onCard` 그대로 전달(§2.8·42차).
+    var onCard: Bool = false
     let action: () -> Void
 
     /// `.disabled(_:)`가 걸리면 투명도만 낮춰 "지금 못 누름"을 보인다(§7.2 disabled = opacity .45, 색 변경 X).
@@ -84,13 +92,18 @@ struct PaperButton: View {
     /// `\.isEnabled`가 하위로 전파되며 두 값이 곱해져(0.45 × 0.5 = 0.225) CTA 텍스트가 소실된다.
     /// 걸리지 않은 기존 호출부엔 영향이 없다(enabled = 1).
     @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         Button(action: action) {
-            PaperButtonLabel(title: title, kind: kind, fullWidth: fullWidth, seed: seed, isBusy: isBusy)
+            PaperButtonLabel(title: title, kind: kind, fullWidth: fullWidth, seed: seed,
+                             isBusy: isBusy, onCard: onCard)
         }
         .buttonStyle(.paperPress)
         .opacity(isEnabled ? 1 : ReffiOpacity.disabled)
+        // §7.2 표가 disabled 행에 명시한 그 전환(dur1 · ease-std) — 값(0.45)만 토큰이고 전환이
+        // 빠져 있어, 폼을 채우다 CTA가 살아나는 가장 흔한 상태 변화만 앱의 시계 밖에서 튀었다.
+        .animation(ReffiMotion.gated(ReffiMotion.press, reduce: reduceMotion), value: isEnabled)
     }
 }
 

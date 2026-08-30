@@ -87,12 +87,12 @@ struct CuisinePickerSheet: View {
     var body: some View {
         SheetShell(title: "Cuisines", onClose: { dismiss() }) {
             VStack(alignment: .leading, spacing: ReffiSpace.s4) {
-                Text("Pick your favorite cuisines · choose as many as you like")
+                Text("Pick as many as you like. Recipes will follow.")
                     .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
 
                 LazyVGrid(columns: columns, alignment: .leading, spacing: ReffiSpace.s2) {
                     ForEach(CuisineStyle.allCases) { c in
-                        SelectableChip(text: c.label, selected: profile.cuisines.contains(c),
+                        SelectableChip(text: c.labelKey, selected: profile.cuisines.contains(c),
                                        fullWidth: false) {
                             profile.toggleCuisine(c)
                         }

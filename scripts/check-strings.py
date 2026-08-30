@@ -27,12 +27,24 @@ PAREN = rf'\((?:{ATOM}|\({ATOM}*\))*\)'
 # 문자열 리터럴 본문 — 평범한 문자 / 보간 / 그 밖의 이스케이프.
 BODY = rf'(?:[^"\\]|\\{PAREN}|\\.)*'
 # 로컬라이즈 문자열을 받는 호출 형태. Text(verbatim:)·String(format:)은 대상이 아니다.
+#
+# (42차) 앱이 스톡 컨트롤에서 자체 종이 컴포넌트로 옮겨 갈수록 이름 나열만으로는 커버리지가
+# 줄어든다 — 40차 팝업 전수 종이화(`paperDialog`)가 통째로 검사 밖이었다. 그래서 두 축을 더한다:
+# ① 자체 컴포넌트 이름들 ② **파라미터 라벨 축**(줄 단위 스캔이라 여러 줄 호출의 `title:` 등은
+# 이름 축이 못 보고, 라벨 축이 잡는다). 오탐은 이름이 아니라 **값 패턴**으로 거른다(아래 norm 뒤
+# NON_UI 필터 — 역DNS·URL은 번역 대상이 아니다).
 CALLS = re.compile(
-    r'(?<![A-Za-z0-9_])(?:Text|Button|Label|TextField|Toggle|SheetHeader|CoverHeader)'
-    rf'\(\s*(?:title:\s*|subtitle:\s*)?"({BODY})"'
+    r'(?<![A-Za-z0-9_])(?:Text|Button|Label|TextField|Toggle|SheetHeader|CoverHeader'
+    r'|PaperButton|PaperButtonLabel|QuietButton|PaperIconButton|PaperIconLabel'
+    r'|SettingsRow|SettingsToggle|ReceiptCard|PaperDialogAction|SelectableChip|SheetShell)'
+    rf'\(\s*(?:title:\s*|subtitle:\s*|label:\s*|text:\s*|message:\s*|caption:\s*)?"({BODY})"'
     rf'|(?<![A-Za-z0-9_])String\(localized:\s*"({BODY})"'
+    rf'|(?<![A-Za-z0-9_])AppLanguage\.localizedNow\(\s*"({BODY})"'
     rf'|\.accessibility(?:Label|Hint|Value)\(\s*(?:Text\(\s*)?"({BODY})"'
+    rf'|(?<![A-Za-z0-9_.])(?:title|message|confirmTitle|cancelTitle|caption|placeholder|subtitle):\s*"({BODY})"'
 )
+# 번역 대상이 아닌 값 패턴 — 역DNS 식별자("com.reffi.app.store-io")·URL.
+NON_UI = re.compile(r"^[a-z0-9-]+(?:\.[a-z0-9-]+){2,}$|://")
 PLACEHOLDER = " "
 INTERPOLATION = re.compile(r'\\' + PAREN)
 SPECIFIER = re.compile(r"%(?:\d+\$)?[-+ #0]*[\d.]*(?:ll|l|h|z)?[@dfsu%]")
@@ -56,6 +68,9 @@ def code_literals() -> dict[str, list[str]]:
                 raw = next(g for g in match.groups() if g is not None)
                 # 글자가 하나도 없는 리터럴(자리표시자·기호·숫자만)은 번역할 것이 없다.
                 if not HAS_LETTER.search(norm(raw)):
+                    continue
+                # 역DNS·URL은 UI 문자열이 아니다(42차 — 오탐은 이름이 아니라 값으로 거른다).
+                if NON_UI.search(raw):
                     continue
                 found.setdefault(raw, []).append(f"{path.relative_to(ROOT)}:{lineno}")
     return found

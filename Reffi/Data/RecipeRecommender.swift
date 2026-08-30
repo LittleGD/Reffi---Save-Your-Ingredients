@@ -162,9 +162,9 @@ enum RecipeRecommender {
     /// 기준을 순위 계산 앞에 무조건 걸면 점수와 무관하게 후보가 지워진다. 앱 샘플 냉장고에서 실제로
     /// 최고점 두 장(비빔밥 8점·소고기 타코 7점)이 그렇게 빠졌는데, 둘 다 **재고를 4종씩 소진**하는
     /// 티켓이라 "장보기 계획"이라는 제외 근거가 성립하지 않았다. 더 나쁜 건 그때 D-1 시금치가 남는
-    /// 어느 티켓에도 들어가지 않았다는 것이다 — 커버리지 브리지(`uncoveredUrgent`)는 urgent만
-    /// 호명하므로 soon 재료는 어디에서도 이름이 불리지 않고, 메인 배너만 "위험"이라고 압박한 채
-    /// 화면 어디에도 행동 경로가 없다.
+    /// 어느 티켓에도 들어가지 않았다는 것이다 — 당시 커버리지 브리지(`uncoveredUrgent`)는 urgent만
+    /// 호명해 soon 재료는 어디에서도 이름이 불리지 않았고(브리지 자체는 41차에 UI에서 빠졌다),
+    /// 메인 배너만 "위험"이라고 압박한 채 화면 어디에도 행동 경로가 없었다.
     ///
     /// 그래서 정렬 **뒤에** 위에서부터 훑으며 거른다. 부족이 적으면 그냥 통과. 많으면 **두 조건을
     /// 모두** 만족할 때만 살린다:
@@ -219,6 +219,9 @@ enum RecipeRecommender {
     static func rank(for ingredients: [Ingredient], inventory: [Ingredient]? = nil,
                      from recipes: [Recipe],
                      preferences: RecipePreferences = .none) -> [Result] {
+        // 점수는 정렬 **전에** 한 번만 계산한다(decorate-sort-undecorate) — 비교자 안에서 부르면
+        // score→weight→freshness가 비교 횟수만큼(M log M) 재계산된다(실측: 재고 100종에서 rank의
+        // 지배 비용이 이 경로였다 — 194ms 중 4.6배가 이 한 줄로 줄었다).
         let ranked = recipes
             .filter { recipe in
                 !containsAllergen(recipe, preferences.allergenIDs)   // 알레르기 하드 필터(안전 P0)
@@ -226,13 +229,15 @@ enum RecipeRecommender {
             }
             .map { result(for: $0, ingredients: ingredients, inventory: inventory) }
             .filter { !$0.used.isEmpty }
+            .map { (result: $0, score: score($0, preferences: preferences)) }
             .sorted { a, b in
-                let sa = score(a, preferences: preferences)
-                let sb = score(b, preferences: preferences)
-                if sa != sb { return sa > sb }
-                if a.urgentUsedCount != b.urgentUsedCount { return a.urgentUsedCount > b.urgentUsedCount }
-                return a.missing.count < b.missing.count
+                if a.score != b.score { return a.score > b.score }
+                if a.result.urgentUsedCount != b.result.urgentUsedCount {
+                    return a.result.urgentUsedCount > b.result.urgentUsedCount
+                }
+                return a.result.missing.count < b.result.missing.count
             }
+            .map(\.result)
         // 부족 재료가 너무 많은 레시피를 덱에서 뺀다 — **정렬 뒤에** 임박 커버리지를 보며 거른다.
         // `result(for:)`의 missing 계산 자체는 건드리지 않는다 — 남는 티켓의 Short 줄이 그 값을 쓴다.
         return prune(ranked)
@@ -251,7 +256,12 @@ enum RecipeRecommender {
     ///   - ingredients: 후보 재고(보통 `FridgeStore.available` — 이미 마감 임박순).
     ///   - results: 지금 덱에 올라간 티켓들(상위 3장 스냅샷).
     /// - Returns: 입력 순서를 유지한 미커버 urgent 재료. `.soon`·`.fresh`는 포함하지 않는다 —
-    ///   오늘이 아닌 재료까지 호명하면 브리지 행이 상시 표시돼 경고가 아니라 배경이 된다.
+    ///   오늘이 아닌 재료까지 호명하면 안내가 상시 표시돼 경고가 아니라 배경이 된다.
+    ///
+    /// **휴면 API(41차)** — 유일한 소비자였던 티켓 덱 위 브리지 행이 41차 덜어내기로 빠져 지금
+    /// UI 호출부가 없다. `PaperRing`과 같은 근거로 계약·테스트째 남긴다(§13.10 — 표면에서 물러날
+    /// 뿐, "덱이 안 쓰는 임박 재료" 판별이 다시 필요해지면 이 함수가 정답이다).
+    ///   `LexiconRecommenderTests`의 uncovered* 4건이 계약을 계속 고정한다.
     static func uncoveredUrgent(ingredients: [Ingredient], results: [Result]) -> [Ingredient] {
         guard ingredients.contains(where: { $0.freshness == .urgent }) else { return [] }
         let covered = Set(results.flatMap { $0.used.map(\.id) })
@@ -313,14 +323,18 @@ enum RecipeRecommender {
                                                        .fish, .shrimp, .crab, .squid, .clam]
 
     /// 채식(§5.2 vegetarian 옵션) 하드 필터 — 비상비(non-staple) 재료 중 사전 글리프가
-    /// Meat/Seafood 계열이면 레시피 전체 제외. canonical ID로 판별할 수 없는 항목(서술형 no-ref
-    /// 라인 등)은 **통과**시킨다 — 보수성보다 가용성(판별 불가 라인 때문에 추천 풀이 말라붙지 않게).
+    /// Meat/Seafood 계열이거나 사전이 `animal: true`로 명시한 항목이면 레시피 전체 제외.
+    /// 글리프만 보면 동물성인데 글리프가 다른 항목(스팸=can, 액젓·굴소스·쯔유=sauceBottle)이
+    /// 전부 통과한다 — 그 예외 지식은 코드가 아니라 사전 플래그가 든다.
+    /// canonical ID로 판별할 수 없는 항목(서술형 no-ref 라인 등)은 **통과**시킨다 —
+    /// 보수성보다 가용성(판별 불가 라인 때문에 추천 풀이 말라붙지 않게).
     private static func containsAnimalProtein(_ recipe: Recipe) -> Bool {
         recipe.ingredients.contains { item in
             guard !isStaple(item),
                   let id = canonicalID(of: item),
-                  let raw = IngredientLexicon.shared.entry(id: id)?.glyph,
-                  let glyph = FoodGlyph(rawValue: raw) else { return false }
+                  let entry = IngredientLexicon.shared.entry(id: id) else { return false }
+            if entry.animal == true { return true }
+            guard let glyph = FoodGlyph(rawValue: entry.glyph) else { return false }
             return animalGlyphs.contains(glyph)
         }
     }
@@ -378,8 +392,8 @@ struct RecipePreferences {
 }
 
 extension RecipePreferences {
-    /// 프로필 옵션(CuisineStyle) → 시드 cuisine 문자열 매핑. 시드 taxonomy(80레시피 기준:
-    /// korean 22 · american 11 · italian 9 · japanese 7 · chinese 6 · french 6 · mexican 5 ·
+    /// 프로필 옵션(CuisineStyle) → 시드 cuisine 문자열 매핑. 시드 taxonomy(128레시피 기준, 41차:
+    /// korean 55 · american 18 · italian 12 · french 9 · chinese 8 · japanese 7 · mexican 5 ·
     /// other 5 · indian 3 · thai 2 · vietnamese 2 · middle-eastern 2)와 프로필 옵션이 1:1이
     /// 아니라서: western은 미국·프랑스(향후 spanish 포함) 계열로, mediterranean은 이탈리아·
     /// 스페인·중동 계열로 넓혀 가점이 실제로 발화하게 한다(위약 옵션 금지 — MVP 원칙).

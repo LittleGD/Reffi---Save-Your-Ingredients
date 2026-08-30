@@ -219,7 +219,7 @@ final class ReffiFlowUITests: XCTestCase {
         // 정산서 — 발주 소비 행이 Ate·Tossed와 같은 문법으로 함께 선다.
         // 정산 행은 `children: .combine`이라 라벨에 건수가 붙는다 — 이름으로만 찾는다.
         XCTAssertTrue(app.descendants(matching: .any)
-            .matching(NSPredicate(format: "label BEGINSWITH %@", "Cooked into recipes")).firstMatch.exists,
+            .matching(NSPredicate(format: "label BEGINSWITH %@", "Cooked")).firstMatch.exists,
                       "정산서에 요리 소비 행이 있어야 한다")
         XCTAssertFalse(app.buttons["Add item"].exists, "To buy 패인의 CTA는 함께 사라져야 한다")
         XCTAssertTrue(historyTab.isSelected, "History가 선택된다")
@@ -414,7 +414,7 @@ final class ReffiFlowUITests: XCTestCase {
         // 행에 남는 컨트롤은 **하나**다(21차) — 파란 "Bought". 빼기는 밀어야 나온다.
         XCTAssertTrue(app.buttons["Bought \(typed)"].exists,
                       "메모 행의 1차 액션은 'Bought <이름>'이다")
-        let deleteButton = app.buttons["Remove \(typed) from the memo"]
+        let deleteButton = app.buttons["Remove \(typed) from the list"]
         XCTAssertFalse(deleteButton.exists,
                        "밀기 전에는 빼기 컨트롤이 보조기술에도 없어야 한다(화면 밖 버튼에 포커스 금지)")
 
@@ -509,7 +509,7 @@ final class ReffiFlowUITests: XCTestCase {
         XCTAssertLessThan(stillHi - stillLo, 3, "힌트는 첫 행에만 얹힌다(둘째 행은 움직이지 않는다)")
 
         // 힌트가 도는 동안에도 빼기 컨트롤은 보조기술에 없다 — 장식 모션이 트리를 바꾸면 안 된다.
-        XCTAssertFalse(app.buttons["Remove \(top) from the memo"].exists,
+        XCTAssertFalse(app.buttons["Remove \(top) from the list"].exists,
                        "힌트는 보이기만 한다 — 조각이 접근성 트리에 올라오면 안 된다")
         // 21차가 세운 계약도 그대로다.
         XCTAssertTrue(app.buttons["Bought \(top)"].exists, "행의 1차 액션은 그대로 'Bought <이름>'")
@@ -644,7 +644,7 @@ final class ReffiFlowUITests: XCTestCase {
 
     /// 게스트의 Account 영수증은 이제 정적 안내문 + 별도 "Log in / Sign up" 버튼(중복 진입점, 13차 교훈)
     /// 대신 행 전체가 하나의 탭 타깃인 `SettingsRow`다(라벨 "Guest mode" + 값 문구가 한 Button
-    /// 접근성 요소로 병합된다 — Toggle과 같은 병합 규칙). 로그인 계정 쪽(Signed in + Log out 행)은
+    /// 접근성 요소로 병합된다 — Toggle과 같은 병합 규칙). 로그인 계정 쪽(Logged in + Log out 행)은
     /// 실제 Supabase 세션이 있어야 재현돼 이 UI 테스트로는 다루지 못한다 — 그 갈림은
     /// `accountReceipt`의 `if auth.isGuest` 분기 자체(뷰 로직)만으로 보장된다.
     func testProfile_GuestAccountRow_ShowsDeviceOnlyCopyAndOpensAuth() {
@@ -654,7 +654,7 @@ final class ReffiFlowUITests: XCTestCase {
 
         let guestRow = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] %@", "Guest mode")).firstMatch
         XCTAssertTrue(guestRow.waitForExistence(timeout: 8), "게스트는 탭 가능한 단일 Guest mode 행을 봐야 한다")
-        XCTAssertTrue(guestRow.label.contains("stays on this device"),
+        XCTAssertTrue(guestRow.label.contains("On this device"),
                       "곁 문구는 서버 백업을 약속하지 않고 기기 보관만 정직하게 말해야 한다")
 
         guestRow.tap()
@@ -666,7 +666,7 @@ final class ReffiFlowUITests: XCTestCase {
     /// `.environment(\.locale)`이 실제로 라이브 반영되는지 확인한다 — `SettingsRow.label`·
     /// `QuietButton.title`은 `LocalizedStringKey`라 재실행 없이 곧바로 새 언어로 뜬다는 것이
     /// `AppLanguage.swift`가 문서화한 "정직한 경계"의 절반이다(나머지 절반 — `String(localized:)`로
-    /// 굳힌 값의 재실행 필요성 — 은 실행 중 검증이 불가능해 여기서 다루지 않는다). `Delete account`를
+    /// 굳힌 값의 재실행 필요성 — 은 실행 중 검증이 불가능해 여기서 다루지 않는다). `Erase this device`를(42차 개명 — 실동작이 기기 삭제라)t`를
     /// 증인으로 쓴다 — 방금 만진 행을 다시 조회하는 것보다 독립적이라 더 신뢰할 수 있다.
     /// **정리**: 이 테스트는 실제로 `AppStorage`를 바꾸므로, 본문 끝에서 System default로 되돌리는
     /// UI 조작과 **별도로** `addTeardownBlock`을 맨 먼저 등록한다 — 본문 어디서 실패해 조기 종료돼도
@@ -691,7 +691,7 @@ final class ReffiFlowUITests: XCTestCase {
         XCTAssertTrue(koreanOption.waitForExistence(timeout: 4), "드롭다운에 한국어 옵션이 떠야 한다")
         koreanOption.tap()
 
-        XCTAssertTrue(app.buttons["계정 삭제"].waitForExistence(timeout: 4),
+        XCTAssertTrue(app.buttons["이 기기에서 지우기"].waitForExistence(timeout: 4),
                       "LocalizedStringKey 라벨은 재실행 없이 즉시 새 언어로 바뀌어야 한다")
 
         // 되돌리기 — 행의 값이 이제 "한국어"이므로 그 문자열로 다시 찾아 System default를 고른다.
@@ -701,7 +701,7 @@ final class ReffiFlowUITests: XCTestCase {
         let systemOption = app.buttons["시스템 기본값"]
         XCTAssertTrue(systemOption.waitForExistence(timeout: 4))
         systemOption.tap()
-        XCTAssertTrue(app.buttons["Delete account"].waitForExistence(timeout: 4),
+        XCTAssertTrue(app.buttons["Erase this device"].waitForExistence(timeout: 4),
                       "System default로 되돌리면 영어 라벨도 즉시 돌아와야 한다")
     }
 }

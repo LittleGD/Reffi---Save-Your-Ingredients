@@ -93,14 +93,14 @@ struct PaperDayChip: View {
     /// 4.5:1을 못 넘지만(실측), `ink`는 두 스킴 모두 `fresh` 면 위에서 10.8:1 / 6.7:1이다.
     /// 두 토큰이 라이트/다크에서 **함께 뒤집히기 때문에** 한 색으로 양쪽이 성립한다.
     private var eatenMark: some View {
-        VStack(spacing: 1) {
+        VStack(spacing: ReffiSpace.s0) {
             ReffiIcon.check.reffi(side * 0.24, .bold)
             Text(eaten.formatted()).font(.reffiNum(.body))
         }
         .foregroundStyle(ReffiColor.ink)
         .lineLimit(1)
-        .minimumScaleFactor(0.6)
-        .padding(.horizontal, 2)
+        .minimumScaleFactor(ReffiShrink.dense)
+        .padding(.horizontal, ReffiSpace.s0)
     }
 
     /// 버린 개수 — 모서리에 덧붙인 빨간 조각.
@@ -123,7 +123,7 @@ struct PaperDayChip: View {
             // 안의 체크·숫자(`eatenMark`)와 **같은 방어**다. 이것만 빠져 있어 AX5 실측에서 글자가
             // "…"로 잘려 버린 개수 자체가 화면에서 사라지고, 커진 배지가 칩 얼굴의 88%를 덮었다.
             // 축소 하한도 같은 0.6 — 배지는 칩 폭(38) 안에서만 제안을 받으므로 그 아래로는 내려갈 일이 없다.
-            .minimumScaleFactor(0.6)
+            .minimumScaleFactor(ReffiShrink.dense)
             .padding(.horizontal, side * 0.09)
             .padding(.vertical, side * 0.045)
             .background(shape.fill(ReffiColor.urgentDark))

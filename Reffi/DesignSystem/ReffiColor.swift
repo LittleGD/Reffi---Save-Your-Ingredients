@@ -85,7 +85,16 @@ enum ReffiColor {
     static let muted  = dynamic(light: (0.51, 0.013, 80),  dark: (0.71, 0.012, 80))
     /// neutral-200 · 서브 면 — L .935/.008/85 · D .32/.008/80
     /// (다크 L .30→.32: 캔버스 위 면 대비 1.29→1.38. secondary 버튼 면이라 이 값이 그대로 CTA 대비다)
+    /// **캔버스 위 전용이다**(§2.8·42차) — 종이 카드(paper .33 · receipt .335) 위에 얹으면 다크에서
+    /// 1.04~1.06으로 붙어 면이 사라진다. 카드 안에 앉는 컨트롤 면은 아래 `subRaised`를 쓴다.
     static let sub    = dynamic(light: (0.935, 0.008, 85), dark: (0.32, 0.008, 80))
+    /// **카드 위 서브 면**(42차 신설) — 종이 카드(paper/receipt) **안**에 앉는 미선택 칩·OFF 트랙·
+    /// 카드 위 secondary 면. `sub`(캔버스 위 1.38)와 역할이 갈리는 이유: 다크에서 canvas 밴드
+    /// [1.35~1.5]는 L .320~.342를, paper 위 ≥1.19는 L ≥.377을 강제해 **한 값이 두 부모를 동시에
+    /// 만족할 수 없다**(§2.8 면 분리 실측 — field가 ≥1.19 하한만 받는 것과 같은 축).
+    /// 다크 .41 실측: paper 위 1.38 · receipt 위 1.36 · ink 7.50 · ink2 5.10. 라이트는 sub와 동일
+    /// (§2.8이 라이트를 이 요건의 대상에서 제외한다 — 라이트 경계는 헤어라인·그림자가 만든다).
+    static let subRaised = dynamic(light: (0.935, 0.008, 85), dark: (0.41, 0.008, 80))
     /// neutral-50 · 캔버스(크림 → 밤의 웜 차콜) — L .97/.012/90 · D .215/.010/78
     static let canvas = dynamic(light: (0.97, 0.012, 90),  dark: (0.215, 0.010, 78))
 
@@ -126,14 +135,56 @@ enum ReffiColor {
     /// 채도 면(버튼) 위 흰 종이 헤어라인 — L white 0.14 · D white 0.10
     static let paperEdgeOnFill = dynamic(light: (1, 0, 0), lightAlpha: 0.14,
                                          dark:  (1, 0, 0), darkAlpha:  0.10)
+    /// **채워지지 않은 상태 컨트롤의 경계**(42차 신설) — 미체크 체크박스처럼 라벨 없이 경계 하나가
+    /// 상태 전부를 말하는 자리. ink α .18은 카드 면 위 1.4:1대라 WCAG 1.4.11(비텍스트 3:1)에 걸렸다 —
+    /// α .50 실측: paper 위 3.16/3.75 · canvas 위 3.12/4.47 · paperPass 위 3.07/4.36 · receipt 위
+    /// 3.15/3.71(라이트/다크). **라이트 여유가 3.07~3.16으로 얇다** — paper·canvas 계열 L을 다시
+    /// 튜닝하면 이 하한부터 재실측한다. 값이 같아 보여도 `paperEdgeAccent`(장식 단면)와 축이 다르다.
+    static let paperEdgeState  = ink.opacity(0.50)
+    /// **컨트롤 재단선** — 조각의 실루엣을 혼자 지는 단면. 위 세 단면이 "종이 두께"라는 **재질**이라면
+    /// 이건 **정보**다: 상태를 형태로 말하는 컨트롤(`PaperToggleStyle`)에서 면색 대비가 원천적으로
+    /// 설 수 없을 때 §2.6 비텍스트 기준(3:1, WCAG 1.4.11)을 이 선이 진다.
+    ///
+    /// **`ink2`인 것이 이 토큰의 내용이다.** 종이 램프(`paper`/`receipt`/`sub`)는 라이트·다크 모두
+    /// 서로 1.2:1 안쪽에 몰려 있어(실측 `paper`↔`sub` 라이트 1.18 · 다크 1.04) 종이끼리는 밝기로
+    /// 3:1을 만들 수 없다 — 잉크 램프로 건너와야 한다. 그중 `ink2`는 다섯 종이 면 위에서
+    /// 라이트 7.77~7.89 · 다크 6.64~6.77로 기준선의 두 배를 갖고도 `ink`(15.33/9.75)처럼
+    /// 새까만 테두리로 읽히지 않는 자리다. `muted`(5.51/4.66)도 수치는 통과하지만 그 토큰의 역할이
+    /// **약함/placeholder**라 조작 가능한 컨트롤에 쓰면 비활성으로 읽힌다.
+    ///
+    /// **§6.1의 보더 금지와 충돌하지 않는다** — 그 절은 면을 나누는 선을 금지하고 분리는 틴트·여백으로
+    /// 하라는 규율이고, 이 선은 나누는 선이 아니라 **컴포넌트 그 자체의 윤곽**이다(§6.1이 포커스 링을
+    /// "보더가 아닌 기능적 예외"로 둔 것과 같은 급). 정보 표면에는 쓰지 않는다.
+    static let paperCut        = ink2
     /// 강조 상태 종이의 단면 — 그 카드가 지금 말하고 있는 색(`urgentDark`·`blueDark`)의 α 0.18.
     /// 평상시 종이는 `paperEdge`(ink α .06)지만, "지금 이 카드가 뜨거운 상태다"를 면색이 아니라 **단면**으로
     /// 말하는 자리가 넷 있었고(임박 재료 편집·내 레시피·조리 스텝·발주 티켓) 전부 `.opacity(0.18)`을 손으로
     /// 적고 있었다. 숫자가 콜사이트에 있으면 다음 튜닝에서 한 곳만 움직인다 — 값이 아니라 역할을 부른다.
     static func paperEdgeAccent(_ accent: Color) -> Color { accent.opacity(0.18) }
+    /// 배경 블롭 알파(§13.2·42차) — 색은 인자로 받고 토큰이 **라이트/다크 α만** 쥔다
+    /// (`paperEdgeAccent` 패턴). 다크에서 내리는 이유: 어두운 캔버스 위에선 같은 α가 네온처럼
+    /// 타올라 종이 표면의 대비를 잡아먹는다(은은한 발광까지만). 옛 구현은 이 여섯 값이
+    /// 뷰 안의 무명 삼항이라 MD·HTML 3자 대조의 사각지대였다.
+    static func bgBlobStrong(_ base: Color) -> Color { adaptiveAlpha(base, light: 0.55, dark: 0.35) }
+    static func bgBlobMid(_ base: Color) -> Color    { adaptiveAlpha(base, light: 0.30, dark: 0.20) }
+    static func bgBlobSoft(_ base: Color) -> Color   { adaptiveAlpha(base, light: 0.16, dark: 0.10) }
+
+    /// 임의 색에 라이트/다크 **다른 α**를 입힌다 — `Color.opacity(_:)`는 스칼라라 스킴 적응이
+    /// 불가능해, 동적 색을 트레이트에서 다시 풀어 α만 갈아 끼운다.
+    private static func adaptiveAlpha(_ base: Color, light: Double, dark: Double) -> Color {
+        let ui = UIColor(base)
+        return Color(uiColor: UIColor { t in
+            ui.resolvedColor(with: t)
+                .withAlphaComponent(CGFloat(t.userInterfaceStyle == .dark ? dark : light))
+        })
+    }
+
     /// 메인 배경(리퀴드글래스) 상단 흰 시노 — L white 0.22 · D white 0.045
     static let bgSheen         = dynamic(light: (1, 0, 0), lightAlpha: 0.22,
                                          dark:  (1, 0, 0), darkAlpha:  0.045)
+    /// 하단 흰 시노(42차 정본화) — 상단과 짝인데 코드에만 존재하던 값. L white 0.06 · D white 0.02
+    static let bgSheenBottom   = dynamic(light: (1, 0, 0), lightAlpha: 0.06,
+                                         dark:  (1, 0, 0), darkAlpha:  0.02)
     /// 모달·결정 오버레이 딤 — L ink 틴트 0.22 · D 순검정 0.55
     /// (다크에선 아래 면이 이미 어두워 ink 틴트로는 딤이 안 먹는다 → 검정으로 더 깊게)
     static let scrim           = dynamic(light: (0.25, 0.012, 80), lightAlpha: 0.22,
@@ -162,6 +213,10 @@ enum ReffiColor {
     /// toast 면이 양 모드 모두 어두워 적응이 불필요하고, blueLight는 다크에서 어두운 면색으로
     /// 뒤집혀 못 쓴다. "toast 위 텍스트는 고정" 규칙(§2.8)의 액션 변형.
     static let toastAction = oklch(0.90, 0.05, 250)
+    /// `toast` 면 위 **본문** — 양 모드 고정 흰색(§2.8, 실측 라이트 16.01 · 다크 10.02).
+    /// `onInk`를 얹으면 다크에서 1.73:1로 깨진다 — toast는 양 모드 어두운 면이라 적응할 이유가 없다.
+    /// `.white` 리터럴을 콜사이트에 두면 이 근거가 코드에서 사라져 다음 사람이 `onInk`와 헷갈린다.
+    static let onToast     = oklch(1, 0, 0)
 
     // MARK: - OKLCH → sRGB
 

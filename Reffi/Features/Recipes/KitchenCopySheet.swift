@@ -1,10 +1,10 @@
 import SwiftUI
 
-/// 주방 전표 시트(39차) — 티켓의 조용한 "See the cooking details?" 링크가 여는 **옵트인** 조리
+/// 주방 전표 시트(39차) — 티켓의 "How to cook"(48차) 종이 버튼이 여는 **옵트인** 조리
 /// 단계 목록. 33c8861("조리법은 영상이 맡는다")의 오너 테제를 **부분적으로** 되돌린다 — 하지만
 /// 뒤집는 방식이 다르다: 티켓 본문엔 여전히 단계 텍스트가 한 글자도 없고(§CookingStepsView가
-/// 옛 기대치 캡션을 없앤 그대로), 영상 CTA는 이 시트를 열지 않아도 항상
-/// 1차 자리를 지킨다. 이 시트는 **점진적 공개**(progressive disclosure)다 — 원하는 사람만
+/// 옛 기대치 캡션을 없앤 그대로), 영상 CTA는 이 버튼의 유무와 무관하게 항상 조리법의
+/// 1차 경로를 맡는다(톤이 아니라 경로의 문제다 — 41차가 버튼을 위에 세웠어도 그대로다). 이 시트는 **점진적 공개**(progressive disclosure)다 — 원하는 사람만
 /// 한 겹 더 들어가 본다. 단계가 없는 레시피(대부분의 커스텀 레시피)는 링크 자체가 안 서므로
 /// 이 시트에 도달할 길이 없다.
 ///
@@ -39,14 +39,22 @@ struct KitchenCopySheet: View {
         .background(ReffiColor.canvas.ignoresSafeArea())
     }
 
-    /// 크라운 — 오더/조리 티켓의 "ORDER · FIRED"와 같은 모노 문법("KITCHEN COPY · 레시피명").
-    /// 레시피명은 데이터라 verbatim — 번역 키가 아니다(§i18n, `cook.recipeName`과 같은 규칙).
+    /// 크라운 — 오더/조리 티켓의 "ORDER · FIRED"와 같은 모노 문법. **크롬과 데이터를 가른다**(42차):
+    /// `monoTicketLabel`(올캡·자간 2.5)은 §3.5가 비번역 라틴 크롬 전용으로 못 박은 role이라,
+    /// 번역되는 레시피명을 같은 문자열에 이어 붙이면 한국어에서 `.uppercased()`가 no-op이 되고
+    /// 13pt 한글에 em의 19% 자간이 걸려 낱글자로 흩어진다("김 치 찌 개"). 크라운 조각만 그 role에
+    /// 남기고 레시피명은 같은 13pt 밴드의 `metaText`(자간 0)로 — 티켓 표면의 "한 크기·다른 무게"
+    /// 문법 그대로다. 레시피명 자체는 데이터라 verbatim(§i18n, `cook.recipeName`과 같은 규칙).
     private var header: some View {
         HStack(alignment: .firstTextBaseline) {
-            Text(verbatim: "KITCHEN COPY · \(recipeName.uppercased())")
-                .reffiType(.monoTicketLabel).foregroundStyle(ReffiColor.ink2)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
+            HStack(alignment: .firstTextBaseline, spacing: ReffiSpace.s1) {
+                Text(verbatim: "KITCHEN COPY ·")
+                    .reffiType(.monoTicketLabel).foregroundStyle(ReffiColor.ink2)
+                Text(verbatim: recipeName)
+                    .reffiType(.metaText).foregroundStyle(ReffiColor.ink2)
+            }
+            .lineLimit(1)
+            .minimumScaleFactor(ReffiShrink.chrome)
             Spacer(minLength: ReffiSpace.s3)
             Text("\(steps.count) steps")
                 .reffiType(.metaText).foregroundStyle(ReffiColor.muted)
@@ -94,12 +102,16 @@ struct KitchenCopySheet: View {
             .padding(.vertical, ReffiSpace.s3)
             .frame(minHeight: ReffiChrome.tapMin)   // §7.3 — 행 전체가 타깃
             .contentShape(Rectangle())
+            // 상자·취소선·잉크색이 **한 클럭**에 움직인다(42차) — 체크박스 안에만 애니메이션을 걸면
+            // 같은 행의 절반(텍스트)은 0프레임에 튀고 절반(상자)만 흘러 손가락 하나에 두 반응 속도가 붙는다.
+            .animation(ReffiMotion.gated(ReffiMotion.standard, reduce: reduceMotion), value: done)
         }
         .buttonStyle(.reffiPress)
         .accessibilityLabel(Text(verbatim: text))   // 단계 문장은 데이터 — 번역 키가 아니다(§i18n)
-        .accessibilityValue(done ? Text("Checked") : Text("Not checked"))
+        // 단계 완료는 "선택"이 아니라 "끝냄"이다(42차) — `.isSelected` 트레잇을 얹으면 VoiceOver가
+        // "선택됨"을 붙여 뜻이 틀리고, 값과 겹치면 이중 발화가 된다. 도메인 값 하나만 말한다.
+        .accessibilityValue(done ? Text("Done") : Text("Not done"))
         .accessibilityHint(Text("Toggles whether this step is done"))
-        .accessibilityAddTraits(done ? [.isSelected] : [])
     }
 
     /// 체크 상자 — `PaperChecklistDialog.checkbox`(§14.7)와 **같은 시각 문법**을 재사용한다: 켜짐 =
@@ -118,11 +130,12 @@ struct KitchenCopySheet: View {
                     .compositingGroup()
                 ReffiIcon.check.reffi(13, .bold).foregroundStyle(ReffiColor.onAccent)
             } else {
-                shape.fill(ReffiColor.paper).paperEdge(shape, tint: ReffiColor.ink.opacity(0.18))
+                // 상태 경계 정본 토큰(§2.7·42차) — ink α .18은 카드 위 1.4:1대라 3:1 미달이었다.
+                shape.fill(ReffiColor.paper).paperEdge(shape, tint: ReffiColor.paperEdgeState)
             }
         }
         .frame(width: 22, height: 22)
         .padding(.top, 1)   // 체크박스 상단을 첫 줄 텍스트 베이스라인에 살짝 맞춘다
-        .animation(ReffiMotion.gated(ReffiMotion.pop, reduce: reduceMotion), value: on)
+        // 전환은 행(stepRow)이 한 클럭으로 몬다(42차) — 여기 걸면 상자만 다른 시계로 돈다.
     }
 }

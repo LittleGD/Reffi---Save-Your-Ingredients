@@ -59,13 +59,16 @@ struct PaperChecklistDialog: View {
                 .scaleEffect(shown ? 1 : 0.95)
                 .opacity(shown ? 1 : 0)
         }
-        // 뜬 동안 뒤 화면(티켓 덱)을 VoiceOver에서 가린다 — 훑을 수 있으면 모달이 아니다.
+        // 모달 경계의 절반 — 뒤 화면을 실제로 가리는 것은 프레젠터의 `accessibilityHidden`이다.
+        // `PaperDropdown`의 3중 처방(contain + isModal + 배경 hidden)과 같은 문법(42차, `PaperDialog` 참고).
+        .accessibilityElement(children: .contain)
         .accessibilityAddTraits(.isModal)
         .accessibilityAction(.escape) { onClose() }
         .onAppear {
             if reduceMotion { shown = true } else { withAnimation(ReffiMotion.pop) { shown = true } }
-            titleFocused = true
         }
+        // 포커스는 `task`에서 — `onAppear` 시점엔 요소 등록 전이라 이동이 유실되는 창이 있다(42차).
+        .task { titleFocused = true }
     }
 
     private var card: some View {
@@ -158,9 +161,12 @@ struct PaperChecklistDialog: View {
         }
         .buttonStyle(.reffiPress)
         .accessibilityLabel(Text(verbatim: item.name))
-        .accessibilityValue(on ? Text("Checked") : Text("Not checked"))
+        // 상태 채널은 **하나**다(§13.5의 청각판·42차) — `.isSelected` 트레잇이 "선택됨"을 이미
+        // 말하므로 값으로 같은 말을 겹치면 한국어에서 "선택됨, 선택됨"이 된다.
         .accessibilityHint(Text("Toggles whether this goes on the list"))
         .accessibilityAddTraits(on ? [.isSelected] : [])
+        // UI 테스트 훅 — 값 채널을 걷은 뒤(42차) 행 카운트는 식별자로 잡는다(`dialog.close` 선례).
+        .accessibilityIdentifier("dialog.row")
     }
 
     /// 체크 상자 — 종이 문법 그대로다(새 컨트롤 어휘를 만들지 않는다).
@@ -181,11 +187,15 @@ struct PaperChecklistDialog: View {
                 // (ink 면이 아니므로 `onInk`가 아니다: 그건 다크에서 뒤집히는 잉크 면 전용이다).
                 ReffiIcon.check.reffi(13, .bold).foregroundStyle(ReffiColor.onAccent)
             } else {
-                shape.fill(ReffiColor.paper).paperEdge(shape, tint: ReffiColor.ink.opacity(0.18))
+                // 미체크 상자의 경계는 이 상자의 **유일한 상태 신호**다 — ink α .18은 카드 위
+                // 1.4:1대라 1.4.11(비텍스트 3:1)에 걸렸다. 상태 경계 정본 토큰으로(§2.7·42차).
+                shape.fill(ReffiColor.paper).paperEdge(shape, tint: ReffiColor.paperEdgeState)
             }
         }
         .frame(width: 22, height: 22)
-        .animation(ReffiMotion.gated(ReffiMotion.pop, reduce: reduceMotion), value: on)
+        // `pop` 스프링이 아니라 `standard`다(42차) — 이 전환은 opacity 크로스페이드라 오버슈트가
+        // 렌더에서 잘리고 0.5초 꼬리만 남았다(§7.5 스프링은 오버슈트가 **보이는** 자리 전용).
+        .animation(ReffiMotion.gated(ReffiMotion.standard, reduce: reduceMotion), value: on)
     }
 }
 
@@ -242,6 +252,8 @@ private struct PaperChecklistDialogModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
+            // 배경 배리어를 걸지 않는 이유는 `PaperDialogModifier` 주석 참조(42차 실측 — 명시적
+            // hidden(false)의 하위 강제 노출 부작용).
             .overlay {
                 if isPresented {
                     PaperChecklistDialog(title: title,
@@ -252,11 +264,17 @@ private struct PaperChecklistDialogModifier: ViewModifier {
                                          seed: seed,
                                          onConfirm: { close(then: onConfirm) },
                                          onClose: { close(then: onClose) })
-                        .transition(.opacity)
+                        // 진입·이탈 비대칭(§7.1) — `PaperDialog`와 같은 문법(42차).
+                        .transition(.asymmetric(
+                            insertion: .opacity.animation(
+                                ReffiMotion.gated(ReffiMotion.easeOut(duration: ReffiMotion.dur2),
+                                                  reduce: reduceMotion)),
+                            removal: .opacity.animation(
+                                ReffiMotion.gated(ReffiMotion.exit, reduce: reduceMotion))))
                 }
             }
-            // 커브는 `PaperDialog`와 같은 `ReffiMotion.easeOut`이다(같은 문법의 딤이다) — 콜사이트에서
-            // 그냥 `.easeOut`이라 쓰면 SwiftUI 기본 커브가 잡혀 둘이 다른 시계로 돈다.
+            // 트랜잭션 개시용 — 커브는 `PaperDialog`와 같은 `ReffiMotion.easeOut`(같은 문법의 딤).
+            // 콜사이트에서 그냥 `.easeOut`이라 쓰면 SwiftUI 기본 커브가 잡혀 둘이 다른 시계로 돈다.
             .animation(ReffiMotion.gated(ReffiMotion.easeOut(duration: ReffiMotion.dur2), reduce: reduceMotion),
                        value: isPresented)
     }

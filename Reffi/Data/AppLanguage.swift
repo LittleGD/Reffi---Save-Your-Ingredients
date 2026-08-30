@@ -55,6 +55,22 @@ enum AppLanguage: String, CaseIterable, Identifiable {
         }
     }
 
+    /// **선택 언어 번들로 즉시 조회**(42차·O28/O29) — `String(localized:)`는 `Bundle.main`(=다음 실행)에
+    /// 굳지만, 선택 언어의 `.lproj` 번들을 직접 지정하면 재실행 없이 그 언어로 리졸브된다.
+    /// (38차 각주의 "`String(localized:locale:)`가 안 먹더라"는 API 오해였다 — `locale:`은 복수·숫자
+    /// 규칙용이고 조회 언어는 `bundle:`이 정한다. 42차 검증에서 빌드 산출물의 ko.lproj 324키 확인.)
+    /// `.system`이거나 번들을 못 찾으면 `Bundle.main`으로 폴백해 종전과 동일하게 동작한다.
+    static func localizedNow(_ key: String.LocalizationValue) -> String {
+        let bundle: Bundle
+        switch current {
+        case .system: bundle = .main
+        case .en, .ko:
+            if let path = Bundle.main.path(forResource: current.rawValue, ofType: "lproj"),
+               let b = Bundle(path: path) { bundle = b } else { bundle = .main }
+        }
+        return String(localized: key, bundle: bundle)
+    }
+
     /// `String(localized:)`·`.xcstrings` 번들 리소스가 **다음 실행부터** 이 언어를 쓰게 하는 표준
     /// 오버라이드. system을 고르면 키 자체를 지워 기기 언어 목록을 그대로 따르게 한다.
     func applyAppleLanguagesOverride() {

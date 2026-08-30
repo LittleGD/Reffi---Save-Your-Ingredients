@@ -98,7 +98,7 @@ struct MyRecipesView: View {
                 // 커스텀 "김밥"이 여기서만 이름 추론의 아무 색 롤이 되어 표면마다 그림이 갈린다.
                 RecipeHeroIconView(icon: recipe.heroIcon)
                     .frame(width: ReffiDishIcon.row, height: ReffiDishIcon.row)
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: ReffiSpace.s0) {
                     Text(verbatim: recipe.displayName)
                         .reffiType(.body).foregroundStyle(ReffiColor.ink)
                         .lineLimit(1).truncationMode(.tail)
@@ -134,7 +134,7 @@ struct MyRecipesView: View {
     }
 
     private var emptyHint: some View {
-        Text("Recipes you add appear in the ticket deck alongside the built-in ones.")
+        Text("Recipes you add appear in Today's tickets alongside the built-in ones.")
             .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, ReffiSpace.s2)
@@ -302,7 +302,7 @@ struct RecipeEditorView: View {
             .buttonStyle(.paperPress)
             .accessibilityLabel("Delete recipe")
 
-            Text("Removes it from your recipes. Built-in recipes stay.")
+            Text("Removes it from your recipes.")
                 .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
                 .padding(.horizontal, ReffiSpace.s2)
         }

@@ -27,7 +27,7 @@ struct Recipe: Identifiable, Codable, Equatable {
     var cuisine: String?
     var minutes: Int
     var ingredients: [Item]
-    /// 조리 단계 — 티켓의 "See the cooking details?" 링크가 여는 주방 전표(`KitchenCopySheet`)가
+    /// 조리 단계 — 티켓의 "How to cook"(48차) 링크가 여는 주방 전표(`KitchenCopySheet`)가
     /// `displaySteps`로 화면에 그린다(1차 경로는 여전히 영상). 시드 JSON과 이미 저장된 커스텀
     /// 레시피가 이 키를 갖고 있으므로 지우면 기존 데이터 디코드가 깨진다.
     var steps: LocalizedSteps
@@ -48,8 +48,17 @@ struct Recipe: Identifiable, Codable, Equatable {
         var ko: [String]?
     }
 
+    /// 데이터 표기(레시피명·조리 단계·재료명)의 언어 판별 — **앱 언어 선택(`AppLanguage`)이 정본**이다
+    /// (42차·F70). `Locale.current`만 보면 인앱 언어 전환이 크롬(버튼·라벨)만 바꾸고 화면에서 가장
+    /// 큰 글자(메뉴명)와 가장 많은 항목(재료명)은 기기 언어로 남아, 스위치가 고장 난 것으로 읽혔다.
+    /// `.system`이면 종전대로 기기 로케일. `UserDefaults` 읽기는 CFPreferences 인메모리 캐시라
+    /// 리스트 셀 단위 호출에도 실측상 무해하다(행당 ~수백 ns).
     static var isKorean: Bool {
-        Locale.current.language.languageCode?.identifier == "ko"
+        switch AppLanguage.current {
+        case .ko: true
+        case .en: false
+        case .system: Locale.current.language.languageCode?.identifier == "ko"
+        }
     }
 
     // MARK: - 표시 접근자
@@ -101,15 +110,23 @@ struct Recipe: Identifiable, Codable, Equatable {
 
     /// 커스텀 레시피 생성 편의 — 현재 로케일 표기를 en 슬롯에 담는다(en은 필수 캐논).
     /// `steps`는 편집기가 더 이상 입력받지 않아 기본 빈 배열이다(모델 필드는 디코드 호환으로 남아 있다).
+    ///
+    /// ref 부여는 **정확 일치 → 머리말 일치**까지만 — 포함 매칭은 쓰지 않는다. 레시피 재료 줄은
+    /// 서술형("닭 또는 야채 육수")이 섞이는 자리라, 앞에서 걸리는 키워드는 재료가 아니라 수식어다
+    /// (`RecipeRecommender.canonicalID(of:)`가 시드 no-ref 줄에 정확 일치만 허용하는 것과 같은 근거).
+    /// ref가 붙는 순간 이 줄은 발주 시 **그 캐논의 재고를 예약·삭제**하므로, 오귀속된 ref는
+    /// 표시 오류가 아니라 재고 파괴다. 해석 실패는 ref=nil로 두면 표기 정확 일치 매칭이 받는다.
     static func userRecipe(name: String, ingredientNames: [String], minutes: Int,
                            steps: [String] = []) -> Recipe {
-        Recipe(id: UUID().uuidString,
+        let lex = IngredientLexicon.shared
+        return Recipe(id: UUID().uuidString,
                name: LocalizedName(en: name, ko: nil),
                cuisine: nil,
                minutes: minutes,
                ingredients: ingredientNames.map { raw in
                    let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-                   return Item(ref: IngredientLexicon.shared.canonicalID(for: trimmed),
+                   return Item(ref: lex.exactCanonicalID(for: trimmed)
+                                   ?? lex.headNounCanonicalID(for: trimmed),
                                en: trimmed, ko: nil)
                },
                steps: LocalizedSteps(en: steps, ko: nil),

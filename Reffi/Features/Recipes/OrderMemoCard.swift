@@ -44,7 +44,9 @@ struct OrderMemoCard: View {
     /// 카드 1순위 판정문 — 왜 이 티켓이 추천됐나(랭킹 근거를 사람 말로).
     private var verdictKicker: Text {
         if result.urgentUsedCount > 0 { return Text("Saves \(result.urgentUsedCount) expiring today") }
-        if rescuedCount > 0 { return Text("Clears \(rescuedCount) before they spoil") }
+        // 동사는 Saves 하나·상함은 turn 하나다(42차) — 조건 구분은 색(urgentDark/soonDark)이 이미
+        // 말하고 있어 낱말까지 갈리면 없는 의미 차이를 찾게 된다. ko는 처음부터 '구출' 하나였다.
+        if rescuedCount > 0 { return Text("Saves \(rescuedCount) before they turn") }
         return Text("Use these while fresh")
     }
     private var verdictColor: Color {
@@ -66,7 +68,7 @@ struct OrderMemoCard: View {
             }
         }
         .padding(.horizontal, ReffiSpace.s5)
-        .padding(.top, ReffiSpace.s5 + 2)
+        .padding(.top, ReffiSpace.ticketTop)
         .padding(.bottom, ReffiSpace.s5)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(ReceiptShape(tooth: ReffiTooth.ticket).fill(ReffiColor.paper))
@@ -106,11 +108,11 @@ struct OrderMemoCard: View {
                     VStack(alignment: .leading, spacing: ReffiSpace.s3) {
                         Text(verbatim: r.displayName)
                             .reffiType(.menuName).foregroundStyle(ReffiColor.ink)
-                            .lineLimit(2).minimumScaleFactor(0.8).fixedSize(horizontal: false, vertical: true)
+                            .lineLimit(2).minimumScaleFactor(ReffiShrink.chrome).fixedSize(horizontal: false, vertical: true)
                             // UI 테스트 훅 — 앞 티켓의 메뉴명을 이름 하드코딩 없이 집어 조리 화면과 대조한다
                             // (오른쪽 플릭이 덱을 넘기지 않고 **1번** 티켓을 발주했다는 증거). 라벨은 그대로다.
                             .accessibilityIdentifier("ticket.menuName")
-                        HStack(spacing: 4) {
+                        HStack(spacing: ReffiSpace.s0) {
                             ReffiIcon.time.reffi(13).foregroundStyle(ReffiColor.ink2)
                             Text("\(r.minutes) min · \(result.used.count) to use")
                                 .reffiType(.metaText)
@@ -137,10 +139,10 @@ struct OrderMemoCard: View {
                     .reffiType(.monoTicketLabel).foregroundStyle(ReffiColor.ink2)   // §2.6 — 소형 텍스트는 불투명 토큰으로
 
                 // 이름 블록은 최대 5줄 미리보기(+N more) — 소비는 result.used 전체를 쓰므로 표시만 축약.
-                VStack(alignment: .leading, spacing: ReffiSpace.s1 + 2) {
+                VStack(alignment: .leading, spacing: ReffiSpace.s2) {
                     ForEach(result.used.prefix(5)) { ing in ticketLine(ing, done: fired) }
                     if result.used.count > 5 {
-                        Text("+\(result.used.count - 5) more on the ticket")
+                        Text("+\(result.used.count - 5) more")
                             .reffiType(.metaText)
                             .foregroundStyle(ReffiColor.ink2)
                     }
@@ -179,7 +181,7 @@ struct OrderMemoCard: View {
             // verbatim으로 카탈로그 조회 자체를 끊어, 누가 키를 등록해도 흔들리지 않게 한다.
             Text(verbatim: "ORDER · REFFI KITCHEN")
                 .reffiType(.monoTicketLabel).foregroundStyle(ReffiColor.ink)
-                .lineLimit(1).minimumScaleFactor(0.7)
+                .lineLimit(1).minimumScaleFactor(ReffiShrink.fit)
             Spacer(minLength: ReffiSpace.s2)
             // 번호도 같은 모노 role·크기 — 옛 GSF 14는 크롬 안에서 홀로 다른 서체였다.
             Text(verbatim: String(format: "#%02d", number))
@@ -208,7 +210,7 @@ struct OrderMemoCard: View {
                     .font(ReffiTextRole.subhead.font).tracking(ReffiTextRole.subhead.tracking)
                     .foregroundStyle(ReffiColor.onAccent)   // blue 면 위 콘텐츠(§2.7)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, ReffiSpace.s3 + 1)
+                    .padding(.vertical, ReffiSpace.s3)
                     .background {
                         let shape = PaperCutRect(seed: number)
                         shape.fill(ReffiColor.blue)
@@ -250,7 +252,7 @@ struct OrderMemoCard: View {
             Text("Short: \(result.missing.map(\.displayName).joined(separator: ", "))")
                 .reffiType(.metaText)
                 .foregroundStyle(ReffiColor.ink2).lineLimit(2)
-                .padding(.top, 1)
+                .padding(.top, ReffiSpace.s0)
         }
     }
 
@@ -280,7 +282,7 @@ struct OrderMemoCard: View {
             pick(result.missing)
         } label: {
             HStack(spacing: ReffiSpace.s3) {
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: ReffiSpace.s0) {
                     Text("^[\(count) ingredient](inflect: true) short")
                         .reffiType(.metaText)
                         .foregroundStyle(ReffiColor.blueDark)
@@ -297,12 +299,14 @@ struct OrderMemoCard: View {
                 ZStack {
                     let blob = PaperBlob(sides: 9, seed: number &+ 3)
                     blob.fill(ReffiColor.blueDark)
-                    ReffiIcon.add.reffi(13, .bold).foregroundStyle(ReffiColor.onAccent)
+                    // `*Dark` 면 위 콘텐츠는 `onInk`다(42차) — blueDark는 다크에서 L .76으로 밝게
+                    // 뒤집혀 고정 흰색(`onAccent`)이 2.13:1로 무너진다(라이트는 흰색 그대로 9.18).
+                    ReffiIcon.add.reffi(13, .bold).foregroundStyle(ReffiColor.onInk)
                 }
                 .frame(width: 30, height: 30)
             }
             .padding(.horizontal, ReffiSpace.s3)
-            .padding(.vertical, ReffiSpace.s2 + 2)
+            .padding(.vertical, ReffiSpace.s2)
             .frame(minHeight: ReffiChrome.tapMin, alignment: .leading)   // §7.3 터치 타깃
             .background {
                 let shape = PaperRect(cornerRadius: ReffiRadius.md, seed: number &+ 7)
@@ -326,7 +330,10 @@ struct OrderMemoCard: View {
             .overlay(PaperRect(cornerRadius: ReffiRadius.sm, seed: 2)
                 .stroke(ReffiColor.urgentDark.opacity(0.7), lineWidth: 3.5))
             .rotationEffect(.degrees(-11))
-            .transition(.scale(scale: 1.5).combined(with: .opacity))
+            // 도장은 슬램이다(§7.5·42차) — 자기 커브를 트랜지션에 달아 fire()의 pop 트랜잭션과
+            // 분리한다(온보딩 Start·히어로 stamp와 같은 물리). 카드 본문 리플로우는 pop 그대로.
+            .transition(.scale(scale: 1.5).combined(with: .opacity)
+                .animation(ReffiMotion.gated(ReffiMotion.slam, reduce: reduceMotion)))
             .accessibilityHidden(true)
     }
 
@@ -349,7 +356,7 @@ struct OrderMemoCard: View {
                     .font(.reffiNum(.meta))
                     .foregroundStyle(ing.freshness.dark)
                     .padding(.horizontal, ReffiSpace.s2)
-                    .padding(.vertical, 1)
+                    .padding(.vertical, ReffiSpace.s0)
                     .background(ing.freshness.light, in: PaperCutRect(seed: 2))   // §13.1 종이컷 8각형(캡슐 금지)
                     // 보이는 값은 축약(3d)이라 소리로는 뜻이 서지 않는다 — 냉장고 도장·간편 행·재료 뱃지와
                     // 같은 표기/문구 한 쌍(`Ingredient.dDayAccessibilityText`)을 이 칩도 본다.

@@ -73,14 +73,52 @@ struct HistoryContent: View {
     @AccessibilityFocusState private var chipRowFocused: Bool
 
     private var logs: [RemovalLog] { store.history }
-    /// 정산서(수치·비율)는 라벨 그대로 **최근 30일** 기준. 타임라인은 전체.
-    private var recent: [RemovalLog] { store.recentHistory }
-    private var eaten: Int { recent.filter { !$0.wasted }.count }
-    private var tossed: Int { recent.filter(\.wasted).count }
-    /// 발주(레시피)로 소비된 건수 — 정의는 **스토어 한 곳**에 둔다(`Ate`·`Tossed`와 달리 조건이
-    /// 둘이라, 뷰가 자기 필터를 들고 있으면 테스트가 보는 규칙과 화면이 보는 규칙이 갈릴 수 있다).
-    private var cooked: Int { store.cookedCount }
-    private var rate: Int { store.wasteRate }
+
+    /// 정산서 파생값의 **단일 계산 지점**(42차·F88 잔여) — `MainView.CounterDigest`·`FridgeView.ListDigest`가
+    /// 세운 "파생은 body 진입부에서 한 번" 규율을 이 화면에도 편다. 옛 computed 9종은 body 한 번에
+    /// `store.recentHistory`(전량 filter+복사)를 11번 돌렸다 — 장식용 영수증 번호 하나에만 3번.
+    /// History는 이제 커버가 아니라 패인이라 store 변이마다 body가 다시 돈다(이력 상한 2000건).
+    @MainActor
+    private struct Ledger {
+        let recentEmpty: Bool
+        let eaten: Int
+        let tossed: Int
+        let cooked: Int
+        let rate: Int
+        let topTossed: [(key: String, name: String, glyph: FoodGlyph, count: Int)]
+        let streakDays: Int
+        let pileGlyphs: [FoodGlyph]
+
+        init(store: FridgeStore, logs: [RemovalLog], topLimit: Int) {
+            let recent = store.recentHistory
+            recentEmpty = recent.isEmpty
+            eaten = recent.filter { !$0.wasted }.count
+            tossed = recent.filter(\.wasted).count
+            cooked = store.cookedCount
+            rate = store.wasteRate
+
+            // 자주 버린 재료 — 매칭 키(표기 무관)로 묶어 많은 순(표기로 묶으면 언어 전환 전후가 두 줄로 갈린다).
+            let grouped = Dictionary(grouping: recent.filter(\.wasted)) { $0.matchKey }
+            let rows: [(key: String, name: String, glyph: FoodGlyph, count: Int)] = grouped
+                .compactMap { key, group in
+                    group.first.map { (key: key, name: $0.displayName, glyph: $0.glyph, count: group.count) }
+                }
+            let ranked = rows.sorted { $0.count != $1.count ? $0.count > $1.count : $0.name < $1.name }
+            topTossed = Array(ranked.prefix(topLimit))
+
+            // 무낭비 스트릭 — 마지막 버림 이후 경과일(버린 적 없으면 기록 시작부터). (PR #4 리포트 통합)
+            if let last = logs.filter(\.wasted).map(\.daysAgo).min() { streakDays = last }
+            else { streakDays = logs.map(\.daysAgo).max() ?? 0 }
+
+            // 배경 더미 글리프 — 내 냉장고가 먼저, 그다음 이력. 같은 글리프는 한 번만.
+            var seen = Set<FoodGlyph>()
+            var result: [FoodGlyph] = []
+            for glyph in store.ingredients.map(\.glyph) + logs.map(\.glyph) where seen.insert(glyph).inserted {
+                result.append(glyph)
+            }
+            pileGlyphs = result
+        }
+    }
 
     /// 낭비율 색 — 임계값의 **단일 공급원**이다(색=정보, §1). 커버 배경 accent와 냉장고 History 탭의
     /// 배경 accent가 같은 함수를 읽는다: 세 곳이 각자 `switch`를 들고 있으면 한쪽만 조용히 어긋난다.
@@ -92,7 +130,6 @@ struct HistoryContent: View {
         }
     }
 
-    private var rateColor: Color { Self.rateColor(rate) }
 
     /// 추세 화살표(33차) — 값 덩이 곁에 서는 작은 세모의 아이콘·색·UI 테스트 식별자.
     /// **`.same`이거나 지난 주 데이터가 없으면(`nil`) 화살표 자체가 없다** — `ConsumptionWeek.Trend`가
@@ -109,23 +146,12 @@ struct HistoryContent: View {
         }
     }
 
-    /// 자주 버린 재료 — 버림 이력을 **매칭 키**(표기 무관)로 묶어 많은 순, 정산 기간(30일)과 같은 모수.
-    /// 표기로 묶으면 언어를 바꾸기 전후에 담은 같은 재료가 두 줄로 갈린다.
-    /// 3종 미만이면 **있는 만큼만** 세운다(빈 줄을 채우지 않는다).
-    private var topTossed: [(key: String, name: String, glyph: FoodGlyph, count: Int)] {
-        let grouped = Dictionary(grouping: recent.filter(\.wasted)) { $0.matchKey }
-        let rows: [(key: String, name: String, glyph: FoodGlyph, count: Int)] = grouped
-            .compactMap { key, group in
-                group.first.map { (key: key, name: $0.displayName, glyph: $0.glyph, count: group.count) }
-            }
-        let ranked = rows.sorted { $0.count != $1.count ? $0.count > $1.count : $0.name < $1.name }
-        return Array(ranked.prefix(Self.topTossedLimit))
-    }
 
     var body: some View {
         // 집계는 **본문당 한 번**만 돈다. computed로 두면 헤드라인·칩 행·추세 화살표·접근성 라벨이
         // 각자 이력을 다시 훑고, 그 사이에 자정이 지나면 한 화면 안에서 두 값이 다른 주를 가리킬 수 있다.
         let week = ConsumptionWeek.summary(of: logs)
+        let ledger = Ledger(store: store, logs: logs, topLimit: Self.topTossedLimit)
         ScrollView {
             VStack(spacing: ReffiSpace.s4) {
                 // 헤드라인 ↔ 히어로는 **s4(16)**, 위의 탭 행과는 s5(24, `FridgeView.fridgeHeader`가 준다).
@@ -138,9 +164,9 @@ struct HistoryContent: View {
                 // 비율도 그대로라 제목은 여전히 자기가 이름 붙이는 것 쪽에 붙는다.
                 VStack(alignment: .leading, spacing: ReffiSpace.s4) {
                     headline
-                    hero(week)
+                    hero(week, ledger)
                 }
-                settlementCard
+                settlementCard(ledger)
                 if !logs.isEmpty { timelineCard }   // 기록이 없으면 제목만 남은 빈 카드를 세우지 않는다
             }
             .padding(.horizontal, ReffiGrid.margin)
@@ -187,7 +213,7 @@ struct HistoryContent: View {
     //
     // 전면 블리드(`-ReffiGrid.margin`)는 카테고리 칩 행이 쓰던 관용구 그대로다 — 히어로는 카드가
     // 아니라 패인이 앉은 **바닥 면**이라 좌우 마진에 갇히면 카드 한 장으로 오해된다.
-    private func hero(_ week: ConsumptionWeek.Summary) -> some View {
+    private func hero(_ week: ConsumptionWeek.Summary, _ ledger: Ledger) -> some View {
         // 두 덩이(값 / 주) 사이는 s5, 캡션은 자기가 설명하는 칩 행에 s3으로 붙는다 —
         // 캡션이 두 덩이 한가운데에 뜨면 무엇을 설명하는 줄인지 위치가 말해 주지 않는다.
         VStack(spacing: ReffiSpace.s5) {
@@ -204,7 +230,7 @@ struct HistoryContent: View {
         .frame(maxWidth: .infinity)
         .padding(.horizontal, ReffiGrid.margin + ReffiSpace.s2)
         .padding(.vertical, ReffiSpace.s5)
-        .background { PaperGlyphPile(glyphs: pileGlyphs) }
+        .background { PaperGlyphPile(glyphs: ledger.pileGlyphs) }
         .padding(.horizontal, -ReffiGrid.margin)
     }
 
@@ -229,6 +255,7 @@ struct HistoryContent: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.reffiPress)   // §7.2 — 조용한 힌트라 종이 프레스가 아니라 스케일 프레스
+            .edgeAligned(.trailing, visual: 14)   // 히트 44가 시각 14를 15pt 안으로 밀었다(42차) — 밴드 우측선 복원
             .accessibilityLabel(Text("Dismiss hint"))
         }
         .transition(.opacity)
@@ -254,7 +281,7 @@ struct HistoryContent: View {
     /// (`ConsumptionWeek.Trend` — better/worse/same)는 그대로 살아 있고, 화살표는 그 결과를
     /// 그림 하나로 옮길 뿐이다.
     private func headlineBlock(_ week: ConsumptionWeek.Summary) -> some View {
-        VStack(spacing: 2) {
+        VStack(spacing: ReffiSpace.s0) {
             if let rate = week.eatenRate {
                 // `reffiNum(.hero)`(32)가 숫자 계열의 **맨 위 단**이다(§3.4). 34를 새로 만들지
                 // 않는 이유: 그 절이 크기를 자유 파라미터로 두었다가 여덟 종이 유통된 사고를
@@ -308,7 +335,7 @@ struct HistoryContent: View {
             }
         }
         .lineLimit(1)
-        .minimumScaleFactor(0.7)
+        .minimumScaleFactor(ReffiShrink.fit)
         .multilineTextAlignment(.center)
         // 값 덩이는 숫자 하나가 아니라 "무엇의 몇 퍼센트인가"다 — 화면에서 화살표 하나로 줄인 추세를
         // 소리에서는 그대로 문장으로 편다(분자·분모·추세 방향·지난 주 값까지, 아래 `headlineLabel`).
@@ -380,7 +407,7 @@ struct HistoryContent: View {
                 // 일곱 칸이 한 줄에 서는 배치라 칸이 커지면 주가 화면 밖으로 밀려난다 — 잘리는 것보다
                 // 작아지는 편이 낫고, 진짜 값은 접근성 라벨이 온전히 읽어 준다.
                 .lineLimit(1)
-                .minimumScaleFactor(0.6)
+                .minimumScaleFactor(ReffiShrink.dense)
             PaperDayChip(eaten: day.eaten, tossed: day.tossed, isFuture: day.isFuture,
                          // 시드는 요일 번호 — 일곱 조각이 서로 다른 윤곽을 갖되, 같은 요일은
                          // 다시 열어도 같은 모양이라 화면이 흔들리지 않는다.
@@ -413,69 +440,56 @@ struct HistoryContent: View {
         return day.isToday ? Text("Today, nothing") : Text("\(name), nothing")
     }
 
-    /// 배경 더미에 세울 글리프 — **내 냉장고가 먼저, 그다음 내 이력**. 같은 글리프는 한 번만 쓴다
-    /// (한 종류가 스무 칸을 다 채우면 더미가 아니라 무늬가 된다). 둘 다 비면 컴포넌트의 고정 세트가 선다.
-    private var pileGlyphs: [FoodGlyph] {
-        var seen = Set<FoodGlyph>()
-        var result: [FoodGlyph] = []
-        for glyph in store.ingredients.map(\.glyph) + logs.map(\.glyph) where seen.insert(glyph).inserted {
-            result.append(glyph)
-        }
-        return result
-    }
 
     // MARK: ② 정산서 — 영수증 한 장에 "먹음·버림 두 행 → 낭비율 도장 → 자주 버린 재료 TOP 3"
     //
     // 옛 도넛은 두 지표를 한 그래픽에 겹쳤다(링=버린 것의 카테고리 구성, 가운데 숫자=낭비율)가 서로
     // 다른 분모를 같은 원 안에 놓았고, 신선도 3색을 '식품군' 의미로 재사용해 §2.4를 정면으로 어겼다.
     // 세로로 읽히는 영수증 정산서는 지표를 한 축(건수)으로 세우고, 색은 낭비율 도장 하나만 쓴다.
-    private var settlementCard: some View {
+    private func settlementCard(_ ledger: Ledger) -> some View {
         card(seed: 0) {
             VStack(alignment: .leading, spacing: ReffiSpace.s3) {
                 HStack(alignment: .center, spacing: ReffiSpace.s2) {
                     Text("Tally · past 30 days").reffiType(.subhead).foregroundStyle(ReffiColor.ink)
                     Spacer(minLength: ReffiSpace.s2)
-                    if streakDays > 0 {
-                        DDayStamp(text: String(localized: "DAY \(streakDays)"), color: ReffiColor.freshDark, size: 10)
+                    if ledger.streakDays > 0 {
+                        DDayStamp(text: String(localized: "DAY \(ledger.streakDays)"), color: ReffiColor.freshDark, size: 10)
                     }
                 }
                 ReffiRule(.receipt)
 
-                if recent.isEmpty {
+                if ledger.recentEmpty {
                     // 빈 이력 — 0건 두 행과 0% 도장은 "잘하고 있다"는 거짓 성과가 된다. 정산할 게 없다고 말한다.
                     Text("Nothing tallied yet. What you eat and toss lands here.")
                         .reffiType(.body).foregroundStyle(ReffiColor.ink2)
                         .padding(.vertical, ReffiSpace.s2)
                 } else {
-                    tallyRow("Ate", count: eaten)
-                    tallyRow("Tossed", count: tossed)
+                    tallyRow("Ate", count: ledger.eaten)
+                    tallyRow("Tossed", count: ledger.tossed)
                     // **"Ate"의 부분집합**이다(발주 소비도 먹은 것이므로 위 `Ate`가 이미 세고 있다).
                     // 그래서 세 행이 합해지는 것처럼 보이면 안 되는데, 이 카드에는 Ate + Tossed를
                     // 더하는 총계 행이 어디에도 없고(합은 아래 낭비율이 비율로만 쓴다) 영수증은
                     // 위에서 아래로 읽는 명세라 세 줄이 곧바로 산술로 읽히지 않는다. 그 위에서
                     // **파생 행을 맨 아래**에 두어 두 판정(Ate·Tossed)이 서로 붙어 있게 했다.
-                    tallyRow("Cooked into recipes", count: cooked)
+                    tallyRow("Cooked", count: ledger.cooked)
                     ReffiRule(.receipt)
-                    rateRow
-                    if topTossed.isEmpty {
+                    rateRow(ledger)
+                    if ledger.topTossed.isEmpty {
                         Text("No waste yet. Nicely done.")
                             .reffiType(.body).foregroundStyle(ReffiColor.ink2)
                     } else {
                         ReffiRule(.receipt)
-                        tossedSection
+                        tossedSection(ledger)
                     }
                 }
 
-                // 영수증 명세 마감 — 점선 룰 + 상호 + 번호(장식, 이력에서 유도). 기간은 헤더가 말한다.
+                // 영수증 명세 마감 — 점선 룰 + 상호. 기간은 헤더가 말한다.
+                // (한때 우측에 장식용 일련번호가 있었으나 의미를 기대하게 만드는 무의미한
+                //  숫자라 뺐다 — 2026-08-29 사용자 결정, 46차)
                 ReffiRule(.receipt)
-                HStack {
-                    Text(verbatim: "REFFI")
-                        .reffiType(.monoEyebrow)
-                        .foregroundStyle(ReffiColor.muted)
-                    Spacer()
-                    Text(receiptNo)
-                        .font(.reffiNum(.meta)).foregroundStyle(ReffiColor.muted)
-                }
+                Text(verbatim: "REFFI")
+                    .reffiType(.monoEyebrow)
+                    .foregroundStyle(ReffiColor.muted)
             }
         }
     }
@@ -491,21 +505,21 @@ struct HistoryContent: View {
     }
 
     /// 낭비율 행 — 값은 `DDayStamp`와 같은 도장 문법(각도 튼 종이 도장). 잉크는 낭비율 구간색(§2.4 예외).
-    private var rateRow: some View {
+    private func rateRow(_ ledger: Ledger) -> some View {
         HStack(spacing: ReffiSpace.s2) {
             Text("Waste rate").reffiType(.checklistItem).foregroundStyle(ReffiColor.ink)
             Spacer(minLength: ReffiSpace.s2)
-            DDayStamp(text: rate.formatted(.percent), color: rateColor, size: 15)
+            DDayStamp(text: ledger.rate.formatted(.percent), color: Self.rateColor(ledger.rate), size: 15)
         }
         .padding(.vertical, ReffiSpace.s1)
         .accessibilityElement(children: .combine)
     }
 
     /// 자주 버린 재료 — 실루엣 + 이름 + 횟수. 3종 미만이면 있는 만큼만, 0이면 이 구역 자체가 없다.
-    private var tossedSection: some View {
+    private func tossedSection(_ ledger: Ledger) -> some View {
         VStack(alignment: .leading, spacing: ReffiSpace.s3) {
             Text("Most tossed").reffiType(.caption).foregroundStyle(ReffiColor.ink2)
-            ForEach(topTossed, id: \.key) { row in
+            ForEach(ledger.topTossed, id: \.key) { row in
                 HStack(spacing: ReffiSpace.s3) {
                     miniGlyph(row.glyph)
                     Text(verbatim: row.name).reffiType(.body).foregroundStyle(ReffiColor.ink)
@@ -519,16 +533,7 @@ struct HistoryContent: View {
         }
     }
 
-    /// 무낭비 스트릭 — 마지막 버림 이후 경과일(버린 적 없으면 기록 시작부터). (PR #4 리포트 통합)
-    private var streakDays: Int {
-        if let last = logs.filter(\.wasted).map(\.daysAgo).min() { return last }
-        return logs.map(\.daysAgo).max() ?? 0
-    }
 
-    /// 영수증 번호 — 이력 수치에서 유도(장식, 안정적).
-    private var receiptNo: String {
-        String(format: "No. %04d", (eaten &* 31 &+ tossed &* 7 &+ rate) % 10000)
-    }
 
     // MARK: ③ 타임라인
     //
@@ -553,7 +558,7 @@ struct HistoryContent: View {
     private func timelineRow(_ log: RemovalLog) -> some View {
         HStack(spacing: ReffiSpace.s3) {
             miniGlyph(log.glyph)
-            VStack(alignment: .leading, spacing: 1) {
+            VStack(alignment: .leading, spacing: ReffiSpace.s0) {
                 Text(verbatim: log.displayName).reffiType(.body).foregroundStyle(ReffiColor.ink)
                 // 발주로 소비된 재료는 "한 요리"로 귀속(조리 payoff의 기록면).
                 if let via = log.via {
@@ -566,7 +571,8 @@ struct HistoryContent: View {
                 .reffiType(.caption)
                 .foregroundStyle(log.wasted ? ReffiColor.urgentDark : ReffiColor.freshDark)
             Text(verbatim: log.dateText)
-                .font(.reffiNum(.meta)).foregroundStyle(ReffiColor.muted)
+                .font(.reffiNum(.meta, for: log.dateText))   // ko 날짜 표기 폴백(§3.4·42차)
+                .foregroundStyle(ReffiColor.muted)
         }
     }
 

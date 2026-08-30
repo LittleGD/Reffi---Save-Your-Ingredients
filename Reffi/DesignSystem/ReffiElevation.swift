@@ -31,6 +31,13 @@ extension View {
             .shadow(color: ReffiColor.shadowTint.opacity(0.10), radius: 3, x: 0, y: -2)
             .shadow(color: ReffiColor.shadowTint.opacity(0.05), radius: 10, x: 0, y: -6)
     }
+
+    /// 슬램 임팩트(§6.2 예외·42차) — 도장이 내려앉는 **순간**에만 쓰는 깊은 단일 그림자.
+    /// §6.2 상한(10%)을 넘는 유일한 값이라 무명 리터럴로 두지 않고 토큰으로 세운다 —
+    /// 0.75초 조명이지 상시 엘리베이션이 아니다(`scrimFlash`와 같은 성격). 온보딩 완료 도장 전용.
+    func reffiShadowSlam() -> some View {
+        self.shadow(color: ReffiColor.shadowTint.opacity(0.18), radius: 14, x: 0, y: 8)
+    }
 }
 
 /// z-레이어 스케일(§6.5) 중 **iOS가 실제로 쓰는 한 단**.

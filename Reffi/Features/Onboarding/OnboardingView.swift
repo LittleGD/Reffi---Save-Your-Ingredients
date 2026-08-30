@@ -88,10 +88,16 @@ struct OnboardingView: View {
 
     private var topBar: some View {
         HStack {
-            Text(verbatim: "Reffi").reffiType(.display).foregroundStyle(ReffiColor.blueDark)
-                .scaleEffect(0.62, anchor: .leading)   // 워드마크 축소 배치(위계는 페이지 타이틀에)
+            // 워드마크 축소 배치(위계는 페이지 타이틀에) — `scaleEffect`가 아니라 **실제 21pt**다(42차):
+            // 레이어 축소는 사이드베어링·획 두께까지 0.62배로 줄여 마진선 과밀착 + 잉크 무게 불일치를
+            // 만들었고, 레이아웃엔 축소 전 크기를 보고해 자리도 거짓이었다. 자간 0은 display 규약(§3.1).
+            Text(verbatim: "Reffi")
+                .font(.custom("StoryScript-Regular", size: 21, relativeTo: .title2))
+                .foregroundStyle(ReffiColor.blueDark)
             Spacer()
             QuietButton(title: "Skip", tint: ReffiColor.ink2) { onFinish() }
+                // QuietButton의 내재 가로 패딩(s2)이 우측선을 8pt 안으로 밀었다 — 마진선으로 되민다(42차).
+                .padding(.trailing, -ReffiSpace.s2)
         }
         .padding(.horizontal, ReffiGrid.margin)
         .padding(.top, ReffiSpace.s3)
@@ -203,7 +209,7 @@ struct OnboardingView: View {
             }
         }
         .padding(.horizontal, ReffiSpace.s4)
-        .padding(.vertical, ReffiSpace.s3 + 2)
+        .padding(.vertical, ReffiSpace.s3)
         .frame(width: 170)
         .background(ReffiColor.paper, in: ReceiptShape(tooth: ReffiTooth.chip))
         .reffiShadow1()
@@ -227,7 +233,7 @@ struct OnboardingView: View {
             .reffiType(.metaText)
             .foregroundStyle(ReffiColor.ink2)
             .lineLimit(1)
-            .minimumScaleFactor(0.8)
+            .minimumScaleFactor(ReffiShrink.chrome)
     }
 
     /// ② "임박 재료 → 오늘의 레시피" — 접시(달걀+Today 도장)가 먼저 떴다 사라지고, 그 자리에 레시피 주문서가 올라옴.
@@ -267,7 +273,7 @@ struct OnboardingView: View {
                 // 크라운은 한 줄·한 role: 온보딩이 가르친 크롬을 본 앱이 그대로 쓴다.
                 Text(verbatim: "ORDER · REFFI KITCHEN")
                     .reffiType(.monoTicketLabel).foregroundStyle(ReffiColor.ink)
-                    .lineLimit(1).minimumScaleFactor(0.7)
+                    .lineLimit(1).minimumScaleFactor(ReffiShrink.fit)
                 Spacer(minLength: ReffiSpace.s2)
                 Text(verbatim: "#01").reffiType(.monoTicketLabel).foregroundStyle(ReffiColor.ink2)
             }
@@ -277,13 +283,16 @@ struct OnboardingView: View {
                 .reffiType(.metaText).foregroundStyle(ReffiColor.urgentDark)
             HStack(alignment: .firstTextBaseline, spacing: ReffiSpace.s2) {
                 Text(verbatim: ticket.name)                // 시드 레시피명 — 데이터 verbatim(§i18n)
-                    .reffiType(.menuName).foregroundStyle(ReffiColor.ink)
-                    .scaleEffect(20.0 / 26.0, anchor: .leading)   // 미니 티켓 축소 — 전용 사이즈 신설 금지, menuName 재사용
+                    // 미니 티켓의 메뉴명 — `scaleEffect` 광학 축소 대신 **실제 20pt**(42차, `reffiStamp`와
+                    // 같은 "동일 문법·가변 크기" 탈출구). 레이어 축소는 베이스라인·자간 계약을 깨고
+                    // Dynamic Type 곡선 위에 또 곱해진다.
+                    .font(.custom("Pretendard-Bold", size: 20, relativeTo: .title3)).tracking(-0.3)
+                    .foregroundStyle(ReffiColor.ink)
                     .lineLimit(2)
-                    .minimumScaleFactor(0.7)
+                    .minimumScaleFactor(ReffiShrink.fit)
                 Spacer(minLength: 0)
                 if let minutes = ticket.minutes {
-                    HStack(spacing: 3) {
+                    HStack(spacing: ReffiSpace.s0) {
                         ReffiIcon.time.reffi(11).foregroundStyle(ReffiColor.ink2)
                         // 조리 시간은 크롬이 아니라 본문 문구 — 기존 "%lld min" 키를 타야 한국어에서 "N분"이 된다.
                         Text("\(minutes) min").reffiType(.metaText)
@@ -302,16 +311,16 @@ struct OnboardingView: View {
                 .font(ReffiTextRole.subhead.font).tracking(ReffiTextRole.subhead.tracking)
                 .foregroundStyle(ReffiColor.onAccent)   // 실제 카드와 같은 blue 면 위 콘텐츠(§2.7)
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, ReffiSpace.s2 + 1)
+                .padding(.vertical, ReffiSpace.s2)
                 .background {
                     let band = PaperCutRect(seed: 1)
                     band.fill(ReffiColor.blue)
                         .overlay(PaperGrain(seed: 5).clipShape(band))
                         .paperEdge(band, tint: ReffiColor.paperEdgeOnFill)
                 }
-                .padding(.top, 2)
+                .padding(.top, ReffiSpace.s0)
         }
-        .padding(.horizontal, ReffiSpace.s4 + 2)
+        .padding(.horizontal, ReffiSpace.s4)
         .padding(.vertical, ReffiSpace.s3)
         .frame(width: 250)
         .background(shape.fill(ReffiColor.paper))
@@ -323,14 +332,14 @@ struct OnboardingView: View {
     /// 티켓 한 줄(축약) — 체크박스 + 이름 + D-N.
     private func ticketMiniRow(_ name: String, _ dDay: String, _ color: Color) -> some View {
         HStack(spacing: ReffiSpace.s2) {
-            RoundedRectangle(cornerRadius: 3, style: .continuous)
+            PaperRect(cornerRadius: ReffiRadius.xs, seed: 3)
                 .stroke(color.opacity(0.7), lineWidth: 1.5)
                 .frame(width: 13, height: 13)
             Text(verbatim: name)                           // 시드 재료명 — 데이터 verbatim(§i18n)
                 .reffiType(.badgeLabel)
                 .foregroundStyle(ReffiColor.ink)
                 .lineLimit(1)
-                .minimumScaleFactor(0.75)
+                .minimumScaleFactor(ReffiShrink.tab)
             Spacer(minLength: ReffiSpace.s2)
             Text(verbatim: dDay)
                 .font(.reffiNum(.meta))
@@ -421,7 +430,7 @@ struct OnboardingView: View {
                 .reffiType(.badgeLabel)
                 .foregroundStyle(ReffiColor.ink)
                 .lineLimit(1)
-                .minimumScaleFactor(0.8)
+                .minimumScaleFactor(ReffiShrink.chrome)
             Spacer(minLength: 0)
             Text(dDay)
                 .font(.reffiNum(.body))
@@ -437,8 +446,8 @@ struct OnboardingView: View {
             // 칩은 내용 크기(fullWidth false) — 균등 4등분은 "2 people" 등을 말줄임시킨다.
             HStack(spacing: ReffiSpace.s2) {
                 ForEach(HouseholdSize.allCases) { h in
-                    SelectableChip(text: h.label, selected: profile.household == h,
-                                   fullWidth: false) {
+                    SelectableChip(text: h.labelKey, selected: profile.household == h,
+                                   fullWidth: false, onCard: true) {
                         profile.household = h
                     }
                 }
@@ -454,8 +463,8 @@ struct OnboardingView: View {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 92), spacing: ReffiSpace.s2)],
                       alignment: .center, spacing: ReffiSpace.s2) {
                 ForEach(CuisineStyle.allCases) { c in
-                    SelectableChip(text: c.label, selected: profile.cuisines.contains(c),
-                                   fullWidth: false) {
+                    SelectableChip(text: c.labelKey, selected: profile.cuisines.contains(c),
+                                   fullWidth: false, onCard: true) {
                         profile.toggleCuisine(c)
                     }
                 }
@@ -474,7 +483,7 @@ struct OnboardingView: View {
                 // 맥락이라 서로 다른 구로 분리한다. 취향 미선택이면 튜닝 구는 생략(빈 요약을 안 보이게).
                 HStack(alignment: .top, spacing: ReffiSpace.s2) {
                     ReffiIcon.ai.reffi(18, .bold).foregroundStyle(ReffiColor.blueDark)
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: ReffiSpace.s0) {
                         if !profile.cuisines.isEmpty {
                             Text("Tuned for \(profile.cuisines.summaryText)")
                                 .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
@@ -614,11 +623,12 @@ struct OnboardingView: View {
             // 모달 딤(`scrim`)이 아니라 **슬램 플래시**다 — 도장이 내려앉는 0.75초만 배경을 눌러
             // 무게를 주는 조명이라, 손이 멈춰 있는 동안 서 있는 모달 딤과 역할이 갈린다(§2.7 `scrimFlash`).
             ReffiColor.scrimFlash.ignoresSafeArea()
-            DDayStamp(text: String(localized: "Start"), color: ReffiColor.blueDark, size: 46)
+            DDayStamp(text: String(localized: "Start"), color: ReffiColor.blueDark, size: 46,
+                      relativeTo: .largeTitle)   // 화면 주인공 도장 — subheadline 곡선이면 AX에서 타이틀을 추월한다(42차)
                 .scaleEffect(stampScale)
                 .opacity(stampOpacity)
-                // 그림자는 shadowTint로 일관화(다크에서 ink가 크림으로 뒤집혀 밝아지는 문제 방지).
-                .shadow(color: ReffiColor.shadowTint.opacity(0.18), radius: 14, y: 8)
+                // 슬램 임팩트 그림자(§6.2 예외·42차) — 앱 유일의 10% 초과 그림자라 토큰으로 부른다.
+                .reffiShadowSlam()
         }
         // §7.6 — 이 순간의 의미는 "셋업 저장 완료"라 성공 완료(`.success`)다. 앱에서 유일했던
         // `.impact(.heavy)`는 매핑 표에도 예외(SpriteKit 물리 텍스처)에도 근거가 없는 오프맵이었다.
@@ -704,6 +714,10 @@ private struct HeroReveal: ViewModifier {
     let delay: Double
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var visible = false
+    /// 연출은 **첫 방문 한 번**이다(42차) — TabView(.page)는 양방향이라 앞 페이지로 되돌아올 때마다
+    /// 지연 연출을 처음부터 다시 돌리면, 두 번째 방문의 1.05초 지연이 내러티브가 아니라 로딩으로
+    /// 읽힌다(§7.1 "마지막이 0.2초 넘게 늦으면 스태거가 아니라 '느리게 뜬다'"의 정신).
+    @State private var played = false
 
     func body(content: Content) -> some View {
         content
@@ -712,11 +726,14 @@ private struct HeroReveal: ViewModifier {
             .offset(y: visible ? 0 : hiddenOffset)
             .onAppear { if active { reveal() } }   // 첫 페이지는 onChange가 없어 여기서 재생
             .onChange(of: active) { _, now in
-                if now { reveal() } else { visible = false }   // 이탈은 애니메이션 없이 리셋
+                if now { reveal() }
+                else if !played { visible = false }   // 재생 전 이탈만 리셋 — 재방문은 즉시 서 있는다
             }
     }
 
     private func reveal() {
+        if played { visible = true; return }   // 재방문 — 지연·연출 없이 즉시
+        played = true
         withAnimation(reduceMotion ? nil : animation.delay(delay)) { visible = true }
     }
 

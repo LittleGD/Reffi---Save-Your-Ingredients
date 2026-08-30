@@ -50,11 +50,15 @@ enum ReffiMotion {
 }
 
 /// 종이컷 통통 프레스 — pressed = scale(0.96) + bouncy 스프링(§7.2/7.5). 종이 버튼·뱃지에.
+/// 모션 축소(§7.4)에서는 스케일 값은 남기고 **전환만** 지운다 — pressed 상태 자체는 §7.2의 계약이다.
 struct PaperPressStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .scaleEffect(configuration.isPressed ? 0.96 : 1)
-            .animation(ReffiMotion.bouncyPress, value: configuration.isPressed)
+            .animation(ReffiMotion.gated(ReffiMotion.bouncyPress, reduce: reduceMotion),
+                       value: configuration.isPressed)
     }
 }
 
@@ -64,10 +68,13 @@ extension ButtonStyle where Self == PaperPressStyle {
 
 /// pressed 상태 = scale(0.97) (§7.2). 모든 인터랙티브 요소에.
 struct ReffiPressStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .scaleEffect(configuration.isPressed ? 0.97 : 1)
-            .animation(ReffiMotion.press, value: configuration.isPressed)
+            .animation(ReffiMotion.gated(ReffiMotion.press, reduce: reduceMotion),
+                       value: configuration.isPressed)
     }
 }
 

@@ -11,11 +11,7 @@ struct RecipeMemoCarousel: View {
     var hasIngredients: Bool = false
     /// 빈 덱에서 **호명할** 위험 재고 표시명 — **비-fresh 전체**(soon + urgent), 마감 임박순
     /// (호출부가 얼린 스냅샷). 비어 있으면(전부 신선하거나 재고 없음) 기존 일반 카피가 그대로 뜬다.
-    /// 아래 `uncoveredNames`는 **urgent만** 세는 더 좁은 축이라 이름을 계열로 갈라 둔다.
     var atRiskNames: [String] = []
-    /// 덱은 살아 있는데 **어떤 티켓도 쓰지 않는** 오늘 만료(`urgent`) 재료
-    /// (`RecipeRecommender.uncoveredUrgent`). 비어 있으면 브리지 행 자체를 그리지 않는다.
-    var uncoveredNames: [String] = []
     var onClose: () -> Void
     var onFire: (RecipeRecommender.Result) -> Void = { _ in }
     /// 고른 재료를 실제로 담는다 — **새로 담긴 수**를 돌려준다(이미 있던 것은 세지 않는다, §13.5).
@@ -29,6 +25,8 @@ struct RecipeMemoCarousel: View {
     var onOpenToBuy: () -> Void = {}
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// 42차·F58 — advance 후 사라진 앞 티켓에 커서가 남지 않게 새 앞 티켓으로 옮기는 포커스 앵커.
+    @AccessibilityFocusState private var frontTicketFocused: Bool
     @Environment(\.openURL) private var openURL
     @State private var order: [Int] = []          // 덱 순서 — [0]이 맨 앞
     @State private var dragOffset: CGSize = .zero
@@ -39,9 +37,6 @@ struct RecipeMemoCarousel: View {
     /// 오른쪽 플릭(Cook) → 앞 티켓의 발주 트리거. 발주 상태는 카드가 소유하므로(슬램 연출 구동)
     /// 부모는 이 카운터로 카드의 `fire()`를 부른다 — "Cook this" 버튼과 같은 경로를 태우려는 것이다.
     @State private var fireTrigger = 0
-    /// 미커버 브리지 행의 실측 높이 — 카드 예산에서 빼려면 고정값이 아니라 실제 높이가 필요하다
-    /// (Dynamic Type을 키우면 한 줄도 두 배가 된다). 0 = 아직 안 그렸거나 행이 없음.
-    @State private var bridgeHeight: CGFloat = 0
     // MARK: 담기 3단 팝업 상태 — 선택(체크리스트) → 알림(담김) → 질문(이동)
     /// 이번 흐름이 다루는 부족 재료. 팝업이 뜬 뒤 덱을 넘겨도 목록이 바뀌지 않게 **스냅샷**으로 든다.
     @State private var pickItems: [Recipe.Item] = []
@@ -56,9 +51,9 @@ struct RecipeMemoCarousel: View {
     @State private var alreadyCount = 0
     @State private var addHaptic = 0
 
-    /// 커버 헤더의 실측 높이 — 브리지 행과 카드가 **둘 다** 이 값 아래에 선다. 기본 텍스트 크기의
-    /// `CoverHeader`는 s4(16) + 44 + s3(12) = 72이라 초기값도 72지만, 큰 글씨에서 타이틀·부제가
-    /// 2줄로 접히면 그만큼 자란다 — 고정 72로 두면 헤더가 브리지 행을 통째로 덮는다.
+    /// 커버 헤더의 실측 높이 — 카드가 이 값 아래에 선다(41차에 브리지 행이 빠져 카드 혼자다).
+    /// 초기값 72는 근사일 뿐이고(부제 2줄·내부 간격 s3까지 실제로는 더 크다), 첫 프레임 직후
+    /// `onGeometryChange`가 실측으로 덮어쓴다 — 고정값으로 두면 큰 글씨에서 헤더가 카드 머리를 덮는다.
     @State private var headerHeight: CGFloat = 72
 
     /// 수평 플릭 커밋 임계(예측 변위 width) — 넘기면 부호가 곧 의미다(+ Cook / − Pass).
@@ -75,18 +70,14 @@ struct RecipeMemoCarousel: View {
             // topInset = safe top + 헤더 실측 높이 + 뒤티켓 peek(28), botInset = safe bottom + 12.
             // 기존 124/86과 유사한 시각을 유지하되 기기별 노치·홈 인디케이터에 안전하다.
             // 헤더 예산은 **실측**이다(`headerHeight`) — 72로 박아 두면 큰 글씨에서 부제가 두 줄로
-            // 접히는 순간 헤더가 그 아래 브리지 행을 덮는다(ZStack에서 topBar가 마지막에 그려진다).
-            // 미커버 브리지 행이 있으면 그 실측 높이(+간격)만큼 카드 예산에서 더 뺀다 —
-            // 행은 카드 **위**에 서므로 겹칠 자리가 아니라 자기 자리를 가져가야 한다.
+            // 접히는 순간 헤더가 그 아래 카드를 덮는다(ZStack에서 topBar가 마지막에 그려진다).
             let headerBottom = geo.safeAreaInsets.top + headerHeight
-            let bridgeBudget = showsBridge ? bridgeHeight + ReffiSpace.s2 : 0
-            let topInset = headerBottom + bridgeBudget + 28
+            let topInset = headerBottom + 28
             let botInset = geo.safeAreaInsets.bottom + 12
             let cardHeight = max(0, geo.size.height - topInset - botInset)
             ZStack(alignment: .top) {
                 ReffiColor.paperPass.ignoresSafeArea()
                 if results.isEmpty { emptyState } else { ticketDeck(cardHeight: cardHeight, topInset: topInset) }
-                if showsBridge { bridgeRow.padding(.top, headerBottom) }
                 topBar
             }
         }
@@ -117,7 +108,9 @@ struct RecipeMemoCarousel: View {
                      seed: 14,
                      backdropDismisses: true,   // 질문형 — 바깥 탭 = 취소(실수로 이동시키지 않는다)
                      primary: PaperDialogAction("View") { endAddFlow(openToBuy: true) },
-                     secondary: PaperDialogAction("Cancel") { endAddFlow() })
+                     // "Cancel"이 아니라 "Later"다(42차) — 담기는 앞 장에서 이미 커밋됐고 이 장은
+                     // 이동만 묻는다. Cancel은 방금 담은 걸 되무르는 것으로 읽힌다(기존 키 재사용).
+                     secondary: PaperDialogAction("Later", role: .cancel) { endAddFlow() })
         .reffiFeedback(.success, trigger: addHaptic)   // 목록에 담김 = 성공 완료(§7.6)
     }
 
@@ -200,6 +193,8 @@ struct RecipeMemoCarousel: View {
                 .zIndex(Double(deck.count) + 1)   // 카드 zIndex는 1...deck.count — 그 위
         }
         .accessibilityAction(named: Text("Next ticket")) { advance() }
+        // advance()가 앞 티켓을 hidden으로 내리면 커서가 화면 처음으로 튕긴다 — 새 앞 티켓으로
+        // 옮긴다(42차·F58, `HistoryView.chipRowFocused`가 확립한 패턴).
     }
 
     @ViewBuilder private func ticketCard(idx: Int, depth: Int, cardHeight: CGFloat, topInset: CGFloat) -> some View {
@@ -219,7 +214,7 @@ struct RecipeMemoCarousel: View {
                       // 카드는 목록을 넘기기만 한다 — 고르기·담기·이동은 덱 위 팝업의 일이다.
                       onPickMissing: onAddMissing == nil ? nil : { startAddFlow($0) })
             .frame(height: cardHeight)   // 카드가 컨테이너를 넘지 못하게 캡(headerOnly도 동일 캡)
-            .padding(.horizontal, ReffiGrid.margin + 8)
+            .padding(.horizontal, ReffiGrid.margin + ReffiSpace.s2)   // 24 — 티켓 계열 공통 인셋(§9.2)
             .padding(.top, topInset)
             .scaleEffect(isFront ? 1 : 1 - CGFloat(depth) * 0.035, anchor: .top)
             .offset(y: isFront ? 0 : CGFloat(depth) * -14)   // 뒤 티켓이 위로 머리를 내민다
@@ -229,6 +224,9 @@ struct RecipeMemoCarousel: View {
             .offset(isFront ? dragOffset : .zero)
             .allowsHitTesting(isFront)
             .accessibilityHidden(!isFront)
+            // 포커스 바인딩은 **앞 티켓에만 조건부로** 붙인다(42차·F58) — 바인딩이 붙은 요소는
+            // `accessibilityHidden`이어도 트리에 남을 수 있어 뒤 티켓엔 아예 붙이지 않는다.
+            .modifier(FocusWhenFront(isFront: isFront, focused: $frontTicketFocused))
             .zIndex(Double(deck.count - depth))
             // `deck.count > 1` 가드는 두지 않는다 — 오른쪽 플릭은 넘김이 아니라 발주라 1장 덱에서도 성립한다.
             .gesture(isFront && !fired ? frontDrag : nil)
@@ -387,6 +385,20 @@ struct RecipeMemoCarousel: View {
     /// 덱 회전 시점 — 이탈이 거의 끝난 지점(옛 0.2초 연출의 0.18초와 같은 비율).
     private static let flySwapRatio: Double = 0.9
 
+    /// 앞 티켓에만 포커스 바인딩을 거는 조건부 모디파이어(42차·F58) — 본문 주석 참조.
+    private struct FocusWhenFront: ViewModifier {
+        let isFront: Bool
+        let focused: AccessibilityFocusState<Bool>.Binding
+
+        func body(content: Content) -> some View {
+            if isFront {
+                content.accessibilityFocused(focused)
+            } else {
+                content
+            }
+        }
+    }
+
     /// 맨 앞 티켓을 덱 뒤로 — 다음 티켓이 스프링으로 올라온다.
     private func advance() {
         guard deck.count > 1, !fired else { return }
@@ -395,6 +407,7 @@ struct RecipeMemoCarousel: View {
         var t = Transaction(); t.disablesAnimations = true
         withTransaction(t) { dragOffset = .zero }
         withAnimation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion)) { order = d }
+        frontTicketFocused = true   // 42차·F58 — 커서를 새 앞 티켓으로(유실 방지)
     }
 
     private func fire(_ result: RecipeRecommender.Result) {
@@ -415,11 +428,11 @@ struct RecipeMemoCarousel: View {
             .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { headerHeight = $0 }
     }
 
-    // MARK: - 영상 브리지 (덱이 임박 재료를 못 다룰 때의 출구)
+    // MARK: - 빈 덱 영상 안내 (덱이 임박 재료를 못 다룰 때의 출구)
 
     /// 호명 대상 — **최대 2종**. 셋 이상을 다 부르면 안내가 목록이 되어버린다(티켓이 아니라 리스트
     /// 화면이 할 일). 나머지는 덱·냉장고가 계속 들고 있다. 문구와 영상 버튼이 **같은 배열**을 본다 —
-    /// 버튼이 첫 번째만 열면 두 번째로 부른 재료에는 브리지가 메우려던 침묵이 그대로 남는다.
+    /// 버튼이 첫 번째만 열면 두 번째로 부른 재료는 호명만 되고 검색으로 이어지지 않는다.
     private func spoken(_ names: [String]) -> [String] {
         Array(names.prefix(2))
     }
@@ -427,46 +440,6 @@ struct RecipeMemoCarousel: View {
     /// 호명 문구용 이름 묶음 — 호명 대상을 ", "로 잇는다.
     private func named(_ names: [String]) -> String {
         spoken(names).joined(separator: ", ")
-    }
-
-    /// 브리지 행은 **덱이 있을 때만** 뜬다 — 빈 덱의 출구는 빈 상태 자체가 담당한다(중복 안내 금지).
-    private var showsBridge: Bool { !results.isEmpty && !uncoveredNames.isEmpty }
-
-    /// 미커버 임박 브리지 — 티켓 덱 위 **한 줄짜리** 종이 행. "이 티켓들이 안 쓰는 재료"를 말하고
-    /// 그 자리에서 영상 검색으로 보낸다. 덱이 압박(“오늘 N개 위험”)만 하고 정작 그 재료를 다루지
-    /// 않는 침묵을 메우는 것이 목적이라, 다룰 게 없으면(=`uncoveredNames` 비면) 아예 그리지 않는다.
-    private var bridgeRow: some View {
-        HStack(spacing: ReffiSpace.s2) {
-            // 재료 이름은 영·한 모두 문장 **끝**에 온다 — 한 줄로 묶으면 큰 글씨에서 잘려 나가는 부분이
-            // 정확히 이 행의 유일한 payload다. 두 줄까지 접고 그 전에 더 깊이 축소한다(행 높이는 실측이라
-            // 자라도 카드를 덮지 않는다).
-            Text("Nothing on these tickets uses \(named(uncoveredNames)).")
-                .reffiType(.metaText).foregroundStyle(ReffiColor.ink2)
-                .lineLimit(2).minimumScaleFactor(0.7)
-            Spacer(minLength: ReffiSpace.s2)
-            Button {
-                openURL(RecipeVideoSearch.urlForIngredients(spoken(uncoveredNames)))
-            } label: {
-                ReffiIcon.youtube.reffi(18, .fill)
-                    .foregroundStyle(ReffiColor.urgentDark)
-                    .frame(width: ReffiChrome.tapMin, height: ReffiChrome.tapMin)   // 시각 18pt, 히트 44pt(§7.3)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.paperPress)
-            .accessibilityLabel(Text("Open recipe videos"))
-            .accessibilityHint(Text("Opens YouTube in your browser"))
-        }
-        .padding(.leading, ReffiSpace.s4)
-        .padding(.trailing, ReffiSpace.s1)
-        .frame(minHeight: ReffiChrome.tapMin)
-        .background {
-            let shape = PaperRect(cornerRadius: ReffiRadius.sm, seed: 5)
-            shape.fill(ReffiColor.paper)
-                .paperEdge(shape)
-        }
-        .padding(.horizontal, ReffiGrid.margin + 8)
-        // 실측 높이를 카드 예산으로 되돌린다 — 고정값으로 잡으면 큰 글씨에서 카드 머리를 덮는다.
-        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { bridgeHeight = $0 }
     }
 
     /// 빈 덱 — 원인 기반 안내: 재료가 있는데 매칭 0이면 **그 임박 재료를 호명하고** 영상으로 보낸다.
@@ -477,7 +450,7 @@ struct RecipeMemoCarousel: View {
             FoodMotif(glyph: .generic).frame(width: 110, height: 110)
             Text("No tickets yet").reffiType(.heading).foregroundStyle(ReffiColor.ink)
             if !atRiskNames.isEmpty {
-                Text("\(named(atRiskNames)) won't last long. Find a video and cook it today.")
+                Text("\(named(atRiskNames)) won't last long. Cook it today.")
                     .reffiType(.body).foregroundStyle(ReffiColor.ink2).multilineTextAlignment(.center)
                 PaperButton(title: "Open recipe videos", fullWidth: false, seed: 5) {
                     openURL(RecipeVideoSearch.urlForIngredients(spoken(atRiskNames)))
@@ -492,7 +465,7 @@ struct RecipeMemoCarousel: View {
                 Text("No tickets from what's in your fridge yet.\nCheck the ingredient names, restock, or add your own recipe in Profile.")
                     .reffiType(.body).foregroundStyle(ReffiColor.ink2).multilineTextAlignment(.center)
             } else {
-                Text("Keep a few ingredients on, then start cooking.")
+                Text("Add a few ingredients, then start cooking.")
                     .reffiType(.body).foregroundStyle(ReffiColor.ink2).multilineTextAlignment(.center)
             }
         }

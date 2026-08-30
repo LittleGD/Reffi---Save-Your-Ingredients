@@ -11,7 +11,7 @@ import SwiftUI
 /// - 타이틀은 2줄까지 접고 그 전에 축소한다(`minimumScaleFactor`) — 중앙 정렬이라 긴 한글 타이틀이
 ///   X와 부딪히기 쉬운데, 잘라내기보다 줄바꿈·축소를 먼저 쓴다.
 /// - **부제도 2줄에서 끊는다.** 제한이 없으면 큰 글씨에서 부제 혼자 헤더를 몇 줄이고 밀어내
-///   아래 콘텐츠(티켓 덱의 브리지 행 등)를 덮는다. 두 줄이면 두 방향 안내가 다 들어간다.
+///   아래 콘텐츠(티켓 덱의 카드 머리 등)를 덮는다. 두 줄이면 두 방향 안내가 다 들어간다.
 struct CoverHeader<Accessory: View>: View {
     let title: LocalizedStringKey
     var subtitle: LocalizedStringKey?
@@ -37,16 +37,23 @@ struct CoverHeader<Accessory: View>: View {
             HStack(alignment: .center, spacing: 0) {
                 Color.clear.frame(width: ReffiChrome.tapMin, height: ReffiChrome.tapMin)   // 우측 X(44)와 대칭 — 타이틀 진짜 중앙
                 Spacer(minLength: ReffiSpace.s2)
-                VStack(spacing: 1) {
+                VStack(spacing: ReffiSpace.s3) {
                     Text(title)
                         .reffiType(.heading).foregroundStyle(ReffiColor.ink)
-                        .lineLimit(2).minimumScaleFactor(0.85)
+                        .lineLimit(2).minimumScaleFactor(ReffiShrink.subtle)
                     if let subtitle {
                         Text(subtitle).reffiType(.caption).foregroundStyle(ReffiColor.ink2)
                             .lineLimit(2)
+                            // 2줄 상한은 유지하되(§14.2 — 상한을 걷으면 브리지 행을 덮는다) 한국어처럼
+                            // 원문보다 긴 번역이 상한에 닿으면 뒷문장을 자르는 대신 살짝 줄인다(42차).
+                            .minimumScaleFactor(ReffiShrink.subtle)
                     }
                 }
                 .multilineTextAlignment(.center)
+                // 제목+부제를 한 정차로 묶고 의미 위계를 단다(42차) — 이 헤더를 쓰는 커버 세 곳의
+                // 제목이 로터 "제목" 탐색에서 사라져 있었다(`SheetHeader`와 같은 수정).
+                .accessibilityElement(children: .combine)
+                .accessibilityAddTraits(.isHeader)
                 Spacer(minLength: ReffiSpace.s2)
                 closeButton
             }

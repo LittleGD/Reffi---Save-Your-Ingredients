@@ -1,7 +1,14 @@
 import SwiftUI
 
-/// 스페이싱 스케일(§4.1) — 타이포 기준 6·8·12·16·24·28·32.
+/// 스페이싱 스케일(§4.1) — 타이포 기준 2·6·8·12·16·24·28·32.
+///
+/// `s0`(42차 신설) — **두 줄 텍스트 쌍의 마이크로갭**(제목+메타, 이름+캡션). 스케일의 최소 단이
+/// 6이던 시절 이 자리를 받아 줄 토큰이 없어 저자마다 1·2·3·4·5를 즉흥 결정했고(32곳 5값),
+/// 같은 성격의 블록이 화면마다 미묘하게 다른 밀도로 읽혔다. 25곳 중 18곳이 이미 2였다 —
+/// 다수값을 정본으로 올린 것이지 새 값을 발명한 게 아니다. 행간의 연장이지 요소 간격이 아니므로
+/// 아이콘-텍스트 간격(s1)과 축이 다르다.
 enum ReffiSpace {
+    static let s0: CGFloat = 2    // 두 줄 텍스트 쌍(제목+메타) 마이크로갭 — 행간의 연장
     static let s1: CGFloat = 6    // 아이콘-텍스트, 칩 내부
     static let s2: CGFloat = 8    // 작은 간격, 모바일 거터, 인접 터치 간격
     static let s3: CGFloat = 12   // 인풋/버튼 내부 패딩
@@ -9,6 +16,11 @@ enum ReffiSpace {
     static let s5: CGFloat = 24   // 카드 패딩, 섹션 내 간격
     static let s6: CGFloat = 28   // 넓은 패딩
     static let s7: CGFloat = 32   // 섹션 간 분리
+
+    /// 티켓 상단 광학 넛지 — 톱니(`ReffiTooth.ticket`) 종이의 상단 여백은 s5(24)에 +2를 더해야
+    /// 절취 골과 첫 잉크 사이가 카드류(s5)와 같은 "읽히는 거리"가 된다. 오더·조리·공유 티켓
+    /// 세 표면이 각자 `s5 + 2`를 손으로 적고 있었다 — 우연의 일치가 아니라 같은 판단이라 이름을 준다.
+    static let ticketTop: CGFloat = s5 + 2
 }
 
 /// 곡률(§4.2) — 요소의 내부 패딩 토큰에 종속.
@@ -107,6 +119,16 @@ enum ReffiJudgeZone {
     static let fade: TimeInterval = 0.15
     /// 하이라이트 전환(초).
     static let hotDuration: TimeInterval = 0.1
+}
+
+extension View {
+    /// **엣지 광학 보정**(§7.3·42차) — 히트 영역을 `tapMin`으로 넓힌 컨트롤이 페이지/카드 엣지에
+    /// 앉으면, 시각 글리프가 (hit − visual) / 2 만큼 안쪽으로 밀려 우측 정렬선만 너덜너덜해진다
+    /// (좌측은 맨 Text라 마진에 딱 붙는데 우측은 전부 버튼이다). 히트 프레임은 그대로 두고
+    /// 그 절반만큼 엣지 쪽으로 되민다 — `PaperChecklistDialog` 닫기 X가 처음 쓴 보정의 공용화.
+    func edgeAligned(_ edge: Edge.Set, visual: CGFloat, hit: CGFloat = ReffiChrome.tapMin) -> some View {
+        padding(edge, -(hit - visual) / 2)
+    }
 }
 
 /// 상태 투명도(§7.2) — 디밍은 반드시 이 토큰으로. 리터럴을 호출부에 흩뿌리면

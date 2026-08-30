@@ -336,7 +336,7 @@ struct ShoppingListContent: View {
         // **밀기는 보조기술에 존재하지 않는다.** VoiceOver 사용자에게 같은 동작을 주는 유일한 길이
         // 커스텀 액션이라, 빼기를 제스처로 내린 이 라운드에서는 선택이 아니라 필수다.
         // 세 경로(끝까지 밀기·드러낸 조각 탭·이 액션)가 전부 아래 `remove(_:)` 하나를 부른다.
-        .accessibilityAction(named: Text("Remove from the memo")) { remove(item) }
+        .accessibilityAction(named: Text("Remove from the list")) { remove(item) }
     }
 
     /// 행 얼굴 — 실루엣 + 이름 + 파란 Bought 알약. 19차의 구성에서 ✕만 빠졌다.
@@ -355,8 +355,8 @@ struct ShoppingListContent: View {
                     .reffiType(.pillLabel)
                     .fixedSize()   // 이름 열이 길어도 라벨은 꺾이지 않는다 — 폭 경합에선 이름이 접힌다
                     .foregroundStyle(ReffiColor.blueDark)
-                    .padding(.horizontal, ReffiSpace.s3 + 2)
-                    .padding(.vertical, ReffiSpace.s1 + 1)
+                    .padding(.horizontal, ReffiSpace.s3)
+                    .padding(.vertical, ReffiSpace.s1)
                     .background {
                         let s = PaperRect(cornerRadius: ReffiRadius.pill, seed: 1)
                         s.fill(ReffiColor.blueLight).paperEdge(s)
@@ -366,7 +366,7 @@ struct ShoppingListContent: View {
             }
             .buttonStyle(.paperPress)
             .accessibilityLabel(Text("Bought \(item.name)"))
-            .accessibilityHint(Text("Puts it back in the fridge and clears it from the memo."))
+            .accessibilityHint(Text("Puts it back in the fridge and clears it from the list."))
         }
     }
 
@@ -387,7 +387,7 @@ struct ShoppingListContent: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.paperPress)
-        .accessibilityLabel(Text("Remove \(item.name) from the memo"))
+        .accessibilityLabel(Text("Remove \(item.name) from the list"))
         .accessibilityHint(Text("Takes it off the list without buying it."))
         .accessibilityHidden(!revealed)
         .allowsHitTesting(revealed)
@@ -607,6 +607,8 @@ private struct ToBuySearchSheet: View {
                 Button { query = "" } label: {
                     ReffiIcon.close.reffi(11).foregroundStyle(ReffiColor.muted)
                         .frame(width: 30, height: 30)
+                        // 시각은 30pt, 히트 영역은 44pt(§7.3·42차) — History 힌트 X와 같은 처방.
+                        .frame(minWidth: ReffiChrome.tapMin, minHeight: ReffiChrome.tapMin)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.reffiPress)   // §7.2 — .plain은 눌림이 없다(앱에서 유일하게 남아 있던 자리)
@@ -684,7 +686,7 @@ private struct ToBuySearchSheet: View {
         // 라벨 문법은 타일과 같다(담김 여부를 라벨이 직접 말한다 — 트레잇만으론 상태가 어긋나 읽힌다).
         .accessibilityLabel(listed ? Text("Added \(query)") : Text("Add \(query)"))
         .accessibilityHint(Text("Adds the name exactly as typed."))
-        .accessibilityAddTraits(listed ? [.isButton, .isSelected] : .isButton)
+        .accessibilityAddTraits(listed ? [.isSelected] : [])
     }
 
     /// 직접 입력 담기 실행 — 해석은 **정확 일치까지만** 하고 끝낸다(`canonicalIsFinal`).
@@ -769,7 +771,7 @@ private struct ToBuySearchSheet: View {
                     .reffiType(.metaText)
                     .foregroundStyle(ReffiColor.ink)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+                    .minimumScaleFactor(ReffiShrink.chrome)
             }
             .padding(.vertical, ReffiSpace.s2)
             .padding(.horizontal, ReffiSpace.s1)
@@ -804,7 +806,7 @@ private struct ToBuySearchSheet: View {
         // 라벨이 담김 상태를 직접 말한다 — `.isSelected` 트레잇만으로는 "사과, 선택됨, 버튼 / Add 사과"
         // 처럼 라벨과 상태가 어긋나 읽힌다. 검색 결과 타일도 이 함수를 쓰므로 수정 지점은 여기 하나다.
         .accessibilityLabel(listed ? Text("Added \(item.name)") : Text("Add \(item.name)"))
-        .accessibilityAddTraits(listed ? [.isButton, .isSelected] : .isButton)
+        .accessibilityAddTraits(listed ? [.isSelected] : [])
     }
 
     /// 담기 — **그리드 타일·결과 행 공통**. 탭을 뷰에서 미리 막지 않고 **항상 store로 보낸다**:

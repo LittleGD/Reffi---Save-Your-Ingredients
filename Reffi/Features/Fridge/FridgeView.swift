@@ -159,6 +159,8 @@ struct FridgeView: View {
     var body: some View {
         // 이 프레임의 목록을 여기서 **한 번만** 만든다(위 `ListDigest` 주석) — 아래 조각들은 전부
         // 이 한 장을 받아 쓴다. 훅(`onChange`)까지 같은 장을 보므로 판정 기준도 화면과 어긋나지 않는다.
+        // digest는 body 진입부에서 한 번(F88 규율). isActive 게이트 안으로 옮기는 최적화(42차 시도)는
+        // 기각됐다 — 드롭다운 오버레이와 카테고리 onChange 훅이 게이트 밖에서 같은 장을 읽는다.
         let list = ListDigest(sorted: sortedItems, category: activeCategory)
         let sel = selected(in: list)
         return ZStack {
@@ -705,13 +707,15 @@ struct FridgeView: View {
         } label: {
             (compact ? ReffiIcon.stackView : ReffiIcon.compactView).reffi(14, .bold)
                 .foregroundStyle(ReffiColor.ink)
-                .padding(ReffiSpace.s2 + 2)
+                .padding(ReffiSpace.s2)
                 .background {
                     let s = PaperRect(cornerRadius: ReffiRadius.sm, seed: 6)
                     s.fill(ReffiColor.paper).paperEdge(s)
                 }
                 .frame(minWidth: ReffiChrome.tapMin, minHeight: ReffiChrome.tapMin)   // §7.3
                 .contentShape(Rectangle())
+                // 히트 44가 시각 30을 우측선 안쪽으로 밀었다 — 마진 라인으로 되민다(§7.3·42차).
+                .edgeAligned(.trailing, visual: 30)
         }
         .buttonStyle(.paperPress)
         .accessibilityLabel(compact ? "Switch to stack view" : "Switch to simple view")
@@ -881,7 +885,7 @@ struct FridgeCompactRow: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             } else {
-                VStack(alignment: .leading, spacing: 1) {
+                VStack(alignment: .leading, spacing: ReffiSpace.s0) {
                     nameText.lineLimit(1)
                     quantityText
                 }
@@ -922,7 +926,7 @@ struct FridgeCompactRow: View {
 
     private var dDayText: some View {
         Text(ingredient.dDayText)
-            .font(.reffiNum(.body))
+            .font(.reffiNum(.body, for: ingredient.dDayText))   // ko "오늘"·"3일" 폴백(§3.4·42차)
             .foregroundStyle(ingredient.freshness.dark)   // §2.6 캔버스/종이 위 색-텍스트는 dark
             .accessibilityLabel(ingredient.dDayAccessibilityText)
     }
@@ -990,7 +994,7 @@ struct ExpandedFridgeCard: View {
             HStack(spacing: ReffiSpace.s4) {
                 PaperSilhouette(glyph: ingredient.glyph, fresh: f)
                     .frame(width: ReffiFoodIcon.hero, height: ReffiFoodIcon.hero)
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: ReffiSpace.s0) {
                     HStack {
                         Text(LocalizedStringKey(ingredient.category))
                             .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
@@ -1022,12 +1026,14 @@ struct ExpandedFridgeCard: View {
             dashRule
             VStack(spacing: 0) {
                 row("Purchased", ingredient.purchasedText)
-                row("Where", ingredient.placeText)
+                // 가게 이름·보관 위치는 숫자가 아니다 — §3.4의 GSF tabular 의무는 데이터 숫자에만
+                // 걸리므로 이 두 행은 `metaText`로 내린다(`SettingsRow.numeric`과 같은 갈림, 42차).
+                row("Where", ingredient.placeText, numeric: false)
                 row("Quantity", ingredient.quantityText)
-                // 값에 축약(· 3d)이 섞인 유일한 행이라 소리로 읽을 말을 따로 준다(§3.4 D-day 한 쌍).
-                row("Expires", "\(ingredient.expiresText) · \(ingredient.dDayText)", valueColor: f.dark,
-                    spokenValue: "\(ingredient.expiresText), \(ingredient.dDayAccessibilityText)")
-                row("Storage", ingredient.storage.label)
+                // D-day는 카드 상단 스탬프가 이미 말한다 — 같은 값을 '· 3d'로 되풀이하지 않는다
+                // (오너 승인·43차 이관: 한 카드에서 같은 사실은 한 번만).
+                row("Use by", ingredient.expiresText, valueColor: f.dark)
+                row("Storage", ingredient.storage.label, numeric: false)
             }
             .padding(.horizontal, ReffiSpace.s5)
             .padding(.vertical, ReffiSpace.s2)
@@ -1044,22 +1050,23 @@ struct ExpandedFridgeCard: View {
     /// 명세 한 줄 — 라벨(좌) + 값(우).
     ///
     /// **라벨과 값은 한 요소로 읽는다**(`FridgeCompactRow`·History와 같은 문법): 나누면 다섯 줄이
-    /// 열 개 요소가 되고, "Expires" 다음 스와이프에서야 날짜가 나온다. `spokenValue`는 화면 표기가
+    /// 열 개 요소가 되고, "Use by" 다음 스와이프에서야 날짜가 나온다. `spokenValue`는 화면 표기가
     /// 축약일 때 그 자리에 대신 읽을 말이다(축약은 눈에만 통한다).
     private func row(_ label: LocalizedStringKey, _ value: String,
                      valueColor: Color = ReffiColor.ink,
-                     spokenValue: String? = nil) -> some View {
+                     spokenValue: String? = nil,
+                     numeric: Bool = true) -> some View {
         VStack(spacing: 0) {
             HStack(alignment: .firstTextBaseline) {
                 Text(label).reffiType(.caption).foregroundStyle(ReffiColor.ink2)
                 Spacer(minLength: ReffiSpace.s4)
                 Text(value)
-                    .font(.reffiNum(.body))
+                    .font(numeric ? .reffiNum(.body, for: value) : ReffiActionRole.metaText.font)
                     .foregroundStyle(valueColor)
                     .multilineTextAlignment(.trailing)
                     .accessibilityLabel(Text(verbatim: spokenValue ?? value))
             }
-            .padding(.vertical, ReffiSpace.s2 + 2)
+            .padding(.vertical, ReffiSpace.s2)
         }
         .accessibilityElement(children: .combine)
     }

@@ -123,10 +123,10 @@ struct ProfileView: View {
                     seed: 1, backdropDismisses: true,
                     primary: PaperDialogAction("Log out", role: .destructive) { Task { await auth.signOut() } },
                     secondary: PaperDialogAction("Cancel", role: .cancel) {})
-        .paperDialog(isPresented: $showDelete, title: "Delete account",
-                    message: "This erases this device's data and signs you out. Full server account deletion is coming soon.",
+        .paperDialog(isPresented: $showDelete, title: "Erase this device's data?",
+                    message: "This erases this device's data and logs you out. Your account stays on the server.",
                     seed: 2, backdropDismisses: true,
-                    primary: PaperDialogAction("Delete", role: .destructive) {
+                    primary: PaperDialogAction("Erase", role: .destructive) {
                         destructiveHaptic += 1   // 룰⑦ — 파괴 확정(.warning)
                         Task {
                             await auth.signOut()      // scope .local — 오프라인에서도 로그아웃
@@ -141,12 +141,19 @@ struct ProfileView: View {
                     secondary: PaperDialogAction("Cancel", role: .cancel) {})
         .paperDialog(isPresented: $showDenied, title: "Notifications are off",
                     message: "Allow notifications for Reffi in Settings to get expiry alerts.",
-                    seed: 3,
-                    primary: PaperDialogAction("OK", role: .cancel) {})
+                    seed: 3, backdropDismisses: true,
+                    // 안내가 지시하는 목적지로 가는 문(42차·F25) — 돌아오면 scenePhase 동기화가
+                    // 토글을 스스로 맞춘다(`syncAuthorization`).
+                    primary: PaperDialogAction("Open Settings") {
+                        if let url = URL(string: UIApplication.openSettingsURLString) {
+                            UIApplication.shared.open(url)
+                        }
+                    },
+                    secondary: PaperDialogAction("Later", role: .cancel) {})
         .paperDialog(isPresented: $showSampleConfirm, title: "Load the sample fridge?",
                     message: "Your current ingredients and history will be replaced.",
                     seed: 4, backdropDismisses: true,
-                    primary: PaperDialogAction("Replace with sample data", role: .destructive) {
+                    primary: PaperDialogAction("Replace", role: .destructive) {
                         destructiveHaptic += 1   // 룰⑦ — 파괴 확정(.warning)
                         withAnimation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion)) {
                             store.loadSampleData()
@@ -156,7 +163,7 @@ struct ProfileView: View {
         .paperDialog(isPresented: $showResetConfirm, title: "Reset all data?",
                     message: "Ingredients and history will be deleted. This can't be undone.",
                     seed: 5, backdropDismisses: true,
-                    primary: PaperDialogAction("Reset everything", role: .destructive) {
+                    primary: PaperDialogAction("Reset", role: .destructive) {
                         destructiveHaptic += 1   // 룰⑦ — 파괴 확정(.warning)
                         withAnimation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion)) {
                             store.resetAllData()
@@ -195,13 +202,13 @@ struct ProfileView: View {
                         ReffiIcon.profile.reffi(30).foregroundStyle(ReffiColor.blueDark)
                     } else {
                         Text(avatarInitial)
-                            // 폴백 판별은 공용 `String.hasHangul`(§ReffiTypography) — 아바타만 라틴 쪽이
-                            // 30pt 전용 크기라 `font(for:)`를 그대로 못 쓰고 판별만 공유한다.
+                            // 폴백 판별은 공용 `String.hasHangul`(§ReffiTypography) — 아바타는 64pt 원 안
+                            // 전용 크기라 role 대신 실크기를 적는다. `scaleEffect` 광학 축소를 걷고(42차 —
+                            // 획 두께·베이스라인 계약 위반) 두 스크립트 모두 `.largeTitle` 곡선으로 통일:
+                            // 한글 사용자와 라틴 사용자가 접근성 큰 글씨에서 같은 레이아웃을 본다.
                             .font(avatarInitial.hasHangul
-                                  ? ReffiTextRole.display.koreanDisplayFont
-                                  : .custom("StoryScript-Regular", size: 30, relativeTo: .title))
-                            // 한글 아바타는 디스플레이 role(34) 재사용 + 28pt로 축소(전용 사이즈 신설 금지, 시각 동일).
-                            .scaleEffect(avatarInitial.hasHangul ? 28.0 / 34.0 : 1, anchor: .center)
+                                  ? .custom("Pretendard-Bold", size: 28, relativeTo: .largeTitle)
+                                  : .custom("StoryScript-Regular", size: 30, relativeTo: .largeTitle))
                             .foregroundStyle(ReffiColor.blueDark)
                     }
                 }
@@ -210,7 +217,7 @@ struct ProfileView: View {
                     let s = PaperBlob(sides: 9, seed: 2)
                     s.fill(ReffiColor.blueLight).paperEdge(s)
                 }
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: ReffiSpace.s0) {
                     // 한글 닉네임은 Story Script(한글 미지원) 대신 Pretendard Bold 폴백(§3.1).
                     Text(profile.nickname)
                         .font(ReffiTextRole.display.font(for: profile.nickname))
@@ -233,10 +240,9 @@ struct ProfileView: View {
         String(profile.nickname.trimmingCharacters(in: .whitespaces).prefix(1)).uppercased()
     }
 
-    /// 부제 — 요리 취향 요약(스트릭은 리포트 도장으로 이동해 중복 제거). 취향 없으면 담백한 문구.
-    private var subtitle: String {
-        profile.cuisines.isEmpty ? String(localized: "Saving food with Reffi") : profile.cuisines.summaryText
-    }
+    /// 부제 — 고정 한 벌(42차). 취향 요약을 얹으면 두 스크롤 아래 Cuisines 행 값과 같은 문자열이
+    /// 한 화면에 두 번 떠, 요약이 아니라 미리보기가 됐다(같은 사실 두 번 말하기).
+    private var subtitle: String { AppLanguage.localizedNow("Saving food with Reffi") }
 
     // MARK: - 요리 취향 영수증
     private var tasteReceipt: some View {
@@ -262,8 +268,8 @@ struct ProfileView: View {
                     .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
                 HStack(spacing: ReffiSpace.s2) {
                     ForEach(HouseholdSize.allCases) { h in
-                        SelectableChip(text: h.label, selected: profile.household == h,
-                                       fullWidth: false) {
+                        SelectableChip(text: h.labelKey, selected: profile.household == h,
+                                       fullWidth: false, onCard: true) {
                             profile.household = h
                         }
                     }
@@ -275,7 +281,7 @@ struct ProfileView: View {
     }
 
     private func tagSummary(_ tags: [String]) -> String {
-        guard !tags.isEmpty else { return String(localized: "None yet") }   // 빈 상태 카피 통일(Cuisines·시트와 동일)
+        guard !tags.isEmpty else { return AppLanguage.localizedNow("None yet") }   // 빈 상태 카피 통일(Cuisines·시트와 동일)
         let head = tags.prefix(2).joined(separator: ", ")
         let extra = tags.count - Swift.min(2, tags.count)
         return extra > 0 ? "\(head) +\(extra)" : head
@@ -338,9 +344,9 @@ struct ProfileView: View {
 
     // MARK: - 내 레시피 영수증 (커스텀 — 추천 풀에 합류)
     private var recipesReceipt: some View {
-        ReceiptCard(title: "My recipes") {
-            SettingsRow(label: "Custom recipes",
-                        value: store.userRecipes.isEmpty ? String(localized: "None yet") : "\(store.userRecipes.count)",
+        ReceiptCard(title: "Recipes") {
+            SettingsRow(label: "My recipes",
+                        value: store.userRecipes.isEmpty ? AppLanguage.localizedNow("None yet") : "\(store.userRecipes.count)",
                         valueColor: store.userRecipes.isEmpty ? ReffiColor.muted : ReffiColor.blueDark,
                         numeric: !store.userRecipes.isEmpty) {
                 showMyRecipes = true
@@ -425,12 +431,12 @@ struct ProfileView: View {
                 // 떨어져 있었다. `SettingsRow`(라벨+값+셰브런, 전체가 탭 표면)로 하나의 명확한
                 // 진입점만 남긴다 — 같은 목적지(인증 시트)로 가는 입구를 화면에 흩뿌리지 않는다.
                 // 카피는 정직하게: 서버 백업은 없으므로 약속하지 않고, 로컬 기기에 남는다는 사실만 말한다.
-                SettingsRow(label: "Guest mode", value: String(localized: "Your data stays on this device")) {
+                SettingsRow(label: "Guest mode", value: AppLanguage.localizedNow("On this device")) {
                     showAuth = true   // 익명 세션을 유지한 채 시트에서 전환/로그인(승계 보장).
                 }
             } else {
                 HStack {
-                    Text("Signed in")
+                    Text("Logged in")
                         .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
                     Spacer()
                     Text(auth.userEmail ?? "")
@@ -448,7 +454,9 @@ struct ProfileView: View {
             }
             ReceiptRule()
             // toss(재료 버림)와 의미 충돌 방지 — 탈퇴는 별도 아이콘(x).
-            QuietButton(title: "Delete account", icon: ReffiIcon.close, tint: ReffiColor.urgentDark) {
+            // 라벨은 실동작을 말한다(42차 — MVP 원칙): 서버 계정은 남으므로 "Delete account"는
+            // 거짓말이었다. 서버 삭제가 생기면 그때 그 이름을 되살린다.
+            QuietButton(title: "Erase this device", icon: ReffiIcon.close, tint: ReffiColor.urgentDark) {
                 showDelete = true
             }
             .padding(.horizontal, ReffiSpace.s3)
@@ -499,7 +507,7 @@ struct ReceiptCard<Content: View>: View {
                 Spacer()
                 if let trailing {
                     Text(trailing)
-                        .font(.reffiNum(.meta)).foregroundStyle(ReffiColor.muted)
+                        .font(.reffiNum(.meta, for: trailing)).foregroundStyle(ReffiColor.muted)
                 }
             }
             .padding(.horizontal, ReffiSpace.s5)
@@ -543,7 +551,7 @@ struct SettingsToggle: View {
 
     var body: some View {
         Toggle(isOn: $isOn) {
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: ReffiSpace.s0) {
                 Text(title).reffiType(.body).foregroundStyle(ReffiColor.ink)
                 Text(caption).reffiType(.caption).foregroundStyle(ReffiColor.ink2)
             }
@@ -573,7 +581,7 @@ struct SettingsRow: View {
                 Spacer(minLength: ReffiSpace.s4)
                 if let value {
                     Text(value)
-                        .font(numeric ? .reffiNum(.body) : ReffiTextRole.caption.font)
+                        .font(numeric ? .reffiNum(.body, for: value) : ReffiTextRole.caption.font)
                         .tracking(numeric ? 0 : ReffiTextRole.caption.tracking)
                         .foregroundStyle(valueColor)
                         .lineLimit(1)

@@ -8,10 +8,12 @@ import UIKit
 /// 세션(시작 시각·예약 재료)은 store에 영속화되어 앱을 껐다 켜도 이어진다.
 ///
 /// **점진적 공개로 단계가 돌아왔다(2026-08, 39차 — 33c8861 오너 테제의 부분 반전).** 티켓 본문
-/// 자체엔 여전히 단계 텍스트가 한 글자도 없다 — 대신 단계가 있는 레시피에만 조용한 밑줄 링크
-/// ("See the cooking details?")가 서고, 탭하면 `KitchenCopySheet`가 하단에서 올라온다. 영상 CTA는
-/// 이 링크의 유무와 무관하게 항상 1차 자리를 지킨다(§videoButton). 파일명은 진입점 참조가
-/// 흩어져 있어 그대로 둔다.
+/// 자체엔 여전히 단계 텍스트가 한 글자도 없다 — 대신 단계가 있는 레시피에만 요리 아이콘 바로 아래
+/// 조용한 톤(`kind: .secondary`)의 종이 버튼("How to cook", 48차 — "Steps"(44차)가 내용이 와닿지
+/// 않는다는 피드백으로 교체. 41차엔 39차의 밑줄 링크를 대체)이
+/// 서고, 탭하면 `KitchenCopySheet`가 하단에서 올라온다. 영상 CTA는 이 버튼의 유무와 무관하게
+/// 항상 조리법의 1차 경로를 맡는다(§videoButton) — 톤만 낮췄을 뿐 자리가 없어지는 게 아니다.
+/// 파일명은 진입점 참조가 흩어져 있어 그대로 둔다.
 struct CookingStepsView: View {
     @Environment(FridgeStore.self) private var store
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -100,7 +102,7 @@ struct CookingStepsView: View {
     /// 세로 계산에서 `geo.safeAreaInsets`를 직접 빼는 이유가 그것이다) 원칙적으로는 빼야 맞지만,
     /// 앱이 `Info.plist`에서 **세로 고정**이라 세로 아이폰의 좌우 인셋은 항상 0이다 — 지금은 같은 값이다.
     /// 가로 모드나 iPad를 지원하게 되면 여기도 `geo.safeAreaInsets.leading/.trailing`을 빼야 한다.
-    private let ticketInset = ReffiGrid.margin + 8
+    private let ticketInset = ReffiGrid.margin + ReffiSpace.s2   // 24 — 티켓 계열 공통 인셋(§9.2)
 
     /// 공유 카드를 굽기까지의 유예(초) — 풀스크린 커버 전환(§7.1 dur-3, 0.24s)이 끝나고도 한 박자
     /// 남는 값이다. 짧게 잡으면 전환 마지막 프레임과 겹치고, 길게 잡으면 공유를 바로 누른 손이
@@ -163,8 +165,8 @@ struct CookingStepsView: View {
                 .presentationDetents([.medium])
                 .presentationDragIndicator(.visible)   // 룰④ — 하단 시트는 dragIndicator(핸들) 필수, 닫기 신호 확보
         }
-        // 주방 전표(39차) — 티켓 안 "See the cooking details?" 링크가 연다. 체크는 store에 바로
-        // 반영되므로(`toggleCookStep`) 시트를 닫았다 열어도, 앱을 껐다 켜도 유지된다.
+        // 주방 전표(39차) — 티켓 안 "How to cook"(48차) 링크가 연다.
+        // 체크는 store에 바로 반영되므로(`toggleCookStep`) 시트를 닫았다 열어도, 앱을 껐다 켜도 유지된다.
         .sheet(isPresented: $showKitchenCopy) {
             if let cook = store.activeCook {
                 KitchenCopySheet(recipeName: cook.recipeName,
@@ -179,17 +181,18 @@ struct CookingStepsView: View {
         // 종이 확인으로 전환(2026-08, 35차 사용자 결정) — design_system.md §14.7이 조리 취소를
         // "그대로 시스템" 목록에서 뺀 경우다. primary에 `role: .destructive`를 줘 `PaperDialog`가
         // 파랑 대신 urgentDark 솔리드로 그리게 한다(파괴 행동에 파랑을 쓰지 않는다).
-        // 뒷배경 탭 = Keep cooking(질문형 안전 기본값, §14.7).
+        // 뒷배경 탭 = Keep(질문형 안전 기본값, §14.7). "Cancel"을 파괴 확정에 쓰지 않는 근거(42차)는
+        // 그대로다 — 다른 다이얼로그 전부에서 Cancel은 "안전하게 빠져나감"(secondary)이다.
         .paperDialog(isPresented: $showCancelConfirm,
                      title: "Put ingredients back?",
                      message: "Nothing is logged. Reserved ingredients return to the fridge.",
                      backdropDismisses: true,
-                     primary: PaperDialogAction("Cancel cooking", role: .destructive) {
+                     primary: PaperDialogAction("Stop", role: .destructive) {
                          withAnimation(ReffiMotion.gated(ReffiMotion.pop, reduce: reduceMotion)) {
                              store.cancelCooking()
                          }
                      },
-                     secondary: PaperDialogAction("Keep cooking") {})
+                     secondary: PaperDialogAction("Keep") {})
     }
 
     // MARK: - 하단 도킹 CTA
@@ -214,16 +217,15 @@ struct CookingStepsView: View {
                 }
 
                 // 조리 포기 — 예약을 해제하고 재료를 되돌린다(기록 없음). fire의 안전한 반대 방향.
-                // 종이 버튼화(2026-08, 35차) — 예전엔 캡션 텍스트 한 줄이라 버튼으로 읽히지 않았고
-                // 라벨도 길었다. `QuietButton`(면 없는 텍스트 버튼 — ProfileView의 "Reset all data"·
-                // "Delete account"와 같은 문법, `tint: urgentDark`로 파괴 성향의 잉크색만 준다)으로
-                // 바꾸고 라벨은 "Cancel cooking"(다이얼로그 실행 버튼과 같은 키)으로 줄인다 — "재료를
-                // 되돌린다"는 세부는 화면에서 지워지지 않고 다이얼로그 메시지 + 아래 접근성 힌트에
-                // 그대로 남는다. 파랑 "Finish cooking"과 경쟁하지 않도록 면 없는 조용한 등급을 유지한다.
-                QuietButton(title: "Cancel cooking", tint: ReffiColor.urgentDark) {
+                // 종이 버튼화(2026-08, 35차) 후 42차에서 라벨을 "Put ingredients back"으로 —
+                // 다이얼로그 제목("Put ingredients back?")과 같은 동사를 쓴다. 실행 버튼은 pr20의
+                // 한 단어 규칙(§14.7)으로 "Stop"이고, "Cancel"이라는 낱말은 앱 전역에서
+                // secondary(안전한 빠져나감) 전용으로 예약한다.
+                // 파랑 "Finish cooking"과 경쟁하지 않도록 면 없는 조용한 등급은 유지한다.
+                QuietButton(title: "Put ingredients back", tint: ReffiColor.urgentDark) {
                     showCancelConfirm = true
                 }
-                .accessibilityHint(Text("Nothing is logged. Reserved ingredients return to the fridge."))
+                .accessibilityHint(Text("Nothing is logged."))
             }
         }
     }
@@ -232,7 +234,7 @@ struct CookingStepsView: View {
 
     private var finishSheet: some View {
         VStack(alignment: .leading, spacing: ReffiSpace.s4) {
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: ReffiSpace.s0) {
                 Text("Anything left over?").reffiType(.heading).foregroundStyle(ReffiColor.ink)
                 Text("Leftovers stay in the fridge at half the amount.")
                     .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
@@ -272,7 +274,7 @@ struct CookingStepsView: View {
                     .reffiType(.pillLabel)
                     .foregroundStyle(left ? ReffiColor.soonDark : ReffiColor.freshDark)
                     .padding(.horizontal, ReffiSpace.s3)
-                    .padding(.vertical, ReffiSpace.s1 + 1)
+                    .padding(.vertical, ReffiSpace.s1)
                     // §13.1 종이컷 8각형(캡슐 금지) — 행동 표면의 상태 칩도 종이 문법을 따른다.
                     .background((left ? ReffiColor.soonLight : ReffiColor.freshLight), in: PaperCutRect(seed: 5))
             }
@@ -297,7 +299,7 @@ struct CookingStepsView: View {
                 // 한 구(句)를 두 role로 쪼개지 않는다 — "Started"가 caption(14/자간 +0.14),
                 // 바로 옆 경과 시간이 metaText(13/자간 0)라 같은 문장 안에서 1pt·자간만 어긋나
                 // 위계가 아니라 어색한 이격으로만 보였다. 데이터형 메타 하나로 묶는다(§3.5).
-                HStack(spacing: 4) {
+                HStack(spacing: ReffiSpace.s0) {
                     Text("Started")
                     // 상대 시간 표기는 기기 로케일을 따른다(38차 결정 — 앱 언어와 분리, 아래 근거).
                     Text(cook.startedAt, style: .relative)
@@ -315,18 +317,10 @@ struct CookingStepsView: View {
     /// - Parameter ticketWidth: 영수증 종이의 실측 폭 — 히어로 아이콘이 그 절반으로 선다.
     private func ticket(_ cook: FridgeStore.CookSession, ticketWidth: CGFloat) -> some View {
         VStack(alignment: .leading, spacing: ReffiSpace.s3) {
-            // 헤더 — 오더 티켓과 같은 모노 크롬. 공유 카드(RecipeShareCard)와 같은 규칙으로
-            // 셀 게 없으면(count 0) 수치를 아예 빼, 두 종이가 서로 다른 말을 하지 않게 한다.
-            HStack(alignment: .firstTextBaseline) {
-                Text(verbatim: "ORDER · FIRED")
-                    .reffiType(.monoTicketLabel).foregroundStyle(ReffiColor.urgentDark)
-                Spacer()
-                if cook.count > 0 {
-                    Text("\(cook.count) used")
-                        .reffiType(.metaText)
-                        .foregroundStyle(ReffiColor.ink2)
-                }
-            }
+            // 헤더 — 오더 티켓과 같은 모노 크롬. "N used" 수치는 조리 화면에서 뺐다(2026-08, 42차)
+            // — 공유 카드(RecipeShareCard)는 별도 표면이라 그대로 둔다.
+            Text(verbatim: "ORDER · FIRED")
+                .reffiType(.monoTicketLabel).foregroundStyle(ReffiColor.urgentDark)
 
             // 메뉴명 — 조리 티켓에선 이름만 한 줄로 둔다. 아이콘은 아래 히어로 블록이 맡는다.
             Text(verbatim: cook.recipeName)
@@ -360,7 +354,7 @@ struct CookingStepsView: View {
                         .foregroundStyle(ReffiColor.ink2)
                         .multilineTextAlignment(.center)
                         .lineLimit(3)
-                        .minimumScaleFactor(0.85)
+                        .minimumScaleFactor(ReffiShrink.subtle)
                         .fixedSize(horizontal: false, vertical: true)
                         // UI 테스트 훅 — 소개 문구를 테스트에 하드코딩하지 않고 집는다
                         // (`ticket.menuName` 선례). 라벨은 그대로라 VoiceOver는 문장을 읽는다.
@@ -369,6 +363,24 @@ struct CookingStepsView: View {
             }
             .frame(maxWidth: .infinity)   // leading VStack 안에서 가운데로
             .padding(.vertical, ReffiSpace.s2)
+
+            // 상세 링크 → 종이컷 버튼(2026-08, 41차 owner decision) — 옛 밑줄 텍스트 링크를 걷어내고
+            // 요리 아이콘 바로 아래, 영상·공유 행보다 먼저 서는 `PaperButton`(§13.5 변형)으로 올린다.
+            // **단계가 있을 때만** 선다(대부분의 커스텀 레시피는 없다 — §KitchenCopySheet). 화면엔
+            // 이제 종이 버튼이 셋(디테일·영상·Finish cooking)이라 위계는 톤으로 가른다 — 영상 CTA는
+            // 강조 톤(urgentLight/urgentDark 커스텀 면)을 그대로 유지하고, 이 버튼은 `kind: .secondary`
+            // (sub 면 + ink 잉크, "Maybe later"·`PaperDialog` 보조 버튼과 같은 등급)로 눌러 셋 중
+            // 가장 조용하게 읽히게 한다 — 자리는 먼저 만나지만 톤은 낮다.
+            // **39차-b**: 스냅샷만 보면 39차 이전에 발주된 구세션은 `cook.steps`가 nil이라 이 링크가
+            // 실제 단계 있는 레시피에서도 안 섰다(실기기 리포트) — `resolvedSteps(for:)`가 스냅샷 →
+            // 원본 레시피 순으로 폴백해 게이트와 시트 콘텐츠가 항상 같은 답을 보게 한다.
+            if let steps = resolvedSteps(for: cook) {
+                PaperButton(title: "How to cook", kind: .secondary, seed: 6) {
+                    showKitchenCopy = true
+                }
+                // accessibilityLabel 제거(48차) — "How to cook"은 이미 서술적이라 별도 라벨은 이중화만 남긴다(44차 보완 사유 소멸).
+                .accessibilityHint(Text("Opens the full list of cooking steps"))
+            }
 
             // 조리법의 1차 경로 — 레시피명으로 유튜브 검색을 연다. 아이콘+라벨 와이드 CTA(아이콘 단독 아님).
             // 공유는 그 옆의 보조 행동이라 조용한 종이컷 아이콘(§13.5)으로 남긴다.
@@ -379,38 +391,21 @@ struct CookingStepsView: View {
                         item: shareImage,
                         preview: SharePreview(Text(verbatim: cook.recipeName), image: shareImage)
                     ) {
-                        PaperIconLabel(icon: ReffiIcon.share, label: "Share", intent: .neutral, size: 52, seed: 4)
+                        PaperIconLabel(icon: ReffiIcon.share, label: "Share", intent: .neutral, size: 52, seed: 4, onCard: true)
                     }
                     .buttonStyle(.paperPress)
                     .accessibilityLabel(Text("Share"))
                     .accessibilityHint(Text("Opens the share sheet"))
                 } else {
                     // 렌더 완료 전 짧은 순간의 비활성 플레이스홀더(크래시·빈 공유 방지) — 렌더는 즉시 끝나 실사용엔 티 안 남.
-                    PaperIconLabel(icon: ReffiIcon.share, label: "Share", intent: .neutral, size: 52, seed: 4)
+                    PaperIconLabel(icon: ReffiIcon.share, label: "Share", intent: .neutral, size: 52, seed: 4, onCard: true)
                         .opacity(ReffiOpacity.disabled)
                         .accessibilityHidden(true)
                 }
             }
-
-            // 조용한 옵트인 링크(2026-08, 39차) — 옛 "Cook it your way. The video has the details."
-            // 캡션을 대신한다. **단계가 있을 때만** 선다(대부분의 커스텀 레시피는 없다 — §KitchenCopySheet).
-            // 필(pill) 대신 밑줄 텍스트로 조용히: 파랑 CTA(영상·Finish cooking)와 경쟁하지 않으면서도
-            // 35차가 걷어낸 옛 텍스트 버튼("캡션처럼 읽혀 눌리지 않던")과 달리 밑줄로 탭 가능 신호를
-            // 명시한다(design_system.md §Quiet 텍스트 링크). 시각은 작게, 히트 영역은 §7.3 44pt.
-            // **39차-b**: 스냅샷만 보면 39차 이전에 발주된 구세션은 `cook.steps`가 nil이라 이 링크가
-            // 실제 단계 있는 레시피에서도 안 섰다(실기기 리포트) — `resolvedSteps(for:)`가 스냅샷 →
-            // 원본 레시피 순으로 폴백해 게이트와 시트 콘텐츠가 항상 같은 답을 보게 한다.
-            if let steps = resolvedSteps(for: cook) {
-                QuietButton(title: "See the cooking details?", tint: ReffiColor.ink2, underline: true) {
-                    showKitchenCopy = true
-                }
-                .frame(maxWidth: .infinity)   // 부모 VStack이 leading이라 명시적으로 가운데 정렬
-                .accessibilityHint(Text("Opens the full list of cooking steps"))
-            }
-
         }
         .padding(.horizontal, ReffiSpace.s5)
-        .padding(.vertical, ReffiSpace.s5 + 2)
+        .padding(.vertical, ReffiSpace.ticketTop)
         .background(ReceiptShape(tooth: ReffiTooth.ticket).fill(ReffiColor.paper))
         .overlay(ReceiptShape(tooth: ReffiTooth.ticket).stroke(ReffiColor.paperEdge, lineWidth: 1))
         .reffiShadow1()
@@ -423,7 +418,9 @@ struct CookingStepsView: View {
         Button { openURL(youtubeSearchURL(for: recipeName)) } label: {
             HStack(spacing: ReffiSpace.s2) {
                 ReffiIcon.youtube.reffi(20, .fill).foregroundStyle(ReffiColor.urgentDark)
-                Text("Open recipe videos")
+                // 라벨은 짧게(2026-08, 41차 owner 요청) — 화면 라벨은 "Videos"로 줄이고,
+                // 전체 뜻("Open recipe videos")은 accessibilityLabel(아래)이 그대로 맡는다.
+                Text("Videos")
                     .font(ReffiTextRole.subhead.font)
                     .tracking(ReffiTextRole.subhead.tracking)
                     .foregroundStyle(ReffiColor.urgentDark)
@@ -441,13 +438,14 @@ struct CookingStepsView: View {
             }
         }
         .buttonStyle(.paperPress)
+        .accessibilityLabel(Text("Open recipe videos"))
         .accessibilityHint(Text("Opens YouTube in your browser"))
     }
 
     /// 유튜브 검색 URL — 조립은 `RecipeVideoSearch`(단일 공급원)가 한다. 티켓 덱의 영상 브리지와
-    /// 같은 규칙을 쓰려고 여기서 다시 만들지 않는다(동작은 이전과 동일: 레시피명 + " recipe").
+    /// 같은 규칙을 쓰려고 여기서 다시 만들지 않는다.
     private func youtubeSearchURL(for recipeName: String) -> URL {
-        RecipeVideoSearch.url(query: "\(recipeName) recipe")
+        RecipeVideoSearch.urlForRecipe(recipeName)
     }
 
     /// 공유 카드 이미지 렌더 — `RecipeShareCard`를 레티나 스케일로 오프스크린 래스터라이즈한다. 실패하면 nil.
@@ -462,6 +460,9 @@ struct CookingStepsView: View {
                                    count: cook.count,
                                    icon: icon)
             .environment(\.colorScheme, .light)
+            // 언어도 색처럼 명시 고정(42차) — 렌더 계층은 루트의 `.environment(\.locale)`을 물려받지
+            // 못해, 앱 언어를 바꾼 사용자의 공유 이미지 라벨만 기기 언어로 나갔다.
+            .environment(\.locale, AppLanguage.current.resolvedLocale)
         let renderer = ImageRenderer(content: card)
         // 레티나 3x. **2로 내리지 않는다**(2026-08 재검토): 카드 폭이 340pt라 3x는 1020px인데,
         // 받는 쪽은 메시지 앱에서 이 이미지를 화면 폭으로 연다 — 3x 아이폰의 세로 폭이 1170~1290px라

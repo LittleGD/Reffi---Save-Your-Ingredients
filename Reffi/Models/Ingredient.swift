@@ -230,10 +230,56 @@ struct Ingredient: Identifiable, Codable, Equatable {
 
     // MARK: - 시간 모델 (asOf 주입 — 테스트에서 자정 경계·타임존 검증 가능)
 
+    /// 달력 일수 차의 창(window) 캐시.
+    ///
+    /// `startOfDay`는 호출당 ~2.3µs인데 D-day는 추천 랭킹의 정렬 축이라 rank 1회에 수만 번 불린다
+    /// (실측: 재고 100종에서 rank 194ms 중 87%가 이 경로 — 탭 응답 예산 100ms를 랭킹 혼자 넘겼다).
+    /// 그래서 **Calendar가 계산한** [자정, 다음 자정) 창을 기억해 두고, 창 안에 드는 입력은
+    /// Calendar를 건너뛴다. 창 자체를 Calendar가 만들므로 DST·타임존 의미는 Calendar와 동일하다
+    /// (수동 86400초 산술 금지 — DST 날은 23/25시간이다). 타임존·캘린더가 바뀌면 통째로 버린다.
+    ///
+    /// 하나의 `days` 계산 안에서 두 조회가 **같은 기준점(epoch)** 을 쓰도록 락 한 번에 처리한다 —
+    /// 조회 사이에 캐시가 리셋되면 기준점이 갈려 차가 틀어진다.
+    private final class DayIndexer {
+        static let shared = DayIndexer()
+        private let lock = NSLock()
+        private var zoneID = ""
+        private var calID = ""
+        private var epoch: Date?
+        private var windows: [(start: TimeInterval, end: TimeInterval, index: Int)] = []
+
+        func days(from: Date, to: Date, calendar cal: Calendar) -> Int {
+            lock.lock(); defer { lock.unlock() }
+            let zid = cal.timeZone.identifier, cid = "\(cal.identifier)"
+            if zid != zoneID || cid != calID || windows.count > 512 {
+                windows.removeAll(); epoch = nil; zoneID = zid; calID = cid
+            }
+            return index(of: to, cal) - index(of: from, cal)
+        }
+
+        private func index(of date: Date, _ cal: Calendar) -> Int {
+            let t = date.timeIntervalSinceReferenceDate
+            var lo = 0, hi = windows.count - 1
+            while lo <= hi {
+                let mid = (lo + hi) / 2
+                let w = windows[mid]
+                if t < w.start { hi = mid - 1 }
+                else if t >= w.end { lo = mid + 1 }
+                else { return w.index }
+            }
+            let start = cal.startOfDay(for: date)
+            let end = cal.date(byAdding: .day, value: 1, to: start) ?? start.addingTimeInterval(86400)
+            if epoch == nil { epoch = start }
+            let idx = cal.dateComponents([.day], from: epoch!, to: start).day ?? 0
+            windows.insert((start.timeIntervalSinceReferenceDate,
+                            end.timeIntervalSinceReferenceDate, idx), at: lo)
+            return idx
+        }
+    }
+
     /// 두 시각의 달력 일수 차(자정 기준).
     static func days(from: Date, to: Date, calendar cal: Calendar = .current) -> Int {
-        cal.dateComponents([.day], from: cal.startOfDay(for: from),
-                           to: cal.startOfDay(for: to)).day ?? 0
+        DayIndexer.shared.days(from: from, to: to, calendar: cal)
     }
 
     /// 원본 소비기한 기준 D-day (음수 = 지남).

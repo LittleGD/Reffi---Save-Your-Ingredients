@@ -219,7 +219,8 @@ final class CookTicketFlickUITests: XCTestCase {
     /// 고르기 팝업의 체크 행 — 라벨은 재료 이름, 값은 `Checked`/`Not checked`다.
     /// 이름을 테스트에 박지 않고 **팝업이 실제로 세운 줄**을 읽는다(표기는 사전 표제어로 정리된다).
     private func checkedRows(_ app: XCUIApplication) -> XCUIElementQuery {
-        app.buttons.matching(NSPredicate(format: "value == %@", "Checked"))
+        // 42차 — 상태 채널 단일화(§14.7)로 값("Checked")이 사라졌다: 행은 식별자, 상태는 isSelected.
+        app.buttons.matching(NSPredicate(format: "identifier == %@ AND selected == 1", "dialog.row"))
     }
 
     /// 확정 CTA — 라벨이 개수형("Add 2 items" / "Add 1 item")이라 정규식으로 잡는다.
@@ -269,7 +270,7 @@ final class CookTicketFlickUITests: XCTestCase {
         XCTAssertGreaterThan(rows.count, 0, "고르기 팝업엔 부족 재료가 줄로 서야 한다")
         // 기본은 **전부 체크** — 이 팝업의 기본값이 '아무것도 안 담음'이면 흔한 경우에 손이 더 간다.
         XCTAssertEqual(rows.count, app.buttons.matching(
-            NSPredicate(format: "value == %@ OR value == %@", "Checked", "Not checked")).count,
+            NSPredicate(format: "identifier == %@", "dialog.row")).count,
                        "처음엔 모든 줄이 체크돼 있어야 한다")
         attachScreenshot(app, named: "b-pick-dialog")
 
@@ -279,7 +280,8 @@ final class CookTicketFlickUITests: XCTestCase {
         let dropped = rows.element(boundBy: total - 1).label
         let kept = rows.element(boundBy: 0).label
         rows.element(boundBy: total - 1).tap()
-        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "value == %@", "Not checked")).count == 1,
+        XCTAssertTrue(app.buttons.matching(
+            NSPredicate(format: "identifier == %@ AND selected == 0", "dialog.row")).count == 1,
                       "체크를 푼 줄은 정확히 하나여야 한다")
         attachScreenshot(app, named: "c-pick-dialog-one-unchecked")
 
@@ -353,7 +355,10 @@ final class CookTicketFlickUITests: XCTestCase {
         XCTAssertTrue(app.buttons["OK"].waitForExistence(timeout: 5), "담김 알림")
         app.buttons["OK"].tap()
         XCTAssertTrue(app.staticTexts["View your To buy list?"].waitForExistence(timeout: 5), "이동 질문")
-        app.buttons["Cancel"].tap()
+        // 42차 — 담기는 이미 커밋된 뒤라 "Cancel"이 아니라 "Later"다. `app.buttons` 전역이 아니라
+        // alerts 스코프로 잡는 이유: fullScreenCover 밑 MainView 배너의 "Later"가 접근성 트리에
+        // 새는 기존 결함이 있어(별도 안건) 전역 조회는 다중 매치가 난다.
+        app.alerts.buttons["Later"].firstMatch.tap()
 
         XCTAssertTrue(app.staticTexts["Today's tickets"].waitForExistence(timeout: 5),
                       "취소하면 보던 덱에 그대로 머문다")
@@ -396,7 +401,7 @@ final class CookTicketFlickUITests: XCTestCase {
         XCTAssertTrue(app.buttons["OK"].waitForExistence(timeout: 5), "담김 알림")
         app.buttons["OK"].tap()
         XCTAssertTrue(app.staticTexts["View your To buy list?"].waitForExistence(timeout: 5), "이동 질문")
-        app.buttons["Cancel"].tap()
+        app.alerts.buttons["Later"].firstMatch.tap()   // 42차 개명 + alerts 스코프(위 주석 참조)
 
         // 미뤄 둔 전환이 이어진다 — 취소는 이동을 거절한 것이지 발주를 되돌린 것이 아니다.
         XCTAssertTrue(app.staticTexts["ORDER · FIRED"].waitForExistence(timeout: 20),
@@ -477,7 +482,7 @@ final class CookTicketFlickUITests: XCTestCase {
         // 단계를 갖고 있으므로(recipes-seed.json 실측 80/80) 이 경로에선 항상 옵트인 링크가 대신 선다.
         XCTAssertFalse(app.staticTexts["Cook it your way. The video has the details."].exists,
                        "옛 기대치 캡션은 더 이상 없어야 한다")
-        XCTAssertTrue(app.buttons["See the cooking details?"].waitForExistence(timeout: 4),
+        XCTAssertTrue(app.buttons["How to cook"].waitForExistence(timeout: 4),
                       "단계가 있는 레시피엔 주방 전표를 여는 조용한 링크가 서야 한다")
 
         // 히어로 아래 요리 소개 한 줄 — 시드 레시피에는 반드시 있다(§13.6 4-1).
@@ -505,7 +510,7 @@ final class CookTicketFlickUITests: XCTestCase {
         app.launchArguments = ["-skipOnboarding", "-skipAuth", "-uiTestSampleFridge", "-cookTicket"]
         app.launch()
 
-        let link = app.buttons["See the cooking details?"]
+        let link = app.buttons["How to cook"]
         XCTAssertTrue(link.waitForExistence(timeout: 30))
         link.tap()
 
@@ -526,9 +531,10 @@ final class CookTicketFlickUITests: XCTestCase {
         let firstStep = app.scrollViews["kitchenCopy.steps"].buttons.firstMatch
         XCTAssertTrue(firstStep.waitForExistence(timeout: 4), "체크할 단계 행이 있어야 한다")
         let stepLabel = firstStep.label
-        XCTAssertFalse(firstStep.isSelected, "처음엔 아무 단계도 체크돼 있지 않아야 한다")
+        // 42차 — 단계 완료는 "선택"이 아니라 도메인 값(Done/Not done)으로 말한다(§14.7 상태 채널 단일화).
+        XCTAssertEqual(firstStep.value as? String, "Not done", "처음엔 아무 단계도 체크돼 있지 않아야 한다")
         firstStep.tap()
-        XCTAssertTrue(firstStep.isSelected, "탭하면 그 단계가 체크 상태가 돼야 한다")
+        XCTAssertEqual(firstStep.value as? String, "Done", "탭하면 그 단계가 체크 상태가 돼야 한다")
 
         // 닫기 — 시스템 시트의 스와이프 다운 드래그(핸들 제스처)로 닫는다.
         // `app.swipeDown()`(앱 전체 기준 제스처)은 안 된다 — 실측: 시작점이 리스트(`ScrollView`)
@@ -546,7 +552,7 @@ final class CookTicketFlickUITests: XCTestCase {
         link.tap()   // 다시 열기
         let reopenedStep = app.scrollViews["kitchenCopy.steps"].buttons.matching(NSPredicate(format: "label == %@", stepLabel)).firstMatch
         XCTAssertTrue(reopenedStep.waitForExistence(timeout: 4))
-        XCTAssertTrue(reopenedStep.isSelected, "닫았다 다시 열어도 체크 상태가 세션에 남아 있어야 한다")
+        XCTAssertEqual(reopenedStep.value as? String, "Done", "닫았다 다시 열어도 체크 상태가 세션에 남아 있어야 한다")
     }
 
     /// 단계가 없는 레시피(커스텀 레시피, 33c8861 — 편집기가 단계를 더 이상 받지 않는다)로 발주하면
@@ -561,7 +567,7 @@ final class CookTicketFlickUITests: XCTestCase {
                       "-cookTicket.noSteps로도 조리 화면이 열려야 한다")
         XCTAssertTrue(app.buttons["Open recipe videos"].waitForExistence(timeout: 10),
                       "단계가 없어도 영상 CTA는 그대로여야 한다")
-        XCTAssertFalse(app.buttons["See the cooking details?"].exists,
+        XCTAssertFalse(app.buttons["How to cook"].exists,
                        "단계가 없는 레시피엔 주방 전표 링크가 서면 안 된다")
     }
 }

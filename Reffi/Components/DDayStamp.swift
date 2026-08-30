@@ -8,6 +8,11 @@ struct DDayStamp: View {
     let text: String
     let color: Color
     var size: CGFloat = 13
+    /// Dynamic Type 스케일 곡선(42차) — `Font.reffiStamp`가 처음부터 받던 인자인데 여기서 전달을
+    /// 막고 있었다. 기본 `.subheadline`은 소형 도장(10~17)에 맞는 곡선이고, 온보딩 "Start"(46)처럼
+    /// **화면의 주인공급 도장은 `.largeTitle`을 명시**해야 한다 — subheadline 곡선은 AX 구간에서
+    /// 훨씬 가파르게 자라, 46pt 도장이 display(34, largeTitle 곡선) 타이틀을 추월한다.
+    var relativeTo: Font.TextStyle = .subheadline
     /// 올캡으로 찍을 것인가 — **크롬 단어 전용**이다(FROZEN·DAY 12·Start). 그 라벨들은 영문 원문이
     /// 이미 도장 문법으로 쓰여 있어 올캡이 시각 문법이고, 한국어에선 `.uppercased()`가 no-op이라 무해하다.
     /// 반대로 **번역되는 데이터 라벨은 반드시 `false`**다(§3.5, `GlyphStamp` 주석의 그 원칙): 남은 일수는
@@ -20,7 +25,7 @@ struct DDayStamp: View {
 
     var body: some View {
         Text(caps ? text.uppercased() : text)
-            .font(.reffiStamp(size))
+            .font(.reffiStamp(size, relativeTo: relativeTo))
             .monospacedDigit()          // §3.4 — 자릿수가 바뀌어도 도장 폭이 흔들리지 않게
             .tracking(size * 0.06)
             .foregroundStyle(color)

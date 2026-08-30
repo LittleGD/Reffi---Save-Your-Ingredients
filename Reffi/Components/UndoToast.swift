@@ -12,7 +12,9 @@ struct UndoToast: View {
             // 글리프는 옆 문장이 이미 말한 것을 그림으로 되풀이할 뿐이다 — 이름까지 읽히면 잡음만 는다.
             icon.accessibilityHidden(true)
             message
-                .reffiType(.caption).foregroundStyle(.white)
+                // `onToast` — 값은 흰색이지만 근거(§2.8: toast는 양 모드 어두운 면, onInk 금지)를
+                // 리터럴이 아니라 토큰이 들고 있게 한다(형제 액션 라벨 `toastAction`과 같은 문법).
+                .reffiType(.caption).foregroundStyle(ReffiColor.onToast)
                 .lineLimit(1)
             Spacer(minLength: ReffiSpace.s2)
             Button(action: onUndo) {

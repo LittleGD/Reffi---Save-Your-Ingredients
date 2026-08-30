@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 /// 가구 인원 — 레시피 양·쇼핑 수량 조절의 근거(타겟: 1인 가구·맞벌이, 명세 §1 개요).
 /// rawValue는 UserDefaults 영속화용 안정 키.
@@ -7,13 +8,24 @@ enum HouseholdSize: String, CaseIterable, Identifiable, Codable {
 
     var id: String { rawValue }
 
+    /// 칩 라벨 **키**(42차) — `SelectableChip`이 키를 받아 `\.locale` 환경으로 리졸브한다
+    /// (`CuisineStyle.labelKey`와 같은 이유 — String은 조회 시점 번들에 굳는다).
+    var labelKey: LocalizedStringKey {
+        switch self {
+        case .one:    "Just me"
+        case .two:    "2 people"
+        case .family: "3–4"
+        case .large:  "5+"
+        }
+    }
+
     /// 칩 라벨 — 저장값은 영문 식별자 그대로, 표시만 로컬라이즈.
     var label: String {
         switch self {
-        case .one:    String(localized: "Just me")
-        case .two:    String(localized: "2 people")
-        case .family: String(localized: "3–4")
-        case .large:  String(localized: "5+")
+        case .one:    AppLanguage.localizedNow("Just me")
+        case .two:    AppLanguage.localizedNow("2 people")
+        case .family: AppLanguage.localizedNow("3–4")
+        case .large:  AppLanguage.localizedNow("5+")
         }
     }
 

@@ -83,6 +83,9 @@ struct FridgeTabBar: View {
         }
         // 세 알약을 하나의 탭 컨테이너로 묶는다 — 보조기술이 "탭 하나"가 아니라 "탭들"로 읽게.
         .accessibilityElement(children: .contain)
+        // `.isTabBar`는 붙이지 않는다(42차 실측) — SwiftUI 컨테이너에 이 트레잇을 얹으면 XCUITest가
+        // 자식 버튼 조회(`app.buttons["To buy"]`)를 잃어 UI 스위트 전반이 무너졌다. VoiceOver 탭 바
+        // 고지(F53)는 테스트 계약을 함께 갈아탈 별도 라운드에서 다룬다.
         // 탭 행은 콘텐츠가 아니라 크롬이다 — 접근성 글자에서도 accessibility1까지만 따라 키운다.
         // 3등분 고정 폭에서 그 위 단계는 축소(0.75)로도 못 받아 목적지 이름이 잘리는데, 화면의
         // 유일한 IA 표시가 이름을 잃는 것보다 크기를 멈추는 쪽이 낫다(시스템 탭 바와 같은 태도).
@@ -103,7 +106,7 @@ struct FridgeTabBar: View {
                     .reffiType(.pillLabel)
                     .lineLimit(1)
                     // 라벨은 잘리면 목적지 이름이 사라진다 — 3등분 폭에서 축소를 먼저 쓴다.
-                    .minimumScaleFactor(0.75)
+                    .minimumScaleFactor(ReffiShrink.tab)
             }
             // 선택 면은 잉크(다크에선 크림)라 글자는 캔버스 색으로 뒤집는다(§2.6).
             .foregroundStyle(on ? ReffiColor.canvas : ReffiColor.ink)

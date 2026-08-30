@@ -29,7 +29,8 @@
   --neutral-900: oklch(25% 0.012 80);
   --neutral-700: oklch(43% 0.014 80);
   --neutral-500: oklch(51% 0.013 80);
-  --neutral-200: oklch(93.5% 0.008 85);
+  --neutral-200: oklch(93.5% 0.008 85); /* 캔버스 위 전용(§2.8, 42차) */
+  --color-sub-raised: oklch(93.5% 0.008 85); /* 카드 위 서브 면 — 라이트는 sub와 동일, 다크에서 갈린다(§2.8) */
   --neutral-50:  oklch(97% 0.012 90);
 
   /* ---- Semantic aliases — 뉴트럴 5단 전량에 이름을 준다(번호 대신 역할로 부르게).
@@ -43,6 +44,7 @@
   --on-accent:     white;               /* blue 면 위 콘텐츠 — 고정(§2.7). ink 면 위는 --on-ink */
 
   /* ---- Spacing ---- */
+  --space-0: 2px;  /* 두 줄 텍스트 쌍 마이크로갭 — 행간의 연장(§4.1, 42차) */
   --space-1: 6px;  --space-2: 8px;  --space-3: 12px; --space-4: 16px;
   --space-5: 24px; --space-6: 28px; --space-7: 32px;
 
@@ -82,10 +84,14 @@
   --paper-surface:     oklch(99% 0.006 90);          /* 밝은 종이 면 — 뱃지·티켓·글리프 타일 */
   --paper-pass:        oklch(95% 0.016 90);          /* 따뜻한 주방 패스 종이 — 캐러셀 배경 */
   --paper-edge:        oklch(25% 0.012 80 / 0.06);   /* 종이 단면 헤어라인(캔버스 위 면, 분리 보더 아님) */
-  --paper-edge-field:  oklch(25% 0.012 80 / 0.10);   /* 입력 필드 단면 — 같은 헤어라인 한 단 진하게 */
+  --paper-edge-field:  oklch(25% 0.012 80 / 0.10);
+  --paper-edge-state:  oklch(25% 0.012 80 / 0.50);   /* 미체크 상태 컨트롤 경계 — 1.4.11 3:1(§2.7, 42차) */   /* 입력 필드 단면 — 같은 헤어라인 한 단 진하게 */
   --paper-edge-onfill: oklch(100% 0 0 / 0.14);       /* 채도 면(버튼) 위 흰 종이 헤어라인 */
+  --paper-cut:         oklch(43% 0.014 80);           /* 컨트롤 재단선 — 실루엣을 지는 선(= --color-ink-2, α 1) */
   --paper-edge-accent: 0.18;                          /* 강조 종이 단면의 α — 색은 그 카드의 *-dark(§2.7) */
-  --bg-sheen:          oklch(100% 0 0 / 0.22);        /* 메인 배경(리퀴드글래스) 상단 흰 시노 */
+  --bg-sheen:          oklch(100% 0 0 / 0.22);
+  --bg-sheen-bottom:   oklch(100% 0 0 / 0.06);        /* 배경 하단 흰 시노 — 상단과 짝(42차 정본화) */
+  --bg-blob-strong: 0.55; --bg-blob-mid: 0.30; --bg-blob-soft: 0.16;  /* 배경 블롭 α 3단 — 색은 콜사이트(42차) */        /* 메인 배경(리퀴드글래스) 상단 흰 시노 */
   --glass-tint:        oklch(85% 0.04 242 / 0.30);    /* 웹 쇼케이스 전용 — 네이티브 iOS 26 `.glassEffect`의
                           근사치다(실제 앱은 이 색을 쓰지 않고 시스템 머티리얼이 그린다). --ease-bounce와 같은 급 */
   --receipt:           oklch(98.5% 0.004 90);         /* "흰 영수증" 면(§2.7) */
@@ -105,6 +111,7 @@
   --shadow-tint: oklch(25% 0.012 80);  /* 그림자 전용 — 다크에서 순검정으로 뒤집혀야 ink 위 밝은 글로우를 피한다 */
   --toast:       oklch(25% 0.012 80);  /* 잉크 토스트 캡슐 면(= 라이트 ink). 위 텍스트는 항상 고정 white */
   --on-ink:      white;                /* ink로 채운 면 위 콘텐츠. 다크에서 어두운 값으로 뒤집힘 */
+  --on-toast:    white;                /* toast 위 본문 — 고정(§2.8: onInk를 얹으면 다크 1.73으로 깨진다) */
   --toast-action: oklch(90% 0.05 250); /* toast 위 액션 라벨(Undo) — 고정, 다크 오버라이드 없음(실측 대비 L 11.92 · D 9.11) */
 
   /* ---- 페이지 크롬 전용 고정색(브랜드 표지) — 앱 토큰 아님. 네비/히어로는 다크에서도
@@ -157,13 +164,22 @@
     --neutral-700: oklch(81%   0.012 82);
     --neutral-500: oklch(71%   0.012 80);
     --neutral-200: oklch(32%   0.008 80);
+  --color-sub-raised: oklch(41% 0.008 80);   /* 카드 위 1.36~1.38 — sub와 갈리는 지점(§2.8, 42차) */
+    --color-sub-raised: oklch(41% 0.008 80);   /* 카드 위 1.36~1.38 — sub와 갈리는 지점(§2.8, 42차) */
     --neutral-50:  oklch(21.5% 0.010 78);
     --paper-surface:     oklch(33%   0.008 82);
     --paper-pass:        oklch(24%   0.010 84);
     --paper-edge:        oklch(93% 0.010 85 / 0.06);
     --paper-edge-field:  oklch(93% 0.010 85 / 0.10);
+  --paper-edge-state:  oklch(93% 0.010 85 / 0.50);
+    --paper-edge-state:  oklch(93% 0.010 85 / 0.50);
     --paper-edge-onfill: oklch(100% 0 0 / 0.10);
+    --paper-cut:         oklch(81% 0.012 82);          /* 다크에서도 = --color-ink-2 */
     --bg-sheen:          oklch(100% 0 0 / 0.045);
+  --bg-sheen-bottom:   oklch(100% 0 0 / 0.02);
+  --bg-blob-strong: 0.35; --bg-blob-mid: 0.20; --bg-blob-soft: 0.10;
+    --bg-sheen-bottom:   oklch(100% 0 0 / 0.02);
+    --bg-blob-strong: 0.35; --bg-blob-mid: 0.20; --bg-blob-soft: 0.10;
     --receipt:           oklch(33.5% 0.007 83);
     --field:             oklch(28%   0.010 80);
     --scrim:             oklch(0% 0 0 / 0.55);
@@ -201,6 +217,7 @@
   --paper-edge:        oklch(93% 0.010 85 / 0.06);
   --paper-edge-field:  oklch(93% 0.010 85 / 0.10);
   --paper-edge-onfill: oklch(100% 0 0 / 0.10);
+  --paper-cut:         oklch(81% 0.012 82);
   --bg-sheen:          oklch(100% 0 0 / 0.045);
   --receipt:           oklch(33.5% 0.007 83);
   --field:             oklch(28%   0.010 80);
@@ -643,27 +660,26 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
 .icon-btn.urgent  .shape { background: var(--color-urgent); color: var(--color-ink); }
 .icon-btn.neutral .shape { background: var(--color-sub); color: var(--color-ink-2); }
 
+/* 종이 토글(PaperToggleStyle, §13.5) — 슬롯은 양 상태 모두 --paper-cut 재단선으로 항상 오려져 있고,
+   상태는 그 안이 "채워졌는가"로만 말한다. 앱과 달리 여기선 SVG stroke로 그린다(clip-path엔 선이 없다). */
+.ptoggle { appearance: none; border: 0; background: none; padding: 6px; cursor: pointer;
+  display: inline-grid; place-items: center; min-width: 44px; min-height: 44px; }
+.ptoggle svg { width: 51px; height: 31px; overflow: visible; display: block; }
+.ptoggle .ptrack { fill: none; stroke: var(--paper-cut); stroke-width: 1;
+  transition: fill var(--dur-2) var(--ease-std); }
+.ptoggle .pknob  { fill: var(--paper-surface); stroke: var(--paper-cut); stroke-width: 1;
+  filter: drop-shadow(0 1px 2px oklch(25% 0.012 80 / 0.10));
+  transition: transform var(--dur-2) var(--ease-std), fill var(--dur-2) var(--ease-std); }
+.ptoggle[aria-checked="true"] .ptrack { fill: var(--color-blue); }
+.ptoggle[aria-checked="true"] .pknob  { fill: var(--on-accent); transform: translateX(21.08px); }
+.ptoggle:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: var(--radius-md); }
+.ptoggle-row { display: flex; align-items: center; gap: var(--space-4); justify-content: space-between;
+  background: var(--receipt); padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); }
+.ptoggle-row .t { font: var(--d-body); color: var(--color-ink); }
+
 /* 재료 뱃지 — 캡슐 아님(변동 radius) + 좌측 인디케이터 바 + 이름 */
 .badge-row { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 
-/* 종이 토글(§13.5, 34차) — 트랙은 PaperRect(.pill)이 라우팅한 8각 필, 손잡이는 9각 블롭.
-   앱 실측 그대로 51×31 · 손잡이 27 · 인셋 2. clip-path로 각을 세운다(둥근 캡슐이 아니다). */
-.toggle-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
-.ptoggle { position: relative; display: inline-block; width: 51px; height: 31px; flex: none;
-  background: var(--color-sub);
-  clip-path: polygon(8px 0, calc(100% - 8px) 0, 100% 8px, 100% calc(100% - 8px),
-                     calc(100% - 8px) 100%, 8px 100%, 0 calc(100% - 8px), 0 8px);
-  transition: background var(--dur-2) var(--ease-std); }
-.ptoggle.is-on { background: var(--color-blue); }
-.ptoggle .knob { position: absolute; top: 2px; left: 2px; width: 27px; height: 27px;
-  background: var(--paper-surface); box-shadow: var(--shadow-1);
-  border: 1px solid var(--paper-edge);
-  clip-path: polygon(50% 2%, 79% 11%, 96% 37%, 92% 68%, 73% 92%, 44% 97%, 17% 85%, 5% 57%, 11% 26%);
-  transition: left var(--dur-2) var(--ease-std); }
-.ptoggle.is-on .knob { left: 22px; }
-@media (prefers-reduced-motion: reduce) {
-  .ptoggle, .ptoggle .knob { transition: none; }
-}
 .paper-badge { display: inline-flex; align-items: center; gap: var(--space-2);
   background: var(--paper-surface); color: var(--color-ink); padding: 8px 12px 8px 10px;
   border-radius: 13px 11px 14px 12px / 12px 14px 11px 13px; box-shadow: var(--shadow-1);
@@ -671,8 +687,8 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
 .paper-badge:active { transform: scale(0.96); }
 .paper-badge .bar { width: 5px; height: 17px; border-radius: 3px; background: var(--color-soon-dark); }
 .paper-badge .dn { font-feature-settings:"tnum" 1,"lnum" 1; font-size: 12px; }
-.paper-badge.is-off { background: var(--neutral-200); color: var(--color-muted); opacity: .72; }
-.paper-badge.is-off .bar { background: var(--color-muted); }
+.paper-badge.is-off { background: var(--color-sub-raised); color: var(--color-ink-2); opacity: .72; }   /* 42차: muted on sub는 다크 4.5 미달 경로 — ink2로 */
+.paper-badge.is-off .bar { background: var(--color-ink-2); }
 .paper-badge.f-fresh  .bar { background: var(--color-fresh-dark); }  .paper-badge.f-fresh  .dn { color: var(--color-fresh-dark); }
 .paper-badge.f-soon   .bar { background: var(--color-soon-dark); }   .paper-badge.f-soon   .dn { color: var(--color-soon-dark); }
 .paper-badge.f-urgent .bar { background: var(--color-urgent-dark); } .paper-badge.f-urgent .dn { color: var(--color-urgent-dark); }
@@ -1141,6 +1157,8 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
             <tr><td>paper on canvas</td><td>1.35~1.5</td><td class="num">1.06</td><td class="num pass">1.43</td></tr>
             <tr><td>receipt on canvas</td><td>1.35~1.5</td><td class="num">1.04</td><td class="num pass">1.46</td></tr>
             <tr><td>sub on canvas (secondary CTA)</td><td>1.35~1.5</td><td class="num">1.11</td><td class="num pass">1.38</td></tr>
+            <tr><td>subRaised on paper (카드 위 칩·OFF 트랙, 42차)</td><td>≥1.19</td><td class="num">1.18</td><td class="num pass">1.38</td></tr>
+            <tr><td>subRaised on receipt</td><td>≥1.19</td><td class="num">1.16</td><td class="num pass">1.36</td></tr>
             <tr><td>paper on paperPass (커버 위 티켓)</td><td>1.35~1.5</td><td class="num">1.12</td><td class="num pass">1.35</td></tr>
             <tr><td>receipt on paperPass</td><td>1.35~1.5</td><td class="num">1.11</td><td class="num pass">1.37</td></tr>
             <tr><td>toast on paper (떠 있는 잉크 캡슐)</td><td>≥1.2</td><td class="num">15.56</td><td class="num pass">1.22</td></tr>
@@ -1224,10 +1242,11 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
       <section class="section" id="spacing">
         <span class="section__num num">04</span>
         <h2 class="text">스페이싱 &amp; 곡률</h2>
-        <p class="section__lead text">스페이싱 스케일은 <code class="inline">6 · 8 · 12 · 16 · 24 · 28 · 32</code>. 곡률은 고정값이 아니라 요소의 내부 패딩에 맞춰 변한다.</p>
+        <p class="section__lead text">스페이싱 스케일은 <code class="inline">2 · 6 · 8 · 12 · 16 · 24 · 28 · 32</code>. 곡률은 고정값이 아니라 요소의 내부 패딩에 맞춰 변한다. <strong>space-0(2, 42차)</strong>는 두 줄 텍스트 쌍(제목+메타)의 마이크로갭 — 행간의 연장이다. <strong><code class="inline">sN ± 리터럴</code> 산술 파생은 금지</strong> — 스냅하거나 이름 있는 상수를 세운다(§4.1).</p>
 
         <p class="subhead text">스페이싱 스케일</p>
         <div class="space-list">
+          <div class="space-item"><div class="space-item__bar" style="width:2px"></div><span class="space-item__label num">space-0 · 2</span><span class="space-item__use">두 줄 텍스트 쌍 마이크로갭(행간의 연장)</span></div>
           <div class="space-item"><div class="space-item__bar" style="width:6px"></div><span class="space-item__label num">space-1 · 6</span><span class="space-item__use">아이콘-텍스트 간격, 칩 내부</span></div>
           <div class="space-item"><div class="space-item__bar" style="width:8px"></div><span class="space-item__label num">space-2 · 8</span><span class="space-item__use">작은 간격, 모바일 거터</span></div>
           <div class="space-item"><div class="space-item__bar" style="width:12px"></div><span class="space-item__label num">space-3 · 12</span><span class="space-item__use">인풋/버튼 내부 패딩</span></div>
@@ -1552,9 +1571,14 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
         <ul class="checklist">
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">신선도 색이 카운트다운과 일치하고, 색 + 라벨을 함께 썼는가</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">파스텔 면 위 글자는 ink, Blue 면 위 글자는 white인가</span></li>
+            <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text"><strong>컨트롤의 상태를 종이 면색끼리 갈라 말하지 않았는가</strong> — 종이 램프(<code class="inline">paper</code> · <code class="inline">sub</code> · <code class="inline">receipt</code>)는 양 모드 1.2:1 안쪽이라 면색으로는 §2.6 비텍스트 3:1이 <strong>원천 불가</strong>다. 상태는 채움 유무·위치로 말하고 실루엣은 <code class="inline">--paper-cut</code> 재단선에 맡긴다(§13.5 토글이 그 실패에서 나왔다)</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">파스텔 카드 경계를 색이 아니라 스택 그림자·여백으로 만들었는가</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">화면 내 타이포 위계 ≤ 3, 브랜드 색 ≤ 3인가</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">화면당 텍스트 계층이 단일 상한 7종을 넘지 않는가</span></li>
+          <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">간격에 <code class="inline">ReffiSpace.sN ± 리터럴</code> 산술을 쓰지 않았는가 — 스냅하거나 이름 있는 상수를 세웠는가(§4.1)</span></li>
+          <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text"><code class="inline">minimumScaleFactor</code>가 <code class="inline">ReffiShrink</code> 팔레트에서 왔고 §3.2 문서 role엔 축소가 없는가 · <code class="inline">scaleEffect</code>로 폰트 크기를 흉내 내지 않았는가(§3.3)</span></li>
+          <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">종이 카드 위의 미선택 칩·OFF 트랙 면이 <code class="inline">sub</code>가 아니라 <code class="inline">subRaised</code>인가(§2.8) · 미체크 체크박스 경계가 <code class="inline">paperEdgeState</code>인가(§2.7)</span></li>
+          <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">"Cancel"이라는 낱말을 파괴 확정(primary)에 쓰지 않았는가 — Cancel은 안전한 secondary 전용이다(§14.7)</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">라벨·크롬·칩 텍스트가 raw <code class="inline">.custom(...)</code>이 아니라 §3.5 보조 스케일 9종(<code class="inline">ReffiActionRole</code>)에서 왔는가 · 올캡 모노 role이 번역되는 문자열에 붙지 않았는가</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">Display=Story Script(영문)/Pretendard(한글), 그 외 GSF(영문)/Pretendard(한글)인가</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">데이터성 숫자에 <code class="inline">.num</code>(tabular)을 적용했는가 · D-day 표기가 <code class="inline">Ingredient.dDayText</code> 한 포맷터에서 나왔는가 · 수치를 로케일 포맷터로 만들었는가 (§3.4)</span></li>
@@ -1592,7 +1616,7 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
         <span class="section__num num">11</span>
         <h2 class="text">종이 · 글래스 · 모션 <span class="t-caption" style="color:var(--color-muted)">— MD §13</span></h2>
         <p class="section__lead text">메인 플로우의 <strong>행동 표면</strong>(재료·버튼·티켓)에 입히는 한 겹: 손으로 자른 종이 + 리퀴드글래스 + 일러스트 실루엣 + 통통 튀는 모션. 정보 표면(§02~§09)의 규율은 그대로 둔다.</p>
-        <div class="note"><strong>종이 단면은 토큰 셋이 전부다 — <code class="inline">--paper-edge</code> · <code class="inline">--paper-edge-field</code> · <code class="inline">--paper-edge-onfill</code>.</strong> 면과 같은 톤의 ~1px 헤어라인을 면 위에 겹쳐 "종이 두께"를 표현한다. 캔버스 위 밝은 면은 잉크 톤(<strong>α 0.06</strong>), 입력 필드는 한 단 진하게(<strong>α 0.10</strong> — 카드는 그림자가 경계를 만들지만 필드는 면 안에 눌러 앉아 있어 "여기에 쓴다"를 단면이 혼자 말한다), 채도 면(버튼)은 흰 톤(α 0.14)이다. 0.06은 <strong>코드 실사용 수렴값</strong> — 앱에는 0.06/0.07/0.08이 섞여 있었고 그중 0.06이 압도적 다수였다. 헤어라인에서 0.01~0.02 알파 차는 눈에 잡히지 않으니 문서를 코드의 최다수 쪽으로 맞추고 갈래를 두 토큰으로 닫았다. <strong>§6.1의 분리용 보더가 아니다</strong> — 리스트 행 구분선처럼 실제로 면을 나누는 선은 알파가 같아도 이 토큰을 쓰지 않는다.</div>
+        <div class="note"><strong>종이 단면은 토큰 셋이 전부다 — <code class="inline">--paper-edge</code> · <code class="inline">--paper-edge-field</code> · <code class="inline">--paper-edge-onfill</code>.</strong> 면과 같은 톤의 ~1px 헤어라인을 면 위에 겹쳐 "종이 두께"를 표현한다. 캔버스 위 밝은 면은 잉크 톤(<strong>α 0.06</strong>), 입력 필드는 한 단 진하게(<strong>α 0.10</strong> — 카드는 그림자가 경계를 만들지만 필드는 면 안에 눌러 앉아 있어 "여기에 쓴다"를 단면이 혼자 말한다), 채도 면(버튼)은 흰 톤(α 0.14)이다. 0.06은 <strong>코드 실사용 수렴값</strong> — 앱에는 0.06/0.07/0.08이 섞여 있었고 그중 0.06이 압도적 다수였다. 헤어라인에서 0.01~0.02 알파 차는 눈에 잡히지 않으니 문서를 코드의 최다수 쪽으로 맞추고 갈래를 두 토큰으로 닫았다. <strong>§6.1의 분리용 보더가 아니다</strong> — 리스트 행 구분선처럼 실제로 면을 나누는 선은 알파가 같아도 이 토큰을 쓰지 않는다. <strong>넷째 토큰 <code class="inline">--paper-cut</code>(41차)은 이 셋과 급이 다르다</strong> — 헤어라인 셋이 "종이 두께"라는 <strong>재질</strong>이라면 그건 조각의 <strong>실루엣을 혼자 지는 정보</strong>다(= <code class="inline">--color-ink-2</code>, α 1). 종이 램프끼리는 양 모드 1.2:1 안쪽이라 면색으로 §2.6 비텍스트 3:1을 못 만드는 자리가 있고 거기선 선이 그 일을 받는다(종이 면 위 라이트 7.77~7.89 · 다크 6.64~6.77). <code class="inline">ink</code>(15.33/9.75)는 새까만 테두리로 읽히고 <code class="inline">muted</code>(5.51/4.66)는 역할이 <strong>약함/placeholder</strong>라 조작 가능한 컨트롤에 쓰면 비활성으로 읽힌다. <strong>정보 표면엔 쓰지 않는다</strong> — 유일 호출부는 아래 종이 토글이다.</div>
         <div class="note" style="margin-top:var(--space-3)"><strong>칩·필도 예외가 아니다 — 소형 면의 정본은 <code class="inline">PaperCutRect</code>다.</strong> D-day 칩·상태 칩·추정 기한 배지·취향 칩·알림 배너 액션처럼 작고 반복되는 행동 표면 면은 <code class="inline">Capsule()</code>이 아니라 <code class="inline">PaperCutRect(seed:)</code>를 쓴다. 예외는 글래스 캡슐 네비와 잉크 토스트 두 곳뿐 — 둘 다 종이가 아닌 재질이라 이 규칙 밖이다.</div>
         <div class="note" style="margin-top:var(--space-3)"><strong><code class="inline">PaperRect</code>가 그 규율을 스스로 지킨다(프리미티브 가드).</strong> 호출부 규약만으로는 앱 전역이 새기 때문에 셰이프 자체가 두 가지를 보장한다. ① <strong>pill 스케일 라우팅</strong> — 네 코너가 전부 <code class="inline">min(w,h)/2</code>로 클램프되는 크기(= 캡슐 퇴화)면 <code class="inline">PaperRect</code>가 <code class="inline">PaperCutRect</code>의 8각 패스를 대신 그린다. <code class="inline">ReffiRadius.pill</code>을 넘겨도 완벽한 캡슐이 나오지 않는다. ② <strong>지각되는 변 휨</strong> — 변 휨은 그 변의 직선 구간 길이에 비례하고(가위질이 길수록 선이 더 흔들린다) 편차 1.4~4pt로 클램프된다. 예전 값(하한 1.5를 2차 베지어의 컨트롤 오프셋에 그대로 적용 → 실제 편차 0.5pt)은 44pt 컨트롤에서 3x 렌더로도 보이지 않아, 코드는 종이인데 화면은 스톡 iOS였다. <strong>상한은 짧은 변에도 건다</strong> — 긴 변 기준만 두면 폭은 넓고 높이는 낮은 면(재료 뱃지 ≈150×40)의 위·아래 변이 상한 4pt를 그대로 받아 높이의 10%가 출렁이고, 위아래가 반대로 휘면 실루엣이 20%까지 일그러진다. 손으로 자른 종이도 얇은 조각의 가장자리는 그만큼 크게 흔들리지 않는다 — 흔들림의 폭은 가위질 길이뿐 아니라 <strong>조각의 두께</strong>에도 매인다. 그래서 편차 상한은 <code class="inline">min(4pt, 짧은 변 × 0.05)</code>이고, 짧은 변이 80pt를 넘는 큰 카드는 4pt 그대로다.</div>
 
@@ -1643,19 +1667,6 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
           </div>
 
           <div class="demo-pane">
-            <p class="subhead text">종이 토글 · PaperToggleStyle (§13.5, 34차)</p>
-            <p class="lbl">스톡 <code class="inline">Toggle</code>의 캡슐 스위치를 <strong>재질만</strong> 손으로 자른 종이로 바꾼 <code class="inline">ToggleStyle</code>. 트랙은 <code class="inline">PaperRect(cornerRadius: .pill)</code>이 pill 스케일에서 스스로 <code class="inline">PaperCutRect</code> 8각 필로 라우팅한 것이고(§13.1 "완벽한 캡슐 금지" — <strong>새 셰이프가 아니라 기존 라우팅을 그대로 탄다</strong>), 손잡이는 <code class="inline">PaperBlob(sides: 9)</code> 종이 조각이다.</p>
-            <div class="toggle-row">
-              <span class="ptoggle is-on"><span class="knob"></span></span>
-              <span class="lbl" style="margin:0">켬 — <code class="inline">blue</code> 면</span>
-              <span class="ptoggle"><span class="knob"></span></span>
-              <span class="lbl" style="margin:0">꺼짐 — <code class="inline">sub</code> 면</span>
-            </div>
-            <p class="lbl" style="margin-top:var(--space-3)"><strong>폼은 낯설게 하지 않는다</strong> — 스톡 스위치 실측 그대로 트랙 <strong>51 × 31</strong> · 손잡이 <strong>27</strong> · 인셋 <strong>2</strong>이고, 히트 영역만 투명 여백으로 <strong>44pt</strong>까지 넓힌다(§7.3). 켬·꺼짐 둘 다 <strong>채운 면</strong>이라 단면은 <code class="inline">paperEdgeOnFill</code> 하나로 통일한다(<code class="inline">PaperButtonLabel</code>이 primary/secondary를 가리지 않는 것과 같다). 손잡이는 <code class="inline">paper</code> 면 + 그레인 + 잉크 단면에 <code class="inline">shadow-1</code>을 얹는다 — §6.2 "떠 있는 요소" 예외이고 근거는 <code class="inline">PaperIconButton</code> 블롭과 같다(트랙 위를 미끄러지는 조각). 전환은 <code class="inline">--ease-std</code>, 모션 축소면 즉시(§7.4).</p>
-            <div class="note" style="margin-top:var(--space-3)"><strong>상태는 색이 아니라 위치로도 갈린다</strong> — 손잡이가 좌/우로 옮겨가므로 색 구분이 어려운 눈에도 켬·꺼짐이 읽힌다. <strong>접근성은 스타일이 아니라 <code class="inline">Toggle</code> 자신이 책임진다</strong>: <code class="inline">makeBody</code>는 트랙·손잡이만 그리고 라벨·트레잇·On/Off 값에는 손대지 않는다(커스텀 <code class="inline">ToggleStyle</code>이 시각만 바꾸고 시맨틱은 유지하는 SwiftUI 계약 그대로). VoiceOver 더블탭은 화면 탭용 <code class="inline">onTapGesture</code>를 거치지 않고 <code class="inline">isOn</code> 바인딩에 직접 닿는다. <strong>시드</strong>는 셰이프 기준 트랙 <code class="inline">seed</code> · 손잡이 <code class="inline">seed &amp;+ 5</code>로 갈리고, 그레인은 다시 트랙 <code class="inline">&amp;+ 5</code> · 손잡이 <code class="inline">&amp;+ 13</code>으로 갈린다 — 한 화면에 토글이 여럿 서도(프로필 셋) 결이 겹치지 않는다.</div>
-          </div>
-
-          <div class="demo-pane">
             <p class="subhead text">정렬 칩 · PaperDropdown (§13.5)</p>
             <p class="lbl">스톡 <code class="inline">Menu</code>/<code class="inline">Picker</code> 팝업(흰 시스템 라운드 렉트) 대신 <strong>앱 최초 커스텀 드롭다운</strong>. PaperRect 면 + paperEdge 헤어라인 + 옅은 그레인 + <code class="inline">--shadow-1</code>, 행마다 라벨(좌) + <strong>선택 행에만 체크 글리프</strong>(우, blue-dark), 행 사이 DashedRule 절취선, 최소 44pt 히트 + 통통 프레스. 트리거 칩 앵커 아래에 루트 오버레이로 띄워 스크롤에 클리핑되지 않고(<code class="inline">--z-dropdown</code>), 딤 없는 투명 탭 캐처가 바깥 탭을 받아 닫는다 — 가벼운 드롭다운이지 모달이 아니다(<code class="inline">--scrim</code> 없음). 진입 <code class="inline">--dur-3</code> <code class="inline">--ease-out</code>, 이탈은 더 빠르게(§7.1) — 면은 종이지만 <strong>성격이 메뉴</strong>라 spring-pop의 예산 밖이다.</p>
             <div>
@@ -1703,6 +1714,32 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
           </div>
 
           <div class="demo-pane" style="grid-column: 1 / -1;">
+            <p class="subhead text">종이 토글 · <code class="inline">PaperToggleStyle</code></p>
+            <p class="lbl">스톡 <code class="inline">Toggle</code>의 캡슐 스위치를 손으로 자른 종이로 재질만 바꾼 <code class="inline">ToggleStyle</code>. 트랙은 <code class="inline">PaperRect(cornerRadius:.pill)</code>이 pill 스케일에서 스스로 라우팅하는 <strong>8각 필</strong>, 손잡이는 <code class="inline">PaperBlob(sides: 9)</code> 종이 조각. 스톡 iOS 스위치 실측(51 × 31 · 손잡이 27 · 인셋 2)에 히트 영역은 44pt(§7.3). <strong>눌러서 상태를 바꿔 보세요.</strong></p>
+            <div class="demo-bar" style="gap:var(--space-5);flex-wrap:wrap">
+              <div class="ptoggle-row" style="flex:1 1 260px">
+                <span class="t">Expiry alerts</span>
+                <button class="ptoggle" type="button" role="switch" aria-checked="false" aria-label="Expiry alerts">
+                  <svg viewBox="0 0 51 31" aria-hidden="true">
+                    <path class="ptrack" d="M9.5 0.5 H41.5 L50.5 9.5 V21.5 L41.5 30.5 H9.5 L0.5 21.5 V9.5 Z"/>
+                    <path class="pknob" d="M 15.50 2.81 L 23.33 4.97 L 27.92 11.99 L 26.84 20.36 L 21.71 26.84 L 13.88 28.19 L 6.59 24.95 L 3.35 17.39 L 4.97 9.02 Z"/>
+                  </svg>
+                </button>
+              </div>
+              <div class="ptoggle-row" style="flex:1 1 260px">
+                <span class="t">Collision haptics</span>
+                <button class="ptoggle" type="button" role="switch" aria-checked="true" aria-label="Collision haptics">
+                  <svg viewBox="0 0 51 31" aria-hidden="true">
+                    <path class="ptrack" d="M9.5 0.5 H41.5 L50.5 9.5 V21.5 L41.5 30.5 H9.5 L0.5 21.5 V9.5 Z"/>
+                    <path class="pknob" d="M 15.50 2.81 L 23.33 4.97 L 27.92 11.99 L 26.84 20.36 L 21.71 26.84 L 13.88 28.19 L 6.59 24.95 L 3.35 17.39 L 4.97 9.02 Z"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div class="note" style="margin-top:var(--space-3)"><strong>상태는 "채웠는가"가 지고 실루엣은 "재단선"이 진다(41차 대비 수정).</strong> 34차는 켬·꺼짐을 둘 다 채운 면(<code class="inline">blue</code> / <code class="inline">sub</code>)으로 두고 손잡이를 <code class="inline">paper</code>로 얹었는데, <strong>그 조합은 원천적으로 설 수 없었다</strong> — 종이 램프(<code class="inline">paper</code> .99/.33 · <code class="inline">sub</code> .935/.32 · <code class="inline">receipt</code> .985/.335)는 라이트·다크 모두 서로 1.2:1 안쪽에 몰려 있어 종이끼리는 밝기로 §2.6 비텍스트 기준(3:1)을 만들 수 없다. iPhone 17 시뮬레이터 3x 캡처 실측은 <strong>꺼짐 손잡이 대 트랙 라이트 1.20:1 · 다크 1.04:1</strong>이었고 다크에선 스위치가 사실상 보이지 않았다. <strong>밝기를 더 벌리는 대신 §13.10이 요일 칩에서 쓴 수를 그대로 쓴다 — 범주를 바꾼다:</strong> 슬롯은 양 상태 모두 <code class="inline">--paper-cut</code> 재단선으로 <strong>항상 오려져 있고</strong> 상태는 그 안이 <strong>채워졌는가</strong>로만 말한다(켬 = <code class="inline">blue</code> 면 + 그레인 / 꺼짐 = 면 없는 빈 슬롯 — 면이 없으면 결도 없다). <strong>꺼짐의 <code class="inline">sub</code> 면을 빼도 잃는 것이 없다</strong>는 것이 근거다: 그 면은 카드 위에서 실측 라이트 1.18 · 다크 1.06이라 <strong>보이지도 않으면서</strong> 손잡이의 대비만 잡아먹고 있었다. <strong>손잡이 면색은 앉은 자리가 정한다</strong> — 켬에서는 <code class="inline">blue</code> 채도 면 위이므로 §2.2의 확립 규칙대로 <code class="inline">--on-accent</code>(양 모드 고정 흰색)다. 34차의 <code class="inline">paper</code>는 다크에서 웜 차콜로 뒤집혀 파랑 위 실측 <strong>2.63:1</strong>이었고(손잡이가 조각이 아니라 파랑에 뚫린 <strong>구멍</strong>으로 읽혔다), <code class="inline">blue</code>의 다크 L 상한 .565가 바로 "흰 콘텐츠로 4.5:1"에서 나온 값이라 흰색이 이 면의 정답이다. 꺼짐에선 채도 면이 없고 카드 위에 그냥 앉으므로 종이 그대로다. <strong>41차 실측</strong>(같은 캡처 조건): 꺼짐 재단선 대 카드 <strong>라이트 7.75 · 다크 6.76</strong>, 재단선 대 손잡이 면 <strong>8.16 / 6.76</strong>; 켬 손잡이 대 트랙 <strong>5.65 / 4.65</strong>, 트랙 재단선 대 카드 <strong>7.89 / 8.15</strong> — 네 값 모두 3:1의 두 배 이상이다. <strong>색만으로 상태를 말하지 않는다</strong> — 손잡이 위치(좌/우)와 채움 유무가 색과 독립으로 상태를 진다. <strong>접근성은 스타일이 아니라 <code class="inline">Toggle</code> 자신이 책임진다</strong> — <code class="inline">makeBody</code>는 트랙·손잡이만 그리고 라벨·트레잇·값(On/Off)엔 손대지 않아 VoiceOver 더블탭이 화면 탭 제스처를 거치지 않고 <code class="inline">isOn</code> 바인딩에 직접 닿는다. 적용은 <code class="inline">SettingsToggle</code> 한 곳이라 프로필의 세 스위치가 함께 갈리고, 레포 전체에 다른 <code class="inline">Toggle(</code> 호출부는 없다.</div>
+          </div>
+
+          <div class="demo-pane" style="grid-column: 1 / -1;">
             <p class="subhead text">오더 메모 카드 — 단서 카드 (추천 캐러셀)</p>
             <p class="lbl">주방 오더 티켓, <strong>단서 카드로 축소(2026-08)</strong>: 상·하 톱니 절취 + <strong>모노 크롬 크라운 한 줄</strong>("ORDER · REFFI KITCHEN" + "#NN", 한 role·색만 ink/ink2) + 점선 룰 + 판정문 키커("Saves N expiring today" 등, <code class="inline">metaText</code> + 신선도 색) + 메뉴명/시간 + "ON THE TICKET"(크라운과 같은 모노 role) + 재료 이름 블록(체크박스 없음, 최대 5줄 + N more, D-day 종이 칩(<code class="inline">PaperCutRect</code>)은 <strong>soon·urgent에만</strong>) + 부족한 재료가 있을 때만 <strong>전폭 패널 버튼</strong>(2026-08 32차 — 개수형 헤드라인 "N ingredients short" + 부족 재료명 최대 2줄 + ＋ 블롭, 팝업 3단을 여는 문, 아래 참고) + "이걸로 요리" 발주 CTA(발주 시 START 스탬프 슬램). <strong>PREP 단계 미리보기는 제거했다</strong> — 조리법의 디테일은 발주 후 조리 화면의 영상 링크가 맡는다. 덱은 풀스크린·네비 없음 — 뒤에 겹친 종이가 실제 다음 티켓이며(<strong>노출 띠는 글자 없는 빈 종이</strong> — depth ≥ 1은 크롬 텍스트를 렌더하지 않는다: 앞 티켓 톱니의 골 사이로 반쪽 글리프가 새는 것을 막고, 승격 시엔 불투명도만 되살린다. 성능은 별도로 가장 깊은 티켓만 본문·CTA를 생략한다 — 바로 뒤는 풀 렌더라 플릭 승격이 매끄럽다), 맨 앞을 튕겨(플릭) 넘긴다(아래 "플릭 방향 의미론" 참고). 카드는 화면 높이에 캡되고 중간 섹션은 필요 시 카드 안에서 스크롤(큰 글씨 안전망). <strong>발주 = 예약</strong>(START 슬램은 연출, 재고 차감·이력은 <strong>요리 완료에서 확정</strong> — 재료별 "다 썼어요/조금 남았어요" 원탭, 조리 취소는 예약 해제). 발주는 커버당 1회 + 6초 되돌리기(<strong>상단</strong> 잉크 캡슐 토스트 — 탭 공통, 하단 CTA·네비를 가리지 않는다) → 곧장 조리 화면(영상 CTA), 메인의 <strong>Cooking now 진행 카드</strong>로 복귀 — 몰입 커버를 여는 진입점이라 셰입은 CTA급(<code class="inline">PaperCutRect</code> + <code class="inline">PaperGrain</code> + shadow-1)이고 색만 종이 면으로 눌러 Start cooking과 경쟁하지 않는다(룰 ⑩). 같은 자리의 알림 배너는 커버를 열지 않으므로 톱니 영수증 스트립 그대로다. 판정 커버엔 urgent 한정 <strong>Freeze</strong> 3번째 선택지 — 얼리면 유예 14일의 새 D-day(재냉동 불가), 냉장고 카드엔 FROZEN 도장. 커버는 시스템 슬라이드를 끄고 <code class="inline">scale(0.95)</code> + <code class="inline">pop</code>으로 떴다가, 고르거나 취소하면 <strong>짧은 이탈 페이드(<code class="inline">--dur-1</code>) 뒤에 해체</strong>한다(0프레임 컷은 판정이 취소된 것처럼 보인다 — 그 0.12초 창은 두 번째 판정을 잠근다). <strong>발주 덱은 시드 + 커스텀 레시피로 구성된다</strong> — 인앱 AI 레시피 생성은 2026-08 owner decision으로 제거했다(서버 함수는 유지, MD §11.8 참고).</p>
             <div class="memo">
@@ -1722,7 +1759,7 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
               <span class="paper-badge paper-face"><span class="text">② 담김 알림 · OK</span></span>
               <span class="paper-badge paper-face"><span class="text">③ 이동 질문 · Cancel / View</span></span>
             </div>
-            <p class="lbl" style="margin-top:var(--space-4)"><strong>영상 브리지 (MD §13.5)</strong> — 랭킹은 "임박한 걸 가장 많이 쓰는" 레시피를 올릴 뿐이라 <strong>어떤 레시피도 쓰지 않는 임박 재료</strong>는 조용히 빠진다(배너는 "오늘 N개 위험"이라 압박하는데 티켓엔 그 재료가 없다). 두 자리에서 메운다. ① <strong>빈 덱은 이름을 부른다</strong> — 임박 재고가 있으면 빈 상태가 최대 <strong>2종을 호명</strong>하고(마감 임박순, ", " 연결) 바로 아래 <code class="inline">PaperButton</code>("Open recipe videos", fullWidth 아님)로 영상 검색을 연다. 전부 신선하거나 재고가 없으면 기존 카피 그대로다. ② <strong>덱이 살아 있으면 미커버 행</strong> — 오늘 만료인데 어느 티켓의 used에도 없는 재료가 있을 때만, 덱 <strong>위</strong>에 종이 행(PaperRect radius-sm, 최소 44pt)이 뜬다. 문구는 <strong>2줄까지 접고 그 전에 축소한다</strong> — 재료 이름이 문장 끝이라 한 줄로 묶으면 큰 글씨에서 잘리는 부분이 이 행의 유일한 payload다. 행은 카드에 겹치지 않고 <strong>실측 높이만큼 카드 예산을 가져간다</strong>(큰 글씨에서도 티켓 머리를 덮지 않는다). 그 위의 <strong>헤더 예산도 실측</strong>이다(고정 72 금지 — 부제가 두 줄로 접히면 헤더가 이 행을 덮는다). soon·fresh는 세지 않는다 — 상시 표시되면 경고가 배경이 된다. <strong>버튼은 문구가 부른 이름을 전부 책임진다</strong> — 두 자리 모두 검색어를 호명한 이름 전부로 만든다(공백 결합, "두부 계란 recipe"). 영상 URL 조립은 <code class="inline">RecipeVideoSearch</code> 한 곳에서 하고 조리 화면의 영상 CTA와 같은 함수이며, 쿼리는 <strong>쿼리 문법 문자(&amp;·+·=·?)까지 퍼센트 인코딩</strong>한다(커스텀 레시피명 "Mac &amp; Cheese"에서 검색어가 끊기지 않게).</p>
+            <p class="lbl" style="margin-top:var(--space-4)"><strong>영상 브리지 (MD §13.5)</strong> — 랭킹은 "임박한 걸 가장 많이 쓰는" 레시피를 올릴 뿐이라 <strong>어떤 레시피도 쓰지 않는 임박 재료</strong>는 조용히 빠진다(배너는 "오늘 N개 위험"이라 압박하는데 티켓엔 그 재료가 없다). <strong>빈 덱 안내 한 자리만 남았다(41차 — 미커버 브리지 행은 덜어냈다)</strong>: <strong>빈 덱은 이름을 부른다</strong> — 임박 재고가 있으면 빈 상태가 최대 <strong>2종을 호명</strong>하고(마감 임박순, ", " 연결) 바로 아래 <code class="inline">PaperButton</code>("Open recipe videos", fullWidth 아님)로 영상 검색을 연다. 전부 신선하거나 재고가 없으면 기존 카피 그대로다. 옛 ② <strong>미커버 행</strong>(덱 위 종이 한 줄)은 41차 덜어내기로 빠졌다 — 판별 순수 함수 <code class="inline">uncoveredUrgent</code>는 계약·테스트째 휴면으로 남는다(PaperRing 선례). 헤더 예산은 여전히 <strong>실측</strong>이다(고정 72 금지 — 부제가 두 줄로 접히면 헤더가 카드 머리를 덮는다). <strong>버튼은 문구가 부른 이름을 전부 책임진다</strong> — 두 자리 모두 검색어를 호명한 이름 전부로 만든다(공백 결합, "두부 계란 recipe"). 영상 URL 조립은 <code class="inline">RecipeVideoSearch</code> 한 곳에서 하고 조리 화면의 영상 CTA와 같은 함수이며, 쿼리는 <strong>쿼리 문법 문자(&amp;·+·=·?)까지 퍼센트 인코딩</strong>한다(커스텀 레시피명 "Mac &amp; Cheese"에서 검색어가 끊기지 않게).</p>
             <div style="display:flex;align-items:center;gap:var(--space-2);background:var(--paper-surface);border-radius:var(--radius-sm);padding:10px 14px;max-width:480px;margin-top:var(--space-3)">
               <span class="text" style="font-size:13px;color:var(--color-ink-2)">이 티켓들이 쓰지 않는 재료: 연두부</span>
               <span class="text" style="margin-left:auto;font-size:13px;font-weight:700;color:var(--color-urgent-dark)">▶ 영상</span>
@@ -1800,7 +1837,7 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
             <div class="tally__row"><span class="tally__item"><i class="silo f-fresh"></i><span class="text">대파</span></span><span class="t-caption num" style="color:var(--color-ink-2)">3회</span></div>
             <div class="tally__row"><span class="tally__item"><i class="silo f-urgent"></i><span class="text">토마토</span></span><span class="t-caption num" style="color:var(--color-ink-2)">2회</span></div>
             <div class="rule-dashed" style="margin-top:var(--space-3)"></div>
-            <div class="tally__row"><span class="tally__mono">REFFI</span><span class="tally__mono num">No. 0399</span></div>
+            <div class="tally__row"><span class="tally__mono">REFFI</span></div><!-- 장식용 일련번호는 46차에 뺐다 — 마감은 워드마크 한 줄 -->
           </div>
         </div>
 
@@ -1826,7 +1863,7 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
       <section class="section" id="dish">
         <span class="section__num num">12</span>
         <h2 class="text">요리 아이콘 <span class="t-caption" style="color:var(--color-muted)">— MD §13.7</span></h2>
-        <p class="section__lead text">레시피 80종(+커스텀 무한)을 하나씩 그리지 않으려고 세운 축 — <strong>원형(archetype) 15종</strong>. 60pt 섬네일에서 먼저 읽히는 건 색이 아니라 실루엣이라, 원형끼리는 외곽이 전부 다르다.</p>
+        <p class="section__lead text">레시피 128종(+커스텀 무한)을 하나씩 그리지 않으려고 세운 축 — <strong>원형(archetype) 15종</strong>. 60pt 섬네일에서 먼저 읽히는 건 색이 아니라 실루엣이라, 원형끼리는 외곽이 전부 다르다.</p>
 
         <table class="tbl">
           <thead><tr><th>원형</th><th>모티프</th></tr></thead>
@@ -1851,7 +1888,7 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
 
         <p class="t-body text" style="color:var(--color-ink-2);margin-top:var(--space-4)"><strong>변주 축</strong>(<code class="inline">DishLook</code>) — <code class="inline">fill</code>(주 내용물) · <code class="inline">accent</code>(원형마다 해석이 다른 보조 면) · <code class="inline">vessel</code>(그릇 재질 6종: <code class="inline">clay</code>·<code class="inline">porcelain</code>·<code class="inline">indigo</code>·<code class="inline">wood</code>·<code class="inline">iron</code>·<code class="inline">glaze</code>) · <code class="inline">mark</code>/<code class="inline">mark2</code>(고명 — 모양 9종: <code class="inline">cube</code>·<code class="inline">ring</code>·<code class="inline">baton</code>·<code class="inline">disc</code>·<code class="inline">dot</code>·<code class="inline">leafy</code>·<code class="inline">yolk</code>·<code class="inline">strip</code>·<code class="inline">wedge</code>) · <code class="inline">layers</code>. 같은 원형이라도 색·고명 변주로 다른 요리로 읽힌다(김치찌개=두부 큐브 vs 순두부찌개=노른자).</p>
 
-        <div class="note" style="margin-top:var(--space-4)"><strong>역할 분담.</strong> <code class="inline">DishSilhouette</code>는 렌더러다 — 재료 글리프와 같은 컷페이퍼 문법(직선 면 5~12각, 몸통 2~3톤 면분할, 아웃라인 없음)으로 그리고, <code class="inline">Canvas</code> 기반이라 크기와 무관하게 항상 같은 그림이다. <code class="inline">DishGlyphCatalog</code>는 정체를 결정한다 — 시드 80종 손 배정 표(<code class="inline">table</code>) + 이름 키워드 추론 + cuisine 기본값 + <code class="inline">stableHash</code> id 변주로, 실행마다 값이 흔들리지 않는다. 팔레트(<code class="inline">DishPalette</code>)는 §11(MD §13.3)과 같은 규율 — OKLCH 정본, hex 금지, 스킴 불변 고정색. <strong><code class="inline">FoodGlyph</code>와의 분업</strong> — 재료 글리프는 재료를, 요리 아이콘은 완성된 요리를 그린다. 다만 김밥처럼 메뉴 자체가 모티프인 요리형 글리프는 <code class="inline">FoodGlyph</code> 쪽에 손으로 그려 두었고(<code class="inline">FoodGlyph.dishKeywords</code> 큐레이션 표), <strong>히어로 체인에서만</strong> 조회된다 — 재료명 매칭(<code class="inline">FoodGlyph.match</code>)에 끼워 넣으면 냉장고에 "김밥"이라 적었을 때 재료 목록에 완성 요리 그림이 뜬다.</div>
+        <div class="note" style="margin-top:var(--space-4)"><strong>역할 분담.</strong> <code class="inline">DishSilhouette</code>는 렌더러다 — 재료 글리프와 같은 컷페이퍼 문법(직선 면 5~12각, 몸통 2~3톤 면분할, 아웃라인 없음)으로 그리고, <code class="inline">Canvas</code> 기반이라 크기와 무관하게 항상 같은 그림이다. <code class="inline">DishGlyphCatalog</code>는 정체를 결정한다 — 시드 128종 손 배정 표(<code class="inline">table</code>) + 이름 키워드 추론 + cuisine 기본값 + <code class="inline">stableHash</code> id 변주로, 실행마다 값이 흔들리지 않는다. 팔레트(<code class="inline">DishPalette</code>)는 §11(MD §13.3)과 같은 규율 — OKLCH 정본, hex 금지, 스킴 불변 고정색. <strong><code class="inline">FoodGlyph</code>와의 분업</strong> — 재료 글리프는 재료를, 요리 아이콘은 완성된 요리를 그린다. 다만 김밥처럼 메뉴 자체가 모티프인 요리형 글리프는 <code class="inline">FoodGlyph</code> 쪽에 손으로 그려 두었고(<code class="inline">FoodGlyph.dishKeywords</code> 큐레이션 표), <strong>히어로 체인에서만</strong> 조회된다 — 재료명 매칭(<code class="inline">FoodGlyph.match</code>)에 끼워 넣으면 냉장고에 "김밥"이라 적었을 때 재료 목록에 완성 요리 그림이 뜬다.</div>
 
         <p class="subhead text">히어로 체인 — <code class="inline">Recipe.heroIcon</code></p>
         <table class="tbl">
@@ -1982,7 +2019,7 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
 
         <p class="subhead text" style="margin-top:var(--space-6)">종이 다이얼로그 — <code class="inline">PaperDialog</code> · <code class="inline">PaperChecklistDialog</code> <span class="t-caption" style="color:var(--color-muted)">— MD §14.7</span></p>
         <p class="t-caption text" style="color:var(--color-ink-2);margin-bottom:var(--space-4)"><strong>앱의 종이 언어로 된 팝업.</strong> 크림 종이 · 손으로 자른 테두리 · 종이컷 버튼으로 이뤄진 화면 한복판에 iOS 기본 <code class="inline">.alert</code>이 뜨면 그 순간만 다른 앱이 된다. 프레젠테이션 이유도 겹친다 — 풀스크린 커버 <strong>안에서</strong> 시스템 알림을 띄우면 알림 해체 전환이 부모 커버의 닫기 요청과 겹쳐 UIKit이 그 요청을 삼킨다(실측: 3회 중 1회 재현, 0.6초 지연으로 우회해야 했다). 두 다이얼로그는 <strong>같은 뷰 트리 안의 오버레이</strong>라 전환 큐 자체가 없고, 두 장을 이어 띄우는 흐름도 프레젠테이션 큐가 아니라 <strong>같은 업데이트에서 교대</strong>된다(담기 3단 팝업이 그 위에서 돈다 — §11 "부족 재료 패널").</p>
-        <div class="note"><strong>공통 문법.</strong> <code class="inline">scrim</code> 딤 + <code class="inline">PaperRect(cornerRadius: .xl)</code> 크림 카드(paper 면 + paperEdge + shadow-1) + 제목(<code class="inline">heading</code>) + 선택 메시지(<code class="inline">body</code>/ink-2) + <strong><code class="inline">PaperButton</code></strong>(새 버튼 어휘를 만들지 않는다). 카드 <strong>최대 폭 420pt</strong>(큰 화면에서 통째로 늘어나면 문장이 한 줄로 길어져 읽는 눈이 멀리 이동한다) · 좌우 여백 <code class="inline">s6</code> · 내부 패딩 <code class="inline">s5</code>. 딤은 <code class="inline">easeOut(dur-2)</code>로 들고 나고 카드는 <code class="inline">scale(0.95)</code>에서 <code class="inline">pop</code> 스프링으로 튀어 오른다(§7.1 진입 하한 · §7.5, 판정 커버와 같은 값), Reduce Motion이면 둘 다 즉시. 버튼을 누르면 <strong>먼저 내리고 그 다음 행동</strong>한다(시스템 알림과 같은 순서). <strong><code class="inline">ReceiptShape</code>(톱니)를 쓰지 않는다</strong> — 티켓 덱 위에 뜨는 팝업이 톱니를 두르면 "티켓이 한 장 더 나온 것"으로 읽힌다. 다이얼로그는 티켓이 아니라 <strong>묻는 종이</strong>다. 접근성은 컨테이너에 <code class="inline">.isModal</code>(뜬 동안 뒤 화면이 VoiceOver에서 사라진다) + 등장 시 제목 포커스 + <code class="inline">.isHeader</code>, 이스케이프 제스처는 <strong>딤 탭과 같은 행동</strong>(정해지지 않았으면 1차 행동)이고 딤에는 라벨을 달지 않는다.</div>
+        <div class="note"><strong>공통 문법.</strong> <code class="inline">scrim</code> 딤 + <code class="inline">PaperRect(cornerRadius: .xl)</code> 크림 카드(paper 면 + paperEdge + shadow-1) + 제목(<code class="inline">heading</code>) + 선택 메시지(<code class="inline">body</code>/ink-2) + <strong><code class="inline">PaperButton</code></strong>(새 버튼 어휘를 만들지 않는다). <strong>버튼 라벨은 동사 한 단어로 줄인다(2026-08, 42차)</strong> — PaperButton은 폭이 좁아 두 단어 라벨이 종종 두 줄로 꺾인다: "Reset everything"→"Reset" · "Replace with sample data"→"Replace" · "Cancel cooking"/"Keep cooking"→"Stop"/"Keep". 무엇이 지워지는지는 버튼이 아니라 <strong>제목·메시지가 든다</strong>(관용구로 굳어 한 줄에 들어가는 것은 예외). 카드 <strong>최대 폭 420pt</strong>(큰 화면에서 통째로 늘어나면 문장이 한 줄로 길어져 읽는 눈이 멀리 이동한다) · 좌우 여백 <code class="inline">s6</code> · 내부 패딩 <code class="inline">s5</code>. 딤은 <code class="inline">easeOut(dur-2)</code>로 들고 나고 카드는 <code class="inline">scale(0.95)</code>에서 <code class="inline">pop</code> 스프링으로 튀어 오른다(§7.1 진입 하한 · §7.5, 판정 커버와 같은 값), Reduce Motion이면 둘 다 즉시. 버튼을 누르면 <strong>먼저 내리고 그 다음 행동</strong>한다(시스템 알림과 같은 순서). <strong><code class="inline">ReceiptShape</code>(톱니)를 쓰지 않는다</strong> — 티켓 덱 위에 뜨는 팝업이 톱니를 두르면 "티켓이 한 장 더 나온 것"으로 읽힌다. 다이얼로그는 티켓이 아니라 <strong>묻는 종이</strong>다. 접근성은 컨테이너에 <code class="inline">.isModal</code>(뜬 동안 뒤 화면이 VoiceOver에서 사라진다) + 등장 시 제목 포커스 + <code class="inline">.isHeader</code>, 이스케이프 제스처는 <strong>딤 탭과 같은 행동</strong>(정해지지 않았으면 1차 행동)이고 딤에는 라벨을 달지 않는다.</div>
         <table class="tbl" style="margin-top:var(--space-4)">
           <thead><tr><th>형태</th><th>버튼</th><th>딤 탭</th><th>규칙</th></tr></thead>
           <tbody>
@@ -2025,6 +2062,16 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
     root.setAttribute('data-theme', next);
     localStorage.setItem(KEY, next);
     btn.setAttribute('aria-pressed', String(next === 'dark'));
+  });
+})();
+
+// 종이 토글 데모(§13.5) — role="switch"의 aria-checked만 뒤집고, 나머지는 CSS가 한다.
+// 앱과 같은 계약이다: 스타일은 시각만 바꾸고 상태·시맨틱은 컨트롤 자신이 든다.
+(function () {
+  Array.prototype.forEach.call(document.querySelectorAll('.ptoggle'), function (t) {
+    t.addEventListener('click', function () {
+      t.setAttribute('aria-checked', t.getAttribute('aria-checked') === 'true' ? 'false' : 'true');
+    });
   });
 })();
 

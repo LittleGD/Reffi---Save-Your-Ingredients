@@ -27,7 +27,7 @@ struct RecipeIntroTests {
 
     @Test func seedLoadsWithEveryRecipeIntroduced() throws {
         let recipes = seed
-        #expect(recipes.count == 80, "시드 레시피 수가 바뀌었다 — 새 레시피에도 소개가 필요하다")
+        #expect(recipes.count == 128, "시드 레시피 수가 바뀌었다 — 새 레시피에도 소개가 필요하다")
         for r in recipes {
             let intro = try #require(r.intro, "\(r.id): intro 누락")
             #expect(!intro.en.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
@@ -153,7 +153,7 @@ struct RecipeIntroTests {
 
     @Test func displayStepsIsEmptyForRecipesWithoutSteps() {
         // 커스텀 레시피는 편집기가 단계를 더 이상 입력받지 않아 보통 빈 배열이다(33c8861) —
-        // 그래서 티켓의 "See the cooking details?" 링크가 커스텀 레시피에는 안 선다.
+        // 그래서 티켓의 "How to cook"(48차) 링크가 커스텀 레시피에는 안 선다.
         let custom = Recipe.userRecipe(name: "내 레시피", ingredientNames: ["계란"], minutes: 10)
         #expect(custom.displaySteps.isEmpty)
     }

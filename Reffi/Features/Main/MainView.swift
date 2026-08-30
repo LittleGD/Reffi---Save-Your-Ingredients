@@ -46,11 +46,8 @@ struct MainView: View {
     @State private var showAdd = false
     @State private var carouselSnapshot: [RecipeRecommender.Result] = []   // 커버 입력 동결(발주 중 재랭크 방지)
     /// 빈 덱에서 호명할 위험 재고 이름 — **비-fresh 전체**(soon + urgent). 덱과 **같은 틱**에 얼린다
-    /// (아래 `snapshotCarousel`). 아래 `uncoveredSnapshot`은 **urgent만** 세는 더 좁은 축이라
-    /// 이름을 atRisk 계열로 갈라 둔다 — 한쪽 기준으로 다른 쪽을 고치면 두 문구가 조용히 어긋난다.
+    /// (아래 `snapshotCarousel`).
     @State private var atRiskSnapshot: [String] = []
-    /// 덱이 다루지 못한 오늘 만료(urgent) 재료 이름 — 브리지 행의 입력. 역시 같은 틱에 얼린다.
-    @State private var uncoveredSnapshot: [String] = []
     @State private var firedTicket = false         // 커버당 발주 1회 — 슬램 창의 더블 파이어 방지
     @State private var coverGeneration = 0         // 지연 닫기 타이머가 새로 연 커버를 닫지 못하게
     /// 담기 흐름(팝업 3단)이 덱 위에 떠 있다 — 켜져 있는 동안 발주 지연 닫기를 **미룬다**.
@@ -211,7 +208,10 @@ struct MainView: View {
                 .disabled(counter.items.isEmpty)   // 디밍은 PaperButton이 §7.2로 처리 — 여기서 겹치면 곱해진다.
         }
         .animation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion), value: store.activeCook)
-        .background { background(counter) }
+        // 가려진 패인은 배경(전면 리퀴드글래스 3블롭 + glassEffect)을 세우지 않는다(42차·F87 잔여) —
+        // body·물리 씬은 상태 보존을 위해 남기고 **그리기 비용의 대부분인 배경만** 내린다.
+        // FridgeView·ProfileView의 isActive 게이트와 같은 계약이다.
+        .background { if isActive { background(counter) } }
         .reffiFeedback(.impact(weight: .medium), trigger: fireHaptic)
         .reffiFeedback(.impact(weight: .light), trigger: decisionHaptic)
         .fullScreenCover(isPresented: $showCarousel, onDismiss: {
@@ -232,7 +232,6 @@ struct MainView: View {
             RecipeMemoCarousel(results: carouselSnapshot,
                                hasIngredients: !store.ingredients.isEmpty,
                                atRiskNames: atRiskSnapshot,
-                               uncoveredNames: uncoveredSnapshot,
                                onClose: { showCarousel = false },
                                onFire: fire,
                                onAddMissing: { store.addMissingToBuy($0) },
@@ -515,45 +514,41 @@ struct MainView: View {
 
     // MARK: - Header
 
+    /// `statusBlock`의 `margin`·`s5`는 이미 세 루트 페이지의 상단 오프셋을 맞춘 값이다(23차 주석) —
+    /// 하지만 그 값은 바깥 패딩일 뿐, 이 VStack 자체가 내용 폭(워드마크 글자 폭)만큼만 좁게 잡히면
+    /// `body`의 바깥 VStack(정렬 지정 없음 = 기본 `.center`)이 이 좁은 블록을 통째로 화면 가운데로
+    /// 밀어 버린다 — 실측(43차, 스크린샷 대조): 워드마크가 margin(16)이 아니라 사실상 센터 정렬로
+    /// 떴다. Fridge `titleRow`가 쓰는 `.frame(maxWidth: .infinity, alignment: .leading)`를 그대로
+    /// `wordmark`에 옮겨 헤더가 전체 폭을 먹고 leading에 고정되게 한다 — 타이틀→캡션 간격도 같은 김에
+    /// Fridge `fridgeHeader`의 "제목-본문 간격" 문법(s3)으로 올린다(옛 값 s1은 이 정렬 버그와 무관하게
+    /// 그냥 좁았다).
     private func header(_ counter: CounterDigest) -> some View {
-        VStack(alignment: .leading, spacing: ReffiSpace.s1) {
-            // 워드마크와 날짜는 **한 줄이 들어갈 때만** 한 줄이다. 큰 글자에선 둘이 같은 줄에서 폭을
-            // 다투다 날짜가 'Wednesday…'로 잘렸는데(AX5 실측), 날짜는 잘리면 요일·월·일 중 뒤 둘이
-            // 통째로 사라지는 쪽이라 축약이 답이 아니다. 라벨을 줄이는 대신 **배치를 바꾼다** —
-            // 판정 커버(`outcomeRow`)와 같은 처방이고, 한 줄이 들어가는 크기에선 렌더가 그대로다.
-            ViewThatFits(in: .horizontal) {
-                HStack(alignment: .center) {
-                    wordmark
-                    Spacer(minLength: ReffiSpace.s3)
-                    todayStamp
-                }
-                VStack(alignment: .leading, spacing: 2) {
-                    wordmark
-                    todayStamp
-                }
-            }
+        VStack(alignment: .leading, spacing: ReffiSpace.s3) {
+            wordmark
             // 미션 헤더(D) — 오늘의 상태를 한 문장으로. 누계(Ate/Tossed)는 MyPage가 맡는다.
-            missionText(counter)
-                .reffiType(.caption)
-                .foregroundStyle(counter.urgent > 0 ? ReffiColor.urgentDark : ReffiColor.ink2)
+            // **빈 작업대에서는 이 줄이 서지 않는다(43차, 오너 결정 — 같은 말 두 번 금지).**
+            // 빈 상태 블록(emptyField)이 같은 화면에서 "무엇을 하라"를 이미 가르치는데 캡션까지
+            // "채우라"고 말하면 한 화면에 같은 지시가 네 겹이었고, 냉동·예약만 남은 분기에선
+            // 빈 상태("냉장고 탭 확인")와 캡션("채우라")의 지시가 서로 갈리기까지 했다.
+            // 지시는 빈 상태 블록 한 곳에 통합하고, 미션 줄은 셀 것이 있을 때만 선다.
+            if let mission = missionText(counter) {
+                mission
+                    .reffiType(.caption)
+                    .foregroundStyle(counter.urgent > 0 ? ReffiColor.urgentDark : ReffiColor.ink2)
+            }
         }
     }
 
-    /// 브랜드 워드마크 — 비번역 라틴(Story Script). 두 배치가 같은 한 장을 본다(손으로 두 번 쓰면 어긋난다).
+    /// 브랜드 워드마크 — 비번역 라틴(Story Script). `maxWidth: .infinity` + leading은 글자를 늘이는
+    /// 게 아니라(텍스트는 여전히 제 폭만큼만 그려진다) 이 뷰의 **레이아웃 폭**을 전체로 넓혀 위 `header`
+    /// VStack이 화면 가운데로 밀리지 않게 고정하는 앵커다 — Fridge `titleRow`와 동일한 트릭.
     private var wordmark: some View {
         Text(verbatim: "Reffi").reffiType(.display).foregroundStyle(ReffiColor.ink)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// 오늘 날짜 — 분 단위 타임라인으로 갱신해 자정이 지나도 어제 날짜가 남지 않는다.
-    private var todayStamp: some View {
-        TimelineView(.everyMinute) { ctx in
-            Text(ctx.date.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))
-                .font(.reffiNum(.meta)).foregroundStyle(ReffiColor.ink2)
-        }
-    }
-
-    private func missionText(_ counter: CounterDigest) -> Text {
-        if counter.items.isEmpty { return Text("Fill the counter, then cook") }
+    private func missionText(_ counter: CounterDigest) -> Text? {
+        if counter.items.isEmpty { return nil }   // 빈 상태 블록이 지시를 전담한다(위 주석)
         if counter.urgent > 0 { return Text("\(counter.urgent) at risk today. Cook one?") }
         if counter.soon > 0 { return Text("\(counter.soon) to eat soon. Plan tonight?") }
         // 임박이 없을 때도 **다음 한 걸음**을 지목한다 — "미리 해치우라"는 재촉만 남기면
@@ -603,13 +598,13 @@ struct MainView: View {
     /// 한 줄 제한을 두지 않는 것이 세로 폴백의 전부다: 접힌 뒤에는 폭이 온전하니 잘릴 이유가 없고,
     /// 가로 후보의 **이상 폭**은 줄 수와 무관하므로(한 줄 기준) 어느 배치를 고를지는 그대로다.
     private var alertPromptCopy: some View {
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: ReffiSpace.s0) {
             Text(verbatim: "MORNING ALERTS")
                 .reffiType(.monoEyebrow).foregroundStyle(ReffiColor.blueDark)
             Text("Know before food turns")
                 .reffiType(.badgeLabel)
                 .foregroundStyle(ReffiColor.ink)
-                .minimumScaleFactor(0.8)
+                .minimumScaleFactor(ReffiShrink.chrome)
         }
     }
 
@@ -619,15 +614,18 @@ struct MainView: View {
             Text("Turn on")
                 .reffiType(.pillLabel)
                 .foregroundStyle(ReffiColor.blueDark)
-                .padding(.horizontal, ReffiSpace.s3 + 2)
-                .padding(.vertical, ReffiSpace.s1 + 2)
+                .padding(.horizontal, ReffiSpace.s3)
+                .padding(.vertical, ReffiSpace.s2)
                 // §13.1 종이컷 8각형(캡슐 금지) — 바로 아래 Start cooking(PaperButton)과 같은 재질 언어.
                 // 다만 면은 채우지 않는다: blue 솔리드 면은 한 화면에 하나(Start cooking)뿐이어야
                 // 부차 액션이 F패턴 #1을 가져가지 않는다(§2.4 5% 강조 배분, 감사 R3-1).
                 .background {
                     let s = PaperCutRect(seed: 3)
-                    s.fill(ReffiColor.sub)
-                        .paperEdge(s, tint: ReffiColor.blueDark.opacity(0.38), width: 1.2)
+                    // 면은 subRaised(§2.8·42차 — 이 칩은 종이 배너 카드 위라 sub는 다크에서 사라진다),
+                    // 단면은 정본 `paperEdgeAccent`(α .18)다 — 옛 리터럴 .38은 강조 단면 토큰의 2배로,
+                    // 부차 액션의 단면이 조리 티켓의 강조 종이보다 강하게 우는 역전을 만들었다(42차).
+                    s.fill(ReffiColor.subRaised)
+                        .paperEdge(s, tint: ReffiColor.paperEdgeAccent(ReffiColor.blueDark))
                 }
                 .frame(minHeight: ReffiChrome.tapMin)
                 .contentShape(Rectangle())
@@ -666,7 +664,7 @@ struct MainView: View {
     private func cookingNowCard(_ cook: FridgeStore.CookSession) -> some View {
         Button { showSteps = true } label: {
             HStack(spacing: ReffiSpace.s3) {
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: ReffiSpace.s0) {
                     Text(verbatim: "COOKING NOW")
                         .reffiType(.monoEyebrow).foregroundStyle(ReffiColor.blueDark)
                     // 요리명과 경과 시간도 알림 배너와 같은 고정 2열이었다 — 큰 글자에선 둘이 남은
@@ -677,7 +675,7 @@ struct MainView: View {
                             cookName(cook)
                             cookElapsed(cook)
                         }
-                        VStack(alignment: .leading, spacing: 2) {
+                        VStack(alignment: .leading, spacing: ReffiSpace.s0) {
                             cookName(cook)
                             cookElapsed(cook)
                         }
@@ -711,7 +709,7 @@ struct MainView: View {
             .reffiType(.badgeLabel)
             .foregroundStyle(ReffiColor.ink)
             .lineLimit(2)
-            .minimumScaleFactor(0.8)
+            .minimumScaleFactor(ReffiShrink.chrome)
     }
 
     private func cookElapsed(_ cook: FridgeStore.CookSession) -> some View {
@@ -781,6 +779,10 @@ struct MainView: View {
                     // 씬이 센서·햅틱 엔진 수명주기를 스스로 다시 파생시킨다(재시작 불요).
                     .onChange(of: tiltEnabled) { _, v in scene.tiltEnabled = v }
                     .onChange(of: hapticsEnabled) { _, v in scene.hapticsEnabled = v }
+                    // 씬은 접근성 원소를 만들지 않아 사실상 조용하지만, 그것이 **의도**임을 명시한다
+                    // (42차·F51) — 다른 장식(실루엣·글리프 더미)이 전부 명시적으로 가려진 규칙의
+                    // 구멍으로 남지 않게. 판정의 대체 경로는 뱃지 행 → 판정 커버다.
+                    .accessibilityHidden(true)
                 if counter.items.isEmpty { emptyField }
             }
             .frame(width: geo.size.width, height: geo.size.height)
@@ -851,7 +853,7 @@ struct MainView: View {
                     }
                 } label: {
                     // 캔버스 위 링크 잉크는 blueDark — 면 색인 blue는 다크 캔버스에서 대비가 무너진다(§2.2).
-                    Text("Or try a sample fridge")
+                    Text("Try a sample fridge")
                         .reffiType(.caption)
                         .foregroundStyle(ReffiColor.blueDark)
                         .underline()
@@ -947,17 +949,16 @@ struct MainView: View {
 
     // MARK: - Cook / Fire the Ticket
 
-    /// 커버 입력 3종(덱·호명 이름·미커버 임박)을 **한 번에** 얼린다.
-    /// 따로 계산하면 발주로 store가 바뀌는 사이에 서로 다른 시점의 재고를 보게 되고,
-    /// 브리지 행이 덱에 실제로 있는 재료를 "안 쓴다"고 말하는 자기모순이 생긴다.
+    /// 커버 입력 2종(덱·호명 이름)을 **한 번에** 얼린다.
+    /// 따로 계산하면 발주로 store가 바뀌는 사이에 서로 다른 시점의 재고를 보게 된다.
     private func snapshotCarousel() {
         let results = carouselResults
         let stock = store.available
         carouselSnapshot = results
         // 호명은 문장 안에 들어가는 **표시 이름**이다 — 저장 `name`은 담던 순간 표기라 로케일이 박제된다
-        // (§Ingredient.displayName). 브리지 문구와 그 옆 영상 검색어가 같은 배열을 쓰므로 여기 한 곳만 고르면 된다.
+        // (§Ingredient.displayName). 빈 덱 문구와 그 옆 영상 검색어가 같은 배열(`atRiskSnapshot`)을
+        // 쓰므로 여기 한 곳만 고르면 된다.
         atRiskSnapshot = stock.filter { $0.freshness != .fresh }.map(\.displayName)   // available은 이미 임박순
-        uncoveredSnapshot = RecipeRecommender.uncoveredUrgent(ingredients: stock, results: results).map(\.displayName)
     }
 
     private func cook() {
@@ -1079,13 +1080,13 @@ private struct DecisionCover: View {
 
     private var card: some View {
         VStack(spacing: ReffiSpace.s5) {
-            VStack(spacing: 2) {
+            VStack(spacing: ReffiSpace.s0) {
                 // 바깥 s7 마진은 카드에 **제안**으로만 전해진다 — 제안을 무시하는 자식(고정 frame·끊기지
                 // 않는 긴 낱말)만이 종이를 마진 밖으로 밀어낼 수 있다. 블롭은 위 `blobSide`가 잡았고,
                 // 남은 하나가 이 이름이다(냉장고 카드·간편 행도 같은 이유로 이름을 한 줄로 묶는다).
                 Text(verbatim: ingredient.displayName).reffiType(.heading).foregroundStyle(ReffiColor.ink)
                     .lineLimit(2)
-                    .minimumScaleFactor(0.8)
+                    .minimumScaleFactor(ReffiShrink.chrome)
                     .multilineTextAlignment(.center)
                 Text("Did you eat it, or toss it?")
                     .reffiType(.caption).foregroundStyle(ReffiColor.ink2)

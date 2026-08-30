@@ -64,7 +64,7 @@ struct RootTabView: View {
                     withAnimation(ReffiMotion.gated(ReffiMotion.pop, reduce: reduceMotion)) {
                         store.undoPending()
                     }
-                    ReffiAnnounce.say(String(localized: "Undone."))
+                    ReffiAnnounce.say(AppLanguage.localizedNow("Undone."))
                 }
                 .padding(.top, ReffiSpace.s2)
                 // 이 토스트는 **잉크 캡슐**이지 종이가 아니다 — 종이컷 표면 전용인 통통 스프링(§7.5)을
@@ -179,8 +179,12 @@ private struct CapsuleNav: View {
         }
         .padding(.horizontal, ReffiSpace.s5)
         .frame(height: ReffiChrome.navHeight)
+        // `.isTabBar` 고지(F53)는 42차에서 시도 후 원복 — XCUITest 요소 재분류로 내비 조회가
+        // 깨진다(FridgeTabs 주석 참조). 별도 라운드에서 테스트 계약과 함께 다룬다.
         .navGlass()
-        .shadow(color: ReffiColor.shadowTint.opacity(0.06), radius: 6, x: 0, y: 2)   // 약한 드롭섀도
+        // §6.4의 카드 단(r5/y2)과 같은 잉크 농도의 **의도된 약화 변형**이다 — 떠 있는 요소의
+        // 이중 그림자(§6.2)를 쓰면 글래스 캡슐이 카드로 읽힌다(42차: 코드-주석 정합 재서술).
+        .shadow(color: ReffiColor.shadowTint.opacity(0.06), radius: 6, x: 0, y: 2)
         .padding(.bottom, ReffiChrome.navBottom)   // 더 아래로 — 홈 인디케이터 근처
     }
 
@@ -197,13 +201,16 @@ private struct CapsuleNav: View {
     private func actionItem(_ icon: Ph, _ label: LocalizedStringKey) -> some View {
         navButton(icon: icon, label: label, tint: ReffiColor.muted, weight: .regular,
                   selected: false, action: onAdd)
+            // ＋는 목적지 전환이 아니라 시트를 여는 액션이다(42차·F53) — 탭들과 같은 폼으로 서 있어
+            // 힌트가 그 차이를 소리로 보완한다.
+            .accessibilityHint(Text("Opens the add sheet"))
     }
 
     /// 모든 네비 항목 공통 형식 — 아이콘(23) + 라벨(11/caption2 스케일, AX 크기에선 아이콘만).
     private func navButton(icon: Ph, label: LocalizedStringKey, tint: Color, weight: Ph.IconWeight,
                            selected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            VStack(spacing: 3) {
+            VStack(spacing: ReffiSpace.s0) {
                 icon.reffi(23, weight)
                 if !iconOnly {
                     Text(label)
