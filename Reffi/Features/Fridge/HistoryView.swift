@@ -87,7 +87,6 @@ struct HistoryContent: View {
         let rate: Int
         let topTossed: [(key: String, name: String, glyph: FoodGlyph, count: Int)]
         let streakDays: Int
-        let receiptNo: String
         let pileGlyphs: [FoodGlyph]
 
         init(store: FridgeStore, logs: [RemovalLog], topLimit: Int) {
@@ -110,9 +109,6 @@ struct HistoryContent: View {
             // 무낭비 스트릭 — 마지막 버림 이후 경과일(버린 적 없으면 기록 시작부터). (PR #4 리포트 통합)
             if let last = logs.filter(\.wasted).map(\.daysAgo).min() { streakDays = last }
             else { streakDays = logs.map(\.daysAgo).max() ?? 0 }
-
-            // 영수증 번호 — 이력 수치에서 유도(장식, 안정적).
-            receiptNo = String(format: "No. %04d", (eaten &* 31 &+ tossed &* 7 &+ rate) % 10000)
 
             // 배경 더미 글리프 — 내 냉장고가 먼저, 그다음 이력. 같은 글리프는 한 번만.
             var seen = Set<FoodGlyph>()
@@ -487,16 +483,13 @@ struct HistoryContent: View {
                     }
                 }
 
-                // 영수증 명세 마감 — 점선 룰 + 상호 + 번호(장식, 이력에서 유도). 기간은 헤더가 말한다.
+                // 영수증 명세 마감 — 점선 룰 + 상호. 기간은 헤더가 말한다.
+                // (한때 우측에 장식용 일련번호가 있었으나 의미를 기대하게 만드는 무의미한
+                //  숫자라 뺐다 — 2026-08-29 사용자 결정, 46차)
                 ReffiRule(.receipt)
-                HStack {
-                    Text(verbatim: "REFFI")
-                        .reffiType(.monoEyebrow)
-                        .foregroundStyle(ReffiColor.muted)
-                    Spacer()
-                    Text(ledger.receiptNo)
-                        .font(.reffiNum(.meta)).foregroundStyle(ReffiColor.muted)
-                }
+                Text(verbatim: "REFFI")
+                    .reffiType(.monoEyebrow)
+                    .foregroundStyle(ReffiColor.muted)
             }
         }
     }
@@ -539,6 +532,7 @@ struct HistoryContent: View {
             }
         }
     }
+
 
 
     // MARK: ③ 타임라인

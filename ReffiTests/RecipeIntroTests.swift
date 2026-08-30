@@ -153,7 +153,7 @@ struct RecipeIntroTests {
 
     @Test func displayStepsIsEmptyForRecipesWithoutSteps() {
         // 커스텀 레시피는 편집기가 단계를 더 이상 입력받지 않아 보통 빈 배열이다(33c8861) —
-        // 그래서 티켓의 "See the cooking details?" 링크가 커스텀 레시피에는 안 선다.
+        // 그래서 티켓의 "How to cook"(48차) 링크가 커스텀 레시피에는 안 선다.
         let custom = Recipe.userRecipe(name: "내 레시피", ingredientNames: ["계란"], minutes: 10)
         #expect(custom.displaySteps.isEmpty)
     }

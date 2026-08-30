@@ -281,16 +281,6 @@
         }
       }
     },
-    "%lld reserved": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "재료 %lld개 사용 예정"
-          }
-        }
-      }
-    },
     "%lld steps": {
       "localizations": {
         "en": {
@@ -1679,6 +1669,16 @@
         }
       }
     },
+    "How to cook": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "조리 방법"
+          }
+        }
+      }
+    },
     "In stock": {
       "localizations": {
         "ko": {
@@ -1759,12 +1759,12 @@
         }
       }
     },
-    "Keep cooking": {
+    "Keep": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "계속 조리하기"
+            "value": "계속"
           }
         }
       }
@@ -2192,16 +2192,6 @@
         }
       }
     },
-    "Nothing on these tickets uses %@.": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "이 티켓들이 쓰지 않는 재료: %@"
-          }
-        }
-      }
-    },
     "Nothing recognized": {
       "localizations": {
         "ko": {
@@ -2278,6 +2268,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "또는"
+          }
+        }
+      }
+    },
+    "On this device": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 기기에만"
           }
         }
       }
@@ -2546,16 +2546,6 @@
         }
       }
     },
-    "Put them back": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "되돌리기"
-          }
-        }
-      }
-    },
     "Puts it back in the fridge and clears it from the list.": {
       "localizations": {
         "ko": {
@@ -2706,12 +2696,22 @@
         }
       }
     },
-    "Replace with sample data": {
+    "Replace": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "샘플 데이터로 교체"
+            "value": "교체"
+          }
+        }
+      }
+    },
+    "Reset": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "초기화"
           }
         }
       }
@@ -2732,16 +2732,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "모든 데이터를 초기화할까요?"
-          }
-        }
-      }
-    },
-    "Reset everything": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "전부 초기화"
           }
         }
       }
@@ -2864,16 +2854,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "재료 검색"
-          }
-        }
-      }
-    },
-    "See the cooking details?": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "조리 과정을 볼까요?"
           }
         }
       }
@@ -3086,6 +3066,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "재고가 냉동 보관 중이거나 조리에 쓰일 예정이에요. 냉장고 탭에서 확인해 보세요."
+          }
+        }
+      }
+    },
+    "Stop": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "중단"
           }
         }
       }
@@ -3591,6 +3581,16 @@
         }
       }
     },
+    "Videos": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "영상"
+          }
+        }
+      }
+    },
     "Vietnamese": {
       "localizations": {
         "ko": {
@@ -3707,16 +3707,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "현재 재료와 기록이 샘플로 대체돼요."
-          }
-        }
-      }
-    },
-    "Your data stays on this device": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "데이터는 이 기기에 그대로 남아요"
           }
         }
       }

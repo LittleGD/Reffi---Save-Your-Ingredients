@@ -153,7 +153,7 @@ struct ProfileView: View {
         .paperDialog(isPresented: $showSampleConfirm, title: "Load the sample fridge?",
                     message: "Your current ingredients and history will be replaced.",
                     seed: 4, backdropDismisses: true,
-                    primary: PaperDialogAction("Replace with sample data", role: .destructive) {
+                    primary: PaperDialogAction("Replace", role: .destructive) {
                         destructiveHaptic += 1   // 룰⑦ — 파괴 확정(.warning)
                         withAnimation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion)) {
                             store.loadSampleData()
@@ -163,7 +163,7 @@ struct ProfileView: View {
         .paperDialog(isPresented: $showResetConfirm, title: "Reset all data?",
                     message: "Ingredients and history will be deleted. This can't be undone.",
                     seed: 5, backdropDismisses: true,
-                    primary: PaperDialogAction("Reset everything", role: .destructive) {
+                    primary: PaperDialogAction("Reset", role: .destructive) {
                         destructiveHaptic += 1   // 룰⑦ — 파괴 확정(.warning)
                         withAnimation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion)) {
                             store.resetAllData()
@@ -431,7 +431,7 @@ struct ProfileView: View {
                 // 떨어져 있었다. `SettingsRow`(라벨+값+셰브런, 전체가 탭 표면)로 하나의 명확한
                 // 진입점만 남긴다 — 같은 목적지(인증 시트)로 가는 입구를 화면에 흩뿌리지 않는다.
                 // 카피는 정직하게: 서버 백업은 없으므로 약속하지 않고, 로컬 기기에 남는다는 사실만 말한다.
-                SettingsRow(label: "Guest mode", value: AppLanguage.localizedNow("Your data stays on this device")) {
+                SettingsRow(label: "Guest mode", value: AppLanguage.localizedNow("On this device")) {
                     showAuth = true   // 익명 세션을 유지한 채 시트에서 전환/로그인(승계 보장).
                 }
             } else {
