@@ -110,15 +110,23 @@ struct Recipe: Identifiable, Codable, Equatable {
 
     /// 커스텀 레시피 생성 편의 — 현재 로케일 표기를 en 슬롯에 담는다(en은 필수 캐논).
     /// `steps`는 편집기가 더 이상 입력받지 않아 기본 빈 배열이다(모델 필드는 디코드 호환으로 남아 있다).
+    ///
+    /// ref 부여는 **정확 일치 → 머리말 일치**까지만 — 포함 매칭은 쓰지 않는다. 레시피 재료 줄은
+    /// 서술형("닭 또는 야채 육수")이 섞이는 자리라, 앞에서 걸리는 키워드는 재료가 아니라 수식어다
+    /// (`RecipeRecommender.canonicalID(of:)`가 시드 no-ref 줄에 정확 일치만 허용하는 것과 같은 근거).
+    /// ref가 붙는 순간 이 줄은 발주 시 **그 캐논의 재고를 예약·삭제**하므로, 오귀속된 ref는
+    /// 표시 오류가 아니라 재고 파괴다. 해석 실패는 ref=nil로 두면 표기 정확 일치 매칭이 받는다.
     static func userRecipe(name: String, ingredientNames: [String], minutes: Int,
                            steps: [String] = []) -> Recipe {
-        Recipe(id: UUID().uuidString,
+        let lex = IngredientLexicon.shared
+        return Recipe(id: UUID().uuidString,
                name: LocalizedName(en: name, ko: nil),
                cuisine: nil,
                minutes: minutes,
                ingredients: ingredientNames.map { raw in
                    let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-                   return Item(ref: IngredientLexicon.shared.canonicalID(for: trimmed),
+                   return Item(ref: lex.exactCanonicalID(for: trimmed)
+                                   ?? lex.headNounCanonicalID(for: trimmed),
                                en: trimmed, ko: nil)
                },
                steps: LocalizedSteps(en: steps, ko: nil),

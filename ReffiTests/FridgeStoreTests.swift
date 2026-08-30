@@ -596,19 +596,20 @@ struct FridgeStoreTests {
         #expect(store.toBuy.map(\.key) == ["pork"])
     }
 
-    /// 사전에 없는 서술형 라인은 **자기 줄로** 담겨야 한다.
+    /// 서술형 라인은 **남의 키에 흡수되지 않고 자기 줄로** 담겨야 한다.
     ///
     /// 이게 이 라운드의 실질 결함이었다: 괄호만 떼고 store에 넘기면 store가 그 이름으로 포함 매칭을
     /// 한 번 더 해서 "paprika powder"가 `bell-pepper`(파프리카)에 붙는다. 그 키가 이미 담겨 있으면
     /// 반환이 false가 되어 **파프리카 가루는 목록에 들어가지도 않는데** 호출부는 성공으로 읽는다.
-    /// 시드 전수로 en 8종·ko 12종이 이 경로였다.
+    /// 41차에 `paprika-powder`가 사전에 등재되면서 이 줄은 이제 **자기 캐논**으로 확정된다 —
+    /// 계약(다른 재료의 키에 흡수 금지)은 그대로이고, 실패 형태(캐논 없는 원문)만 정답 캐논으로 바뀌었다.
     @Test func addMissingKeepsUnresolvedItemsOffOtherIngredientsKeys() throws {
         let store = FridgeStore(ingredients: [], recipes: [], history: [])
         #expect(store.addMissingToBuy([item("bell pepper (diced)", ref: "bell-pepper"),
                                        item("paprika powder (or mild chili powder)")]) == 2)
         let keys = store.toBuy.map(\.key)
         #expect(keys.contains("bell-pepper"))
-        #expect(keys.contains("paprika powder"))   // 남의 키에 흡수되지 않고 자기 줄로 남는다
+        #expect(keys.contains("paprika-powder"))   // 파프리카(bell-pepper)에 흡수되지 않고 자기 캐논으로
         #expect(store.toBuy.count == 2)
     }
 
@@ -737,7 +738,7 @@ struct FridgeStoreTests {
         #expect(store.wasteRate == 0)
     }
 
-    /// 정산서의 "Cooked into recipes" 행 — 발주(레시피 티켓)로 소비된 줄만, 그리고 **30일 창 안**에서만.
+    /// 정산서의 "Cooked" 행(42차 개명) — 발주(레시피 티켓)로 소비된 줄만, 그리고 **30일 창 안**에서만.
     /// `Ate`의 **부분집합**이라 두 값이 함께 성립해야 한다(같은 줄을 두 행이 각자 세지 않는다).
     @Test func cookedCountIsTheRecipeSliceOfAteInsideTheThirtyDayWindow() {
         let logs = [

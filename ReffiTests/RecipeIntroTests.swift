@@ -27,7 +27,7 @@ struct RecipeIntroTests {
 
     @Test func seedLoadsWithEveryRecipeIntroduced() throws {
         let recipes = seed
-        #expect(recipes.count == 80, "시드 레시피 수가 바뀌었다 — 새 레시피에도 소개가 필요하다")
+        #expect(recipes.count == 128, "시드 레시피 수가 바뀌었다 — 새 레시피에도 소개가 필요하다")
         for r in recipes {
             let intro = try #require(r.intro, "\(r.id): intro 누락")
             #expect(!intro.en.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,

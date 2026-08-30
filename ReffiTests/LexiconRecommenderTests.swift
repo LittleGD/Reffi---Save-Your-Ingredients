@@ -67,12 +67,12 @@ struct LexiconTests {
 
     @Test func searchLimit60CoversToBuySearchSheetPath() {
         // `ToBuySearchSheet`가 실제로 넘기는 상한(60) — 기본값(20)만 덮던 공백. 쿼리 "c"는 (en+ko
-        // prefix·contains 합쳐) 47개 항목에 걸린다 — 기본 상한(20)에서는 잘리지만, 60을 넘기면 커스텀
-        // limit이 실제로 관철돼 전부(< 60) 담긴다. 정확히 60개를 채우는 단일 쿼리는 사전 223종 규모에서
-        // 존재하지 않는다(브루트포스로 확인 — 최댓값이 47) — 그래서 "상한이 넘어간다"가 아니라
-        // "커스텀 limit이 기본값 대신 적용된다"를 검증축으로 삼는다.
+        // prefix·contains 합쳐) 54개 항목에 걸린다(41차 사전 242종 기준 — 신규 캐논 등재로 47→54).
+        // 기본 상한(20)에서는 잘리지만, 60을 넘기면 커스텀 limit이 실제로 관철돼 전부(< 60) 담긴다.
+        // 정확히 60개를 채우는 단일 쿼리는 이 사전 규모에서 존재하지 않는다 — 그래서
+        // "상한이 넘어간다"가 아니라 "커스텀 limit이 기본값 대신 적용된다"를 검증축으로 삼는다.
         #expect(lex.search(query: "c").count == 20)              // 기본 상한(20)에 잘림
-        #expect(lex.search(query: "c", limit: 60).count == 47)   // 커스텀 60에선 전부 담김(자연 히트 < 60)
+        #expect(lex.search(query: "c", limit: 60).count == 54)   // 커스텀 60에선 전부 담김(자연 히트 < 60)
     }
 
     /// **동률 최종 타이브레이크는 표시 이름의 로케일 알파벳순**이어야 한다(30차) — 내부 캐논 id는 항상
@@ -180,6 +180,66 @@ struct LexiconTests {
             #expect(assigned.contains(glyph), "no lexicon entry uses v2 glyph '\(glyph)'")
         }
     }
+
+    /// **실제품명 해석(41차)** — 장보기에서 실제로 오는 라벨 표기가 맞는 캐논에 붙는지 배터리로 고정한다.
+    /// 오탐(남의 캐논)은 장보기 줄 소멸·레시피 오매칭·소비기한 오염으로 번지는 데이터 파괴라,
+    /// 여기 실린 각 줄은 실측에서 실제로 틀렸거나(수정 전) 틀리기 직전이었던 케이스다.
+    @Test func realProductNamesResolveToTheRightCanon() {
+        let cases: [(String, String?)] = [
+            // 가공 토마토 — 신선 tomato로 흡수되면 소비기한이 540일 → 7일로 무너진다.
+            ("통조림토마토", "canned-tomato"), ("홀토마토", "canned-tomato"),
+            ("canned diced tomatoes", "canned-tomato"), ("토마토퓨레", "tomato-sauce"),
+            // 케첩 — 띄어쓰기·맞춤법 변형("케챂"은 오뚜기 실라벨 표기).
+            ("하인즈 케찹", "ketchup"), ("오뚜기 케챂", "ketchup"),
+            ("하인즈 토마토 케첩", "ketchup"), ("Heinz Tomato Ketchup", "ketchup"),
+            // 우유 — 지방·유당 변형은 전부 milk(의도된 동일시).
+            ("2%우유", "milk"), ("저지방우유", "milk"), ("멸균우유", "milk"),
+            ("커클랜드 락토스프리 저지방우유", "milk"), ("서울우유1L", "milk"),
+            // 동률 의존이었던 케이스 — 등재·머리말 규칙으로 결정 확정.
+            ("고추참치", "tuna"), ("초코우유", "flavored-milk"), ("오이소박이", "kimchi"),
+            // 사전 밖 브랜드는 어느 캐논에도 붙지 않아야 한다(안전한 실패).
+            ("코카콜라 1.5L", nil),
+        ]
+        for (name, want) in cases {
+            #expect(lex.canonicalID(for: name) == want, "\(name) → \(want ?? "nil")")
+        }
+    }
+
+    /// **가향유·식물성 대체유 분리(41차)** — 딸기우유가 strawberry에 붙으면 존재하지 않는 딸기가
+    /// '있다'로 계산돼 딸기 레시피가 오탐되고 To buy의 딸기 줄이 사라진다. milk에 붙는 것도 오답이다
+    /// (우유 레시피에 딸기우유가 매칭되면 조리 결과가 다른 음식이 된다) — 전용 캐논으로만 간다.
+    @Test func flavoredAndPlantMilksSeparateFromFruitAndNut() {
+        for (name, want) in [("딸기우유", "flavored-milk"), ("바나나맛우유", "flavored-milk"),
+                             ("strawberry milk", "flavored-milk"),
+                             ("아몬드브리즈", "almond-milk"), ("almond milk", "almond-milk"),
+                             ("오트밀크", "oat-milk"), ("buttermilk", "buttermilk")] {
+            #expect(lex.canonicalID(for: name) == want, "\(name) → \(want)")
+        }
+        // 반대 방향 회귀 — 진짜 우유·두유·코코넛밀크는 그대로.
+        #expect(lex.canonicalID(for: "두유") == "soy-milk")
+        #expect(lex.canonicalID(for: "coconut milk") == "coconut-milk")
+    }
+
+    /// **자유 표기 해석은 정확 → 머리말 → 포함 순(41차)** — 한국어·영어 복합명사는 뒤가 머리라,
+    /// 포함 매칭을 먼저 돌리면 앞의 수식어(딸기·고추·토마토)가 재료를 가로챈다.
+    /// 포함 매칭은 머리에 용량이 붙는 실표기("서울우유1L")의 마지막 폴백으로만 남는다.
+    @Test func headNounTierBeatsContainsInFreeTextResolution() {
+        #expect(lex.canonicalID(for: "빙그레 바나나우유") == "flavored-milk")   // 머리말(바나나우유)
+        #expect(lex.canonicalID(for: "델몬트 토마토주스") == "juice")           // 머리말(주스) > 포함(토마토)
+        #expect(lex.canonicalID(for: "양파피클") == "pickle")                   // 머리말(피클) > 포함(양파)
+        #expect(lex.canonicalID(for: "whole milk yogurt") == "yogurt")          // 머리말(yogurt) > 포함(whole milk)
+        #expect(lex.canonicalID(for: "서울우유1L") == "milk")                   // 포함 폴백은 살아 있다
+    }
+
+    /// **소비기한 폴백 체인(41차)** — fridge가 null인 건조·상온 식품(소금·파스타)이 냉장 선택 시
+    /// nil로 떨어지면 등록 경로의 D+3 최후 폴백이 "소금이 3일 뒤 임박"을 만든다.
+    /// fridge → pantry → room 순으로 폴백해 사전이 아는 값이 반드시 나온다.
+    @Test func shelfLifeFallsBackThroughPantryWhenFridgeIsNull() {
+        let salt = lex.shelfLifeDays(for: "소금", storage: .fridge)
+        #expect(salt != nil && salt! > 365, "소금 냉장 기본값이 pantry로 폴백돼야 한다(D+3 방지)")
+        let pasta = lex.shelfLifeDays(for: "파스타", storage: .fridge)
+        #expect(pasta != nil && pasta! > 100, "파스타도 동일 — 건조식품은 냉장에서도 장기 보관이다")
+    }
 }
 
 /// 추천 매칭 — canonical ID 동일성 원칙(부분문자열 오탐 금지)·랭킹.
@@ -207,6 +267,60 @@ struct RecommenderTests {
         // Pineapple ↔ Apple 유형의 교차 오탐도 차단.
         let appleItem = Recipe.Item(ref: "apple", en: "apple", ko: nil)
         #expect(!RecipeRecommender.matches(ing("pineapple"), appleItem))
+    }
+
+    /// **시드 ref 전수 무결성(41차)** — ref는 사전 조회 없이 그대로 신뢰되므로(`canonicalID(of:)`),
+    /// 오타 ref는 크래시 없이 영구 미매칭으로만 남는다. 시드에 레시피를 추가할 때마다 이 테스트가
+    /// 고아 ref를 잡는다.
+    @Test func seedRefsAllResolveInLexicon() {
+        let recipes = RecipeCatalog.loadSeed()
+        #expect(recipes.count >= 120, "시드가 통째로 로드 실패하면 여기서 먼저 죽는다")
+        let lex = IngredientLexicon.shared
+        for r in recipes {
+            for item in r.ingredients {
+                guard let ref = item.ref else { continue }
+                #expect(lex.entry(id: ref) != nil, "\(r.id): 고아 ref '\(ref)' (\(item.en))")
+            }
+        }
+    }
+
+    /// **미역·김 ref 회귀(41차)** — 시드에서 4줄이 통째로 뒤바뀌어 '김'을 등록한 사용자가
+    /// 미역국을 추천받았다. 표기와 ref가 같은 재료를 가리키는지 데이터로 고정한다.
+    @Test func seedSeaweedAndGimRefsAreNotSwapped() throws {
+        let recipes = RecipeCatalog.loadSeed()
+        let gimbap = try #require(recipes.first { $0.id == "gimbap" })
+        let gimLine = try #require(gimbap.ingredients.first { $0.en.lowercased().contains("gim") })
+        #expect(gimLine.ref == "dried-seaweed", "김밥의 김은 dried-seaweed(김)다")
+        let miyeokGuk = try #require(recipes.first { $0.id == "miyeok-guk" })
+        let miyeokLine = try #require(miyeokGuk.ingredients.first { $0.en.lowercased().contains("seaweed") })
+        #expect(miyeokLine.ref == "seaweed", "미역국의 미역은 seaweed(미역)다")
+    }
+
+    /// **커스텀 레시피 ref는 정확·머리말 일치까지만(41차)** — 포함 매칭으로 ref를 붙이면
+    /// "감자 전분"이 potato가 되어 발주 시 감자 재고가 예약·삭제된다. 해석 실패는 nil이 정답이다
+    /// (표기 정확 일치 매칭이 받는다 — 잘못된 캐논보다 안전한 실패).
+    @Test func userRecipeRefUsesExactOrHeadNounOnly() {
+        let r = Recipe.userRecipe(name: "테스트",
+                                  ingredientNames: ["감자 전분", "양파", "서울우유1L"], minutes: 10)
+        #expect(r.ingredients[0].ref == "starch", "머리말(전분)이 재료다 — potato 오귀속 금지")
+        #expect(r.ingredients[1].ref == "onion")
+        #expect(r.ingredients[2].ref == nil, "용량 붙은 실표기는 포함 매칭 없이 nil로 남긴다(안전한 실패)")
+    }
+
+    /// **채식 필터의 animal 플래그(41차)** — 스팸(글리프 can)·액젓(sauceBottle)처럼 글리프가
+    /// Meat/Seafood 계열이 아닌 동물성 재료는 사전의 `animal: true`가 잡는다.
+    @Test func vegetarianFilterCatchesAnimalFlaggedEntries() {
+        let spamDish = recipe(id: "spam-dish", refs: ["spam"], en: ["spam"])
+        let fishSauceDish = recipe(id: "fish-sauce-dish", refs: ["fish-sauce"], en: ["fish sauce"])
+        let tofuDish = recipe(id: "tofu-dish", refs: ["tofu"], en: ["tofu"])
+        let stock = [ing("스팸"), ing("멸치액젓"), ing("두부")]
+        let veg = RecipePreferences(cuisines: [], favoriteIDs: [], dislikedIDs: [],
+                                    allergenIDs: [], vegetarian: true)
+        let ids = RecipeRecommender.rank(for: stock, from: [spamDish, fishSauceDish, tofuDish],
+                                         preferences: veg).map(\.id)
+        #expect(!ids.contains("spam-dish"), "스팸은 글리프(can)로는 안 걸린다 — animal 플래그가 잡아야 한다")
+        #expect(!ids.contains("fish-sauce-dish"), "액젓도 동일(sauceBottle)")
+        #expect(ids.contains("tofu-dish"))
     }
 
     @Test func urgencyWeightsRanking() {
@@ -525,22 +639,26 @@ struct RecommenderTests {
     /// 수식어 자리에 걸린 이름은 캐논 없이 표기 그대로 남긴다.
     @Test func toBuyEntryUsesHeadNounNotSubstringMatch() {
         let lex = IngredientLexicon.shared
-        // ① 수식어 자리에 걸린 이름 — 포함 매칭의 함정. 캐논을 붙이면 안 된다.
-        for (en, trap) in [("paprika powder (or mild chili powder)", "bell-pepper"),
+        // ① 수식어·괄호 안에 걸린 이름 — 원문 전체를 포함 매칭에 넣는 것의 함정. 담기 경로(toBuyEntry)는
+        //    그 캐논을 붙이면 안 된다. 함정의 정체는 사전 판본에 따라 바뀐다(41차: paprika 줄은
+        //    괄호 **안** 대체재 "mild chili powder"가 chili-powder로 걸린다 — bell-pepper 함정은
+        //    머리말 우선 도입으로 소멸).
+        for (en, trap) in [("paprika powder (or mild chili powder)", "chili-powder"),
                            ("chicken or vegetable stock (kept warm)", "chicken")] {
             let item = Recipe.Item(ref: nil, en: en, ko: nil)
-            #expect(lex.canonicalID(for: en) == trap, "\(en): 포함 매칭 함정이 그대로여야 한다(회귀 고정)")
+            #expect(lex.canonicalID(for: en) == trap, "\(en): 원문 전체 매칭의 함정이 그대로여야 한다(회귀 고정)")
             let entry = RecipeRecommender.toBuyEntry(for: item)
-            #expect(entry.canonicalID != trap, "\(en): 수식어에 걸린 캐논이 붙으면 안 된다")
+            #expect(entry.canonicalID != trap, "\(en): 수식어·괄호에 걸린 캐논이 붙으면 안 된다")
         }
         // "chicken or vegetable stock"은 머리말이 stock이라 그쪽으로 붙는다 — 이건 정답이다.
         #expect(RecipeRecommender.toBuyEntry(
             for: Recipe.Item(ref: nil, en: "chicken or vegetable stock (kept warm)", ko: nil)
         ).canonicalID == "stock")
-        // "paprika powder"의 머리말(powder)은 사전에 없다 → 캐논 없이 표기 그대로(안전한 실패).
+        // "paprika powder"는 41차에 표제어로 등재됐다 — 괄호를 뗀 뒤 정확 일치로 자기 캐논에 붙는다
+        // (등재 전에는 머리말(powder)이 사전에 없어 캐논 없이 표기 그대로가 정답이었다).
         #expect(RecipeRecommender.toBuyEntry(
             for: Recipe.Item(ref: nil, en: "paprika powder (or mild chili powder)", ko: nil)
-        ).canonicalID == nil)
+        ).canonicalID == "paprika-powder")
 
         // ② 진짜 머리말은 살린다 — 수식이 붙어도 끝에 오는 표제어가 재료다.
         #expect(RecipeRecommender.toBuyEntry(
@@ -552,15 +670,15 @@ struct RecommenderTests {
     /// **머리말 일치는 `en`으로만 본다** — 기기 언어가 장보기 키를 바꾸면 안 된다(CLAUDE.md: 데이터는
     /// 영문 캐논으로 저장하고 표시만 로컬라이즈).
     ///
-    /// `미소 된장`은 머리말이 `된장`이라 ko로 읽으면 사전의 `doenjang`에 붙는다 — 미소와 된장은 다른
-    /// 제품이라 한국어 기기에서만 **미소 대신 된장**이 담기고, 목록에 이미 된장이 있으면 그 재료는
-    /// 중복으로 취급돼 아예 들어가지도 않는다. en(`miso paste`)의 머리말 `paste`는 사전에 없으므로
-    /// 두 로케일 모두 표기 그대로 담긴다.
+    /// `미소 된장`은 41차 전까지 머리말이 `된장`이라 ko로 읽으면 사전의 `doenjang`에 붙었다 — 미소와
+    /// 된장은 다른 제품이라 한국어 기기에서만 **미소 대신 된장**이 담기는 함정이었다. 41차에 `miso`가
+    /// 표제어로 등재되면서(`미소 된장` 포함) 두 로케일 모두 정확 일치로 `miso`에 확정된다 —
+    /// 로케일 무관 동일 결과라는 계약 자체는 그대로다.
     @Test func toBuyEntryResolvesTheSameWayInEveryLocale() {
         let miso = Recipe.Item(ref: nil, en: "miso paste", ko: "미소 된장")
-        #expect(IngredientLexicon.shared.headNounCanonicalID(for: "미소 된장") == "doenjang")  // 함정 고정
-        #expect(RecipeRecommender.toBuyEntry(for: miso).canonicalID == nil,
-                "한국어 표기의 머리말로 엉뚱한 캐논이 붙으면 안 된다")
+        #expect(IngredientLexicon.shared.headNounCanonicalID(for: "미소 된장") == "miso")   // 등재로 함정 소멸
+        #expect(RecipeRecommender.toBuyEntry(for: miso).canonicalID == "miso",
+                "en(miso paste)과 ko(미소 된장)가 같은 캐논으로 떨어져야 한다")
 
         // 반대 방향도 같다 — ko가 못 잡는 표기라도 en이 잡으면 두 로케일 모두 캐논이 붙는다.
         let basil = Recipe.Item(ref: nil, en: "fresh basil", ko: "바질 잎")

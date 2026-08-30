@@ -12,6 +12,10 @@ struct IngredientLexicon {
         var glyph: String              // FoodGlyph rawValue
         var staple: Bool
         var shelfLife: ShelfLife
+        /// 동물성 재료인데 글리프가 Meat/Seafood 계열이 아닌 항목(스팸=can, 액젓·굴소스·쯔유=
+        /// sauceBottle)용 명시 플래그 — 채식 하드 필터가 글리프만 보면 이들이 통과한다.
+        /// 생략(nil) = 글리프 판정에 맡긴다. 지식은 코드가 아니라 JSON에 둔다(프로젝트 규칙).
+        var animal: Bool?
 
         struct Names: Decodable {
             var en: [String]
@@ -96,7 +100,15 @@ struct IngredientLexicon {
         normalizedNamesByID = normalizedByID
         exactKeyword = exact
         // 긴 키워드 우선("green onion"이 "onion"보다 먼저) — 포함 매칭의 특이도 보장.
-        containsKeywords = contains.sorted { $0.0.count > $1.0.count }
+        // 길이 동률은 **등재 순서**를 명시적 2차 키로 고정한다. 동률 승자에 실제 판정이 걸려 있는데
+        // ("초코우유"의 우유 vs 초코 — 둘 다 2글자), Swift `sorted(by:)`는 안정 정렬을 보장하지
+        // 않으므로 등재 순서 유지를 stdlib 구현의 우연에 맡기지 않고 계약으로 승격한다.
+        containsKeywords = contains.enumerated()
+            .sorted { a, b in
+                if a.element.0.count != b.element.0.count { return a.element.0.count > b.element.0.count }
+                return a.offset < b.offset
+            }
+            .map(\.element)
 
         // 카테고리 버킷 — 글리프가 곧 카테고리다(사전에 카테고리 필드를 새로 만들지 않는다).
         var buckets: [String: [Entry]] = [:]
@@ -121,9 +133,20 @@ struct IngredientLexicon {
     /// 매칭 결과 캐시 — 포함 매칭 미스는 키워드 1,200여 개 전수 스캔이라, 추천 랭킹·자동완성이
     /// 같은 이름을 반복 조회할 때 비용이 쌓인다. NSCache는 스레드 안전(영수증 OCR 백그라운드 포함).
     private let matchCache = NSCache<NSString, NSString>()
+    /// 머리말 일치 전용 캐시 — `headNounCanonicalID`는 추천 랭킹의 상비 판정(`isStaple`)이
+    /// no-ref 레시피 줄마다 부르는데, 미스가 곧 키워드 전수 접미사 검사라 캐시 없이는
+    /// 커스텀 레시피가 늘수록 rank 1회 비용이 선형으로 커진다.
+    private let headNounCache = NSCache<NSString, NSString>()
     private static let cacheMiss = "\u{1}"
 
-    /// 자유 표기 → canonical ID. ① 정확 일치 ② 긴 키워드 우선 포함 매칭("서울우유1L" → milk).
+    /// 자유 표기 → canonical ID. ① 정확 일치 ② 머리말 일치 ③ 긴 키워드 우선 포함 매칭.
+    ///
+    /// ②가 ③보다 먼저다 — 한국어·영어 복합명사는 **뒤가 머리**라, 앞에서 걸리는 키워드는 대개
+    /// 재료가 아니라 수식어다(실측: ③만 쓰던 시절 "딸기우유"가 strawberry에, "고추참치"가
+    /// chili-pepper에, "하인즈 토마토 케첩"이 신선 tomato에 붙었다). 캐논 오귀속은 표시 오류가
+    /// 아니라 데이터 파괴다 — 장보기 줄이 남의 캐논에 흡수돼 사라지고, 레시피 오매칭이 요리 완료
+    /// 시 엉뚱한 재고를 삭제하며, 소비기한이 오탐 캐논 값(케첩 540일 → 토마토 7일)으로 오염된다.
+    /// ③은 머리에 수량·용량이 붙어 ②가 못 잡는 실표기("서울우유1L")의 마지막 폴백으로 남긴다.
     func canonicalID(for rawName: String) -> String? {
         let n = Self.norm(rawName)
         guard !n.isEmpty else { return nil }
@@ -131,12 +154,9 @@ struct IngredientLexicon {
             let s = cached as String
             return s == Self.cacheMiss ? nil : s
         }
-        let result: String?
-        if let id = exactKeyword[n] {
-            result = id
-        } else {
-            result = containsKeywords.first { n.contains($0.keyword) }?.id
-        }
+        let result = exactKeyword[n]
+            ?? headNounID(normalized: n)
+            ?? containsKeywords.first { n.contains($0.keyword) }?.id
         matchCache.setObject((result ?? Self.cacheMiss) as NSString, forKey: n as NSString)
         return result
     }
@@ -156,8 +176,8 @@ struct IngredientLexicon {
     /// | `감자 전분` | potato ✗ | **starch** ✓ |
     /// | `chicken or vegetable stock` | chicken ✗ | **stock** ✓ |
     /// | `소고기 육수` | beef ✗ | **stock** ✓ |
-    /// | `paprika powder` | bell-pepper ✗ | nil ✓ |
-    /// | `파히타 시즈닝` | green-onion ✗ | nil ✓ |
+    /// | `paprika powder` | bell-pepper ✗ | paprika-powder ✓ (41차 사전 등재 후 정확 일치) |
+    /// | `파히타 시즈닝` | green-onion ✗ | chili-powder ✓ (41차 사전 등재 후 정확 일치) |
     /// | `minced garlic`·`볶은 통깨`·`cold water` | 정답 | 정답 유지 |
     ///
     /// 시드 no-ref 라인 전수에서 **오귀속 0건**이고, 놓치는 것은 한국어의 형태 접미사
@@ -170,7 +190,18 @@ struct IngredientLexicon {
     func headNounCanonicalID(for rawName: String) -> String? {
         let n = Self.norm(rawName)
         guard !n.isEmpty else { return nil }
-        if let id = exactKeyword[n] { return id }
+        if let cached = headNounCache.object(forKey: n as NSString) {
+            let s = cached as String
+            return s == Self.cacheMiss ? nil : s
+        }
+        let result = exactKeyword[n] ?? headNounID(normalized: n)
+        headNounCache.setObject((result ?? Self.cacheMiss) as NSString, forKey: n as NSString)
+        return result
+    }
+
+    /// 머리말 스캔 본체 — `canonicalID`(②단계)와 `headNounCanonicalID`가 공유한다.
+    /// 두 진입점이 스캔을 따로 들면 경계 규칙이 조용히 갈라진다.
+    private func headNounID(normalized n: String) -> String? {
         for (keyword, id) in containsKeywords {
             for suffix in [keyword, keyword + "s", keyword + "es"] where n.hasSuffix(suffix) {
                 let boundary = n.index(n.endIndex, offsetBy: -suffix.count)
@@ -265,7 +296,9 @@ struct IngredientLexicon {
         return entry(for: nameOrID)?.staple ?? false
     }
 
-    /// 보관 위치별 기본 소비기한(일). 해당 보관에 값이 없으면 냉장값으로 폴백.
+    /// 보관 위치별 기본 소비기한(일). 해당 보관에 값이 없으면 냉장 → 실온보관 → 실온 순으로 폴백.
+    /// 냉장 하나만 폴백하면 fridge=null인 건조·상온 식품(소금·파스타 등)이 사전에 pantry 값을
+    /// 갖고 있는데도 nil로 떨어져, 영수증 등록 경로의 D+3 최후 폴백이 "3일 뒤 임박"을 만들어 낸다.
     func shelfLifeDays(for name: String, storage: StorageLocation) -> Int? {
         guard let life = entry(for: name)?.shelfLife else { return nil }
         let days: Int? = switch storage {
@@ -274,7 +307,7 @@ struct IngredientLexicon {
         case .pantry: life.pantry
         case .room: life.room
         }
-        return days ?? life.fridge
+        return days ?? life.fridge ?? life.pantry ?? life.room
     }
 
     /// 등록 폼의 스마트 기본 소비기한 — 사전에 없는 재료는 nil(호출부가 D+3 폴백).
