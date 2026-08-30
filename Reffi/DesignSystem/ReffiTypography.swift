@@ -71,6 +71,19 @@ extension String {
     }
 }
 
+/// 축소 계수 팔레트(§3.3·42차) — `minimumScaleFactor`는 role 크기를 임의 실수로 만드는 도피구라,
+/// 콜사이트가 값을 지어내지 못하게 **실측으로 검증된 계수만** 이름으로 노출한다. 21개 콜사이트에
+/// 5계수(0.6/0.7/0.75/0.8/0.85)가 유통됐는데, 그중 0.75(3등분 탭)·0.6(38×44 칩)은 §13에 잘림
+/// 실측이 남아 있는 값이라 뭉개지 않고 승격했다. **새 표면은 이 팔레트에서만 고른다** —
+/// §3.2 문서 role(display~caption)에는 §13에 실측 근거를 등록한 예외 외 축소를 걸지 않는다.
+enum ReffiShrink {
+    static let chrome: CGFloat = 0.8    // 크롬 라벨 기본 — 커버 타이틀·판정 버튼·발주 알약
+    static let fit: CGFloat = 0.7       // 폭이 빠듯한 크롬 — 티켓 크라운·메뉴명·아이콘버튼 라벨
+    static let tab: CGFloat = 0.75      // 3등분 고정 폭 탭(§13.5 실측 — 잘림 하한)
+    static let dense: CGFloat = 0.6     // 물리적으로 못 키우는 칸 — 7칸 요일 그리드·38×44 칩(실측)
+    static let subtle: CGFloat = 0.85   // 큰 디스플레이의 마지막 한 뼘 — 워드마크·커버 부제
+}
+
 extension View {
     /// Reffi 타이포 위계 적용(폰트+자간+행간). 색은 면에 따라(§2.6) 별도로 준다.
     /// **비번역 라틴(워드마크 등) 전용**이다 — 번역되는 Display 텍스트는 아래 `reffiType(_:for:)`를 쓴다.
@@ -122,8 +135,21 @@ enum ReffiNumScale {
 
 extension Font {
     /// 데이터성 숫자 — Google Sans Flex + tabular·lining(§3.4). D-N·수량·날짜에 의무.
+    /// **순수 숫자·라틴만 흐르는 자리 전용** — ko 문자열이 섞일 수 있는 값은 아래 `reffiNum(_:for:)`.
     static func reffiNum(_ scale: ReffiNumScale) -> Font {
         .custom("GoogleSansFlex-Regular", size: scale.size, relativeTo: scale.textStyle).monospacedDigit()
+    }
+
+    /// **표시될 문자열에 맞춘** 숫자 폰트(§3.4·42차) — `ReffiTextRole.font(for:)`와 같은 이유, 같은 문법.
+    /// GSF는 한글 미지원(§3.1 검증)이고 `.custom()`엔 폰트 스택이 없어, "오늘"·"3일"·"오전 9:00"이
+    /// 흐르면 누락 글리프가 Pretendard가 아니라 **시스템 한글 서체**로 조용히 캐스케이드된다 —
+    /// 재료 뱃지 하나에 세 서체가 서는 원인. 폴백은 Pretendard **Regular**다: GSF-Regular와
+    /// usWeightClass 400 동급이고 잉크 커버리지 실측(0.315 vs 0.311)도 같아, Medium(+15%)을 쓰면
+    /// 오히려 혼용 줄의 무게가 어긋난다(§3.1 "혼용 줄 어긋남 방지"). `relativeTo`는 동일 스케일 유지.
+    static func reffiNum(_ scale: ReffiNumScale, for text: String) -> Font {
+        text.hasHangul
+            ? .custom("Pretendard-Regular", size: scale.size, relativeTo: scale.textStyle).monospacedDigit()
+            : .custom("GoogleSansFlex-Regular", size: scale.size, relativeTo: scale.textStyle).monospacedDigit()
     }
 
     /// 도장(Stamp) 계열 — Pretendard Bold, 크기 파라미터화(`reffiNum`과 동일 패턴). `DDayStamp`(§13.5)처럼

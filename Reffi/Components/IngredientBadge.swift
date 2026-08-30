@@ -12,14 +12,15 @@ struct IngredientBadge: View {
     var body: some View {
         let f = ingredient.freshness
         Button(action: onTap) {
-            HStack(spacing: ReffiSpace.s2 + 2) {
+            HStack(spacing: ReffiSpace.s2) {
                 // 신선도 그룹(좌측) — 인디케이터 바 + 남은 기간(D-N)을 하나로 묶는다.
-                HStack(spacing: 5) {
+                HStack(spacing: ReffiSpace.s1) {
                     RoundedRectangle(cornerRadius: 2, style: .continuous)
                         .fill(f.dark)
                         .frame(width: 4, height: 14)
                     Text(verbatim: ingredient.dDayText)
-                        .font(.reffiNum(.meta))
+                        // D-day는 ko에서 "오늘"·"3일"로 흐른다 — 한글 폴백 오버로드(§3.4·42차).
+                        .font(.reffiNum(.meta, for: ingredient.dDayText))
                         .foregroundStyle(f.dark)
                 }
                 Text(verbatim: ingredient.displayName)
@@ -27,9 +28,9 @@ struct IngredientBadge: View {
                     .foregroundStyle(ReffiColor.ink)
                     .lineLimit(1)
             }
-            .padding(.leading, ReffiSpace.s3)
-            .padding(.trailing, ReffiSpace.s3 + 2)
-            .padding(.vertical, ReffiSpace.s2 + 2)
+            // 42차 — 스케일 밖 값(10·14) 정리: 좌우 대칭 s3, 형제 `AddBadge`와 같은 리듬.
+            .padding(.horizontal, ReffiSpace.s3)
+            .padding(.vertical, ReffiSpace.s2)
             .background { surface }
             .frame(minHeight: ReffiChrome.tapMin)              // §7.3 최소 터치 타깃
             .contentShape(Rectangle())
@@ -64,8 +65,8 @@ struct AddBadge: View {
                     .reffiType(.badgeLabel)
             }
             .foregroundStyle(ReffiColor.ink2)
-            .padding(.horizontal, ReffiSpace.s3 + 2)
-            .padding(.vertical, ReffiSpace.s2 + 2)
+            .padding(.horizontal, ReffiSpace.s3)
+            .padding(.vertical, ReffiSpace.s2)
             .background {
                 let shape = PaperRect(cornerRadius: ReffiRadius.md, seed: seed)
                 shape.stroke(ReffiColor.muted.opacity(0.7),

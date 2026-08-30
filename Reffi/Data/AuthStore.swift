@@ -164,7 +164,7 @@ final class AuthStore {
     // MARK: - 계정 삭제(서버)
     // TODO: Edge Function(service-role) 계정 삭제 — auth.users의 완전 삭제는 service-role 권한이
     // 필요해 클라이언트 publishable 키로는 불가하다. Supabase Edge Function(service-role)에
-    // delete-account 엔드포인트를 두고 호출하는 방식으로 후속 구현한다. 현재 앱의 'Delete account'는
+    // delete-account 엔드포인트를 두고 호출하는 방식으로 후속 구현한다. 현재 앱의 'Erase this device'(42차 개명 — 실동작 정합)는
     // 이 기기의 로컬 데이터 삭제 + 로그아웃까지만 수행한다.
 
     private func setLocalGuest(_ v: Bool) {

@@ -679,7 +679,7 @@ final class FridgeStore {
         return history.filter { $0.removedAt >= cutoff }
     }
 
-    /// 최근 30일 중 **발주(레시피 티켓)로 소비된** 건수 — 정산서의 "Cooked into recipes" 행.
+    /// 최근 30일 중 **발주(레시피 티켓)로 소비된** 건수 — 정산서의 "Cooked" 행(42차 개명).
     ///
     /// `via`를 붙이는 곳은 `finishCooking` **한 곳**뿐이고(직접 판정은 `via: nil`), 그 경로는 항상
     /// `wasted: false`로 기록한다. 그래도 `!wasted`를 함께 보는 것은 방어다 — 언젠가 버림에도 출처를

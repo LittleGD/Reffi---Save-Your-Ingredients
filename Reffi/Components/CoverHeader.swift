@@ -37,16 +37,23 @@ struct CoverHeader<Accessory: View>: View {
             HStack(alignment: .center, spacing: 0) {
                 Color.clear.frame(width: ReffiChrome.tapMin, height: ReffiChrome.tapMin)   // 우측 X(44)와 대칭 — 타이틀 진짜 중앙
                 Spacer(minLength: ReffiSpace.s2)
-                VStack(spacing: 1) {
+                VStack(spacing: ReffiSpace.s0) {
                     Text(title)
                         .reffiType(.heading).foregroundStyle(ReffiColor.ink)
-                        .lineLimit(2).minimumScaleFactor(0.85)
+                        .lineLimit(2).minimumScaleFactor(ReffiShrink.subtle)
                     if let subtitle {
                         Text(subtitle).reffiType(.caption).foregroundStyle(ReffiColor.ink2)
                             .lineLimit(2)
+                            // 2줄 상한은 유지하되(§14.2 — 상한을 걷으면 브리지 행을 덮는다) 한국어처럼
+                            // 원문보다 긴 번역이 상한에 닿으면 뒷문장을 자르는 대신 살짝 줄인다(42차).
+                            .minimumScaleFactor(ReffiShrink.subtle)
                     }
                 }
                 .multilineTextAlignment(.center)
+                // 제목+부제를 한 정차로 묶고 의미 위계를 단다(42차) — 이 헤더를 쓰는 커버 세 곳의
+                // 제목이 로터 "제목" 탐색에서 사라져 있었다(`SheetHeader`와 같은 수정).
+                .accessibilityElement(children: .combine)
+                .accessibilityAddTraits(.isHeader)
                 Spacer(minLength: ReffiSpace.s2)
                 closeButton
             }

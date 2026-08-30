@@ -29,6 +29,8 @@ struct RecipeMemoCarousel: View {
     var onOpenToBuy: () -> Void = {}
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// 42차·F58 — advance 후 사라진 앞 티켓에 커서가 남지 않게 새 앞 티켓으로 옮기는 포커스 앵커.
+    @AccessibilityFocusState private var frontTicketFocused: Bool
     @Environment(\.openURL) private var openURL
     @State private var order: [Int] = []          // 덱 순서 — [0]이 맨 앞
     @State private var dragOffset: CGSize = .zero
@@ -117,7 +119,9 @@ struct RecipeMemoCarousel: View {
                      seed: 14,
                      backdropDismisses: true,   // 질문형 — 바깥 탭 = 취소(실수로 이동시키지 않는다)
                      primary: PaperDialogAction("View") { endAddFlow(openToBuy: true) },
-                     secondary: PaperDialogAction("Cancel") { endAddFlow() })
+                     // "Cancel"이 아니라 "Later"다(42차) — 담기는 앞 장에서 이미 커밋됐고 이 장은
+                     // 이동만 묻는다. Cancel은 방금 담은 걸 되무르는 것으로 읽힌다(기존 키 재사용).
+                     secondary: PaperDialogAction("Later", role: .cancel) { endAddFlow() })
         .reffiFeedback(.success, trigger: addHaptic)   // 목록에 담김 = 성공 완료(§7.6)
     }
 
@@ -200,6 +204,8 @@ struct RecipeMemoCarousel: View {
                 .zIndex(Double(deck.count) + 1)   // 카드 zIndex는 1...deck.count — 그 위
         }
         .accessibilityAction(named: Text("Next ticket")) { advance() }
+        // advance()가 앞 티켓을 hidden으로 내리면 커서가 화면 처음으로 튕긴다 — 새 앞 티켓으로
+        // 옮긴다(42차·F58, `HistoryView.chipRowFocused`가 확립한 패턴).
     }
 
     @ViewBuilder private func ticketCard(idx: Int, depth: Int, cardHeight: CGFloat, topInset: CGFloat) -> some View {
@@ -219,7 +225,7 @@ struct RecipeMemoCarousel: View {
                       // 카드는 목록을 넘기기만 한다 — 고르기·담기·이동은 덱 위 팝업의 일이다.
                       onPickMissing: onAddMissing == nil ? nil : { startAddFlow($0) })
             .frame(height: cardHeight)   // 카드가 컨테이너를 넘지 못하게 캡(headerOnly도 동일 캡)
-            .padding(.horizontal, ReffiGrid.margin + 8)
+            .padding(.horizontal, ReffiGrid.margin + ReffiSpace.s2)   // 24 — 티켓 계열 공통 인셋(§9.2)
             .padding(.top, topInset)
             .scaleEffect(isFront ? 1 : 1 - CGFloat(depth) * 0.035, anchor: .top)
             .offset(y: isFront ? 0 : CGFloat(depth) * -14)   // 뒤 티켓이 위로 머리를 내민다
@@ -229,6 +235,9 @@ struct RecipeMemoCarousel: View {
             .offset(isFront ? dragOffset : .zero)
             .allowsHitTesting(isFront)
             .accessibilityHidden(!isFront)
+            // 포커스 바인딩은 **앞 티켓에만 조건부로** 붙인다(42차·F58) — 바인딩이 붙은 요소는
+            // `accessibilityHidden`이어도 트리에 남을 수 있어 뒤 티켓엔 아예 붙이지 않는다.
+            .modifier(FocusWhenFront(isFront: isFront, focused: $frontTicketFocused))
             .zIndex(Double(deck.count - depth))
             // `deck.count > 1` 가드는 두지 않는다 — 오른쪽 플릭은 넘김이 아니라 발주라 1장 덱에서도 성립한다.
             .gesture(isFront && !fired ? frontDrag : nil)
@@ -387,6 +396,20 @@ struct RecipeMemoCarousel: View {
     /// 덱 회전 시점 — 이탈이 거의 끝난 지점(옛 0.2초 연출의 0.18초와 같은 비율).
     private static let flySwapRatio: Double = 0.9
 
+    /// 앞 티켓에만 포커스 바인딩을 거는 조건부 모디파이어(42차·F58) — 본문 주석 참조.
+    private struct FocusWhenFront: ViewModifier {
+        let isFront: Bool
+        let focused: AccessibilityFocusState<Bool>.Binding
+
+        func body(content: Content) -> some View {
+            if isFront {
+                content.accessibilityFocused(focused)
+            } else {
+                content
+            }
+        }
+    }
+
     /// 맨 앞 티켓을 덱 뒤로 — 다음 티켓이 스프링으로 올라온다.
     private func advance() {
         guard deck.count > 1, !fired else { return }
@@ -395,6 +418,7 @@ struct RecipeMemoCarousel: View {
         var t = Transaction(); t.disablesAnimations = true
         withTransaction(t) { dragOffset = .zero }
         withAnimation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion)) { order = d }
+        frontTicketFocused = true   // 42차·F58 — 커서를 새 앞 티켓으로(유실 방지)
     }
 
     private func fire(_ result: RecipeRecommender.Result) {
@@ -442,7 +466,7 @@ struct RecipeMemoCarousel: View {
             // 자라도 카드를 덮지 않는다).
             Text("Nothing on these tickets uses \(named(uncoveredNames)).")
                 .reffiType(.metaText).foregroundStyle(ReffiColor.ink2)
-                .lineLimit(2).minimumScaleFactor(0.7)
+                .lineLimit(2).minimumScaleFactor(ReffiShrink.fit)
             Spacer(minLength: ReffiSpace.s2)
             Button {
                 openURL(RecipeVideoSearch.urlForIngredients(spoken(uncoveredNames)))
@@ -464,7 +488,7 @@ struct RecipeMemoCarousel: View {
             shape.fill(ReffiColor.paper)
                 .paperEdge(shape)
         }
-        .padding(.horizontal, ReffiGrid.margin + 8)
+        .padding(.horizontal, ReffiGrid.margin + ReffiSpace.s2)   // 24 — 티켓 계열 공통 인셋(§9.2)
         // 실측 높이를 카드 예산으로 되돌린다 — 고정값으로 잡으면 큰 글씨에서 카드 머리를 덮는다.
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { bridgeHeight = $0 }
     }
@@ -477,7 +501,7 @@ struct RecipeMemoCarousel: View {
             FoodMotif(glyph: .generic).frame(width: 110, height: 110)
             Text("No tickets yet").reffiType(.heading).foregroundStyle(ReffiColor.ink)
             if !atRiskNames.isEmpty {
-                Text("\(named(atRiskNames)) won't last long. Find a video and cook it today.")
+                Text("\(named(atRiskNames)) won't last long. Cook it today.")
                     .reffiType(.body).foregroundStyle(ReffiColor.ink2).multilineTextAlignment(.center)
                 PaperButton(title: "Open recipe videos", fullWidth: false, seed: 5) {
                     openURL(RecipeVideoSearch.urlForIngredients(spoken(atRiskNames)))

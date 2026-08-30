@@ -196,8 +196,10 @@ struct PaperGrain: View {
     var body: some View {
         Canvas { ctx, size in
             var rng = SeededGen(seed)
-            // 반점(그레인)
-            let n = max(60, Int(size.width * size.height / 38))
+            // 결 밀도는 면적에 비례해야 한 재질로 읽힌다(42차) — 옛 하한(반점 60·섬유 6)은 48×48
+            // 아래에서 항상 물려, 22pt 체크박스가 사양의 4.7배 반점·17배 섬유를 뒤집어쓰고
+            // 큰 영수증(잔털)과 다른 종이(긁힌 자국)로 갈라졌다. 큰 면은 하한이 안 물려 그대로다.
+            let n = max(16, Int(size.width * size.height / 38))
             for _ in 0..<n {
                 let x = CGFloat(rng.unit()) * size.width
                 let y = CGFloat(rng.unit()) * size.height
@@ -207,12 +209,14 @@ struct PaperGrain: View {
                 ctx.fill(Path(ellipseIn: CGRect(x: x, y: y, width: s, height: s)),
                          with: .color((dark ? Color.black : Color.white).opacity(a)))
             }
-            // 짧은 섬유 결 몇 가닥
-            let fibers = max(6, Int(size.width * size.height / 1400))
+            // 짧은 섬유 결 몇 가닥 — 길이는 짧은 변의 40%를 넘지 않는다(42차): 절대 길이 4~14는
+            // 22pt 상자에서 한 가닥이 폭의 64%를 가로질러 결이 아니라 흠집으로 읽혔다.
+            let fibers = max(2, Int(size.width * size.height / 1400))
+            let maxLen = min(size.width, size.height) * 0.4
             for _ in 0..<fibers {
                 let x = CGFloat(rng.unit()) * size.width
                 let y = CGFloat(rng.unit()) * size.height
-                let len = 4 + CGFloat(rng.unit()) * 10
+                let len = min(4 + CGFloat(rng.unit()) * 10, maxLen)
                 let horiz = rng.unit() > 0.5
                 var f = Path()
                 f.move(to: CGPoint(x: x, y: y))

@@ -39,7 +39,7 @@ enum IngredientUnit: String, Codable, CaseIterable, Identifiable {
     var label: String {
         switch self {
         case .gram, .kilogram, .milliliter, .liter: rawValue
-        default: String(localized: String.LocalizationValue(rawValue))
+        default: AppLanguage.localizedNow(String.LocalizationValue(rawValue))
         }
     }
 
@@ -76,7 +76,10 @@ struct Quantity: Codable, Equatable {
         if value == 0.5 { v = "½" }
         else if value == 0.25 { v = "¼" }
         else { v = value.formatted(.number.precision(.fractionLength(0...1))) }
-        return "\(v)\u{00A0}\(unit.label)"
+        // 수량-단위 접합도 언어의 것이다(42차) — en "300 g"(NBSP)와 ko "3개"(공백 없음)는 같은
+        // 코드 상수로 만들 수 없다. 카탈로그 키("%1$@ %2$@", ko "%1$@%2$@")가 공백 유무를 정한다.
+        // en 값의 공백은 줄바꿈 없는 공백(U+00A0) — "300"과 "g"가 행 끝에서 갈라지지 않게(§3.4).
+        return AppLanguage.localizedNow("\(v) \(unit.label)")   // key: 수량-단위 접합(en NBSP · ko 무공백)
     }
 
     /// 레거시 자유 문자열("300 g", "2 ea", "½모 남음", "1 L") 최선 파싱 — v1 → v2 마이그레이션.

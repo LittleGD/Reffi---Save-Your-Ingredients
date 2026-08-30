@@ -72,7 +72,7 @@ struct RecipeShareCard: View {
                 Text(verbatim: "ON THE TICKET")
                     .reffiType(.monoTicketLabel).foregroundStyle(ReffiColor.ink2)
 
-                VStack(alignment: .leading, spacing: ReffiSpace.s1 + 2) {
+                VStack(alignment: .leading, spacing: ReffiSpace.s2) {
                     ForEach(Array(ingredientNames.prefix(Self.namePreview).enumerated()), id: \.offset) { _, name in
                         Text(verbatim: name)
                             .reffiType(.checklistItem)
@@ -80,7 +80,7 @@ struct RecipeShareCard: View {
                             .lineLimit(1).truncationMode(.tail)
                     }
                     if ingredientNames.count > Self.namePreview {
-                        Text("+\(ingredientNames.count - Self.namePreview) more on the ticket")
+                        Text("+\(ingredientNames.count - Self.namePreview) more")
                             .reffiType(.metaText)
                             .foregroundStyle(ReffiColor.ink2)
                     }
@@ -94,7 +94,7 @@ struct RecipeShareCard: View {
                 .reffiType(.monoEyebrow).foregroundStyle(ReffiColor.muted)
         }
         .padding(.horizontal, ReffiSpace.s5)
-        .padding(.vertical, ReffiSpace.s5 + 2)
+        .padding(.vertical, ReffiSpace.ticketTop)
         .background(ReceiptShape(tooth: ReffiTooth.ticket).fill(ReffiColor.paper))
         .overlay(ReceiptShape(tooth: ReffiTooth.ticket).stroke(ReffiColor.paperEdge, lineWidth: 1))
         .reffiShadow1()

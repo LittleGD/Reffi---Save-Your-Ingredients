@@ -38,7 +38,10 @@ struct PaperToggleStyle: ToggleStyle {
         let shape = PaperRect(cornerRadius: ReffiRadius.pill, seed: seed)
         return ZStack(alignment: configuration.isOn ? .trailing : .leading) {
             shape
-                .fill(configuration.isOn ? ReffiColor.blue : ReffiColor.sub)
+                // OFF 트랙은 `sub`가 아니라 `subRaised`다(§2.8·42차) — 이 토글 셋은 전부 프로필
+                // 영수증 카드 위에 살고, sub(다크 .32)는 receipt(.335) 위에서 1.06으로 사라져
+                // 스위치가 "빈 윤곽선"으로 읽혔다. subRaised(다크 .41)는 카드 위 1.36.
+                .fill(configuration.isOn ? ReffiColor.blue : ReffiColor.subRaised)
                 .overlay(PaperGrain(seed: UInt64(bitPattern: Int64(seed)) &+ 5, strength: 0.5).clipShape(shape))
                 // 켬(파랑)·꺼짐(sub) 둘 다 "채운 면"이라 흰 톤 단면 하나로 통일한다 —
                 // `PaperButtonLabel`이 primary/secondary를 가리지 않고 `paperEdgeOnFill`을 쓰는 것과 같다.

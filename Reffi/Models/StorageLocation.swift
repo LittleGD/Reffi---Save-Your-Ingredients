@@ -17,5 +17,5 @@ enum StorageLocation: String, Codable, CaseIterable, Identifiable {
     }
 
     /// 표시 라벨 — 저장값은 영문 식별자 그대로, 표시만 로컬라이즈(기존 xcstrings 키 재사용).
-    var label: String { String(localized: String.LocalizationValue(rawValue)) }
+    var label: String { AppLanguage.localizedNow(String.LocalizationValue(rawValue)) }
 }

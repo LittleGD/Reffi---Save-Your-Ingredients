@@ -48,13 +48,17 @@ struct PaperDialog: View {
                 .scaleEffect(shown ? 1 : 0.95)
                 .opacity(shown ? 1 : 0)
         }
-        // 뒤 화면을 VoiceOver에서 가린다 — 모달이 뜬 동안 티켓 덱을 훑을 수 있으면 모달이 아니다.
+        // 모달 경계의 절반 — `.isModal`은 **이 컨테이너를 모달로 선언**할 뿐, 뒤 화면을 실제로
+        // 가리는 일은 프레젠터(`PaperDialogModifier`)의 `accessibilityHidden`이 한다.
+        // `PaperDropdown`이 실측으로 확립한 3중 처방(contain + isModal + 배경 hidden) 그대로다(42차).
+        .accessibilityElement(children: .contain)
         .accessibilityAddTraits(.isModal)
         .accessibilityAction(.escape) { (onBackdropTap ?? primary.handler)() }
         .onAppear {
             if reduceMotion { shown = true } else { withAnimation(ReffiMotion.pop) { shown = true } }
-            titleFocused = true
         }
+        // 포커스는 `task`에서 — `onAppear` 시점엔 요소 등록 전이라 이동이 유실되는 창이 있다(42차).
+        .task { titleFocused = true }
     }
 
     private var card: some View {
@@ -97,7 +101,9 @@ struct PaperDialog: View {
     private var buttons: some View {
         HStack(spacing: ReffiSpace.s3) {
             if let secondary {
-                PaperButton(title: secondary.title, kind: .secondary, seed: seed &+ 5, action: secondary.handler)
+                // `onCard` — 이 버튼은 종이 카드 안이라 secondary 면이 `subRaised`다(§2.8·42차).
+                PaperButton(title: secondary.title, kind: .secondary, seed: seed &+ 5,
+                            onCard: true, action: secondary.handler)
             }
             PaperButton(title: primary.title, kind: primary.role == .destructive ? .destructive : .primary,
                        seed: seed &+ 2, action: primary.handler)
@@ -160,6 +166,12 @@ private struct PaperDialogModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
+            // ⚠️ 배경 배리어(`.accessibilityHidden(isPresented)`)를 여기 걸지 않는다 — 42차 실측:
+            // 닫힌 상태의 명시적 `hidden(false)`가 **하위의 `hidden(true)`를 강제 노출**시켜, 티켓 덱의
+            // 뒤 티켓("Cook this"·menuName)이 접근성 트리에 떠 오탭·다중 매치를 만들었다(UI 스위트
+            // 8건 재현 → 이 줄 제거로 전건 해소). 팝업이 뜬 동안 배경을 실제로 내리는 개선(F-42/N17)은
+            // 후속에서 UIAccessibility 컨테이너/포커스 정책으로 다시 푼다 — content 전체를 감싸는
+            // hidden 스위치는 이 부작용 때문에 쓸 수 없다.
             .overlay {
                 if isPresented {
                     PaperDialog(title: title,
@@ -170,12 +182,18 @@ private struct PaperDialogModifier: ViewModifier {
                                 // 바깥 탭은 **취소와 같은 것**이어야 한다 — 다른 결과를 내면
                                 // 실수로 닫은 사용자가 의도하지 않은 행동을 하게 된다.
                                 onBackdropTap: backdropDismisses ? { close(then: (secondary ?? primary).handler) } : nil)
-                        .transition(.opacity)
+                        // 진입·이탈은 다른 사건이다(§7.1) — 진입은 dur2 ease-out, 이탈은 exit(dur1)로
+                        // 더 빠르게. 트랜지션이 자기 커브를 든다(`RootTabView` 잉크 토스트 선례).
+                        .transition(.asymmetric(
+                            insertion: .opacity.animation(
+                                ReffiMotion.gated(ReffiMotion.easeOut(duration: ReffiMotion.dur2),
+                                                  reduce: reduceMotion)),
+                            removal: .opacity.animation(
+                                ReffiMotion.gated(ReffiMotion.exit, reduce: reduceMotion))))
                 }
             }
-            // 딤의 등장·소멸만 여기서(카드의 팝은 다이얼로그가 스스로 한다). 이탈은 §7대로 더 빠르게.
-            // 커브는 `ReffiMotion.easeOut`이다 — 콜사이트에서 그냥 `.easeOut`이라 쓰면 SwiftUI 기본
-            // 커브(0,0,0.58,1)가 잡혀 §7.1 진입 커브(0.23,1,0.32,1)와 다른 시계로 돈다.
+            // 트랜잭션 개시용 — 커브·길이는 위 트랜지션이 각자 든다. 콜사이트에서 그냥 `.easeOut`이라
+            // 쓰면 SwiftUI 기본 커브(0,0,0.58,1)가 잡혀 §7.1 진입 커브(0.23,1,0.32,1)와 다른 시계로 돈다.
             .animation(ReffiMotion.gated(ReffiMotion.easeOut(duration: ReffiMotion.dur2), reduce: reduceMotion),
                        value: isPresented)
     }

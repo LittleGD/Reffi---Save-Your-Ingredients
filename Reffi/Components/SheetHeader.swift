@@ -22,6 +22,9 @@ struct SheetHeader: View {
                 .foregroundStyle(ReffiColor.ink)
                 .lineLimit(1)
                 .truncationMode(.tail)
+                // 시각 위계(.heading)에 의미 위계를 짝지운다(42차) — 이게 없으면 이 헤더를 쓰는
+                // 시트 일곱 곳의 제목이 전부 VoiceOver 로터의 "제목" 탐색에서 사라진다.
+                .accessibilityAddTraits(.isHeader)
             Spacer(minLength: ReffiSpace.s2)
             if showsClose {
                 PaperCloseButton { onClose?() }

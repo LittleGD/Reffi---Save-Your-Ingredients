@@ -25,9 +25,21 @@ enum RecipeVideoSearch {
         return URL(string: "https://www.youtube.com/results?search_query=\(encoded)") ?? home
     }
 
+    /// 검색어 접미사 조립의 **단일 지점**(42차) — "recipe"는 영어 키워드라 한국어 사용자의 질의어로는
+    /// 틀린다(ko 정답은 "레시피" — 검색 결과 품질을 직접 정한다). 카탈로그 키 `"%@ recipe"`를 타서
+    /// 접미사 낱말을 언어가 정하게 한다. 세 호출부(재료 1종·재료 여럿·레시피명)가 전부 여기를 지난다.
+    private static func query(for subject: String) -> String {
+        String(localized: "\(subject) recipe")
+    }
+
+    /// 레시피명으로 여는 검색 — 조리 화면 "Open recipe videos"의 목적지(42차, 접합 단일화).
+    static func urlForRecipe(_ name: String) -> URL {
+        url(query: query(for: name))
+    }
+
     /// 재료 이름 하나로 여는 검색 — "<재료> recipe". 티켓이 못 다루는 임박 재료의 출구다.
     static func urlForIngredient(_ name: String) -> URL {
-        url(query: "\(name) recipe")
+        url(query: query(for: name))
     }
 
     /// **호명된 이름 전부**로 여는 검색 — "<재료> <재료> recipe". 브리지 문구가 최대 2종을 부르는데
@@ -40,6 +52,6 @@ enum RecipeVideoSearch {
             .filter { !$0.isEmpty }
             .joined(separator: " ")
         guard !joined.isEmpty else { return home }
-        return url(query: "\(joined) recipe")
+        return url(query: query(for: joined))
     }
 }

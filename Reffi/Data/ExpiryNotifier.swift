@@ -71,13 +71,20 @@ enum ExpiryNotifier {
                 let names = dueToday.prefix(4).map(\.displayName).joined(separator: ", ")
                 content.title = String(localized: "Use \(dueToday.count) today",
                                        comment: "Notification title with count of items expiring today")
-                var body = String(localized: "\(names). Open Reffi and fire a ticket.",
-                                  comment: "Notification body listing expiring items")
+                // **같은 종류의 정보는 붙여 세운다(43차, 오너 결정)** — 옛 순서(오늘 이름들 → 행동
+                // 문구 → 내일 이름들)는 데이터 두 묶음 사이에 권유가 끼어 눈이 튀고, 잠금화면에서
+                // 본문이 잘릴 때 정보성이 가장 높은 '내일' 목록이 가장 먼저 사라졌다. 이름 두 묶음을
+                // 먼저 붙이고 권유는 꼬리로 — 잘려도 없어지는 건 권유 문장이다. 행동 문구는 화면
+                // 이름("오늘의 티켓")으로 목적지를 부른다 — "Reffi를 열고"는 알림 탭이 이미 하는
+                // 일이고, "fire a ticket"은 UI 어디에도 없는 내부 동사였다.
+                var body = names + "."   // 이름 나열 + 마침표 — 번역할 문장 성분이 없다
                 if !dueTomorrow.isEmpty {
                     let tomorrowNames = dueTomorrow.prefix(3).map(\.displayName).joined(separator: ", ")
                     body += " " + String(localized: "Tomorrow: \(tomorrowNames)",
                                          comment: "Appended sentence listing items expiring tomorrow")
                 }
+                body += " " + String(localized: "Pick one of today's tickets.",
+                                     comment: "Closing call to action pointing at the ticket deck")
                 content.body = body
             }
 

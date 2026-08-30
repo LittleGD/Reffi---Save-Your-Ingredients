@@ -24,6 +24,8 @@ struct ReceiptScanView: View {
 
     @State private var phase: Phase = .pick
     @State private var showCamera = false
+    /// 카메라가 오류로 닫힌 직후 — 취소와 달리 화면이 한 줄로 말한다(42차·F24).
+    @State private var scanFailed = false
     @State private var photoItems: [PhotosPickerItem] = []
     @State private var candidates: [EditableCandidate] = []
     @State private var selected: Set<UUID> = []
@@ -45,8 +47,13 @@ struct ReceiptScanView: View {
         .fullScreenCover(isPresented: $showCamera) {
             DocumentCameraView { images in
                 showCamera = false
+                scanFailed = false
                 guard !images.isEmpty else { return }
                 recognize(images)
+            } onFail: {
+                showCamera = false
+                scanFailed = true
+                ReffiAnnounce.say(AppLanguage.localizedNow("The camera closed unexpectedly. Try again or add by hand."))
             }
             .ignoresSafeArea()
         }
@@ -73,12 +80,12 @@ struct ReceiptScanView: View {
             case .pick:
                 break   // 되돌아온 자리는 화면이 스스로 말한다(제목·버튼이 다시 선다)
             case .processing:
-                ReffiAnnounce.say(String(localized: "Reading receipt…"))
+                ReffiAnnounce.say(AppLanguage.localizedNow("Reading receipt…"))
             case .review:
                 // 결과 요약까지 말한다 — "끝났다"만으로는 다시 찍어야 하는지 알 수 없다.
                 ReffiAnnounce.say(candidates.isEmpty
-                                  ? String(localized: "Nothing recognized")
-                                  : String(localized: "\(candidates.count) items recognized"))
+                                  ? AppLanguage.localizedNow("Nothing recognized")
+                                  : AppLanguage.localizedNow("\(candidates.count) items recognized"))
             }
         }
     }
@@ -122,11 +129,22 @@ struct ReceiptScanView: View {
                 .buttonStyle(.paperPress)
                 // 영수증이 없거나 스캔이 안 잡히는 날의 탈출구 — 면 없는 조용한 링크로 둔다.
                 // 종이 CTA로 세우면 스캔과 같은 무게가 돼, 이 화면이 무엇을 권하는지가 흐려진다.
-                QuietButton(title: "Type it in yourself", icon: ReffiIcon.manual) {
+                // 라벨은 목적지 시트 제목("Add by hand")과 같은 낱말이다(42차) — 진입점과 도착지가
+                // 다른 이름이면 누를 때마다 화면이 스스로를 개명하는 것으로 읽힌다.
+                QuietButton(title: "Add by hand", icon: ReffiIcon.manual) {
                     editingCandidate = EditableCandidate(manualDraft: true)
                 }
             }
             .padding(.horizontal, ReffiSpace.s6)
+            if scanFailed {
+                Text("The camera closed unexpectedly. Try again or add by hand.")
+                    .reffiType(.caption)
+                    .foregroundStyle(ReffiColor.urgentDark)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, ReffiGrid.margin)
+                    .padding(.top, ReffiSpace.s3)
+            }
             Spacer(minLength: ReffiSpace.s4)
             privacyNote
         }
@@ -143,7 +161,7 @@ struct ReceiptScanView: View {
             .multilineTextAlignment(.center)
             // 폭은 버튼 스택이 아니라 **화면**이 정한다 — 전폭에서 가로 마진만 물리면 두 줄로 고르게 앉는다.
             .frame(maxWidth: .infinity)
-            .padding(.horizontal, ReffiSpace.s7)
+            .padding(.horizontal, ReffiGrid.margin)   // 주석의 의도 그대로 — 페이지 마진(§9.2·42차)
             .padding(.bottom, ReffiSpace.s5)
     }
 
@@ -166,7 +184,7 @@ struct ReceiptScanView: View {
         if candidates.isEmpty {
             VStack(spacing: ReffiSpace.s3) {
                 Text("Nothing recognized").reffiType(.subhead).foregroundStyle(ReffiColor.ink)
-                Text("Try again with a clearer photo.")
+                Text("Use a clearer photo.")
                     .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
                 PaperButton(title: "Try again", kind: .secondary) { phase = .pick }
                     .padding(.top, ReffiSpace.s3)
@@ -182,7 +200,7 @@ struct ReceiptScanView: View {
                             candidateRow(c)
                                 .listRowBackground(Color.clear)
                                 // 행 구분선은 §6.1 소관이라 종이 단면(`paperEdge`)이 아니다 — 알파가 같아도 역할이 다르다.
-                                .listRowSeparatorTint(ReffiColor.ink.opacity(0.06))
+                                .listRowSeparatorTint(ReffiColor.paperEdge)
                         }
                     } footer: {
                         Text("Use-by dates are filled from the ingredient dictionary. Adjust anytime in Fridge.")
@@ -215,8 +233,9 @@ struct ReceiptScanView: View {
                     .frame(width: 22, height: 22)
                     .background {
                         box.fill(isOn ? ReffiColor.blue : ReffiColor.paper)
+                            // 미체크 경계는 상태 정본 토큰(§2.7·42차) — α .18은 3:1 미달이었다.
                             .paperEdge(box, tint: isOn ? ReffiColor.paperEdgeOnFill
-                                                       : ReffiColor.ink.opacity(0.18))
+                                                       : ReffiColor.paperEdgeState)
                     }
                     .frame(width: ReffiChrome.tapMin, height: ReffiChrome.tapMin)
                     .contentShape(Rectangle())
@@ -228,7 +247,7 @@ struct ReceiptScanView: View {
             // 이름 블록도 체크와 **같은 토글**이라 같은 컨트롤이어야 한다 — 탭 제스처만 얹으면
             // 보조기술엔 그냥 글자로 서고(누를 수 있다는 신호가 없다) 눌림도 없다(§7.5).
             Button { toggleSelection(c.id) } label: {
-                VStack(alignment: .leading, spacing: 1) {
+                VStack(alignment: .leading, spacing: ReffiSpace.s0) {
                     HStack(spacing: ReffiSpace.s2) {
                         Text(verbatim: c.name).reffiType(.body).foregroundStyle(ReffiColor.ink)
                         if c.showsEstimateBadge { estimateBadge }
@@ -273,7 +292,7 @@ struct ReceiptScanView: View {
             .reffiType(.pillLabel)
             .foregroundStyle(ReffiColor.soonDark)
             .padding(.horizontal, ReffiSpace.s2)
-            .padding(.vertical, 2)
+            .padding(.vertical, ReffiSpace.s0)
             .background(ReffiColor.soonLight, in: PaperCutRect(seed: 6))
             .lineLimit(1)
             .fixedSize()
@@ -442,6 +461,8 @@ private struct CandidateEditSheet: View {
                     .padding(.top, ReffiSpace.s3)
                     .padding(.bottom, ReffiSpace.s4)
             }
+            // decimalPad엔 리턴 키가 없다 — 쌍둥이 폼(IngredientEditView)과 같은 탈출구(42차·F23).
+            .scrollDismissesKeyboard(.interactively)
             actionBar
         }
         .background(ReffiColor.canvas)
@@ -535,7 +556,7 @@ private struct CandidateEditSheet: View {
                     // §3.4 숫자는 tabular·lining — 같은 역할의 `IngredientEditView` 수량 필드와 같은 롤.
                     .font(.reffiNum(.body))
                     .foregroundStyle(ReffiColor.ink)
-                    .frame(width: 64)
+                    .frame(minWidth: 64)   // 고정 폭이면 AX 글자에서 세 자리+소수점이 잘린다(42차·F20)
                 // 스톡 시스템 팝업 대신 앱 커스텀 종이 드롭다운(커먼 룰 H) — IngredientEditView와 같은 문법.
                 // 라벨이 현재 값까지 안고 간다 — 값 자리는 트리거가 펼침/접힘을 말하는 데 쓴다
                 // (정렬 칩의 "Filter: …"와 같은 문법).
@@ -613,6 +634,9 @@ private struct CandidateEditSheet: View {
 /// VisionKit 문서 스캐너 래퍼 — 영수증에 최적(자동 크롭·다중 페이지).
 private struct DocumentCameraView: UIViewControllerRepresentable {
     var onFinish: ([UIImage]) -> Void
+    /// 실패는 취소와 **다른 사건**이다(42차·F24) — 같은 `onFinish([])`로 접으면 카메라가 오류로
+    /// 죽어도 화면이 아무 말도 하지 않아, 사용자가 자기 행동을 의심하게 된다.
+    var onFail: () -> Void = {}
 
     func makeUIViewController(context: Context) -> VNDocumentCameraViewController {
         let vc = VNDocumentCameraViewController()
@@ -622,11 +646,15 @@ private struct DocumentCameraView: UIViewControllerRepresentable {
 
     func updateUIViewController(_ vc: VNDocumentCameraViewController, context: Context) {}
 
-    func makeCoordinator() -> Coordinator { Coordinator(onFinish: onFinish) }
+    func makeCoordinator() -> Coordinator { Coordinator(onFinish: onFinish, onFail: onFail) }
 
     final class Coordinator: NSObject, VNDocumentCameraViewControllerDelegate {
         let onFinish: ([UIImage]) -> Void
-        init(onFinish: @escaping ([UIImage]) -> Void) { self.onFinish = onFinish }
+        let onFail: () -> Void
+        init(onFinish: @escaping ([UIImage]) -> Void, onFail: @escaping () -> Void) {
+            self.onFinish = onFinish
+            self.onFail = onFail
+        }
 
         func documentCameraViewController(_ controller: VNDocumentCameraViewController,
                                           didFinishWith scan: VNDocumentCameraScan) {
@@ -637,7 +665,7 @@ private struct DocumentCameraView: UIViewControllerRepresentable {
         }
         func documentCameraViewController(_ controller: VNDocumentCameraViewController,
                                           didFailWithError error: Error) {
-            onFinish([])
+            onFail()
         }
     }
 }

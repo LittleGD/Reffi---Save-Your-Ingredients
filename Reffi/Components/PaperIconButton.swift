@@ -17,11 +17,16 @@ struct PaperIconButton: View {
     let action: () -> Void
 
     var body: some View {
-        Button(action: action) {
-            content
+        // 라벨이 없으면 빈 문자열을 **강제 주입하지 않는다**(42차) — 빈 라벨은 SwiftUI가 내용에서
+        // 이름을 유도할 길까지 막아 "이름 없는 버튼"을 만든다(`CoverHeader.closeHint`와 같은 처세).
+        if let label {
+            Button(action: action) { content }
+                .buttonStyle(.paperPress)
+                .accessibilityLabel(Text(label))
+        } else {
+            Button(action: action) { content }
+                .buttonStyle(.paperPress)
         }
-        .buttonStyle(.paperPress)
-        .accessibilityLabel(label.map { Text($0) } ?? Text(verbatim: ""))
     }
 
     @ViewBuilder
@@ -53,6 +58,9 @@ struct PaperIconLabel: View {
     var size: CGFloat = 88
     var seed: Int = 0
     var placement: Placement = .below
+    /// 종이 카드 위에 앉는 블롭인가(§2.8·42차) — `.neutral` 면이 부모에 따라 갈린다
+    /// (`sub`는 캔버스 전용, 카드 위에선 다크에서 1.04로 사라져 `subRaised`).
+    var onCard: Bool = false
     /// 라벨 폭을 블롭 폭에 묶을 것인가(`.below` 전용). 기본은 묶는다 — 긴 라벨이 버튼 고유 폭을 밀어
     /// 버튼 여러 개가 선 행이 부모를 넘기는 것을 막는 방어다(아래 주석의 실측 296).
     /// **`ViewThatFits` 후보로 세울 때만 푼다**: 후보가 들어가는지는 그 후보의 *고유 폭*으로 재는데,
@@ -67,7 +75,7 @@ struct PaperIconLabel: View {
         case .fresh:   ReffiColor.fresh
         case .soon:    ReffiColor.soon
         case .urgent:  ReffiColor.urgent
-        case .neutral: ReffiColor.sub
+        case .neutral: onCard ? ReffiColor.subRaised : ReffiColor.sub
         }
     }
     /// 솔리드(딥)면 `onAccent`(흰) 아이콘, 그 외 파스텔/틴트면 dark 아이콘(§2.6).
@@ -96,7 +104,7 @@ struct PaperIconLabel: View {
                         .foregroundStyle(ReffiColor.ink)
                         .frame(maxWidth: capsLabelWidth ? size : nil)
                         .lineLimit(1)
-                        .minimumScaleFactor(0.7)
+                        .minimumScaleFactor(ReffiShrink.fit)
                 }
             }
         case .trailing:

@@ -21,6 +21,9 @@ struct IngredientEditView: View {
     @State private var showDeleteConfirm = false
     @State private var showDiscardConfirm = false
     @State private var deleteHaptic = 0
+    /// §7.6 — 저장 = 성공 완료(.success). 같은 화면의 삭제(.warning)만 울리고 저장이 침묵하면
+    /// 되돌릴 수 없는 쪽만 손에 남는다(42차, MyRecipesView.saveRecipe와 같은 배선).
+    @State private var savedHaptic = 0
     @State private var openDropdown: OpenDropdown?
 
     private let original: Ingredient
@@ -70,6 +73,7 @@ struct IngredientEditView: View {
         .presentationBackground(ReffiColor.canvas)
         .interactiveDismissDisabled(isDirty)
         .reffiFeedback(.warning, trigger: deleteHaptic)
+        .reffiFeedback(.success, trigger: savedHaptic)
         // 40차 — 팝업 전수 종이화(§14.7 개정). 원본은 취소 버튼을 명시하지 않아(시스템 자동 Cancel)
         // 여기선 명시적 secondary Cancel(무동작)로 같은 뜻을 옮긴다.
         .paperDialog(isPresented: $showDeleteConfirm, title: "Delete this ingredient?",
@@ -156,7 +160,7 @@ struct IngredientEditView: View {
                     .multilineTextAlignment(.trailing)
                     .font(.reffiNum(.body))
                     .foregroundStyle(ReffiColor.ink)
-                    .frame(width: 64)
+                    .frame(minWidth: 64)   // 고정 폭이면 AX 글자에서 세 자리+소수점이 잘린다(42차·F20)
                 // 스톡 `.pickerStyle(.menu)`(흰 시스템 팝업) 대신 앱 커스텀 종이 드롭다운 —
                 // "탭 → 옵션 목록"이 앱 전체에서 한 문법이어야 한다(커먼 룰 H).
                 // 라벨이 현재 값까지 안고 간다 — 값 자리는 트리거가 펼침/접힘을 말하는 데 쓴다
@@ -267,6 +271,7 @@ struct IngredientEditView: View {
                 draft.frozenAt = Date()
             }
             store.update(draft)
+            savedHaptic += 1   // §7.6 저장 성공(42차)
             dismiss()
         }
         .disabled(trimmedName.isEmpty)   // 이름이 비면 저장 불가 — PaperButton이 투명도로 표시(§7.2, 색 변경 X).

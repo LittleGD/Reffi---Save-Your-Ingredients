@@ -100,7 +100,7 @@ struct CookingStepsView: View {
     /// 세로 계산에서 `geo.safeAreaInsets`를 직접 빼는 이유가 그것이다) 원칙적으로는 빼야 맞지만,
     /// 앱이 `Info.plist`에서 **세로 고정**이라 세로 아이폰의 좌우 인셋은 항상 0이다 — 지금은 같은 값이다.
     /// 가로 모드나 iPad를 지원하게 되면 여기도 `geo.safeAreaInsets.leading/.trailing`을 빼야 한다.
-    private let ticketInset = ReffiGrid.margin + 8
+    private let ticketInset = ReffiGrid.margin + ReffiSpace.s2   // 24 — 티켓 계열 공통 인셋(§9.2)
 
     /// 공유 카드를 굽기까지의 유예(초) — 풀스크린 커버 전환(§7.1 dur-3, 0.24s)이 끝나고도 한 박자
     /// 남는 값이다. 짧게 잡으면 전환 마지막 프레임과 겹치고, 길게 잡으면 공유를 바로 누른 손이
@@ -180,11 +180,13 @@ struct CookingStepsView: View {
         // "그대로 시스템" 목록에서 뺀 경우다. primary에 `role: .destructive`를 줘 `PaperDialog`가
         // 파랑 대신 urgentDark 솔리드로 그리게 한다(파괴 행동에 파랑을 쓰지 않는다).
         // 뒷배경 탭 = Keep cooking(질문형 안전 기본값, §14.7).
+        // primary 라벨은 제목의 동사를 되받는다(42차) — "Cancel"은 앱의 다른 12개 다이얼로그 전부에서
+        // "안전하게 빠져나감"(secondary)이라, 여기만 파괴 확정에 쓰면 근육 기억이 그대로 오탭이 된다.
         .paperDialog(isPresented: $showCancelConfirm,
                      title: "Put ingredients back?",
                      message: "Nothing is logged. Reserved ingredients return to the fridge.",
                      backdropDismisses: true,
-                     primary: PaperDialogAction("Cancel cooking", role: .destructive) {
+                     primary: PaperDialogAction("Put them back", role: .destructive) {
                          withAnimation(ReffiMotion.gated(ReffiMotion.pop, reduce: reduceMotion)) {
                              store.cancelCooking()
                          }
@@ -214,16 +216,14 @@ struct CookingStepsView: View {
                 }
 
                 // 조리 포기 — 예약을 해제하고 재료를 되돌린다(기록 없음). fire의 안전한 반대 방향.
-                // 종이 버튼화(2026-08, 35차) — 예전엔 캡션 텍스트 한 줄이라 버튼으로 읽히지 않았고
-                // 라벨도 길었다. `QuietButton`(면 없는 텍스트 버튼 — ProfileView의 "Reset all data"·
-                // "Delete account"와 같은 문법, `tint: urgentDark`로 파괴 성향의 잉크색만 준다)으로
-                // 바꾸고 라벨은 "Cancel cooking"(다이얼로그 실행 버튼과 같은 키)으로 줄인다 — "재료를
-                // 되돌린다"는 세부는 화면에서 지워지지 않고 다이얼로그 메시지 + 아래 접근성 힌트에
-                // 그대로 남는다. 파랑 "Finish cooking"과 경쟁하지 않도록 면 없는 조용한 등급을 유지한다.
-                QuietButton(title: "Cancel cooking", tint: ReffiColor.urgentDark) {
+                // 종이 버튼화(2026-08, 35차) 후 42차에서 라벨을 "Put ingredients back"으로 —
+                // 다이얼로그 제목("Put ingredients back?")·실행 버튼("Put them back")과 같은 동사를
+                // 쓰고, "Cancel"이라는 낱말은 앱 전역에서 secondary(안전한 빠져나감) 전용으로 예약한다.
+                // 파랑 "Finish cooking"과 경쟁하지 않도록 면 없는 조용한 등급은 유지한다.
+                QuietButton(title: "Put ingredients back", tint: ReffiColor.urgentDark) {
                     showCancelConfirm = true
                 }
-                .accessibilityHint(Text("Nothing is logged. Reserved ingredients return to the fridge."))
+                .accessibilityHint(Text("Nothing is logged."))
             }
         }
     }
@@ -232,7 +232,7 @@ struct CookingStepsView: View {
 
     private var finishSheet: some View {
         VStack(alignment: .leading, spacing: ReffiSpace.s4) {
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: ReffiSpace.s0) {
                 Text("Anything left over?").reffiType(.heading).foregroundStyle(ReffiColor.ink)
                 Text("Leftovers stay in the fridge at half the amount.")
                     .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
@@ -272,7 +272,7 @@ struct CookingStepsView: View {
                     .reffiType(.pillLabel)
                     .foregroundStyle(left ? ReffiColor.soonDark : ReffiColor.freshDark)
                     .padding(.horizontal, ReffiSpace.s3)
-                    .padding(.vertical, ReffiSpace.s1 + 1)
+                    .padding(.vertical, ReffiSpace.s1)
                     // §13.1 종이컷 8각형(캡슐 금지) — 행동 표면의 상태 칩도 종이 문법을 따른다.
                     .background((left ? ReffiColor.soonLight : ReffiColor.freshLight), in: PaperCutRect(seed: 5))
             }
@@ -297,7 +297,7 @@ struct CookingStepsView: View {
                 // 한 구(句)를 두 role로 쪼개지 않는다 — "Started"가 caption(14/자간 +0.14),
                 // 바로 옆 경과 시간이 metaText(13/자간 0)라 같은 문장 안에서 1pt·자간만 어긋나
                 // 위계가 아니라 어색한 이격으로만 보였다. 데이터형 메타 하나로 묶는다(§3.5).
-                HStack(spacing: 4) {
+                HStack(spacing: ReffiSpace.s0) {
                     Text("Started")
                     // 상대 시간 표기는 기기 로케일을 따른다(38차 결정 — 앱 언어와 분리, 아래 근거).
                     Text(cook.startedAt, style: .relative)
@@ -322,7 +322,9 @@ struct CookingStepsView: View {
                     .reffiType(.monoTicketLabel).foregroundStyle(ReffiColor.urgentDark)
                 Spacer()
                 if cook.count > 0 {
-                    Text("\(cook.count) used")
+                    // "used"가 아니라 "reserved"다(42차) — 재료는 finish 전까지 예약 상태고, 같은
+                    // 화면의 취소 다이얼로그가 "Reserved ingredients return…"이라 스스로 말한다.
+                    Text("\(cook.count) reserved")
                         .reffiType(.metaText)
                         .foregroundStyle(ReffiColor.ink2)
                 }
@@ -360,7 +362,7 @@ struct CookingStepsView: View {
                         .foregroundStyle(ReffiColor.ink2)
                         .multilineTextAlignment(.center)
                         .lineLimit(3)
-                        .minimumScaleFactor(0.85)
+                        .minimumScaleFactor(ReffiShrink.subtle)
                         .fixedSize(horizontal: false, vertical: true)
                         // UI 테스트 훅 — 소개 문구를 테스트에 하드코딩하지 않고 집는다
                         // (`ticket.menuName` 선례). 라벨은 그대로라 VoiceOver는 문장을 읽는다.
@@ -379,14 +381,14 @@ struct CookingStepsView: View {
                         item: shareImage,
                         preview: SharePreview(Text(verbatim: cook.recipeName), image: shareImage)
                     ) {
-                        PaperIconLabel(icon: ReffiIcon.share, label: "Share", intent: .neutral, size: 52, seed: 4)
+                        PaperIconLabel(icon: ReffiIcon.share, label: "Share", intent: .neutral, size: 52, seed: 4, onCard: true)
                     }
                     .buttonStyle(.paperPress)
                     .accessibilityLabel(Text("Share"))
                     .accessibilityHint(Text("Opens the share sheet"))
                 } else {
                     // 렌더 완료 전 짧은 순간의 비활성 플레이스홀더(크래시·빈 공유 방지) — 렌더는 즉시 끝나 실사용엔 티 안 남.
-                    PaperIconLabel(icon: ReffiIcon.share, label: "Share", intent: .neutral, size: 52, seed: 4)
+                    PaperIconLabel(icon: ReffiIcon.share, label: "Share", intent: .neutral, size: 52, seed: 4, onCard: true)
                         .opacity(ReffiOpacity.disabled)
                         .accessibilityHidden(true)
                 }
@@ -410,7 +412,7 @@ struct CookingStepsView: View {
 
         }
         .padding(.horizontal, ReffiSpace.s5)
-        .padding(.vertical, ReffiSpace.s5 + 2)
+        .padding(.vertical, ReffiSpace.ticketTop)
         .background(ReceiptShape(tooth: ReffiTooth.ticket).fill(ReffiColor.paper))
         .overlay(ReceiptShape(tooth: ReffiTooth.ticket).stroke(ReffiColor.paperEdge, lineWidth: 1))
         .reffiShadow1()
@@ -445,9 +447,9 @@ struct CookingStepsView: View {
     }
 
     /// 유튜브 검색 URL — 조립은 `RecipeVideoSearch`(단일 공급원)가 한다. 티켓 덱의 영상 브리지와
-    /// 같은 규칙을 쓰려고 여기서 다시 만들지 않는다(동작은 이전과 동일: 레시피명 + " recipe").
+    /// 같은 규칙을 쓰려고 여기서 다시 만들지 않는다.
     private func youtubeSearchURL(for recipeName: String) -> URL {
-        RecipeVideoSearch.url(query: "\(recipeName) recipe")
+        RecipeVideoSearch.urlForRecipe(recipeName)
     }
 
     /// 공유 카드 이미지 렌더 — `RecipeShareCard`를 레티나 스케일로 오프스크린 래스터라이즈한다. 실패하면 nil.
@@ -462,6 +464,9 @@ struct CookingStepsView: View {
                                    count: cook.count,
                                    icon: icon)
             .environment(\.colorScheme, .light)
+            // 언어도 색처럼 명시 고정(42차) — 렌더 계층은 루트의 `.environment(\.locale)`을 물려받지
+            // 못해, 앱 언어를 바꾼 사용자의 공유 이미지 라벨만 기기 언어로 나갔다.
+            .environment(\.locale, AppLanguage.current.resolvedLocale)
         let renderer = ImageRenderer(content: card)
         // 레티나 3x. **2로 내리지 않는다**(2026-08 재검토): 카드 폭이 340pt라 3x는 1020px인데,
         // 받는 쪽은 메시지 앱에서 이 이미지를 화면 폭으로 연다 — 3x 아이폰의 세로 폭이 1170~1290px라

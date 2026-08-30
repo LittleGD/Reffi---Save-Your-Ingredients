@@ -48,8 +48,17 @@ struct Recipe: Identifiable, Codable, Equatable {
         var ko: [String]?
     }
 
+    /// 데이터 표기(레시피명·조리 단계·재료명)의 언어 판별 — **앱 언어 선택(`AppLanguage`)이 정본**이다
+    /// (42차·F70). `Locale.current`만 보면 인앱 언어 전환이 크롬(버튼·라벨)만 바꾸고 화면에서 가장
+    /// 큰 글자(메뉴명)와 가장 많은 항목(재료명)은 기기 언어로 남아, 스위치가 고장 난 것으로 읽혔다.
+    /// `.system`이면 종전대로 기기 로케일. `UserDefaults` 읽기는 CFPreferences 인메모리 캐시라
+    /// 리스트 셀 단위 호출에도 실측상 무해하다(행당 ~수백 ns).
     static var isKorean: Bool {
-        Locale.current.language.languageCode?.identifier == "ko"
+        switch AppLanguage.current {
+        case .ko: true
+        case .en: false
+        case .system: Locale.current.language.languageCode?.identifier == "ko"
+        }
     }
 
     // MARK: - 표시 접근자
