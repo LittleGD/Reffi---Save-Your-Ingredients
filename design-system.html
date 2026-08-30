@@ -84,6 +84,7 @@
   --paper-edge:        oklch(25% 0.012 80 / 0.06);   /* 종이 단면 헤어라인(캔버스 위 면, 분리 보더 아님) */
   --paper-edge-field:  oklch(25% 0.012 80 / 0.10);   /* 입력 필드 단면 — 같은 헤어라인 한 단 진하게 */
   --paper-edge-onfill: oklch(100% 0 0 / 0.14);       /* 채도 면(버튼) 위 흰 종이 헤어라인 */
+  --paper-cut:         oklch(43% 0.014 80);           /* 컨트롤 재단선 — 실루엣을 지는 선(= --color-ink-2, α 1) */
   --paper-edge-accent: 0.18;                          /* 강조 종이 단면의 α — 색은 그 카드의 *-dark(§2.7) */
   --bg-sheen:          oklch(100% 0 0 / 0.22);        /* 메인 배경(리퀴드글래스) 상단 흰 시노 */
   --glass-tint:        oklch(85% 0.04 242 / 0.30);    /* 웹 쇼케이스 전용 — 네이티브 iOS 26 `.glassEffect`의
@@ -163,6 +164,7 @@
     --paper-edge:        oklch(93% 0.010 85 / 0.06);
     --paper-edge-field:  oklch(93% 0.010 85 / 0.10);
     --paper-edge-onfill: oklch(100% 0 0 / 0.10);
+    --paper-cut:         oklch(81% 0.012 82);          /* 다크에서도 = --color-ink-2 */
     --bg-sheen:          oklch(100% 0 0 / 0.045);
     --receipt:           oklch(33.5% 0.007 83);
     --field:             oklch(28%   0.010 80);
@@ -201,6 +203,7 @@
   --paper-edge:        oklch(93% 0.010 85 / 0.06);
   --paper-edge-field:  oklch(93% 0.010 85 / 0.10);
   --paper-edge-onfill: oklch(100% 0 0 / 0.10);
+  --paper-cut:         oklch(81% 0.012 82);
   --bg-sheen:          oklch(100% 0 0 / 0.045);
   --receipt:           oklch(33.5% 0.007 83);
   --field:             oklch(28%   0.010 80);
@@ -642,6 +645,23 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
 .icon-btn.soon    .shape { background: var(--color-soon); color: var(--color-soon-dark); }
 .icon-btn.urgent  .shape { background: var(--color-urgent); color: var(--color-ink); }
 .icon-btn.neutral .shape { background: var(--color-sub); color: var(--color-ink-2); }
+
+/* 종이 토글(PaperToggleStyle, §13.5) — 슬롯은 양 상태 모두 --paper-cut 재단선으로 항상 오려져 있고,
+   상태는 그 안이 "채워졌는가"로만 말한다. 앱과 달리 여기선 SVG stroke로 그린다(clip-path엔 선이 없다). */
+.ptoggle { appearance: none; border: 0; background: none; padding: 6px; cursor: pointer;
+  display: inline-grid; place-items: center; min-width: 44px; min-height: 44px; }
+.ptoggle svg { width: 51px; height: 31px; overflow: visible; display: block; }
+.ptoggle .ptrack { fill: none; stroke: var(--paper-cut); stroke-width: 1;
+  transition: fill var(--dur-2) var(--ease-std); }
+.ptoggle .pknob  { fill: var(--paper-surface); stroke: var(--paper-cut); stroke-width: 1;
+  filter: drop-shadow(0 1px 2px oklch(25% 0.012 80 / 0.10));
+  transition: transform var(--dur-2) var(--ease-std), fill var(--dur-2) var(--ease-std); }
+.ptoggle[aria-checked="true"] .ptrack { fill: var(--color-blue); }
+.ptoggle[aria-checked="true"] .pknob  { fill: var(--on-accent); transform: translateX(21.08px); }
+.ptoggle:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: var(--radius-md); }
+.ptoggle-row { display: flex; align-items: center; gap: var(--space-4); justify-content: space-between;
+  background: var(--receipt); padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); }
+.ptoggle-row .t { font: var(--d-body); color: var(--color-ink); }
 
 /* 재료 뱃지 — 캡슐 아님(변동 radius) + 좌측 인디케이터 바 + 이름 */
 .badge-row { display: flex; flex-wrap: wrap; gap: var(--space-2); }
@@ -1533,6 +1553,7 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
         <ul class="checklist">
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">신선도 색이 카운트다운과 일치하고, 색 + 라벨을 함께 썼는가</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">파스텔 면 위 글자는 ink, Blue 면 위 글자는 white인가</span></li>
+            <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text"><strong>컨트롤의 상태를 종이 면색끼리 갈라 말하지 않았는가</strong> — 종이 램프(<code class="inline">paper</code> · <code class="inline">sub</code> · <code class="inline">receipt</code>)는 양 모드 1.2:1 안쪽이라 면색으로는 §2.6 비텍스트 3:1이 <strong>원천 불가</strong>다. 상태는 채움 유무·위치로 말하고 실루엣은 <code class="inline">--paper-cut</code> 재단선에 맡긴다(§13.5 토글이 그 실패에서 나왔다)</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">파스텔 카드 경계를 색이 아니라 스택 그림자·여백으로 만들었는가</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">화면 내 타이포 위계 ≤ 3, 브랜드 색 ≤ 3인가</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">화면당 텍스트 계층이 단일 상한 7종을 넘지 않는가</span></li>
@@ -1573,7 +1594,7 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
         <span class="section__num num">11</span>
         <h2 class="text">종이 · 글래스 · 모션 <span class="t-caption" style="color:var(--color-muted)">— MD §13</span></h2>
         <p class="section__lead text">메인 플로우의 <strong>행동 표면</strong>(재료·버튼·티켓)에 입히는 한 겹: 손으로 자른 종이 + 리퀴드글래스 + 일러스트 실루엣 + 통통 튀는 모션. 정보 표면(§02~§09)의 규율은 그대로 둔다.</p>
-        <div class="note"><strong>종이 단면은 토큰 셋이 전부다 — <code class="inline">--paper-edge</code> · <code class="inline">--paper-edge-field</code> · <code class="inline">--paper-edge-onfill</code>.</strong> 면과 같은 톤의 ~1px 헤어라인을 면 위에 겹쳐 "종이 두께"를 표현한다. 캔버스 위 밝은 면은 잉크 톤(<strong>α 0.06</strong>), 입력 필드는 한 단 진하게(<strong>α 0.10</strong> — 카드는 그림자가 경계를 만들지만 필드는 면 안에 눌러 앉아 있어 "여기에 쓴다"를 단면이 혼자 말한다), 채도 면(버튼)은 흰 톤(α 0.14)이다. 0.06은 <strong>코드 실사용 수렴값</strong> — 앱에는 0.06/0.07/0.08이 섞여 있었고 그중 0.06이 압도적 다수였다. 헤어라인에서 0.01~0.02 알파 차는 눈에 잡히지 않으니 문서를 코드의 최다수 쪽으로 맞추고 갈래를 두 토큰으로 닫았다. <strong>§6.1의 분리용 보더가 아니다</strong> — 리스트 행 구분선처럼 실제로 면을 나누는 선은 알파가 같아도 이 토큰을 쓰지 않는다.</div>
+        <div class="note"><strong>종이 단면은 토큰 셋이 전부다 — <code class="inline">--paper-edge</code> · <code class="inline">--paper-edge-field</code> · <code class="inline">--paper-edge-onfill</code>.</strong> 면과 같은 톤의 ~1px 헤어라인을 면 위에 겹쳐 "종이 두께"를 표현한다. 캔버스 위 밝은 면은 잉크 톤(<strong>α 0.06</strong>), 입력 필드는 한 단 진하게(<strong>α 0.10</strong> — 카드는 그림자가 경계를 만들지만 필드는 면 안에 눌러 앉아 있어 "여기에 쓴다"를 단면이 혼자 말한다), 채도 면(버튼)은 흰 톤(α 0.14)이다. 0.06은 <strong>코드 실사용 수렴값</strong> — 앱에는 0.06/0.07/0.08이 섞여 있었고 그중 0.06이 압도적 다수였다. 헤어라인에서 0.01~0.02 알파 차는 눈에 잡히지 않으니 문서를 코드의 최다수 쪽으로 맞추고 갈래를 두 토큰으로 닫았다. <strong>§6.1의 분리용 보더가 아니다</strong> — 리스트 행 구분선처럼 실제로 면을 나누는 선은 알파가 같아도 이 토큰을 쓰지 않는다. <strong>넷째 토큰 <code class="inline">--paper-cut</code>(41차)은 이 셋과 급이 다르다</strong> — 헤어라인 셋이 "종이 두께"라는 <strong>재질</strong>이라면 그건 조각의 <strong>실루엣을 혼자 지는 정보</strong>다(= <code class="inline">--color-ink-2</code>, α 1). 종이 램프끼리는 양 모드 1.2:1 안쪽이라 면색으로 §2.6 비텍스트 3:1을 못 만드는 자리가 있고 거기선 선이 그 일을 받는다(종이 면 위 라이트 7.77~7.89 · 다크 6.64~6.77). <code class="inline">ink</code>(15.33/9.75)는 새까만 테두리로 읽히고 <code class="inline">muted</code>(5.51/4.66)는 역할이 <strong>약함/placeholder</strong>라 조작 가능한 컨트롤에 쓰면 비활성으로 읽힌다. <strong>정보 표면엔 쓰지 않는다</strong> — 유일 호출부는 아래 종이 토글이다.</div>
         <div class="note" style="margin-top:var(--space-3)"><strong>칩·필도 예외가 아니다 — 소형 면의 정본은 <code class="inline">PaperCutRect</code>다.</strong> D-day 칩·상태 칩·추정 기한 배지·취향 칩·알림 배너 액션처럼 작고 반복되는 행동 표면 면은 <code class="inline">Capsule()</code>이 아니라 <code class="inline">PaperCutRect(seed:)</code>를 쓴다. 예외는 글래스 캡슐 네비와 잉크 토스트 두 곳뿐 — 둘 다 종이가 아닌 재질이라 이 규칙 밖이다.</div>
         <div class="note" style="margin-top:var(--space-3)"><strong><code class="inline">PaperRect</code>가 그 규율을 스스로 지킨다(프리미티브 가드).</strong> 호출부 규약만으로는 앱 전역이 새기 때문에 셰이프 자체가 두 가지를 보장한다. ① <strong>pill 스케일 라우팅</strong> — 네 코너가 전부 <code class="inline">min(w,h)/2</code>로 클램프되는 크기(= 캡슐 퇴화)면 <code class="inline">PaperRect</code>가 <code class="inline">PaperCutRect</code>의 8각 패스를 대신 그린다. <code class="inline">ReffiRadius.pill</code>을 넘겨도 완벽한 캡슐이 나오지 않는다. ② <strong>지각되는 변 휨</strong> — 변 휨은 그 변의 직선 구간 길이에 비례하고(가위질이 길수록 선이 더 흔들린다) 편차 1.4~4pt로 클램프된다. 예전 값(하한 1.5를 2차 베지어의 컨트롤 오프셋에 그대로 적용 → 실제 편차 0.5pt)은 44pt 컨트롤에서 3x 렌더로도 보이지 않아, 코드는 종이인데 화면은 스톡 iOS였다. <strong>상한은 짧은 변에도 건다</strong> — 긴 변 기준만 두면 폭은 넓고 높이는 낮은 면(재료 뱃지 ≈150×40)의 위·아래 변이 상한 4pt를 그대로 받아 높이의 10%가 출렁이고, 위아래가 반대로 휘면 실루엣이 20%까지 일그러진다. 손으로 자른 종이도 얇은 조각의 가장자리는 그만큼 크게 흔들리지 않는다 — 흔들림의 폭은 가위질 길이뿐 아니라 <strong>조각의 두께</strong>에도 매인다. 그래서 편차 상한은 <code class="inline">min(4pt, 짧은 변 × 0.05)</code>이고, 짧은 변이 80pt를 넘는 큰 카드는 4pt 그대로다.</div>
 
@@ -1668,6 +1689,32 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
               <div class="wilt-item is-urgent m-firm"><span class="silo f-soon"></span><span class="lbl2">단단한 몸통 · meat</span><span class="lbl3">−4.5° · 0.965 · 1.000 · 0.09</span></div>
               <div class="wilt-item is-urgent"><span class="silo f-soon"></span><span class="lbl2">잎채소 · leaf</span><span class="lbl3">−7.0° · 0.935 · 1.030 · 0.17</span></div>
             </div>
+          </div>
+
+          <div class="demo-pane" style="grid-column: 1 / -1;">
+            <p class="subhead text">종이 토글 · <code class="inline">PaperToggleStyle</code></p>
+            <p class="lbl">스톡 <code class="inline">Toggle</code>의 캡슐 스위치를 손으로 자른 종이로 재질만 바꾼 <code class="inline">ToggleStyle</code>. 트랙은 <code class="inline">PaperRect(cornerRadius:.pill)</code>이 pill 스케일에서 스스로 라우팅하는 <strong>8각 필</strong>, 손잡이는 <code class="inline">PaperBlob(sides: 9)</code> 종이 조각. 스톡 iOS 스위치 실측(51 × 31 · 손잡이 27 · 인셋 2)에 히트 영역은 44pt(§7.3). <strong>눌러서 상태를 바꿔 보세요.</strong></p>
+            <div class="demo-bar" style="gap:var(--space-5);flex-wrap:wrap">
+              <div class="ptoggle-row" style="flex:1 1 260px">
+                <span class="t">Expiry alerts</span>
+                <button class="ptoggle" type="button" role="switch" aria-checked="false" aria-label="Expiry alerts">
+                  <svg viewBox="0 0 51 31" aria-hidden="true">
+                    <path class="ptrack" d="M9.5 0.5 H41.5 L50.5 9.5 V21.5 L41.5 30.5 H9.5 L0.5 21.5 V9.5 Z"/>
+                    <path class="pknob" d="M 15.50 2.81 L 23.33 4.97 L 27.92 11.99 L 26.84 20.36 L 21.71 26.84 L 13.88 28.19 L 6.59 24.95 L 3.35 17.39 L 4.97 9.02 Z"/>
+                  </svg>
+                </button>
+              </div>
+              <div class="ptoggle-row" style="flex:1 1 260px">
+                <span class="t">Collision haptics</span>
+                <button class="ptoggle" type="button" role="switch" aria-checked="true" aria-label="Collision haptics">
+                  <svg viewBox="0 0 51 31" aria-hidden="true">
+                    <path class="ptrack" d="M9.5 0.5 H41.5 L50.5 9.5 V21.5 L41.5 30.5 H9.5 L0.5 21.5 V9.5 Z"/>
+                    <path class="pknob" d="M 15.50 2.81 L 23.33 4.97 L 27.92 11.99 L 26.84 20.36 L 21.71 26.84 L 13.88 28.19 L 6.59 24.95 L 3.35 17.39 L 4.97 9.02 Z"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div class="note" style="margin-top:var(--space-3)"><strong>상태는 "채웠는가"가 지고 실루엣은 "재단선"이 진다(41차 대비 수정).</strong> 34차는 켬·꺼짐을 둘 다 채운 면(<code class="inline">blue</code> / <code class="inline">sub</code>)으로 두고 손잡이를 <code class="inline">paper</code>로 얹었는데, <strong>그 조합은 원천적으로 설 수 없었다</strong> — 종이 램프(<code class="inline">paper</code> .99/.33 · <code class="inline">sub</code> .935/.32 · <code class="inline">receipt</code> .985/.335)는 라이트·다크 모두 서로 1.2:1 안쪽에 몰려 있어 종이끼리는 밝기로 §2.6 비텍스트 기준(3:1)을 만들 수 없다. iPhone 17 시뮬레이터 3x 캡처 실측은 <strong>꺼짐 손잡이 대 트랙 라이트 1.20:1 · 다크 1.04:1</strong>이었고 다크에선 스위치가 사실상 보이지 않았다. <strong>밝기를 더 벌리는 대신 §13.10이 요일 칩에서 쓴 수를 그대로 쓴다 — 범주를 바꾼다:</strong> 슬롯은 양 상태 모두 <code class="inline">--paper-cut</code> 재단선으로 <strong>항상 오려져 있고</strong> 상태는 그 안이 <strong>채워졌는가</strong>로만 말한다(켬 = <code class="inline">blue</code> 면 + 그레인 / 꺼짐 = 면 없는 빈 슬롯 — 면이 없으면 결도 없다). <strong>꺼짐의 <code class="inline">sub</code> 면을 빼도 잃는 것이 없다</strong>는 것이 근거다: 그 면은 카드 위에서 실측 라이트 1.18 · 다크 1.06이라 <strong>보이지도 않으면서</strong> 손잡이의 대비만 잡아먹고 있었다. <strong>손잡이 면색은 앉은 자리가 정한다</strong> — 켬에서는 <code class="inline">blue</code> 채도 면 위이므로 §2.2의 확립 규칙대로 <code class="inline">--on-accent</code>(양 모드 고정 흰색)다. 34차의 <code class="inline">paper</code>는 다크에서 웜 차콜로 뒤집혀 파랑 위 실측 <strong>2.63:1</strong>이었고(손잡이가 조각이 아니라 파랑에 뚫린 <strong>구멍</strong>으로 읽혔다), <code class="inline">blue</code>의 다크 L 상한 .565가 바로 "흰 콘텐츠로 4.5:1"에서 나온 값이라 흰색이 이 면의 정답이다. 꺼짐에선 채도 면이 없고 카드 위에 그냥 앉으므로 종이 그대로다. <strong>41차 실측</strong>(같은 캡처 조건): 꺼짐 재단선 대 카드 <strong>라이트 7.75 · 다크 6.76</strong>, 재단선 대 손잡이 면 <strong>8.16 / 6.76</strong>; 켬 손잡이 대 트랙 <strong>5.65 / 4.65</strong>, 트랙 재단선 대 카드 <strong>7.89 / 8.15</strong> — 네 값 모두 3:1의 두 배 이상이다. <strong>색만으로 상태를 말하지 않는다</strong> — 손잡이 위치(좌/우)와 채움 유무가 색과 독립으로 상태를 진다. <strong>접근성은 스타일이 아니라 <code class="inline">Toggle</code> 자신이 책임진다</strong> — <code class="inline">makeBody</code>는 트랙·손잡이만 그리고 라벨·트레잇·값(On/Off)엔 손대지 않아 VoiceOver 더블탭이 화면 탭 제스처를 거치지 않고 <code class="inline">isOn</code> 바인딩에 직접 닿는다. 적용은 <code class="inline">SettingsToggle</code> 한 곳이라 프로필의 세 스위치가 함께 갈리고, 레포 전체에 다른 <code class="inline">Toggle(</code> 호출부는 없다.</div>
           </div>
 
           <div class="demo-pane" style="grid-column: 1 / -1;">
@@ -1991,6 +2038,16 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
     root.setAttribute('data-theme', next);
     localStorage.setItem(KEY, next);
     btn.setAttribute('aria-pressed', String(next === 'dark'));
+  });
+})();
+
+// 종이 토글 데모(§13.5) — role="switch"의 aria-checked만 뒤집고, 나머지는 CSS가 한다.
+// 앱과 같은 계약이다: 스타일은 시각만 바꾸고 상태·시맨틱은 컨트롤 자신이 든다.
+(function () {
+  Array.prototype.forEach.call(document.querySelectorAll('.ptoggle'), function (t) {
+    t.addEventListener('click', function () {
+      t.setAttribute('aria-checked', t.getAttribute('aria-checked') === 'true' ? 'false' : 'true');
+    });
   });
 })();
 
