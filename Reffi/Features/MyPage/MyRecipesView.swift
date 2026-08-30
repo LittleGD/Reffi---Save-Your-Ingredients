@@ -134,7 +134,7 @@ struct MyRecipesView: View {
     }
 
     private var emptyHint: some View {
-        Text("Recipes you add appear in the ticket deck alongside the built-in ones.")
+        Text("Recipes you add appear in Today's tickets alongside the built-in ones.")
             .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, ReffiSpace.s2)

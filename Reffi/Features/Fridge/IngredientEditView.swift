@@ -251,7 +251,7 @@ struct IngredientEditView: View {
             .buttonStyle(.paperPress)
             .accessibilityLabel("Delete ingredient")
 
-            Text("Removes it without history. Stats and the shopping list won't count it.")
+            Text("Removes it without history.")
                 .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
                 .padding(.horizontal, ReffiSpace.s2)
         }

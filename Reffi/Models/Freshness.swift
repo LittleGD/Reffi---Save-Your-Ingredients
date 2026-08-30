@@ -41,12 +41,4 @@ enum Freshness {
         }
     }
 
-    /// 짧은 상태 라벨(색 단독 의미 금지 → 항상 동반).
-    var label: String {
-        switch self {
-        case .fresh:  "Fresh"
-        case .soon:   "Soon"
-        case .urgent: "Today"
-        }
-    }
 }

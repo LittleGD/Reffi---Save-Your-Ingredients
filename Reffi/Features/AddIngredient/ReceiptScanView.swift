@@ -223,7 +223,7 @@ struct ReceiptScanView: View {
             }
             .buttonStyle(.paperPress)
             .accessibilityLabel(Text(verbatim: c.name))
-            .accessibilityValue(isOn ? Text("Selected") : Text(verbatim: ""))
+            .accessibilityValue(isOn ? Text("Checked") : Text("Not checked"))
 
             // 이름 블록도 체크와 **같은 토글**이라 같은 컨트롤이어야 한다 — 탭 제스처만 얹으면
             // 보조기술엔 그냥 글자로 서고(누를 수 있다는 신호가 없다) 눌림도 없다(§7.5).
@@ -239,7 +239,7 @@ struct ReceiptScanView: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.paperPress)
-            .accessibilityValue(isOn ? Text("Selected") : Text(verbatim: ""))
+            .accessibilityValue(isOn ? Text("Checked") : Text("Not checked"))
 
             Spacer(minLength: ReffiSpace.s2)
 

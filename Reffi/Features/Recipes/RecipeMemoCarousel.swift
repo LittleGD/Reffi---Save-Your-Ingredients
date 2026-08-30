@@ -492,7 +492,7 @@ struct RecipeMemoCarousel: View {
                 Text("No tickets from what's in your fridge yet.\nCheck the ingredient names, restock, or add your own recipe in Profile.")
                     .reffiType(.body).foregroundStyle(ReffiColor.ink2).multilineTextAlignment(.center)
             } else {
-                Text("Keep a few ingredients on, then start cooking.")
+                Text("Add a few ingredients, then start cooking.")
                     .reffiType(.body).foregroundStyle(ReffiColor.ink2).multilineTextAlignment(.center)
             }
         }
