@@ -37,7 +37,7 @@ struct CoverHeader<Accessory: View>: View {
             HStack(alignment: .center, spacing: 0) {
                 Color.clear.frame(width: ReffiChrome.tapMin, height: ReffiChrome.tapMin)   // 우측 X(44)와 대칭 — 타이틀 진짜 중앙
                 Spacer(minLength: ReffiSpace.s2)
-                VStack(spacing: ReffiSpace.s1) {
+                VStack(spacing: ReffiSpace.s3) {
                     Text(title)
                         .reffiType(.heading).foregroundStyle(ReffiColor.ink)
                         .lineLimit(2).minimumScaleFactor(0.85)
