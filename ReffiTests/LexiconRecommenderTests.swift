@@ -435,6 +435,81 @@ struct RecommenderTests {
                 "소고기(3점) 두 장이 연어(2점)를 사이에 두고 갈라져야 한다 — 두 번째 소고기의 한계이득은 0이다")
     }
 
+    /// **오늘 요리 핀(47차)** — 핀 재료를 쓰는 티켓은 임박도만으로는 뒤집히지 않는다.
+    /// 가점(+4)이 freshness 최고 한 단(urgent 3)보다 큰 이유가 이 테스트다: fresh(1)+핀(4)=5 >
+    /// urgent(3). 이게 성립하지 않으면 오른쪽 존은 "꽂아도 덱이 안 바뀌는" 위약이 된다.
+    @Test func pinnedStockLiftsItsTicketAboveFresherOnes() {
+        let beefDish = recipe(id: "beef-dish", refs: ["beef"], en: ["beef"])
+        let carrotDish = recipe(id: "carrot-dish", refs: ["carrot"], en: ["carrot"])
+        let beef = ing("소고기", daysLeft: 0)    // urgent 3 — 임박도의 최대치
+        let carrot = ing("당근", daysLeft: 9)    // fresh 1 — 임박도의 최소치
+        // 무핀 기준선 — 임박도가 순서를 정한다.
+        #expect(RecipeRecommender.rank(for: [beef, carrot], from: [beefDish, carrotDish])
+            .first?.id == "beef-dish")
+        // 당근 핀 — 가장 신선한 재료의 티켓이 가장 임박한 재료의 티켓을 넘는다.
+        let pinned = RecipeRecommender.rank(for: [beef, carrot], from: [beefDish, carrotDish],
+                                            pinnedIDs: [carrot.id])
+        #expect(pinned.first?.id == "carrot-dish",
+                "핀(+4)이 urgent(3)를 못 이기면 '고정'이 아니라 위약이다")
+    }
+
+    /// **핀은 점수 경쟁이 아니라 자리 보장이다(47차 실측 마감)** — 점수 가산(+4)만으로는 재고
+    /// 4종을 무는 임박 티켓(8점)이 핀 연어 티켓(2+4=6점)을 그대로 눌렀다(시뮬 실측: 연어를
+    /// 핀했는데 덱 1번이 여전히 비빔밥). 미커버 핀 재료를 쓰는 티켓이 덱 선발에서 **사전식
+    /// 1순위 키**를 갖는다 — 점수 차가 아무리 커도 핀 티켓이 맨 앞이다.
+    @Test func pinnedTicketTakesTheFrontEvenAgainstBigTickets() {
+        let feast = recipe(id: "feast", refs: ["beef", "spinach", "egg", "carrot"],
+                           en: ["beef", "spinach", "egg", "carrot"])
+        let salmonDish = recipe(id: "salmon-dish", refs: ["salmon"], en: ["salmon"])
+        let stock = [ing("소고기", daysLeft: 0), ing("시금치", daysLeft: 1),
+                     ing("계란", daysLeft: 2), ing("당근", daysLeft: 4),
+                     ing("연어", daysLeft: 8)]
+        // 무핀 기준선 — 4재료 임박 티켓이 앞선다.
+        #expect(RecipeRecommender.rank(for: stock, from: [feast, salmonDish]).first?.id == "feast")
+        let pinned = RecipeRecommender.rank(for: stock, from: [feast, salmonDish],
+                                            pinnedIDs: [stock[4].id])
+        #expect(pinned.first?.id == "salmon-dish",
+                "핀 재료를 쓰는 티켓이 점수와 무관하게 덱 맨 앞이어야 '고정'이다")
+        // 핀이 덮인 뒤의 나머지 덱은 종전 규칙 그대로다.
+        #expect(pinned.dropFirst().first?.id == "feast")
+    }
+
+    /// **핀 파리티(47차)** — `pinnedIDs` 기본값(빈 집합)이면 결과가 종전과 완전히 같다.
+    /// deckDiversifiesByMarginalGain 픽스처를 그대로 재사용해 파라미터 추가가 무핀 경로의
+    /// 답(순서까지)을 바꾸지 않았음을 고정한다 — 기존 호출부·테스트 전부가 이 동치에 기대 무수정이다.
+    @Test func emptyPinnedIDsMatchBaselineDeck() {
+        let beefA = recipe(id: "beef-a", refs: ["beef"], en: ["beef"])
+        let beefB = recipe(id: "beef-b", refs: ["beef"], en: ["beef"])
+        let salmon = recipe(id: "salmon-c", refs: ["salmon"], en: ["salmon"])
+        let stock = [ing("소고기", daysLeft: 0), ing("연어", daysLeft: 1)]
+        let base = RecipeRecommender.rank(for: stock, from: [beefA, beefB, salmon]).map(\.id)
+        let explicitEmpty = RecipeRecommender.rank(for: stock, from: [beefA, beefB, salmon],
+                                                   pinnedIDs: []).map(\.id)
+        #expect(base == ["beef-a", "salmon-c", "beef-b"])   // 45차 기준선 그대로
+        #expect(explicitEmpty == base, "빈 핀 집합은 무핀과 동치여야 한다(파리티)")
+    }
+
+    /// **핀 가점도 한계화(47차)** — `marginalGainRecomputesPreferenceBonuses`와 같은 축.
+    /// 핀 재고를 이미 덮은 중복 티켓이 +4를 상수로 물고 서면, 핀 하나에 같은 재료 티켓들이
+    /// 덱을 도배하며 D-1 연어를 유일하게 구하는 티켓을 밀어낸다 — 그리디가 고치려던 바로 그
+    /// 증상이 핀이 켜지는 경로에서만 재발한다.
+    @Test func marginalGainRecomputesPinBonus() {
+        let a = recipe(id: "a-covers", refs: ["beef", "onion", "carrot"],
+                       en: ["beef", "onion", "carrot"])
+        let b = recipe(id: "b-duplicate", refs: ["beef", "onion", "carrot"],
+                       en: ["beef", "onion", "carrot"])
+        let c = recipe(id: "c-rescues-salmon", refs: ["salmon"], en: ["salmon"])
+        let beef = ing("소고기", daysLeft: 0)
+        let stock = [beef, ing("양파", daysLeft: 9), ing("당근", daysLeft: 9),
+                     ing("연어", daysLeft: 1)]
+        // 소고기 핀: a·b 원점수 3+1+1+4=9, c는 2. 상수 유지 버그라면 b(9 또는 +4 잔존)가
+        // c(2)를 앞선다 — 한계화가 맞으면 b의 이득은 0으로 접힌다.
+        let ids = RecipeRecommender.rank(for: stock, from: [a, b, c],
+                                         pinnedIDs: [beef.id]).map(\.id)
+        #expect(ids == ["a-covers", "c-rescues-salmon", "b-duplicate"],
+                "중복 티켓의 핀 가점은 미커버 기준으로 0이어야 한다 — 연어 티켓이 2번 자리를 가져간다")
+    }
+
     /// **대체 그래프(45차)** — 생크림 재고가 우유 줄을 채운다(사전 subs `cream→milk`, 일방향).
     /// 대체 티켓은 감점을 받아 정품 매칭 티켓보다 항상 뒤에 서고, 레시피 이름이 그 재료를 부르면
     /// (우유푸딩의 milk 줄) 대체를 잠근다 — 사용자가 즉시 알아채는 종류의 거짓 방지.

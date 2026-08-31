@@ -273,7 +273,12 @@ struct RecipeMemoCarousel: View {
                       // 플릭 발주는 **앞 티켓만** — 뒤 티켓엔 0을 고정해 트리거가 전파되지 않게 한다.
                       fireTrigger: isFront ? fireTrigger : 0,
                       // 카드는 목록을 넘기기만 한다 — 고르기·담기·이동은 덱 위 팝업의 일이다.
-                      onPickMissing: onAddMissing == nil ? nil : { startAddFlow($0) })
+                      // 담기 패널은 **앞 티켓에만** 세운다(47차). 카드가 내용만큼만 길어진 뒤로
+                      // 짧은 앞 티켓 아래로 긴 뒤 티켓의 꼬리가 보이는데, 거기 파란 패널이 서면
+                      // 누를 수 없는 행동 표면이 종이 더미 사이에서 어른거린다(뒤 티켓은
+                      // allowsHitTesting(false)). nil이면 카드가 같은 사실을 조용한 텍스트 한
+                      // 줄("Short: …")로 말한다 — 뒤 영수증의 글자는 더미 은유대로 자연스럽다.
+                      onPickMissing: (isFront && onAddMissing != nil) ? { startAddFlow($0) } : nil)
             .padding(.horizontal, ReffiGrid.margin + ReffiSpace.s2)   // 24 — 티켓 계열 공통 인셋(§9.2)
             // 상단 예약은 **패딩이라 카드 높이에서 빠진다** — 카드는 (영역 − peekReserve)를 받고,
             // 모든 depth가 같은 값을 쓰므로 세 장의 높이가 정확히 같다(덱 실루엣의 전제).

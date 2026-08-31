@@ -252,6 +252,98 @@ struct FridgeStoreTests {
         #expect(store.ingredients.first { $0.id == urgent.id }!.frozenAt == frozen.frozenAt)
     }
 
+    // MARK: 오늘 요리 핀 (47차 — 오른쪽 존 = 핀 토글)
+
+    @Test func togglePinRoundTrips() {
+        let store = makeStore()
+        let target = store.sorted[0]
+        #expect(!store.isPinned(target.id))
+        #expect(store.togglePin(target.id))          // 드래그인 = 꽂기
+        #expect(store.isPinned(target.id))
+        #expect(!store.togglePin(target.id))         // 다시 드래그인 = 해제(반환 false)
+        #expect(!store.isPinned(target.id))
+    }
+
+    @Test func togglePinIgnoresUnknownIngredient() {
+        // 드래그 도중 판정·삭제로 재료가 사라진 경합 — 유령 id는 꽂히지 않는다
+        // (꽂히면 영속돼 추천을 조용히 기울인다).
+        let store = makeStore()
+        #expect(!store.togglePin(UUID()))
+        #expect(store.pinnedIDs.isEmpty)
+    }
+
+    @Test func decideReleasesPin() {
+        // 판정(먹음/버림)으로 재료가 사라지면 핀 자동 해제 — removeLogging 경유 전 경로 공통.
+        let store = makeStore()
+        let target = store.sorted[0]
+        store.togglePin(target.id)
+        store.eat(target)
+        #expect(!store.isPinned(target.id))
+    }
+
+    @Test func removeReleasesPin() {
+        // 이력 없는 정정 삭제도 동일 — 재료가 없는데 핀만 남으면 유령이다.
+        let store = makeStore()
+        let target = store.sorted[0]
+        store.togglePin(target.id)
+        store.remove(target)
+        #expect(!store.isPinned(target.id))
+    }
+
+    @Test func finishCookingReleasesConsumedPinButKeepsLeftoverPin() {
+        // 발주 확정 = 소비 → 핀 해제. '남았어요' 재료는 냉장고에 그대로라 핀도 그대로다.
+        let store = makeStore()
+        let recipe = Recipe.userRecipe(name: "Test", ingredientNames: ["Item0", "Item1"],
+                                       minutes: 10, steps: [])
+        let result = RecipeRecommender.result(for: recipe, ingredients: store.sorted)
+        #expect(result.used.count == 2)
+        let consumedID = result.used[0].id
+        let leftoverID = result.used[1].id
+        store.togglePin(consumedID)
+        store.togglePin(leftoverID)
+
+        store.cook(result)
+        store.finishCooking(leftovers: [leftoverID])
+        #expect(!store.isPinned(consumedID), "소비 확정된 재료의 핀은 자동 해제돼야 한다")
+        #expect(store.isPinned(leftoverID), "남은 재료는 아직 냉장고에 있다 — 핀 유지")
+    }
+
+    /// **핀은 위약이 아니다** — 스토어 경로(rankedRecipes)가 핀 집합을 rank에 실제로 넘긴다.
+    /// 이 배선이 없으면 엔진 파라미터는 살아 있는데 화면 덱은 안 바뀌는 반쪽이 된다.
+    @Test func rankedRecipesFrontsPinnedTicket() {
+        let ings = [Ingredient(name: "Item0", category: "Veg", daysLeft: 0,
+                               quantity: Quantity(value: 1, unit: .piece), glyph: .generic),
+                    Ingredient(name: "Item1", category: "Veg", daysLeft: 9,
+                               quantity: Quantity(value: 1, unit: .piece), glyph: .generic)]
+        let uses0 = Recipe.userRecipe(name: "Uses0", ingredientNames: ["Item0"], minutes: 10, steps: [])
+        let uses1 = Recipe.userRecipe(name: "Uses1", ingredientNames: ["Item1"], minutes: 10, steps: [])
+        let store = FridgeStore(ingredients: ings, recipes: [uses0, uses1], history: [])
+        #expect(store.rankedRecipes().first?.recipe.displayName == "Uses0")   // 무핀 — 임박 기준선
+
+        store.togglePin(ings[1].id)
+        #expect(store.rankedRecipes().first?.recipe.displayName == "Uses1",
+                "fresh(1)+핀(4)=5 > urgent(3) — 핀 재료의 티켓이 앞서야 한다")
+    }
+
+    @Test func pinnedIDsSurviveSnapshotRoundTrip() throws {
+        let id = UUID()
+        let snap = FridgeStore.Snapshot(
+            schemaVersion: FridgeStore.currentSchemaVersion,
+            ingredients: [], history: [], dismissedToBuy: [], counterIDs: [], activeCook: nil,
+            userRecipes: nil, archivedAte: nil, archivedTossed: nil, pinnedIDs: [id])
+        let decoded = try #require(FridgeStore.decodeSnapshot(try JSONEncoder().encode(snap)))
+        #expect(decoded.pinnedIDs == [id])
+    }
+
+    @Test func legacySnapshotHasNoPinnedIDs() throws {
+        // 구버전 파일엔 키 자체가 없다 — 옵셔널+기본 nil 규약(디코드 실패로 통째 격리 금지).
+        let legacy = """
+        {"ingredients":[],"history":[],"dismissedToBuy":[],"counterIDs":[]}
+        """
+        let snap = try #require(FridgeStore.decodeSnapshot(Data(legacy.utf8)))
+        #expect(snap.pinnedIDs == nil)
+    }
+
     // MARK: 정정 삭제 + 데이터 관리 불변식
 
     @Test func removeLeavesNoHistory() {

@@ -2519,6 +2519,17 @@
         }
       }
     },
+    "Pinned": {
+      "comment": "Badge accessibility prefix for an ingredient pinned as today's cooking pick (home right zone)",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "고정됨"
+          }
+        }
+      }
+    },
     "Please check the email address.": {
       "localizations": {
         "ko": {

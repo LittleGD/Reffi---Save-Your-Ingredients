@@ -151,8 +151,14 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
 
     /// 짧은 탭 = 판정 묻기(Ate/Tossed).
     var onRemove: ((UUID) -> Void)?
-    /// 제스처 판정(§13.6 B) — 칩을 존에 끌어다 놓으면 (id, wasted). 탭 오버레이는 접근성 경로로 유지.
+    /// 제스처 판정(§13.6 B) — 칩을 **왼쪽(휴지통) 존**에 끌어다 놓으면 (id, wasted=true).
+    /// 탭 오버레이는 접근성 경로로 유지. 47차부터 오른쪽 존은 소비가 아니라 핀이므로
+    /// wasted=false로 이 콜백이 불리는 경로는 없다 — 시그니처는 탭 커버 쪽 대칭성 때문에 남긴다.
     var onDecide: ((UUID, Bool) -> Void)?
+    /// 오른쪽 존 = 핀 토글(47차, "오늘 이걸로 요리"). 소비 판정(`onDecide`)과 콜백을 가른 이유:
+    /// 핀은 재고를 줄이지 않으므로 store 동기화(sync)가 칩을 치우지 않고, 씬도 노드를 제거하지
+    /// 않아야 화면이 거짓말하지 않는다 — 두 사건은 후속 연출이 정반대다(popOut vs 더미 복귀).
+    var onPin: ((UUID) -> Void)?
     /// 정지 캡 높이(홈의 레이아웃 슬롯 실측) — 존 앵커와 무관하게 하늘이 아무리 열려도
     /// 존은 `restHeight + dragFieldHeadroom` 자리에 남는다(오너 결정: "존은 지금 위치가 좋다").
     var restHeight: CGFloat = 0
@@ -181,12 +187,21 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         didSet { if hapticsEnabled != oldValue { syncClatterEngine() } }
     }
 
-    // 판정 바스켓 — 드래그 중에만 나타나는 휴지통(좌상)·냄비(우상) 종이 블롭.
+    // 판정 바스켓 — 드래그 중에만 나타나는 휴지통(좌상)·핀(우상, 47차) 종이 블롭.
     // 손가락이 근처에 오면 재료가 자석처럼 끌려 들어간다(마그네틱 캡처).
     private var tossZone: SKSpriteNode?
-    private var ateZone: SKSpriteNode?
+    private var pinZone: SKSpriteNode?
     private let zoneSide: CGFloat = ReffiJudgeZone.side
     private let magnetRadius: CGFloat = 88
+    /// 존 텍스처의 그림자 여백(pt) — ImageRenderer 캔버스는 뷰 프레임에서 끝나므로,
+    /// `reffiShadow1`을 블롭에 걸면 캔버스가 그림자만큼 커야 잘리지 않는다(오너 47차의
+    /// "잘린 그림자"가 정확히 이 결함이다 — 뱃지 행은 ScrollView 클립, 여기는 렌더 캔버스).
+    /// 12pt 근거: 원거리 층의 이론 극단은 y8+blur10 = 18pt지만 α 0.05 가우시안의 12pt 밖
+    /// 잔량은 1% 미만이라 잘라도 경계가 서지 않고, 존 알파(0.96)가 그 위를 한 번 더 누른다.
+    /// 반대로 여백을 극단(18+)까지 키우면 스프라이트가 커져 잡은 칩을 그만큼 더 가린다.
+    /// **판정 좌표는 불변**: 노드 중심 = 블롭 중심이라 히트 중심·캡처 반경(magnetRadius)·
+    /// `debugZoneCenters` 좌표 계약은 종전 zoneSide 86 기준 그대로다.
+    private let zoneShadowPad: CGFloat = 12
 
     #if DEBUG
     /// `-zoneLab` — 판정 존을 드래그 없이 **항상 표시**한다. 존은 SpriteKit 노드라 접근성 트리에
@@ -194,9 +209,10 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     private let zoneLab = ProcessInfo.processInfo.arguments.contains("-zoneLab")
 
     /// 회귀 테스트용 존 중심(씬 좌표) — 생성 전이면 nil. `debugTilt` 선례와 같은 QA 주입/관찰구.
-    var debugZoneCenters: (toss: CGPoint, ate: CGPoint)? {
-        guard let t = tossZone, let a = ateZone else { return nil }
-        return (t.position, a.position)
+    /// 좌표 계약은 47차(우존 ate→pin 전환)에서도 그대로다 — 튜플 라벨만 실체를 따라간다.
+    var debugZoneCenters: (toss: CGPoint, pin: CGPoint)? {
+        guard let t = tossZone, let p = pinZone else { return nil }
+        return (t.position, p.position)
     }
 
     /// `-physLab` — 물리 진단 모드. SKView의 콜라이더 오버레이(`showsPhysics`, MainView가 켠다)와
@@ -656,7 +672,7 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         // 존은 렌더된 텍스처라 다시 만들어야 팔레트가 갱신된다(드래그 중이면 보이는 상태 유지).
         let wasVisible = (tossZone?.alpha ?? 0) > 0
         tossZone?.removeFromParent(); tossZone = nil
-        ateZone?.removeFromParent();  ateZone = nil
+        pinZone?.removeFromParent();  pinZone = nil
         layoutZones()
         if wasVisible { setZones(visible: true) }
     }
@@ -706,7 +722,7 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
             body.velocity = CGVector(dx: v.dx + (vx - v.dx) * inertia,
                                      dy: v.dy + (vy - v.dy) * inertia)
             highlight(tossZone, hovering: captured === tossZone)
-            highlight(ateZone, hovering: captured === ateZone)
+            highlight(pinZone, hovering: captured === pinZone)
             // 자석에 **막 붙은** 순간의 스냅(§13.4 · 리뷰 F50) — 판정이 확정될 자리에 들어왔다는
             // 촉각 확정이다. 에지에서만 치고, 반경 경계에서 손이 떨 때의 연타는 쿨다운이 막는다.
             if captured !== lastCapturedZone {
@@ -1151,7 +1167,7 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     /// 손가락 위치 기준 캡처 바스켓(반경 내 가장 가까운 것).
     private func captureZone(near p: CGPoint) -> SKSpriteNode? {
         var best: (zone: SKSpriteNode, d: CGFloat)?
-        for z in [tossZone, ateZone].compactMap({ $0 }) {
+        for z in [tossZone, pinZone].compactMap({ $0 }) {
             let d = hypot(p.x - z.position.x, p.y - z.position.y)
             if d < magnetRadius, d < (best?.d ?? .infinity) { best = (z, d) }
         }
@@ -1160,24 +1176,38 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
 
     // MARK: - 판정 존 (§13.6 B)
 
-    /// 존 스프라이트 — PaperBlob + 채운 아이콘을 텍스처로 렌더. 평소엔 숨김(alpha 0).
+    /// 존 스프라이트 — **`PaperIconButton`의 블롭 문법**(fill + 그레인 + 채운 아이콘, 아웃라인 없음,
+    /// `reffiShadow1`)을 텍스처로 렌더. 평소엔 숨김(alpha 0).
+    /// 스트로크를 지운 이유(오너 47차): 종이컷 면의 정본은 fill+그레인이고 아웃라인이 서는 순간
+    /// 같은 화면의 진짜 종이(뱃지·CTA·판정 커버 블롭)와 재질이 갈려 스티커로 읽힌다 —
+    /// "셰이프는 페이퍼컷인데 아웃라인·텍스처·색 스타일이 다르다"가 정확히 이 어긋남이었다.
+    /// 그레인 시드도 블롭 문법 그대로 셰이프 시드 +3(`PaperIconButton.blob` 참조).
     private func makeZone(toss: Bool) -> SKSpriteNode {
         let tint = toss ? ReffiColor.urgentDark : ReffiColor.blueDark
+        let shape = PaperBlob(sides: 9, seed: toss ? 3 : 6)
         let view = ZStack {
-            PaperBlob(sides: 9, seed: toss ? 3 : 6)
-                .fill(toss ? ReffiColor.urgentLight : ReffiColor.blueLight)
-            PaperBlob(sides: 9, seed: toss ? 3 : 6)
-                .stroke(tint.opacity(0.35), lineWidth: 1.5)
-            (toss ? ReffiIcon.toss : ReffiIcon.ate).reffi(30, .fill)
+            shape.fill(toss ? ReffiColor.urgentLight : ReffiColor.blueLight)
+            PaperGrain(seed: UInt64(toss ? 3 : 6) &+ 3, strength: 0.5)
+                .clipShape(shape)
+            // 우존 아이콘 = 핀(47차) — 색은 blue 축 유지: "요리로 간다"(Start cooking)와 같은
+            // 방향의 사건이고, 좌(urgent=버림)와의 양극 대비가 판정 축이다.
+            (toss ? ReffiIcon.toss : ReffiIcon.pin).reffi(30, .fill)
                 .foregroundStyle(tint)
         }
         .frame(width: zoneSide, height: zoneSide)
+        // 그림자는 토큰(`reffiShadow1`)이 그룹째 드리운다 — 캔버스가 뷰 프레임에서 끝나는
+        // ImageRenderer 특성상 그림자 몫의 여백을 **패딩으로** 확보한다(`zoneShadowPad` 주석).
+        .reffiShadow1()
+        .padding(zoneShadowPad)
         // ImageRenderer는 환경을 명시하지 않으면 항상 라이트로 해석한다 — 적응형 토큰이 든 뷰엔 필수.
         .environment(\.colorScheme, interfaceStyle == .dark ? .dark : .light)
         let renderer = ImageRenderer(content: view)
         renderer.scale = 3
+        // 노드 변 = 블롭 + 양쪽 그림자 여백. 앵커(0.5)라 블롭 중심 = 노드 중심 = position이므로
+        // 판정 히트 중심·캡처 반경은 종전 좌표 그대로다(zoneShadowPad 주석의 계약).
+        let renderSide = zoneSide + zoneShadowPad * 2
         let node = SKSpriteNode(texture: renderer.uiImage.map { SKTexture(image: $0) },
-                                size: CGSize(width: zoneSide, height: zoneSide))
+                                size: CGSize(width: renderSide, height: renderSide))
         node.alpha = 0
         node.zPosition = Self.zZone
         return node
@@ -1186,19 +1216,21 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
     private func layoutZones() {
         guard size.width > 1 else { return }
         if tossZone == nil { let z = makeZone(toss: true); tossZone = z; addChild(z) }
-        if ateZone == nil { let z = makeZone(toss: false); ateZone = z; addChild(z) }
+        if pinZone == nil { let z = makeZone(toss: false); pinZone = z; addChild(z) }
         // 상단 모서리 — 더미(바닥)와 겹치지 않고, 들어 올려서 넣는 제스처가 자연스럽다.
         // 앵커는 하늘 높이가 아니라 **정지 캡 + 드래그 여유**다 — 하늘이 카드 뒤·최상단까지 열려도
         // 존은 제자리에 남는다(오너 결정). restHeight 미실측(0)이면 종전대로 씬 상단 기준.
         let anchorTop = restHeight > 0
             ? min(size.height, restHeight + Self.dragFieldHeadroom(width: size.width))
             : size.height
+        // 좌표는 여전히 **블롭 변(zoneSide 86)** 기준이다 — 노드 변은 그림자 여백만큼 크지만
+        // (`makeZone`), 존이 앉는 자리·판정 중심의 계약은 47차 이전과 픽셀 동일해야 한다.
         let y = anchorTop - zoneSide * 0.5 - 12
         let toss = CGPoint(x: zoneSide * 0.5 + 14, y: y)
-        let ate  = CGPoint(x: size.width - zoneSide * 0.5 - 14, y: y)
+        let pin  = CGPoint(x: size.width - zoneSide * 0.5 - 14, y: y)
         // 보이는 중의 재배치(드래그 여유 개방으로 천장이 오를 때)는 점프 대신 짧게 미끄러진다 —
         // 순간이동은 "지직"으로 읽힌다. 숨어 있으면 즉시 좌표만 갱신.
-        for (zone, target) in [(tossZone, toss), (ateZone, ate)] {
+        for (zone, target) in [(tossZone, toss), (pinZone, pin)] {
             guard let zone else { continue }
             if zone.alpha > 0.01 {
                 let move = SKAction.move(to: target, duration: ReffiJudgeZone.fade)
@@ -1211,7 +1243,7 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         }
         #if DEBUG
         // `-zoneLab`은 재생성(다크 전환 리틴트) 뒤에도 계속 보여야 하므로 여기서 알파를 되돌린다.
-        if zoneLab { tossZone?.alpha = ReffiJudgeZone.alpha; ateZone?.alpha = ReffiJudgeZone.alpha }
+        if zoneLab { tossZone?.alpha = ReffiJudgeZone.alpha; pinZone?.alpha = ReffiJudgeZone.alpha }
         #endif
     }
 
@@ -1220,10 +1252,10 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         let fade = SKAction.fadeAlpha(to: visible ? ReffiJudgeZone.alpha : 0,
                                       duration: ReffiJudgeZone.fade)
         tossZone?.run(fade)
-        ateZone?.run(fade)
+        pinZone?.run(fade)
         if !visible {
             tossZone?.setScale(1)
-            ateZone?.setScale(1)
+            pinZone?.setScale(1)
         }
     }
 
@@ -1882,6 +1914,22 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         node.run(.sequence([press, back, .run { [weak node] in node?.setScale(1) }]), withKey: "squash")
     }
 
+    /// 핀 도장 펄스(47차) — 존에서 놓이는 순간 짧게 부풀었다 제자리로. "찍혔다"는 확정 신호다.
+    /// 진폭 1.12는 존 호버 하이라이트(`hotScale` 1.14)와 같은 급 — 존과 칩이 한 사건으로 읽힌다.
+    /// 액션 키를 `squash`와 가른 이유: 펄스 직후 칩이 더미로 낙하하며 착지 스쿼시가 이어질 수
+    /// 있는데, 같은 키면 서로를 끊어 배율이 중간값에 얼어붙는다. 마지막 확정 대입은 squash와
+    /// 같은 규율. Reduce Motion이면 생략(§7.4) — 판정 자체는 콜백이 이미 전달했고, 핀 상태는
+    /// 배지 좌상단 압정이 정적 표면으로 말한다.
+    private func pinPulse(_ node: SKSpriteNode) {
+        guard !reduceMotion else { return }
+        node.removeAction(forKey: "pinPulse")
+        let up = SKAction.scale(to: 1.12, duration: 0.09)
+        up.timingMode = .easeOut
+        let down = SKAction.scale(to: 1.0, duration: 0.12)
+        down.timingMode = .easeOut
+        node.run(.sequence([up, down, .run { [weak node] in node?.setScale(1) }]), withKey: "pinPulse")
+    }
+
     // MARK: - Drag / throw / tap (단일 터치 추적)
 
     /// 드래그 승격 해제 — 스폰 때 정한 고정 z로 되돌린다. 보관값이 없으면(옛 노드) 새로 뽑아
@@ -1984,9 +2032,19 @@ final class IngredientDropScene: SKScene, SKPhysicsContactDelegate {
         let spin = torque / (s * s * spinArm)
         body.angularVelocity = min(max(spin, -spinCap), spinCap)
         let id = node.name.flatMap { UUID(uuidString: String($0.dropFirst(5))) }
-        // 캡처된 채 놓으면 제스처 판정 — 휴지통 = Tossed, 냄비 = Ate.
+        // 캡처된 채 놓으면 제스처 판정 — 휴지통 = Tossed, 핀 = 오늘 요리 고정 토글(47차).
         if dragMoved, let id, let zone = captureZone(near: dragTarget) {
-            onDecide?(id, zone === tossZone)
+            if zone === tossZone {
+                onDecide?(id, true)
+            } else {
+                // 핀 커밋 — **도장 찍고 더미로 되돌아온다.** popOut(소비 연출)을 부르지 않는
+                // 이유: 핀은 재고를 줄이지 않으므로 화면에서 사라지면 거짓이다. 위에서 이미
+                // 중력이 복귀했으니(affectedByGravity=true) 펄스만 치면 칩이 존 자리에서
+                // 자연 낙하로 더미에 돌아간다 — 그게 되튕김이고, 별도 임펄스는 넣지 않는다
+                // (존은 더미 위쪽이라 낙하 자체가 복귀 연출이다).
+                pinPulse(node)
+                onPin?(id)
+            }
             return
         }
         if !dragMoved, let id {

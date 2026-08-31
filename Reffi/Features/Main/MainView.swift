@@ -122,7 +122,10 @@ struct MainView: View {
     private var carouselResults: [RecipeRecommender.Result] {
         // 소비 후보 = 전체 가용 재고(예약 제외) — 티켓이 쓰는 재료가 작업대 밖에 있어도
         // 함께 소비 처리돼 '실제로 썼는데 재고에 남는' 유령 재고가 생기지 않는다.
-        // 프로필 취향(§5.2)을 랭킹에 실배선 — 알레르기 하드 필터·선호/기피/요리스타일 보정.
+        // 프로필 취향(§5.2)을 랭킹에 실배선 — 알레르기 하드 필터·선호/기피·요리스타일 보정.
+        // 핀(47차)은 여기서 따로 넘기지 않는다 — 정본이 store라 `rankedRecipes`가 자기
+        // `pinnedIDs`를 `rank(pinnedIDs:)`로 항상 싣는다(호출부가 잊으면 위약이 되는 파라미터를
+        // 호출부에 두지 않는다는 그쪽 주석의 계약). 이 앱의 rank 진입점은 이 한 곳뿐이다.
         Array(store.rankedRecipes(preferences: RecipePreferences(profile: profile)).prefix(3))
     }
     /// 씬 일시정지 — 다른 탭, 그리고 씬을 완전히 덮는 **풀스크린 커버**(캐러셀·조리 화면·판정)에
@@ -829,6 +832,7 @@ struct MainView: View {
         scene.hapticsEnabled = hapticsEnabled
         scene.onRemove = { id in decide(id) }
         scene.onDecide = { id, wasted in gestureDecide(id, wasted: wasted) }
+        scene.onPin = { id in togglePin(id) }
         // 하늘 개폐 = 드래그·스폰 수명주기. 씬이 같은 값은 재통지하지 않지만 방어적으로 비교 후 대입.
         scene.restHeight = fieldSlotHeight
         scene.externallyPaused = scenePaused
@@ -841,6 +845,17 @@ struct MainView: View {
         decisionHaptic += 1
         withAnimation(ReffiMotion.gated(ReffiMotion.pop, reduce: reduceMotion)) {
             if wasted { store.toss(ing) } else { store.eat(ing) }
+        }
+    }
+
+    /// 핀 토글(47차) — 오른쪽 존 드래그인 = "오늘 이걸로 요리" 고정. 소비가 아니라 재료는 더미로
+    /// 돌아오고, 상태는 배지 좌상단 압정과 추천 랭킹(`rankedRecipes`가 `pinnedIDs`를 스스로 싣는다)
+    /// 이 보여 준다. 햅틱은 판정과 같은 축(가벼운 임팩트) — 존 커밋이라는 같은 제스처 문법의
+    /// 사건이고, 꽂기/빼기 양쪽 모두 확정이라 양쪽 다 친다. 유령 id(경합)는 store가 무시한다.
+    private func togglePin(_ id: UUID) {
+        decisionHaptic += 1
+        withAnimation(ReffiMotion.gated(ReffiMotion.pop, reduce: reduceMotion)) {
+            store.togglePin(id)
         }
     }
 
@@ -902,7 +917,8 @@ struct MainView: View {
         return ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: ReffiSpace.s2) {
                 ForEach(Array(counter.items.enumerated()), id: \.element.id) { i, ing in
-                    IngredientBadge(ingredient: ing, seed: i) { decide(ing.id) }
+                    IngredientBadge(ingredient: ing, seed: i,
+                                    pinned: store.isPinned(ing.id)) { decide(ing.id) }
                         // **진입과 이탈은 다른 사건이다.** 대칭(.scale 1.3)이면 새 뱃지가 130%에서
                         // 쪼그라들며 나타나 "방금 지운 것이 되돌아왔나"로 읽힌다. 진입은 §7.1대로
                         // 0.95에서 자라 오르고(하한 0.95 — scale(0) 금지), 이탈만 §7.5의 뿅(1.3)이다.
@@ -915,8 +931,17 @@ struct MainView: View {
                 AddBadge(seed: counter.items.count) { showAdd = true }
             }
             .padding(.horizontal, margin)
-            .padding(.vertical, ReffiSpace.s1)   // 그림자 여유
+            // 세로 s1은 행의 숨쉴 틈(레이아웃 리듬)이다. "그림자 여유"라던 옛 주석은 절반 거짓 —
+            // reffiShadow1의 원거리 층(y8 + blur10)은 4pt를 한참 넘어 ScrollView 기본 클립에
+            // 수평으로 잘렸고(오너 47차: "Start cooking 위에 잘린 그림자 모양"), 그림자를 살리는
+            // 것은 이 패딩이 아니라 아래 `scrollClipDisabled`다.
+            .padding(.vertical, ReffiSpace.s1)
         }
+        // 배지 그림자·핀 압정은 종이 밖으로 드리우고 걸친다 — 가로 ScrollView의 기본 클립이
+        // 그 몫을 잘라내던 것을 푼다. 패딩을 그림자만큼(18pt+) 키우는 대안은 행 높이를 부풀려
+        // 필드·CTA 자리를 깎으므로 클립 해제가 정답이다. 가로로 새어 보일 걱정은 없다 —
+        // 행은 원래 화면 폭을 다 쓰고, 스크롤로 밀려난 콘텐츠는 물리적으로 화면 밖이다.
+        .scrollClipDisabled()
         .animation(ReffiMotion.gated(ReffiMotion.pop, reduce: reduceMotion), value: counter.ids)
         // 진입분 판정 기준을 다음 변화로 넘긴다. `initial: true`로 첫 표시에서 채워 두지 않으면,
         // 나중에 한 개를 더해도 화면에 있던 전부가 "새로 들어온 것"으로 읽혀 엉뚱한 지연을 받는다.

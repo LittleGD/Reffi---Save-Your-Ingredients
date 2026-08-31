@@ -58,6 +58,14 @@ enum ReffiIcon {
     // 냉동(버리기 직전 구제, §13.6) — 판정 커버의 3번째 선택지.
     static var freeze: Ph { .snowflake }
     static var delete: Ph { .trashSimple }
+
+    /// 오늘 요리 핀(47차) — 홈 오른쪽 판정 존과 배지 좌상단 핀 마크가 함께 쓴다.
+    /// 냄비(ate)가 서 있던 자리다: 오른쪽 드래그인이 "요리로 소비"로 읽히던 혼동(오너 47차)을
+    /// 갈라, 오른쪽 존은 "오늘 이걸로 요리" **고정**이 됐고 소비 판정은 배지 탭 → 판정 커버만
+    /// 맡는다. `.pushPin`인 이유: 글리프 자체가 비스듬히 꽂힌 압정이라 회전 없이 "꽂는다"가
+    /// 서고(§trendUp의 캐럿 선례 — 돌린 글리프는 기울어 보인다), 심플 변형(`.pushPinSimple`)은
+    /// 수직 핀이라 지도 마커로 읽힌다.
+    static var pin: Ph { .pushPin }
 }
 
 extension Ph {

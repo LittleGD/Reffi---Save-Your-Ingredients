@@ -73,7 +73,7 @@ xcrun simctl io booted screenshot reffi-home.png
 - `-tiltLab` 기울기 실험실 하단 오버레이 — X/Y 슬라이더로 씬 중력을 직접 주입한다. 시뮬레이터엔 자이로가 없어 굴러가는 모양·컨테인먼트 QA는 사실상 이 경로로만 가능하다. SHAKE 버튼 + `HAPTIC n/s` 카운터(햅틱 하드웨어가 없으니 발화 수가 유일한 관측 수단 — 정지한 더미에서 0으로 떨어지는지도 여기서 본다)
 - `-tiltLab.x <-1…1>` `-tiltLab.y <-1…1>` 중력 방향 주입(실험실도 함께 켜짐). 값 파싱은 `ProcessInfo.arguments` 직접 순회 — UserDefaults 인자로 두면 `-tiltLab.x -0.9`의 음수를 다음 키로 오인해 바인딩을 통째로 잃는다
 - `-tiltLab.shake` 런치 1.5초 뒤 셰이크 버스트 자동 발동(재료가 자리를 잡은 뒤라야 충돌이 의미 있다)
-- `-zoneLab` 판정 존(휴지통·냄비) 상시 표시 — 존은 SpriteKit 노드라 접근성 트리에 없고 드래그 중에만 보여서, 위치 회귀를 스크린샷으로 잡으려면 강제 표시가 필요하다
+- `-zoneLab` 판정 존(휴지통·핀) 상시 표시 — 존은 SpriteKit 노드라 접근성 트리에 없고 드래그 중에만 보여서, 위치 회귀를 스크린샷으로 잡으려면 강제 표시가 필요하다
 - `-physLab` 물리 진단 — ① `SpriteView(debugOptions:)`의 **콜라이더 오버레이**(`.showsPhysics` + FPS): 칩 실루엣과 실제 충돌체가 어디서 어긋나는지 스크린샷으로 실측한다 ② **주기 계측 덤프**(0.5초 간격, 최대 40 샘플)를 앱 Documents/`phys-lab.txt`에 쓴다 — 샘플마다 `idle/calm/sealed/중력/칩변/씬크기` + 칩별 `위치·속도·각속도·isResting·zPosition·회전·AABB` + **쌍별 AABB 관통률**. 화면만 봐선 못 가르는 세 가지가 여기서 갈린다: 속도 0인데 `rest=0`으로 남는(=엔진이 못 재우는) 바디, 눈으로는 한 덩이인 칩들의 실제 관통 깊이, z가 붙어 있어 순서가 뒤집히는 쌍. 꺼내기:
   ```sh
   xcrun simctl launch booted com.reffi.app -skipOnboarding -skipAuth -loadSample -physLab

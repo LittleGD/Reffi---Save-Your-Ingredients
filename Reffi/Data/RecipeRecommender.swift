@@ -283,14 +283,21 @@ enum RecipeRecommender {
     ///   **미커버 기준 직접 재계산**: 미커버 freshness 합 − 대체 감점 + 미커버 used로 다시 센
     ///   favorites 가점 + (미커버 기여가 있을 때만) cuisine 가점. disliked 감점은 레시피 자체의
     ///   속성이라 상수로 유지한다. `preferences == .none`이면 종전 산식과 동치.
+    ///
+    /// **핀 가점(47차)도 같은 자리·같은 이유로 한계화한다** — 미커버 핀 재료당 +`pinnedBonusPerItem`.
+    /// 상수로 남기면 핀 재고를 이미 덮은 중복 티켓이 +4를 그대로 물고 서서, 핀 하나에 같은 재료
+    /// 티켓들이 덱을 도배한다(cuisine·favorites 재발 사례와 정확히 같은 축). 핀은 재고 정체성
+    /// id로 세므로 rows에 플래그 하나면 충분하다 — matchKey 재계산이 필요한 favorites와 달리
+    /// 사전을 두드리지 않는다.
     static func prune(_ ranked: [(result: Result, score: Int)],
-                      preferences: RecipePreferences = .none) -> [Result] {
+                      preferences: RecipePreferences = .none,
+                      pinnedIDs: Set<UUID> = []) -> [Result] {
         let nothingAtRisk = !ranked.contains { $0.result.used.contains { $0.freshness != .fresh } }
         // 후보별 소비 줄을 1회 선계산 — marginal이 비교마다 사전·달력을 다시 두드리지 않게 한다.
         struct Cand {
             let result: Result
             let score: Int
-            let rows: [(id: UUID, weight: Int, urgent: Bool, atRisk: Bool, favorite: Bool)]
+            let rows: [(id: UUID, weight: Int, urgent: Bool, atRisk: Bool, favorite: Bool, pinned: Bool)]
             let cuisineMatch: Bool
             let dislikedScore: Int
         }
@@ -298,7 +305,7 @@ enum RecipeRecommender {
             Cand(result: e.result, score: e.score,
                  rows: e.result.used.map { ing in
                      (ing.id, weight(ing), ing.freshness == .urgent, ing.freshness != .fresh,
-                      preferences.favoriteIDs.contains(ing.matchKey))
+                      preferences.favoriteIDs.contains(ing.matchKey), pinnedIDs.contains(ing.id))
                  },
                  cuisineMatch: e.result.recipe.cuisine.map { preferences.cuisines.contains($0) } ?? false,
                  dislikedScore: dislikedScore(e.result, preferences: preferences))
@@ -308,18 +315,20 @@ enum RecipeRecommender {
         var remaining = Array(cands.indices)
         var dropped: [(result: Result, score: Int)] = []
 
-        func marginal(_ c: Cand) -> (gain: Int, urgentNew: Int) {
-            var fresh = 0, favs = 0, urgentNew = 0, anyNew = false
+        func marginal(_ c: Cand) -> (gain: Int, urgentNew: Int, pinnedNew: Int) {
+            var fresh = 0, favs = 0, pins = 0, urgentNew = 0, anyNew = false
             for row in c.rows where !covered.contains(row.id) {
                 fresh += row.weight
                 anyNew = true
                 if row.urgent { urgentNew += 1 }
                 if row.favorite { favs += 1 }
+                if row.pinned { pins += 1 }
             }
             var gain = fresh - substitutionPenalty * c.result.substituted.count + c.dislikedScore
             if favs > 0 { gain += min(favs * favoriteBonusPerItem, favoriteBonusCap) }
+            gain += pins * pinnedBonusPerItem   // 미커버 핀만 — 캡 없음(score와 같은 산식, 47차)
             if anyNew, c.cuisineMatch { gain += cuisineBonus }
-            return (gain, urgentNew)
+            return (gain, urgentNew, pins)
         }
         func accepts(_ c: Cand) -> Bool {
             let clearedCount = Set(c.result.used.map(\.matchKey)).count
@@ -332,12 +341,20 @@ enum RecipeRecommender {
 
         while out.count < deckSize && !remaining.isEmpty {
             var bestPos = 0
-            var bestKey: (gain: Int, urgentNew: Int) = marginal(cands[remaining[0]])
+            var bestKey: (gain: Int, urgentNew: Int, pinnedNew: Int) = marginal(cands[remaining[0]])
             for pos in remaining.indices.dropFirst() {
                 let a = cands[remaining[pos]], b = cands[remaining[bestPos]]
                 let ka = marginal(a)
                 let better: Bool
-                if ka.gain != bestKey.gain { better = ka.gain > bestKey.gain }
+                // **핀이 사전식 1순위다**(47차 실측 마감). 점수 가산(+4)만으로는 "고정"이 안 선다 —
+                // 재고 4종을 무는 임박 티켓(8점)이 핀 연어 티켓(2+4=6점)을 그대로 눌렀다. 핀은
+                // "이 재료로 요리하겠다"는 명시 의도라 점수 경쟁이 아니라 **자리 보장**이어야 하고,
+                // 그래서 미커버 핀 재료를 쓰는 티켓이 점수와 무관하게 슬롯을 먼저 가져간다.
+                // 같은 핀을 무는 후보끼리는 아래 축(한계이득…)이 최선의 한 장을 고르고, 그 장이
+                // 핀을 덮으면 pinnedNew가 0이 되어 나머지 덱은 종전 규칙 그대로다. 문턱(accepts)은
+                // 그대로 걸린다 — 핀이어도 장보기 계획 티켓을 덱에 올리지는 않는다.
+                if ka.pinnedNew != bestKey.pinnedNew { better = ka.pinnedNew > bestKey.pinnedNew }
+                else if ka.gain != bestKey.gain { better = ka.gain > bestKey.gain }
                 else if ka.urgentNew != bestKey.urgentNew { better = ka.urgentNew > bestKey.urgentNew }
                 else if a.result.missing.count != b.result.missing.count {
                     better = a.result.missing.count < b.result.missing.count
@@ -369,9 +386,12 @@ enum RecipeRecommender {
     /// 점수순 정렬된 추천 덱(보유 재료를 하나라도 쓰는 레시피만).
     /// `preferences`(프로필 취향, §5.2)가 주어지면 알레르기 하드 필터 + 선호/기피/요리스타일 보정을
     /// 적용한다. 기본 `.none`은 순수 freshness 랭킹(기존 호출·테스트 후방호환).
+    /// `pinnedIDs`(오늘 요리 핀, 47차)는 **점수 축**이지 매칭 축이 아니다 — 후보 계산(bulkResults)은
+    /// 건드리지 않고 score와 prune의 한계이득에만 들어간다. 기본 `[]`는 종전과 완전 동일(후방호환).
     static func rank(for ingredients: [Ingredient], inventory: [Ingredient]? = nil,
                      from recipes: [Recipe],
-                     preferences: RecipePreferences = .none) -> [Result] {
+                     preferences: RecipePreferences = .none,
+                     pinnedIDs: Set<UUID> = []) -> [Result] {
         // 45차: 후보 계산이 레시피×재고 이중 스캔에서 **캐논 역색인**으로 바뀌었다(bulkResults).
         // 의미는 result(for:)와 동일해야 하며(파리티 테스트가 시드 전수로 고정), 점수는 정렬 전에
         // 한 번만 계산한다(decorate-sort). 초기 정렬에도 id 최종 타이브레이크를 둬 전순서를 만든다 —
@@ -382,7 +402,7 @@ enum RecipeRecommender {
         }
         let ranked = bulkResults(for: eligible, ingredients: ingredients, inventory: inventory)
             .filter { !$0.used.isEmpty }
-            .map { (result: $0, score: score($0, preferences: preferences)) }
+            .map { (result: $0, score: score($0, preferences: preferences, pinnedIDs: pinnedIDs)) }
             .sorted { a, b in
                 if a.score != b.score { return a.score > b.score }
                 if a.result.urgentUsedCount != b.result.urgentUsedCount {
@@ -395,7 +415,7 @@ enum RecipeRecommender {
             }
         // 부족 재료가 너무 많은 레시피를 덱에서 뺀다 — **정렬 뒤에** 한계이득 커버리지를 보며 거른다.
         // missing 계산 자체는 건드리지 않는다 — 남는 티켓의 Short 줄이 그 값을 쓴다.
-        return prune(ranked, preferences: preferences)
+        return prune(ranked, preferences: preferences, pinnedIDs: pinnedIDs)
     }
 
     /// 역색인 벌크 계산(45차) — `result(for:)`와 **의미 동일**, 비용만 다르다.
@@ -526,14 +546,28 @@ enum RecipeRecommender {
     /// 싫어하는 재료(레시피에 포함) 한 개당 감점과 하한(한 레시피가 무한정 내려가지 않게).
     static let dislikedPenaltyPerItem = -2
     static let dislikedPenaltyFloor = -6
+    /// 오늘 요리 핀(47차) — used에 실제로 든 핀 재료 한 개당 가점.
+    /// freshness 최고 한 단(urgent 3)보다 **커야** "고정"이 성립한다: 핀 재료를 쓰는 티켓이
+    /// 안 쓰는 티켓에게 임박도만으로 뒤집히면 오른쪽 존은 위약이 된다(취향 보정이 "기울이되
+    /// 뒤엎지 않는" 것과 반대로, 핀은 사용자가 방금 내린 명시 지시라 뒤엎는 것이 맞다).
+    /// **캡 없음** — favorites와 달리 핀은 한둘만 꽂는 명시 의도라 과대 편향 축이 아니다.
+    static let pinnedBonusPerItem = 4
 
-    /// 정렬 점수 — freshness 합(1차 기준) + 취향 보정 − 대체 감점(45차).
+    /// 정렬 점수 — freshness 합(1차 기준) + 취향 보정 − 대체 감점(45차) + 핀 가점(47차).
     /// `.none`이면 취향 보정 0이라 순수 freshness. 대체 감점은 취향과 무관하게 항상 적용된다 —
     /// 대체 티켓이 정품 매칭 티켓을 이기면 "가능"이 "동급"으로 승격되는 셈이다.
-    private static func score(_ result: Result, preferences: RecipePreferences) -> Int {
-        result.used.reduce(0) { $0 + weight($1) }
+    /// 핀 가점은 **used에 실제로 든** 핀 재료만 센다(재고 정체성 id 기준) — 빈 집합이면 0이라
+    /// 종전 산식과 동치(파리티). 대체로 투입된 핀 재고도 세는 것이 맞다 — 발주하면 그 재료가
+    /// 실제로 소비되므로 "오늘 이걸로 요리"라는 핀의 약속이 지켜진다.
+    private static func score(_ result: Result, preferences: RecipePreferences,
+                              pinnedIDs: Set<UUID>) -> Int {
+        var total = result.used.reduce(0) { $0 + weight($1) }
             - substitutionPenalty * result.substituted.count
             + preferenceScore(for: result, preferences: preferences)
+        if !pinnedIDs.isEmpty {
+            total += pinnedBonusPerItem * result.used.lazy.filter { pinnedIDs.contains($0.id) }.count
+        }
+        return total
     }
 
     /// 취향 보정 점수 — cuisine 가점 + favorites 가점(used 기준) + disliked 감점(레시피 전체 재료 기준).

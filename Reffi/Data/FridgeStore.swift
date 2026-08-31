@@ -29,6 +29,12 @@ final class FridgeStore {
     private(set) var manualToBuy: [ManualBuyItem]
     /// 메인 작업대(§13.6) — 물리 더미에 올라온 재료. 빈 자리는 다음 임박 재료가 채운다.
     private(set) var counterIDs: [UUID]
+    /// 오늘 요리 핀(47차) — 홈 오른쪽 판정 존의 실체("오늘 이걸로 요리"). 드래그인 = 토글이고
+    /// 재료는 소비되지 않고 더미로 돌아온다 — "먹었다" 판정은 여전히 배지 탭 → 판정 커버가 맡는다.
+    /// **위약이 아니다**: `rankedRecipes`가 이 집합을 `RecipeRecommender.rank(pinnedIDs:)`로 넘겨
+    /// 핀 재료를 쓰는 티켓을 확실히 앞세운다. 재료가 사라지면(판정·발주 확정·정정 삭제) 자동
+    /// 해제된다 — 유령 핀이 남아 추천을 영영 기울이지 않게(`counterIDs` 스테일 정리와 같은 축).
+    private(set) var pinnedIDs: Set<UUID>
     /// 방금 처리한 판정/발주의 되돌리기 창(6초). 탭 전환에도 살아남는다.
     private(set) var pendingUndo: PendingUndo?
     /// 발주 후 "지금 요리 중" 세션(§13.6 C) — 메인 상단 카드의 소스. Finish/Cancel로 닫는다.
@@ -124,11 +130,13 @@ final class FridgeStore {
         dismissedToBuy = snap?.dismissedToBuy ?? []
         manualToBuy = snap?.manualToBuy ?? []   // 구버전 파일엔 없음 → 빈 목록
         counterIDs = snap?.counterIDs ?? []
+        pinnedIDs = snap?.pinnedIDs ?? []       // 구버전 파일엔 없음 → 빈 집합(옵셔널+기본값 규약)
         activeCook = snap?.activeCook
         userRecipes = snap?.userRecipes ?? []
         resolveCanonicalIDs()   // 레거시 데이터 승격(nil→사전) — persist는 다음 변이 때 자연 기록
         let have = Set(ingredients.map(\.id))
         counterIDs.removeAll { !have.contains($0) }   // 스테일 정리
+        pinnedIDs.formIntersection(have)              // 핀도 같은 축 — 사라진 재료의 핀은 유령이다
         replenishCounter()
         promoteUrgent()   // 콜드 오픈 정렬 — 저장된 작업대가 더 임박한 재료를 놓치고 있으면 승격(알림 정합)
     }
@@ -147,6 +155,7 @@ final class FridgeStore {
         dismissedToBuy = []
         manualToBuy = []
         counterIDs = []
+        pinnedIDs = []
         resolveCanonicalIDs()   // 메모리 스토어도 로드 규칙과 일관되게 해석(프리뷰·테스트)
         replenishCounter()
     }
@@ -185,6 +194,7 @@ final class FridgeStore {
         var archivedAte: Int?              // v2
         var archivedTossed: Int?           // v2
         var manualToBuy: [ManualBuyItem]? = nil   // v2 — 직접 담은 장보기 항목(옵셔널+기본값)
+        var pinnedIDs: Set<UUID>? = nil           // v2 — 오늘 요리 핀(47차, 옵셔널+기본값)
     }
 
     static var storeURL: URL {
@@ -233,7 +243,7 @@ final class FridgeStore {
                             dismissedToBuy: dismissedToBuy, counterIDs: counterIDs,
                             activeCook: activeCook, userRecipes: userRecipes,
                             archivedAte: archivedAte, archivedTossed: archivedTossed,
-                            manualToBuy: manualToBuy)
+                            manualToBuy: manualToBuy, pinnedIDs: pinnedIDs)
         do {
             let data = try JSONEncoder().encode(snap)
             let url = Self.storeURL
@@ -284,8 +294,11 @@ final class FridgeStore {
     /// 재료가 냉장고에 있으면 함께 소비 처리돼 유령 재고가 남지 않는다.
     /// `preferences`(프로필 취향)를 넘기면 알레르기 하드 필터·선호/기피/요리스타일 보정이 적용된다
     /// (기본 `.none`은 순수 freshness — FridgeStore는 ProfileStore에 결합하지 않고 호출부가 주입).
+    /// 핀(`pinnedIDs`)은 여기서 항상 실어 나른다 — 호출부가 잊을 수 있는 파라미터로 두면
+    /// "핀 존이 있는데 추천은 안 바뀐다"는 위약이 된다(47차 — 핀의 실동작은 이 한 줄이 보증한다).
     func rankedRecipes(preferences: RecipePreferences = .none) -> [RecipeRecommender.Result] {
-        RecipeRecommender.rank(for: available, from: recipes, preferences: preferences)
+        RecipeRecommender.rank(for: available, from: recipes, preferences: preferences,
+                               pinnedIDs: pinnedIDs)
     }
 
     // MARK: - 추가/편집/삭제
@@ -379,6 +392,7 @@ final class FridgeStore {
         let counterBefore = counterIDs
         ingredients.removeAll { $0.id == ingredient.id }
         counterIDs.removeAll { $0 == ingredient.id }
+        pinnedIDs.remove(ingredient.id)   // 재료가 사라지면 핀도 함께 — 유령 핀 방지(47차)
         detachFromCookSession(ingredient.id)
         replenishCounter()
         beginUndo(.removed(name: removed.name), logIDs: [], counterSnapshot: counterBefore,
@@ -397,6 +411,31 @@ final class FridgeStore {
         replenishCounter()
         persist()
     }
+
+    // MARK: - 오늘 요리 핀(47차 — 오른쪽 존)
+
+    /// 핀 토글 — 드래그인 한 번 = 꽂기, 다시 한 번 = 해제. 재료 자체는 건드리지 않으므로
+    /// 알림 재구성은 건너뛴다(작업대 교체와 같은 축).
+    ///
+    /// 없는 재료(유령 id)는 꽂지 않는다 — 드래그 도중 판정·삭제로 재료가 사라진 경합에서
+    /// 유령 핀이 영속돼 추천을 조용히 기울이는 것을 막는다(로드 시 스테일 정리와 같은 이유로,
+    /// 만들 때부터 안 만드는 쪽이 정본이다).
+    /// - Returns: 이 호출로 **핀이 됐으면** true(해제·무시는 false) — 호출부(존 연출)가
+    ///   꽂기/빼기 피드백을 가르는 데 쓴다.
+    @discardableResult
+    func togglePin(_ id: UUID) -> Bool {
+        if pinnedIDs.remove(id) != nil {
+            persist(reschedulesAlerts: false)   // 재료 불변
+            return false
+        }
+        guard ingredients.contains(where: { $0.id == id }) else { return false }
+        pinnedIDs.insert(id)
+        persist(reschedulesAlerts: false)   // 재료 불변
+        return true
+    }
+
+    /// 핀 여부 — 존 위 배지의 핀 표시(오버레이)가 읽는다.
+    func isPinned(_ id: UUID) -> Bool { pinnedIDs.contains(id) }
 
     // MARK: - 판정(Ate / Tossed)
 
@@ -507,6 +546,10 @@ final class FridgeStore {
         history.insert(log, at: 0)
         ingredients.removeAll { $0.id == ing.id }
         counterIDs.removeAll { $0 == ing.id }
+        pinnedIDs.remove(ing.id)   // 판정·발주 확정 = 소비 — 핀 자동 해제(47차). undo는 핀을
+                                   // 되살리지 않는다: 핀은 "오늘 이걸로 요리"라는 가벼운 의도라
+                                   // 재료 복원과 달리 잃어도 데이터 손실이 아니고, 다시 꽂는
+                                   // 비용이 드래그 한 번이다(계약 — 스냅샷 축을 늘리지 않는다).
         detachFromCookSession(ing.id)
         return log
     }
@@ -978,6 +1021,7 @@ final class FridgeStore {
         dismissedToBuy = []
         manualToBuy = []
         counterIDs = []
+        pinnedIDs = []
         pendingUndo = nil
         activeCook = nil
         resolveCanonicalIDs()   // 샘플 데이터도 캐논 키 승격(매칭 일관성)
@@ -994,6 +1038,7 @@ final class FridgeStore {
         dismissedToBuy = []
         manualToBuy = []
         counterIDs = []
+        pinnedIDs = []
         pendingUndo = nil
         activeCook = nil
         userRecipes = []
