@@ -224,7 +224,7 @@ struct MainView: View {
         // 가려진 패인이 그것을 그리지 않기 때문이고, 무엇보다 **루트가 이미 같은 크림을 칠하고 있어서**
         // (`RootTabView`) 게이트가 닫혀도 보이는 색은 한 톨도 달라지지 않기 때문이다 — 그 일치가
         // 애니메이션 없는 `pane` 전환에서 바탕이 튀지 않는 유일한 근거다.
-        .background { if isActive { background(counter) } }
+        .background { if isActive { PaperCanvasBackground() } }
         .reffiFeedback(.impact(weight: .medium), trigger: fireHaptic)
         .reffiFeedback(.impact(weight: .light), trigger: decisionHaptic)
         .fullScreenCover(isPresented: $showCarousel, onDismiss: {
@@ -485,47 +485,19 @@ struct MainView: View {
 
     // MARK: - Background
 
-    /// 배경 — 앱 공통 크림 한 장(`PaperCanvasBackground`) + 오늘 만료 시노.
+    /// 배경 — 앱 공통 크림 한 장. **이 화면도 예외가 아니다.**
     ///
-    /// **이 자리에 신선도 3색을 다시 들이지 마라.** 여기는 원래 최임박 재료의 신선도를 받아
-    /// 화면 전체를 물들이는 블러 블롭 세 장이었고, 그 구조가 코드에 남긴 흉터가 둘이었다.
-    /// ① 색을 보간하면 blur(80~90)의 필터 입력이 매 프레임 바뀌어 **프레임마다 블러가 다시
-    /// 구워지므로**, 색을 애니메이션하는 대신 신선도마다 배경을 다른 뷰로 세우고(`.id`) 두 장을
-    /// 불투명도로 교차시키는 우회로가 필요했다. ② 그런데 그 색면은 화면마다 accent가 달랐고
-    /// `RootTabView.pane`은 애니메이션 없는 즉시 전환이라, 탭을 누를 때마다 바탕색이 한 프레임에
-    /// 갈아탔다 — 화면을 한 몸으로 묶으라고 넣은 층이 정확히 그 반대를 하고 있었다.
-    /// 배경이 상수가 되면서 `.id` 교차 페이드는 교차시킬 두 장을 잃었고(그래서 걷었다), 신선도는
-    /// 뱃지 인디케이터 바·D-day 잉크·냉장고 카드가 이미 말한다(§2.5).
+    /// 여기는 원래 최임박 재료의 신선도를 받아 화면 전체를 물들이는 블러 블롭 세 장이었고, 그 위에
+    /// "오늘 만료가 있으면 상단에 옅은 웜톤 시노"가 한 겹 더 있었다. 46차에 블롭을 걷은 뒤 시노만
+    /// 남겨 보고 오너가 실기에서 판정했다: **그것도 걷는다.** 근거는 두 가지다.
+    /// ① 블롭이 사라진 평탄한 크림 위에서 시노는 "은은한 강조"가 아니라 화면 절반을 덮은
+    ///    그라데이션으로 읽혔다 — 걷어낸 층과 시각적으로 같은 종류다.
+    /// ② 그 사실은 이미 세 번 말해진다: 헤드라인("N at risk today"), 뱃지의 신선도 인디케이터,
+    ///    D-day 잉크. 배경은 네 번째 사본이었고, 사본은 위계를 만들지 못하고 바탕만 흐린다.
     ///
-    /// **배경이 지는 사실은 이제 하나뿐이다: 오늘 만료가 있는가.** 3색이 아니라 이진값이라
-    /// 바탕색이 갈아타는 일이 없고, 웜톤 한 겹이 얹혔다 걷힐 뿐이다. 길이는 그대로
-    /// `ambient`(§7.1 유일 예외) — 화면을 덮은 색이 dur3로 갈아타면 "깜빡"으로 읽힌다는 규칙은
-    /// 배경이 단색이 되었다고 달라지지 않는다.
-    @ViewBuilder private func background(_ counter: CounterDigest) -> some View {
-        ZStack {
-            PaperCanvasBackground()
-            // 긴급도 연출(F) — 오늘 만료가 있으면 상단에 옅은 웜톤 시노.
-            //
-            // 끝 색이 `.clear`가 아니라 **같은 색의 알파 0**이다. `Color.clear`는 알파 0의 *검정*이라
-            // 보간 중간값이 urgent가 아니라 "urgent와 검정 사이"가 된다 — 같은 색으로 끝내면 어떤
-            // 보간 규약에서도 색상은 상수고 알파만 준다. 블롭·프로스트가 깔려 있던 시절엔 그 얼룩이
-            // 차이를 덮었지만, 평탄한 크림 위에서는 띠 가운데의 탁함을 가려 줄 것이 없다.
-            //
-            // 감쇠를 선형이 아니라 앞이 무겁게(.14 → .05 → 0) 잡는 것도 같은 이유다: 두 정지점
-            // 선형 램프는 끝점에서 기울기가 꺾이고, 그 꺾임이 평탄한 바탕 위에서는 "띠의 아랫선"
-            // 으로 읽힌다(블롭 얼룩이 덮어 주던 또 하나). 세기(.14)와 끝나는 지점(.center)은 옛 값
-            // 그대로다 — 시노를 강하게 만든 게 아니라 끊겨 보이던 자리를 없앤 것이다.
-            if counter.urgent > 0 {
-                LinearGradient(stops: [.init(color: ReffiColor.urgent.opacity(0.14), location: 0),
-                                       .init(color: ReffiColor.urgent.opacity(0.05), location: 0.45),
-                                       .init(color: ReffiColor.urgent.opacity(0), location: 1)],
-                               startPoint: .top, endPoint: .center)
-                    .ignoresSafeArea()
-                    .allowsHitTesting(false)
-            }
-        }
-        .animation(ReffiMotion.gated(ReffiMotion.ambient, reduce: reduceMotion), value: counter.urgent > 0)
-    }
+    /// **이 자리에 색을 다시 들이지 마라** — 신선도 3색이든 긴급도 한 겹이든. 배경이 상수라야
+    /// 애니메이션 없는 `RootTabView.pane` 전환에서 바탕이 튀지 않고, 루트·시트·도킹 CTA·하단
+    /// 마스크가 칠하는 `canvas`와 이음매 없이 만난다(46차 §13.2).
 
     // MARK: - 상단 블록 · 뱃지 행 (두 배치가 함께 쓰는 조각)
 
