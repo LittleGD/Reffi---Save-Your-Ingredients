@@ -22,6 +22,20 @@ enum RecipeRecommender {
         /// `ref`(캐논 ID)가 필요하다. 표시명만 남기면 되돌릴 방법이 없다(`toBuyEntry(for:)` 참고).
         var missing: [Recipe.Item]
         var urgentUsedCount: Int     // 그중 오늘(urgent) 소진되는 수
+        /// 48차: missing≥3 문턱을 **구제 조건**(①채우는 것 ≥ 사는 것 ②새 임박을 구한다)으로
+        /// 넘어온 티켓 마킹. 표시 전용이다 — 랭킹·문턱 판정은 이 값을 다시 읽지 않는다.
+        /// 뷰가 "재료가 적어 범위를 넓혔어요" 계열 고지를 세울 근거(RecipeRadar의
+        /// refinements→"partial results" 배너 패턴 이식). 기본 false라 기존 생성부는 무수정이다.
+        var rescued: Bool = false
+    }
+
+    /// 패스(왼쪽 플릭) 1건의 영속 기록(48차) — FridgeStore가 `[recipeID: PassRecord]`로 저장한다.
+    /// `fridgeHash`는 패스 **시점**의 재고 캐논 집합 해시(`fridgeHash(of:)`) — "그 재고 조합에서의
+    /// 거절"이지 영구 거절이 아니라는 해석의 근거로, 현재 해시와 다르면 감점을 반으로 줄인다.
+    struct PassRecord: Codable, Equatable {
+        var count: Int
+        var last: Date
+        var fridgeHash: Int
     }
 
     /// 정규화 — 트림 + 소문자.
@@ -292,19 +306,38 @@ enum RecipeRecommender {
     static func prune(_ ranked: [(result: Result, score: Int)],
                       preferences: RecipePreferences = .none,
                       pinnedIDs: Set<UUID> = []) -> [Result] {
+        // 후방호환 셸(48차) — 파리티 테스트·외부 호출이 쓰는 Int 점수 경로. IDF(=1.0)·이력 감점(=0)이
+        // 전부 중립일 때 내부 Double 경로가 종전 Int 산식과 완전 동치라는 계약을 이 셸이 못 박는다:
+        // 작은 정수 합은 Double에서 정확히 표현되므로 비교·타이브레이크 결과까지 비트 단위로 같다.
+        prune(ranked.map { (result: $0.result, score: Double($0.score), penalty: 0.0) },
+              preferences: preferences, pinnedIDs: pinnedIDs, idf: nil)
+    }
+
+    /// 내부 경로(48차 Double 승격) — `score`는 IDF 가중·이력 감점까지 **이미 합산된** 정렬 점수,
+    /// `penalty`는 그중 이력 감점 몫만 따로 든 것이다. 따로 드는 이유: 한계이득(marginal)은 점수를
+    /// 미커버 기준으로 **재계산**하므로, 합산 점수에서 걷어낼 수 없는 레시피 자체 속성(disliked와
+    /// 같은 축)인 감점을 gain에 상수로 다시 더해야 한다. `idf`는 rows의 freshness 가중에 쓴다
+    /// (score와 marginal이 같은 가중을 봐야 "덮인 재고 0으로 재계산"이라는 의미가 산다).
+    private static func prune(_ ranked: [(result: Result, score: Double, penalty: Double)],
+                              preferences: RecipePreferences,
+                              pinnedIDs: Set<UUID>,
+                              idf: IngredientIDF?) -> [Result] {
         let nothingAtRisk = !ranked.contains { $0.result.used.contains { $0.freshness != .fresh } }
         // 후보별 소비 줄을 1회 선계산 — marginal이 비교마다 사전·달력을 다시 두드리지 않게 한다.
+        // weight는 IDF를 이미 곱해 둔 Double — idf=nil이면 ×1.0이라 종전 정수 가중 그대로다.
         struct Cand {
             let result: Result
-            let score: Int
-            let rows: [(id: UUID, weight: Int, urgent: Bool, atRisk: Bool, favorite: Bool, pinned: Bool)]
+            let score: Double
+            let penalty: Double
+            let rows: [(id: UUID, weight: Double, urgent: Bool, atRisk: Bool, favorite: Bool, pinned: Bool)]
             let cuisineMatch: Bool
             let dislikedScore: Int
         }
         let cands: [Cand] = ranked.map { e in
-            Cand(result: e.result, score: e.score,
+            Cand(result: e.result, score: e.score, penalty: e.penalty,
                  rows: e.result.used.map { ing in
-                     (ing.id, weight(ing), ing.freshness == .urgent, ing.freshness != .fresh,
+                     (ing.id, Double(weight(ing)) * (idf?.factor(stockCanon(ing)) ?? 1.0),
+                      ing.freshness == .urgent, ing.freshness != .fresh,
                       preferences.favoriteIDs.contains(ing.matchKey), pinnedIDs.contains(ing.id))
                  },
                  cuisineMatch: e.result.recipe.cuisine.map { preferences.cuisines.contains($0) } ?? false,
@@ -313,10 +346,11 @@ enum RecipeRecommender {
         var covered = Set<UUID>()          // 이미 덱이 소비하기로 한 재고 줄(재료 정체성 id)
         var out: [Result] = []
         var remaining = Array(cands.indices)
-        var dropped: [(result: Result, score: Int)] = []
+        var dropped: [(result: Result, score: Double)] = []
 
-        func marginal(_ c: Cand) -> (gain: Int, urgentNew: Int, pinnedNew: Int) {
-            var fresh = 0, favs = 0, pins = 0, urgentNew = 0, anyNew = false
+        func marginal(_ c: Cand) -> (gain: Double, urgentNew: Int, pinnedNew: Int) {
+            var fresh = 0.0
+            var favs = 0, pins = 0, urgentNew = 0, anyNew = false
             for row in c.rows where !covered.contains(row.id) {
                 fresh += row.weight
                 anyNew = true
@@ -324,24 +358,32 @@ enum RecipeRecommender {
                 if row.favorite { favs += 1 }
                 if row.pinned { pins += 1 }
             }
-            var gain = fresh - substitutionPenalty * c.result.substituted.count + c.dislikedScore
-            if favs > 0 { gain += min(favs * favoriteBonusPerItem, favoriteBonusCap) }
-            gain += pins * pinnedBonusPerItem   // 미커버 핀만 — 캡 없음(score와 같은 산식, 47차)
-            if anyNew, c.cuisineMatch { gain += cuisineBonus }
+            // 이력 감점(penalty)은 disliked처럼 레시피 자체의 속성이라 상수로 더한다 — 미커버와 무관.
+            var gain = fresh - Double(substitutionPenalty * c.result.substituted.count)
+                + Double(c.dislikedScore) + c.penalty
+            if favs > 0 { gain += Double(min(favs * favoriteBonusPerItem, favoriteBonusCap)) }
+            gain += Double(pins * pinnedBonusPerItem)   // 미커버 핀만 — 캡 없음(score와 같은 산식, 47차)
+            if anyNew, c.cuisineMatch { gain += Double(cuisineBonus) }
             return (gain, urgentNew, pins)
         }
-        func accepts(_ c: Cand) -> Bool {
+        // 문턱 판정 — **이력 감점(passLog·recentCooked)은 여기 불참한다**(48차 계약). accepts는
+        // missing·cleared·atRisk 커버리지만 보고 점수를 아예 읽지 않으므로 자연 충족이지만, 앞으로
+        // 문턱에 점수 항을 넣고 싶어질 때를 위해 못 박는다: 패스가 아무리 쌓여도 후보 자격은 그대로라
+        // 덱이 비지 않는다(Tinder·Hinge의 "공덱 방지 > 패스 기억" 원칙의 구조적 번역).
+        // 반환 둘째 값: 구제 분기로 통과했는가 — Result.rescued 마킹(표시 전용)의 유일한 산지.
+        func accepts(_ c: Cand) -> (ok: Bool, viaRescue: Bool) {
+            if c.result.missing.count < maxMissingForRecommendation { return (true, false) }
             let clearedCount = Set(c.result.used.map(\.matchKey)).count
             let pullsItsWeight = clearedCount >= c.result.missing.count
             let rescuesSomethingNew = nothingAtRisk
                 || c.rows.contains { $0.atRisk && !covered.contains($0.id) }
-            return c.result.missing.count < maxMissingForRecommendation
-                || (pullsItsWeight && rescuesSomethingNew)
+            let ok = pullsItsWeight && rescuesSomethingNew
+            return (ok, ok)
         }
 
         while out.count < deckSize && !remaining.isEmpty {
             var bestPos = 0
-            var bestKey: (gain: Int, urgentNew: Int, pinnedNew: Int) = marginal(cands[remaining[0]])
+            var bestKey: (gain: Double, urgentNew: Int, pinnedNew: Int) = marginal(cands[remaining[0]])
             for pos in remaining.indices.dropFirst() {
                 let a = cands[remaining[pos]], b = cands[remaining[bestPos]]
                 let ka = marginal(a)
@@ -363,21 +405,32 @@ enum RecipeRecommender {
                 if better { bestPos = pos; bestKey = ka }
             }
             let c = cands[remaining.remove(at: bestPos)]
-            guard accepts(c) else { dropped.append((c.result, c.score)); continue }
-            out.append(c.result)
+            let verdict = accepts(c)
+            guard verdict.ok else { dropped.append((c.result, c.score)); continue }
+            var accepted = c.result
+            accepted.rescued = verdict.viaRescue
+            out.append(accepted)
             covered.formUnion(c.rows.map(\.id))
         }
         // 덱 밖 — 정렬 순서 그대로 문턱만 본다(그리디 없음, O(n)).
         for idx in remaining {
             let c = cands[idx]
-            guard accepts(c) else { dropped.append((c.result, c.score)); continue }
-            out.append(c.result)
+            let verdict = accepts(c)
+            guard verdict.ok else { dropped.append((c.result, c.score)); continue }
+            var accepted = c.result
+            accepted.rescued = verdict.viaRescue
+            out.append(accepted)
             covered.formUnion(c.rows.map(\.id))
         }
         guard out.count < deckSize else { return out }
         // 바닥 채움은 원점수 순 — 탈락분 사이의 한계 경쟁은 의미가 없다(어차피 문턱 미달).
+        // 2차 축은 부족 수(48차 §8 확인 항목): 같은 점수면 덜 사야 하는 티켓이 먼저다 — 바닥까지
+        // 내려온 사용자(재고 1~3종)에게 id 알파벳순으로 더 무거운 장보기를 먼저 보여줄 이유가 없다.
         let fill = dropped.sorted { a, b in
             if a.score != b.score { return a.score > b.score }
+            if a.result.missing.count != b.result.missing.count {
+                return a.result.missing.count < b.result.missing.count
+            }
             return a.result.id < b.result.id
         }
         return out + fill.prefix(deckSize - out.count).map(\.result)
@@ -388,10 +441,21 @@ enum RecipeRecommender {
     /// 적용한다. 기본 `.none`은 순수 freshness 랭킹(기존 호출·테스트 후방호환).
     /// `pinnedIDs`(오늘 요리 핀, 47차)는 **점수 축**이지 매칭 축이 아니다 — 후보 계산(bulkResults)은
     /// 건드리지 않고 score와 prune의 한계이득에만 들어간다. 기본 `[]`는 종전과 완전 동일(후방호환).
+    /// 48차 신규 파라미터 — **전부 기본값이라 기존 호출·테스트는 무수정으로 종전과 동치다.**
+    /// 켜는 곳은 `FridgeStore.rankedRecipes` 하나뿐이다(pinnedIDs 배선과 같은 위약 방지 패턴 —
+    /// 호출부마다 기억해야 하는 파라미터로 두면 "기록은 쌓이는데 덱은 안 바뀌는" 위약이 된다).
+    /// - `passLog`: 왼쪽 플릭 영속 기록(E3) — 감쇠 감점, **정렬 전용**(문턱 불참).
+    /// - `recentCooked`: 조리 완료 이력(E4) — 3일 −2 / 7일 −1 계단, 정렬 전용.
+    /// - `idf`: 희소성 가중(E2) — nil이면 **끔**(factor 1.0 경로와 완전 동치).
+    /// - `now`: 감쇠·계단의 기준 시각 주입 — 테스트 결정론(날짜 의존을 실시계에서 떼어낸다).
     static func rank(for ingredients: [Ingredient], inventory: [Ingredient]? = nil,
                      from recipes: [Recipe],
                      preferences: RecipePreferences = .none,
-                     pinnedIDs: Set<UUID> = []) -> [Result] {
+                     pinnedIDs: Set<UUID> = [],
+                     passLog: [String: PassRecord] = [:],
+                     recentCooked: [String: Date] = [:],
+                     idf: IngredientIDF? = nil,
+                     now: Date = Date()) -> [Result] {
         // 45차: 후보 계산이 레시피×재고 이중 스캔에서 **캐논 역색인**으로 바뀌었다(bulkResults).
         // 의미는 result(for:)와 동일해야 하며(파리티 테스트가 시드 전수로 고정), 점수는 정렬 전에
         // 한 번만 계산한다(decorate-sort). 초기 정렬에도 id 최종 타이브레이크를 둬 전순서를 만든다 —
@@ -400,9 +464,21 @@ enum RecipeRecommender {
             !containsAllergen(recipe, preferences.allergenIDs)   // 알레르기 하드 필터(안전 P0)
                 && !(preferences.vegetarian && containsAnimalProtein(recipe))   // 채식 하드 필터
         }
+        // 패스 기록의 해시 비교 기준 — missing 판정과 같은 세계(inventory ?? ingredients)를 본다.
+        // 이력이 하나도 없으면 해시 계산 자체를 건너뛴다(감점 0 확정 — 파라미터 기본값 경로 무비용).
+        let currentHash = (passLog.isEmpty && recentCooked.isEmpty)
+            ? 0 : fridgeHash(of: inventory ?? ingredients)
         let ranked = bulkResults(for: eligible, ingredients: ingredients, inventory: inventory)
             .filter { !$0.used.isEmpty }
-            .map { (result: $0, score: score($0, preferences: preferences, pinnedIDs: pinnedIDs)) }
+            .map { r -> (result: Result, score: Double, penalty: Double) in
+                let penalty = historyPenalty(recipeID: r.id, urgentUsedCount: r.urgentUsedCount,
+                                             passLog: passLog, recentCooked: recentCooked,
+                                             currentFridgeHash: currentHash, now: now)
+                return (result: r,
+                        score: score(r, preferences: preferences, pinnedIDs: pinnedIDs, idf: idf)
+                            + penalty,
+                        penalty: penalty)
+            }
             .sorted { a, b in
                 if a.score != b.score { return a.score > b.score }
                 if a.result.urgentUsedCount != b.result.urgentUsedCount {
@@ -415,7 +491,7 @@ enum RecipeRecommender {
             }
         // 부족 재료가 너무 많은 레시피를 덱에서 뺀다 — **정렬 뒤에** 한계이득 커버리지를 보며 거른다.
         // missing 계산 자체는 건드리지 않는다 — 남는 티켓의 Short 줄이 그 값을 쓴다.
-        return prune(ranked, preferences: preferences, pinnedIDs: pinnedIDs)
+        return prune(ranked, preferences: preferences, pinnedIDs: pinnedIDs, idf: idf)
     }
 
     /// 역색인 벌크 계산(45차) — `result(for:)`와 **의미 동일**, 비용만 다르다.
@@ -533,6 +609,48 @@ enum RecipeRecommender {
         return ingredients.filter { $0.freshness == .urgent && !covered.contains($0.id) }
     }
 
+    // MARK: - 부족-1 해금 카운트(48차 E1 — "이거 하나 사면 티켓 N장이 열려요")
+
+    /// 해금 정보 한 줄 — count는 recipeIDs.count와 항상 같지만 둘 다 든다: 표면은 숫자만,
+    /// 출처 검증(ManualBuyItem.sourceRecipeIDs의 실존·현행성 확인)은 id 목록을 쓴다.
+    struct UnlockInfo: Equatable {
+        var count: Int
+        var recipeIDs: [String]
+    }
+
+    /// 대체·optional 반영 **후** 부족이 정확히 한 줄인 레시피를, 그 한 줄의 캐논으로 집계한다.
+    /// `unlock[c] = #{ r : missingAfterSubstitution(r) = {c} }` — bulkResults의 부산물이라
+    /// O(레시피 수), 신규 자료구조 없음.
+    ///
+    /// **키는 `shoppingCanonicalID` 결과를 parent 총칭으로 접는다.** 접지 않으면 To buy 제안이
+    /// "소 부위 9종이 모두 2장 열림"이라는 무의미한 목록이 된다(L1 B3 실측: top5 냉장고에서
+    /// beef 총칭 줄 하나에 부위 9종이 전부 동률 집계). `shoppingCanonicalID` 계열을 쓰는 이유도
+    /// 같은 사고의 방지다 — To buy 동일성 키와 다른 눈으로 접으면 "buy 목록의 beef"와 "unlock의
+    /// beef-loin"이 서로를 못 알아본다. 캐논 해석이 안 되는 서술형 줄은 집계에서 뺀다(키가 없다).
+    ///
+    /// **숫자는 저장하지 말 것** — unlock은 현재 재고의 함수라 표시 시점마다 재계산한다(어제의
+    /// "4장"이 오늘 "0장"일 수 있다). 알레르기·채식 필터는 여기서 걸지 않는다 — 호출부(FridgeStore
+    /// 표면)가 자기 눈높이의 레시피 목록을 넘긴다.
+    static func unlockCounts(for recipes: [Recipe],
+                             ingredients: [Ingredient]) -> [String: UnlockInfo] {
+        var out: [String: UnlockInfo] = [:]
+        for result in bulkResults(for: recipes, ingredients: ingredients, inventory: nil)
+            where result.missing.count == 1 {
+            guard let raw = shoppingCanonicalID(of: result.missing[0]) else { continue }
+            // **부족 줄의 자기 캐논으로 집계한다 — 접지 않는다**(48차 적대 검증). 여기서 parent로
+            // 접으면 매칭의 단방향(구체 재고→총칭 줄)이 뒤집힌다: 표고만 부족한 잡채가 mushroom
+            // 키로 집계돼 총칭 버섯 행에 "1장 열려요"가 뜨는데, 총칭 버섯을 사도 표고 줄은 그대로
+            // 부족이다(실측 — 형제 부위끼리도 서로의 티켓을 세는 오염 동반). 접기는 **조회 쪽**
+            // (`ShoppingListView.unlockCount`)이 매칭 방향 그대로 한다: 행 캐논 c가 여는 티켓 =
+            // raw[c] + raw[parent(c)] — 구체를 사면 자기 줄과 총칭 줄이 열리고, 그 반대는 없다.
+            var info = out[raw] ?? UnlockInfo(count: 0, recipeIDs: [])
+            info.count += 1
+            info.recipeIDs.append(result.id)
+            out[raw] = info
+        }
+        return out
+    }
+
     // MARK: - 취향 반영(§5.2 프로필 선호 → 랭킹 실배선)
 
     // 튜닝 상수(§근거) — freshness 합(urgent3/soon2/fresh1)이 1차 기준이고, 아래 보정은 그 합에
@@ -559,15 +677,82 @@ enum RecipeRecommender {
     /// 핀 가점은 **used에 실제로 든** 핀 재료만 센다(재고 정체성 id 기준) — 빈 집합이면 0이라
     /// 종전 산식과 동치(파리티). 대체로 투입된 핀 재고도 세는 것이 맞다 — 발주하면 그 재료가
     /// 실제로 소비되므로 "오늘 이걸로 요리"라는 핀의 약속이 지켜진다.
+    ///
+    /// 48차 Double 승격 — **freshness 합산 항만** IDF를 곱한다(Σ weight × factor). cuisine·
+    /// disliked·핀 상수는 정수 그대로 더한다 — 취향·의도 축까지 희소성으로 흔들면 상수 튜닝의
+    /// 전제(§근거 주석)가 무너진다. idf=nil이면 factor 1.0이라 종전 Int 산식과 완전 동치
+    /// (작은 정수 합은 Double에서 정확하다 — 파리티 테스트가 이 동치에 기대 무수정이다).
     private static func score(_ result: Result, preferences: RecipePreferences,
-                              pinnedIDs: Set<UUID>) -> Int {
-        var total = result.used.reduce(0) { $0 + weight($1) }
-            - substitutionPenalty * result.substituted.count
-            + preferenceScore(for: result, preferences: preferences)
+                              pinnedIDs: Set<UUID>, idf: IngredientIDF?) -> Double {
+        var total = result.used.reduce(0.0) {
+            $0 + Double(weight($1)) * (idf?.factor(stockCanon($1)) ?? 1.0)
+        }
+        total -= Double(substitutionPenalty * result.substituted.count)
+        total += Double(preferenceScore(for: result, preferences: preferences))
         if !pinnedIDs.isEmpty {
-            total += pinnedBonusPerItem * result.used.lazy.filter { pinnedIDs.contains($0.id) }.count
+            total += Double(pinnedBonusPerItem
+                * result.used.lazy.filter { pinnedIDs.contains($0.id) }.count)
         }
         return total
+    }
+
+    /// 재고 한 줄의 캐논 — 해석 완료(canonicalID)면 그대로, 아니면 사전 역조회(캐시).
+    /// `matches`·`bulkResults.hits`가 쓰는 것과 같은 눈이다 — IDF·해시가 다른 눈으로 읽으면
+    /// 같은 재료가 랭킹과 가중에서 서로 다른 키로 갈린다.
+    private static func stockCanon(_ ing: Ingredient) -> String? {
+        ing.canonicalID ?? IngredientLexicon.shared.canonicalID(for: ing.name)
+    }
+
+    // MARK: - 이력 되먹임(48차 E3·E4 — 패스 감쇠·최근 조리 감점)
+
+    /// 재고 캐논 집합의 **결정적** 해시 — `PassRecord.fridgeHash`의 산지이자 비교 기준.
+    /// `Hasher`는 실행마다 시드가 바뀌어 영속 기록과 비교할 수 없다 — `ReffiHash`(FNV-1a)로
+    /// 정렬 결합 문자열을 접는다. 캐논 없는 커스텀 재료는 정규화 표기로 참여한다(집합이므로
+    /// 같은 재료 중복 등록은 해시를 바꾸지 않는다 — "재고 조합"의 정체는 종류지 수량이 아니다).
+    /// FridgeStore.recordPass가 기록 시점에, rank가 비교 시점에 **이 함수 하나**를 쓴다.
+    static func fridgeHash(of ingredients: [Ingredient]) -> Int {
+        let canons = Set(ingredients.map { stockCanon($0) ?? norm($0.name) })
+        let joined = canons.sorted().joined(separator: "\u{1F}")
+        return Int(bitPattern: UInt(truncatingIfNeeded: ReffiHash.stable(joined)))
+    }
+
+    /// 패스 반감기(일) — 7일 지나면 감점이 절반. 학습할 사용자 데이터가 없어 고정 설계값이다
+    /// (KDD 2014: 4개 함수형 중 지수 감쇠가 최소 RMSE — 함수형 선택만 실증, 상수는 아니다).
+    static let passHalfLifeDays = 7.0
+    /// 패스 누적 캡 — 3회 이상은 같은 무게. 하한 −3은 disliked floor(−6)보다 항상 약하다:
+    /// 명시 거절(프로필 기피) > 암묵 거절(플릭)의 위계.
+    static let passCountCap = 3
+
+    /// 이력 감점(48차) — **정렬 전용**이다. score와 prune의 marginal에만 들어가고, accepts
+    /// 문턱·구제 판정에는 불참한다(문턱은 missing·커버리지만 본다 — 패스가 쌓여도 덱은 안 빈다).
+    ///
+    /// E3 패스: −min(count,3) × 2^(−Δdays/7). 기록 시점의 냉장고 해시가 지금과 다르면 ×0.5
+    /// ("그 재고 조합에서의 거절"이지 영구 거절이 아니다). urgent 재료를 쓰는 티켓은 −1로 캡 —
+    /// 오늘 상하는 재료를 구하는 티켓이 플릭 몇 번으로 바닥까지 가라앉으면 freshness 1차 축이
+    /// 뒤집힌다(0으로 만들지는 않는다 — 방금 거절한 손짓도 신호다).
+    /// E4 최근 조리: 완료 후 3일 이내 −2, 7일 이내 −1. 핀(+4)이 확실히 오버라이드한다(테스트 고정).
+    private static func historyPenalty(recipeID: String, urgentUsedCount: Int,
+                                       passLog: [String: PassRecord],
+                                       recentCooked: [String: Date],
+                                       currentFridgeHash: Int, now: Date) -> Double {
+        var penalty = 0.0
+        if let rec = passLog[recipeID] {
+            // 미래 기록(기기 시계 역행)은 Δ=0로 — 감쇠가 음수 지수로 뛰어 감점이 캡을 넘으면 안 된다.
+            let days = max(0, now.timeIntervalSince(rec.last) / 86_400)
+            var p = -Double(min(rec.count, passCountCap)) * pow(2, -days / passHalfLifeDays)
+            if rec.fridgeHash != currentFridgeHash { p *= 0.5 }
+            penalty += p
+        }
+        if let cooked = recentCooked[recipeID] {
+            let days = now.timeIntervalSince(cooked) / 86_400
+            if days <= 3 { penalty -= 2 } else if days <= 7 { penalty -= 1 }
+        }
+        // urgent 캡은 **합산 뒤에** 건다(48차 적대 검증). 패스 항에만 걸었더니 IDF 하한(×0.85)과
+        // "방금 해먹은" −2가 합성되어 urgent 티켓(3×0.85=2.55)이 캡을 우회해 신선 티켓 아래로
+        // 가라앉았다 — 패스 −1 + 조리 −2 = −3이면 순기여 −0.45로 완전 침몰(실측). 오늘 상하는
+        // 재료를 구하는 티켓은 사용자가 어떤 이력을 쌓았든 감점 총합이 한 단(−1)을 넘지 않는다.
+        if urgentUsedCount > 0 { penalty = max(penalty, -1) }
+        return penalty
     }
 
     /// 취향 보정 점수 — cuisine 가점 + favorites 가점(used 기준) + disliked 감점(레시피 전체 재료 기준).
@@ -636,6 +821,61 @@ enum RecipeRecommender {
         if ids.contains(norm(item.en)) { return true }
         if let ko = item.ko, ids.contains(norm(ko)) { return true }
         return false
+    }
+}
+
+/// 희소성 가중(48차 E2) — "마늘·양파·파만 쓰는 티켓"이 코퍼스 절반을 점등시키며(garlic df=61,
+/// 시드의 48% — 비상비인데 준상비 분포, L1 B1 실측) 희귀 재료를 구하는 티켓을 밀어내는 것을
+/// BM25형 IDF로 보정한다(Teng 2012가 같은 목적으로 사용). 시드에서 **앱 로드 시 1회** 계산해
+/// 주입한다(마이크로초 단위 1패스) — rank의 `idf` 파라미터가 nil이면 완전히 꺼진다.
+///
+/// 산식: idf(c) = ln((N−df+0.5)/(df+0.5)+1), df≤2는 df=3으로 캡(단일 희귀 재료가 특정 레시피의
+/// 하드부스트 키가 되는 것 방지) → 전 재료 평균으로 나눠 정규화 → **[0.85, 1.20] 클램프**.
+///
+/// **클램프가 freshness 1차 축의 수학적 봉인이다**: max/min = 1.41 < 1.5라 인접 urgency 계층이
+/// 절대 역전되지 않는다 — urgent×0.85(2.55) > soon×1.20(2.40), soon×0.85(1.70) > fresh×1.20(1.20).
+/// 즉 흔한 재료라도 임박했으면 희소한 신선 재료를 항상 이긴다. 범위를 넓히고 싶어도(예: 리서치의
+/// [0.5, 2.0]) 그 순간 urgent×0.5(1.5) < fresh×2.0(2.0)로 축이 뒤집힌다 — 계층 역전 금지
+/// 상수 테스트가 이 경계를 지킨다.
+struct IngredientIDF {
+    /// 정규화 후 클램프 — 경계값은 실증 없는 설계 상수지만, **상한/하한 비율 < 1.5**는 설계가
+    /// 아니라 제약이다(위 계층 역전 봉인). 값을 조정하려면 그 부등식과 테스트를 함께 만족해야 한다.
+    static let clampRange: ClosedRange<Double> = 0.85...1.20
+    /// df 하한 캡 — df≤2(시드 128편 중 1~2편에만 등장)는 df=3의 idf로 계산한다.
+    static let dfFloor = 3
+
+    private let factors: [String: Double]
+
+    /// 시드 1패스 — 레시피별 비상비 줄의 1차 캐논 집합으로 df를 세고, BM25 idf → 평균 정규화 →
+    /// 클램프. 캐논 해석이 안 되는 서술형 줄과 altRefs는 df에 넣지 않는다(1차 요구만이 "이 재료를
+    /// 쓰는 레시피"의 정의 — 대체 가능성까지 세면 df가 간선 수에 따라 흔들린다).
+    init(recipes: [Recipe]) {
+        var df: [String: Int] = [:]
+        for recipe in recipes {
+            var seen = Set<String>()
+            for item in recipe.ingredients where !RecipeRecommender.isStaple(item) {
+                guard let id = RecipeRecommender.canonicalID(of: item) else { continue }
+                if seen.insert(id).inserted { df[id, default: 0] += 1 }
+            }
+        }
+        guard !df.isEmpty else { factors = [:]; return }
+        let n = Double(recipes.count)
+        var idf: [String: Double] = [:]
+        for (id, count) in df {
+            let d = Double(max(count, Self.dfFloor))
+            idf[id] = log((n - d + 0.5) / (d + 0.5) + 1)
+        }
+        let mean = idf.values.reduce(0, +) / Double(idf.count)
+        factors = idf.mapValues {
+            min(max($0 / mean, Self.clampRange.lowerBound), Self.clampRange.upperBound)
+        }
+    }
+
+    /// 미등재(시드가 요구한 적 없는 캐논)·미해석(nil)은 1.0 — 가중 없음이 기본값이다.
+    /// 총칭 매칭으로 mushroom 줄을 채우는 팽이버섯처럼 재고 캐논이 줄 캐논과 다른 경우도
+    /// 자기 캐논이 미등재면 중립으로 남는다(남의 df를 빌려 쓰지 않는다).
+    func factor(_ canon: String?) -> Double {
+        canon.flatMap { factors[$0] } ?? 1.0
     }
 }
 

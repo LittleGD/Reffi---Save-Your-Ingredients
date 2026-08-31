@@ -13,6 +13,11 @@ final class FridgeStore {
     private(set) var ingredients: [Ingredient]
     /// 시드 레시피(번들 recipes-seed.json) — 하드코딩 금지 규칙에 따라 데이터는 전부 번들/영속화.
     private let seedRecipes: [Recipe]
+    /// 시드 IDF(48차 E2) — 시드 코퍼스 1패스로 계산한 재료 희소성 가중. **시드만** 본다:
+    /// 유저 레시피까지 세면 레시피를 하나 저장할 때마다 df가 움직여 전체 랭킹이 조용히 표류한다
+    /// (시드는 표본이 아니라 모집단이라는 전제 — 48차 R4). 엔진 쪽 클램프 [0.85, 1.20]이
+    /// freshness 계층 역전을 수학적으로 봉인하므로 항상 실어도 1차 축은 불변이다.
+    private let seedIDF: IngredientIDF
     /// 사용자 커스텀 레시피 — 스냅샷에 영속화.
     private(set) var userRecipes: [Recipe]
     /// 추천 풀 = 커스텀 + 시드(커스텀 우선 — 내가 만든 레시피가 위로).
@@ -35,6 +40,16 @@ final class FridgeStore {
     /// 핀 재료를 쓰는 티켓을 확실히 앞세운다. 재료가 사라지면(판정·발주 확정·정정 삭제) 자동
     /// 해제된다 — 유령 핀이 남아 추천을 영영 기울이지 않게(`counterIDs` 스테일 정리와 같은 축).
     private(set) var pinnedIDs: Set<UUID>
+    /// 패스(왼쪽 플릭) 감쇠 기억(48차 E3) — recipeID → 누적 기록. 종전의 플릭은 완전 무기억이라
+    /// 방금 넘긴 티켓이 다음 덱 1순위로 그대로 복귀했다(사용자가 낸 신호를 수집조차 안 하고 버리던
+    /// 상태). **정렬 전용 신호**다: 엔진(rank)이 감쇠 감점으로만 쓰고 prune 문턱·구제 판정에는
+    /// 불참한다 — 패스가 아무리 쌓여도 덱은 비지 않는다. 삭제된 레시피의 id가 남아도 무해하다
+    /// (rank에서 레시피와 미매칭이면 그냥 무시된다) — 그래서 레시피 삭제에 연동 정리를 하지 않는다.
+    private(set) var passLog: [String: RecipeRecommender.PassRecord]
+    /// "방금 해먹은" 변화 감점(48차 E4)의 소스 — recipeID → 마지막 완료 시각. `finishCooking`이
+    /// 기록하고 rank가 계단 감점으로 읽는다(어제 해먹은 레시피가 오늘 또 1순위로 오지 않게).
+    /// passLog와 같은 이유로 삭제된 레시피의 id 잔존은 무해하다.
+    private(set) var recentCooked: [String: Date]
     /// 방금 처리한 판정/발주의 되돌리기 창(6초). 탭 전환에도 살아남는다.
     private(set) var pendingUndo: PendingUndo?
     /// 발주 후 "지금 요리 중" 세션(§13.6 C) — 메인 상단 카드의 소스. Finish/Cancel로 닫는다.
@@ -79,6 +94,12 @@ final class FridgeStore {
         var name: String            // 담을 때의 표기 원문(화면 표기는 displayName(for:)이 정한다)
         var canonicalID: String?    // 정본 사전 캐논 ID — 사전 밖 이름이면 nil
         var glyph: FoodGlyph
+        /// 출처 티켓(48차 E1) — 이 줄을 담게 한 레시피 id들. **unlock 수의 캐시가 아니다**:
+        /// "N장 열어요" 숫자는 현재 재고의 함수라 표시 시점에 rank 산출물로 재계산한다. 이 배열은
+        /// "어느 티켓에서 담았나"의 기록일 뿐이고, 표시 쪽이 실존 레시피·현재 missing 여부를 검증해
+        /// 아니면 출처 표기를 생략한다(죽은 참조가 위약 UI가 되는 것 방지). 옵셔널+기본값이라
+        /// 구파일 디코드 비파괴(스냅샷 규약).
+        var sourceRecipeIDs: [String]? = nil
 
         var id: String { matchKey }
         /// 재료 동일성 키 — Ingredient/RemovalLog와 같은 규칙(표기 무관 비교).
@@ -101,6 +122,9 @@ final class FridgeStore {
     private let frozenCounterWindow = 3
     /// 이력 상한 — 넘치면 오래된 로그를 접어 누계로 보존(카운트는 안 잃는다).
     private let historyCap = 2000
+    /// 행동 기억(passLog·recentCooked) 공통 상한 — 넘으면 마지막 기록이 오래된 것부터 제거.
+    /// 시드 128편과 같은 수라 정상 사용에서는 닿지 않는다(닿는 건 유저 레시피 대량 생성뿐).
+    private let behaviorLogCap = 128
     /// undo 창이 한참 지난 로그의 복원 스냅샷은 비워 파일을 가볍게(60일).
     private let snapshotRetentionDays = 60
 
@@ -116,6 +140,7 @@ final class FridgeStore {
     init() {
         persists = true
         seedRecipes = RecipeCatalog.loadSeed()
+        seedIDF = IngredientIDF(recipes: seedRecipes)   // 시드 1패스 — 마이크로초 단위(48차 E2)
         var snap: Snapshot?
         if let data = try? Data(contentsOf: Self.storeURL) {
             snap = Self.decodeSnapshot(data)
@@ -131,6 +156,8 @@ final class FridgeStore {
         manualToBuy = snap?.manualToBuy ?? []   // 구버전 파일엔 없음 → 빈 목록
         counterIDs = snap?.counterIDs ?? []
         pinnedIDs = snap?.pinnedIDs ?? []       // 구버전 파일엔 없음 → 빈 집합(옵셔널+기본값 규약)
+        passLog = snap?.passLog ?? [:]          // 구버전 파일엔 없음 → 빈 사전(옵셔널+기본값 규약)
+        recentCooked = snap?.recentCooked ?? [:]   // 위와 같은 규약(48차)
         activeCook = snap?.activeCook
         userRecipes = snap?.userRecipes ?? []
         resolveCanonicalIDs()   // 레거시 데이터 승격(nil→사전) — persist는 다음 변이 때 자연 기록
@@ -147,6 +174,7 @@ final class FridgeStore {
          history: [RemovalLog] = []) {
         persists = false
         seedRecipes = recipes ?? RecipeCatalog.loadSeed()
+        seedIDF = IngredientIDF(recipes: seedRecipes)   // 메모리 스토어도 같은 배선 — 테스트가 실경로를 본다
         userRecipes = []
         self.ingredients = ingredients
         self.history = history
@@ -156,6 +184,8 @@ final class FridgeStore {
         manualToBuy = []
         counterIDs = []
         pinnedIDs = []
+        passLog = [:]
+        recentCooked = [:]
         resolveCanonicalIDs()   // 메모리 스토어도 로드 규칙과 일관되게 해석(프리뷰·테스트)
         replenishCounter()
     }
@@ -195,6 +225,8 @@ final class FridgeStore {
         var archivedTossed: Int?           // v2
         var manualToBuy: [ManualBuyItem]? = nil   // v2 — 직접 담은 장보기 항목(옵셔널+기본값)
         var pinnedIDs: Set<UUID>? = nil           // v2 — 오늘 요리 핀(47차, 옵셔널+기본값)
+        var passLog: [String: RecipeRecommender.PassRecord]? = nil   // v2 — 패스 감쇠 기억(48차)
+        var recentCooked: [String: Date]? = nil   // v2 — 방금 해먹은 완료 시각(48차)
     }
 
     static var storeURL: URL {
@@ -243,7 +275,8 @@ final class FridgeStore {
                             dismissedToBuy: dismissedToBuy, counterIDs: counterIDs,
                             activeCook: activeCook, userRecipes: userRecipes,
                             archivedAte: archivedAte, archivedTossed: archivedTossed,
-                            manualToBuy: manualToBuy, pinnedIDs: pinnedIDs)
+                            manualToBuy: manualToBuy, pinnedIDs: pinnedIDs,
+                            passLog: passLog, recentCooked: recentCooked)
         do {
             let data = try JSONEncoder().encode(snap)
             let url = Self.storeURL
@@ -296,9 +329,13 @@ final class FridgeStore {
     /// (기본 `.none`은 순수 freshness — FridgeStore는 ProfileStore에 결합하지 않고 호출부가 주입).
     /// 핀(`pinnedIDs`)은 여기서 항상 실어 나른다 — 호출부가 잊을 수 있는 파라미터로 두면
     /// "핀 존이 있는데 추천은 안 바뀐다"는 위약이 된다(47차 — 핀의 실동작은 이 한 줄이 보증한다).
+    /// `passLog`·`recentCooked`·`idf`(48차)도 같은 자리·같은 근거다: 엔진 파라미터는 전부
+    /// 기본값(끔)이라, 여기서 안 실으면 "플릭·조리 이력이 수집만 되고 화면 덱은 그대로"인
+    /// 반쪽(위약)이 된다 — 켜는 곳은 이 함수 하나뿐이다.
     func rankedRecipes(preferences: RecipePreferences = .none) -> [RecipeRecommender.Result] {
         RecipeRecommender.rank(for: available, from: recipes, preferences: preferences,
-                               pinnedIDs: pinnedIDs)
+                               pinnedIDs: pinnedIDs,
+                               passLog: passLog, recentCooked: recentCooked, idf: seedIDF)
     }
 
     // MARK: - 추가/편집/삭제
@@ -437,6 +474,39 @@ final class FridgeStore {
     /// 핀 여부 — 존 위 배지의 핀 표시(오버레이)가 읽는다.
     func isPinned(_ id: UUID) -> Bool { pinnedIDs.contains(id) }
 
+    // MARK: - 패스 감쇠 기억(48차 E3 — 왼쪽 플릭)
+
+    /// 왼쪽 플릭 기록. `count`는 캡 없이 쌓는다 — 감점 캡(3)·반감기는 엔진 상수라 여기서 자르면
+    /// 같은 상수가 두 곳에 살게 되고, 언젠가 한쪽만 바뀐다.
+    ///
+    /// `fridgeHash`는 **엔진의 해시 함수로만** 찍는다(자체 구현 금지). rank가 "그 재고 조합에서의
+    /// 거절인가"를 판정하려고 자기 계산 해시와 이 값을 비교하는데, 두 구현이 조금이라도 갈리면
+    /// 비교가 항상 불일치라 재고 변화 완화(감점 반감)가 상시 발동한다 — 패스 기억이 조용히
+    /// 반쪽이 된다. 해시 대상이 `available`인 것도 같은 이유다: `rankedRecipes`가 rank에 넘기는
+    /// 집합과 같아야 하고, 전체 `ingredients`로 찍으면 조리 예약 하나로 두 해시가 갈린다.
+    ///
+    /// `now`는 테스트 결정론용 주입(기본 실시각) — 감쇠·상한 제거가 날짜 함수라서다.
+    func recordPass(recipeID: String, at now: Date = Date()) {
+        passLog[recipeID] = RecipeRecommender.PassRecord(
+            count: (passLog[recipeID]?.count ?? 0) + 1,
+            last: now,
+            fridgeHash: RecipeRecommender.fridgeHash(of: available))
+        passLog = Self.trimmedToCap(passLog, cap: behaviorLogCap, lastDate: \.last)
+        persist(reschedulesAlerts: false)   // 재료 불변
+    }
+
+    /// 행동 기억 공통 트림 — 상한 초과분은 마지막 기록(`lastDate`)이 오래된 것부터 제거.
+    /// 동시각 동률은 키 오름차순으로 잘라 결정론을 지킨다(경계 테스트가 가능해야 규칙이 산다).
+    private static func trimmedToCap<V>(_ log: [String: V], cap: Int,
+                                        lastDate: (V) -> Date) -> [String: V] {
+        guard log.count > cap else { return log }
+        let survivors = log.sorted { a, b in
+            let (da, db) = (lastDate(a.value), lastDate(b.value))
+            return da != db ? da > db : a.key < b.key
+        }.prefix(cap)
+        return Dictionary(uniqueKeysWithValues: Array(survivors))
+    }
+
     // MARK: - 판정(Ate / Tossed)
 
     /// 다 먹음 — 보유에서 빼고 이력 기록. 되돌리기 창이 열린다.
@@ -498,9 +568,18 @@ final class FridgeStore {
     /// 요리 완료 — 예약 재료의 소비를 **확정**한다(이력 기록·재고 차감은 여기서).
     /// `leftovers`에 담긴 재료는 남은 것 — 수량을 절반으로 줄이고 냉장고에 남긴다.
     /// v1 세션(usedIDs 없음 — 발주 시점에 이미 소비됨)은 세션만 닫는다.
-    func finishCooking(leftovers: Set<UUID> = []) {
+    /// `at`은 테스트 결정론용 주입(기본 실시각) — recentCooked의 감점·상한이 날짜 함수라서다.
+    func finishCooking(leftovers: Set<UUID> = [], at now: Date = Date()) {
         guard let cook = activeCook else { return }
         dismissStaleFireUndo()   // 발주 토스트가 완료 뒤까지 살아남아 가짜 원복을 하지 않게
+        // "방금 해먹은" 기록(48차 E4) — rank의 변화 감점 소스. recipeID 없는 구세션(v1)은 남길
+        // 키가 없어 건너뛴다(감점을 못 받을 뿐 — 안전한 실패). undo는 이 기록을 되돌리지 않는다:
+        // 핀 자동 해제와 같은 축으로, 감점(-2)은 제외가 아니고 7일이면 스스로 사라지는 신호라
+        // 스냅샷 축을 늘릴 만큼의 데이터가 아니다.
+        if let cookedID = cook.recipeID {
+            recentCooked[cookedID] = now
+            recentCooked = Self.trimmedToCap(recentCooked, cap: behaviorLogCap, lastDate: { $0 })
+        }
         let counterBefore = counterIDs
         var logIDs: [UUID] = []
         var leftoverOriginals: [Ingredient] = []
@@ -883,13 +962,17 @@ final class FridgeStore {
     /// 품목이라는 뜻이므로 아래 포함 매칭 폴백을 타지 않는다. 레시피 표기처럼 다른 재료명을 품은
     /// 자유 문장("paprika powder", "chicken or vegetable stock")이 폴백에 걸려 엉뚱한 캐논에 붙는 것을
     /// 막는다 — 그러면 그 품목은 **이미 담긴 다른 재료로 취급돼 목록에 들어가지도 않는다**.
+    /// `sourceRecipeIDs`(48차 E1)는 출처 티켓 기록 — 기본 nil이라 기존 호출은 무수정.
+    /// 반환값은 종전대로 "**새 줄**이 생겼는가"다: 이미 있는 줄에 출처만 병합된 경우는 false지만
+    /// 저장은 한다(기록이 변했으므로) — 호출부의 no-op 판정(햅틱·토스트)이 흔들리지 않게.
     @discardableResult
     func addToBuy(name: String, canonicalID: String? = nil, glyph: FoodGlyph? = nil,
-                  canonicalIsFinal: Bool = false) -> Bool {
-        guard appendToBuy(name: name, canonicalID: canonicalID, glyph: glyph,
-                          canonicalIsFinal: canonicalIsFinal) else { return false }
-        persist(reschedulesAlerts: false)   // 재료 불변
-        return true
+                  canonicalIsFinal: Bool = false, sourceRecipeIDs: [String]? = nil) -> Bool {
+        let outcome = appendToBuy(name: name, canonicalID: canonicalID, glyph: glyph,
+                                  canonicalIsFinal: canonicalIsFinal,
+                                  sourceRecipeIDs: sourceRecipeIDs)
+        if outcome.changed { persist(reschedulesAlerts: false) }   // 재료 불변
+        return outcome.added
     }
 
     /// 메모 한 줄을 **그 줄의 키로** 내린다 — 재입고(`insert`)의 자동 내리기는 냉장고에 들어간
@@ -907,21 +990,34 @@ final class FridgeStore {
     /// `addToBuy`의 **저장 없는** 내부 경로 — 판정·흡수 의미론은 전부 여기 있고 `persist`만 호출부가 쥔다.
     /// 루프로 담는 `addMissingToBuy`가 항목마다 전량 스냅샷을 인코딩(메인 스레드)하지 않게 하려는 분리다.
     /// 단건 호출부는 `addToBuy`를 그대로 쓰므로 동작이 바뀌지 않는다.
-    /// - Returns: 실제로 목록에 새 줄이 생겼으면 true(= 저장할 변화가 있다).
+    /// - Returns: `added` = 목록에 새 줄이 생겼다, `changed` = 저장할 변화가 있다(added를 포함하고,
+    ///   기존 줄에 출처 티켓만 병합된 경우도 참 — 그 변화도 영속돼야 재실행 후 출처가 살아 있다).
     private func appendToBuy(name: String, canonicalID: String?, glyph: FoodGlyph?,
-                             canonicalIsFinal: Bool = false) -> Bool {
+                             canonicalIsFinal: Bool = false,
+                             sourceRecipeIDs: [String]? = nil) -> (added: Bool, changed: Bool) {
         let lex = IngredientLexicon.shared
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return false }
+        guard !trimmed.isEmpty else { return (false, false) }
         let canonical = canonicalID ?? (canonicalIsFinal ? nil : lex.canonicalID(for: trimmed))
         let key = canonical ?? trimmed.lowercased()
         // 이미 '수동으로' 담긴 것만 중복으로 막는다 — 파생 제안으로만 잡혀 있는 품목은 여기서
         // 걸러지면 안 된다(그래야 아래 append가 그 파생 제안을 흡수해 한 줄로 만든다, toBuy 참고).
         // toBuyKeys(수동∪파생)로 막으면 흡수가 영영 못 일어난다 — skipBuy의 wasManual과 같은 축.
-        guard !manualToBuy.contains(where: { $0.matchKey == key }) else { return false }
+        if let existing = manualToBuy.firstIndex(where: { $0.matchKey == key }) {
+            // 다른 티켓이 같은 재료를 또 담으면 줄은 안 늘리고 **출처만 합친다** — 한 재료가 여러
+            // 티켓을 여는 게 부족-1 해금의 정상 상태라 `sourceRecipeIDs`가 배열이다(48차 E1).
+            guard let sources = sourceRecipeIDs else { return (false, false) }
+            var merged = manualToBuy[existing].sourceRecipeIDs ?? []
+            let before = merged.count
+            for id in sources where !merged.contains(id) { merged.append(id) }
+            guard merged.count != before else { return (false, false) }
+            manualToBuy[existing].sourceRecipeIDs = merged
+            return (false, true)
+        }
         manualToBuy.append(ManualBuyItem(name: trimmed, canonicalID: canonical,
-                                         glyph: glyph ?? lex.glyph(for: trimmed) ?? FoodGlyph.match(trimmed)))
-        return true
+                                         glyph: glyph ?? lex.glyph(for: trimmed) ?? FoodGlyph.match(trimmed),
+                                         sourceRecipeIDs: sourceRecipeIDs))
+        return (true, true)
     }
 
     /// 티켓의 부족 재료(Short: …)를 한 번에 장보기 메모로 — 오더 카드의 원탭 담기(§13.5).
@@ -938,17 +1034,22 @@ final class FridgeStore {
     /// 부르면 부족 재료 5종짜리 티켓의 원탭 한 번에 전량 스냅샷 인코딩 + 히스토리 트림이 5회 돌아
     /// 알약의 `pop` 첫 프레임과 겹친다. 새로 담긴 게 0이면 저장 자체를 건너뛴다(변화가 없다).
     /// - Returns: **새로 담긴** 개수. 호출부는 0이면 햅틱을 울리지 않는다(아무 일도 안 일어났으므로).
+    ///   출처 병합만 있었던 경우도 0이다 — 화면상 아무 줄도 안 늘었는데 햅틱이 울리면 거짓말이다.
+    /// `sourceRecipeID`(48차 E1) — 이 담기를 시킨 티켓의 레시피 id. 기본 nil이라 기존 호출 무수정.
     @discardableResult
-    func addMissingToBuy(_ items: [Recipe.Item]) -> Int {
+    func addMissingToBuy(_ items: [Recipe.Item], sourceRecipeID: String? = nil) -> Int {
+        let sources = sourceRecipeID.map { [$0] }
         var added = 0
+        var changed = false
         for item in items {
             let entry = RecipeRecommender.toBuyEntry(for: item)
-            if appendToBuy(name: entry.name, canonicalID: entry.canonicalID,
-                           glyph: entry.glyph, canonicalIsFinal: true) {
-                added += 1
-            }
+            let outcome = appendToBuy(name: entry.name, canonicalID: entry.canonicalID,
+                                      glyph: entry.glyph, canonicalIsFinal: true,
+                                      sourceRecipeIDs: sources)
+            if outcome.added { added += 1 }
+            changed = changed || outcome.changed
         }
-        if added > 0 { persist(reschedulesAlerts: false) }   // 재료 불변
+        if changed { persist(reschedulesAlerts: false) }   // 재료 불변
         return added
     }
 
@@ -1022,6 +1123,8 @@ final class FridgeStore {
         manualToBuy = []
         counterIDs = []
         pinnedIDs = []
+        passLog = [:]       // 행동 기억도 사용자 데이터 — 샘플 대체 시 함께 리셋(48차)
+        recentCooked = [:]
         pendingUndo = nil
         activeCook = nil
         resolveCanonicalIDs()   // 샘플 데이터도 캐논 키 승격(매칭 일관성)
@@ -1039,6 +1142,8 @@ final class FridgeStore {
         manualToBuy = []
         counterIDs = []
         pinnedIDs = []
+        passLog = [:]       // 다른 계정으로의 전환 경로 — 행동 기억도 이전 사용자 데이터다(48차)
+        recentCooked = [:]
         pendingUndo = nil
         activeCook = nil
         userRecipes = []

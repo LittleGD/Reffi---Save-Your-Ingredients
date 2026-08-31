@@ -282,12 +282,13 @@
         }
       }
     },
-    "%lld min · %lld to use": {
+    "%lld min · %lld/%lld to use": {
+      "comment": "Ticket meta line; 1st = minutes, 2nd = on-hand ingredients, 3rd = total non-staple ingredients (48 E6 denominator)",
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "%1$lld분 · 재료 %2$lld개"
+            "value": "%1$lld분 · 재료 %2$lld/%3$lld개"
           }
         }
       }
@@ -904,6 +905,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "검색어 지우기"
+          }
+        }
+      }
+    },
+    "Clears more than it asks you to buy.": {
+      "comment": "Ticket notice for rescue-passed tickets: it clears at least as many stocked ingredients as it asks to buy",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "사는 것보다 비우는 재료가 많은 티켓이에요."
           }
         }
       }
@@ -2362,6 +2374,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "레시피 영상 보기"
+          }
+        }
+      }
+    },
+    "Opens %@": {
+      "comment": "To buy row caption when the added item is the single missing ingredient of that ticket; %@ = recipe name",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 티켓이 열려요"
           }
         }
       }

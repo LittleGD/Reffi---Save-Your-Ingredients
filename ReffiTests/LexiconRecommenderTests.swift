@@ -991,10 +991,18 @@ struct RecommenderTests {
     /// 정확 일치만 보던 시절 `cold water`는 비-상비로 분류돼 Short에 뜬 뒤 담을 때만 `water`로 풀려
     /// 장보기 목록에 "물"이 적혔다.
     @Test func stapleDetectionUsesTheSameResolutionAsShopping() {
-        for en in ["cold water", "water (or anchovy stock)", "sweet soy sauce (kecap manis)"] {
+        for en in ["cold water", "water (or anchovy stock)"] {
             let item = Recipe.Item(ref: nil, en: en, ko: nil)
             #expect(RecipeRecommender.isStaple(item), "\(en): 상비재로 잡혀 Short 줄에서 빠져야 한다")
         }
+        // "sweet soy sauce (kecap manis)"는 48차 전까지 이 목록에 있었다 — 그때는 머리말이
+        // soy-sauce(상비)로 **흡수되는 버그**를 상비 일관성이라는 이름으로 고정한 것이었다
+        // (toBuyEntry 주석이 문서화한 그 사고: 케찹 마니스 자리에 간장이 담긴다). 이제 사전에
+        // kecap-manis(비상비)가 있으므로 정반대가 계약이다: 자기 캐논으로 풀리고 Short에 뜬다.
+        let kecap = Recipe.Item(ref: nil, en: "sweet soy sauce (kecap manis)", ko: nil)
+        #expect(RecipeRecommender.shoppingCanonicalID(of: kecap) == "kecap-manis",
+                "케찹 마니스는 더는 간장으로 흡수되지 않는다")
+        #expect(!RecipeRecommender.isStaple(kecap), "고유 재료라 Short 줄에 떠야 한다")
     }
 
     @Test func toBuyEntryKeepsTextWhenParenthesesAreUnbalanced() {
@@ -1398,5 +1406,412 @@ struct FreezeOpenedClockTests {
         cheese.storage = .freezer
         cheese.frozenAt = Date()
         #expect(cheese.effectiveDaysLeft < 0, "냉동이 지난 개봉 기한을 되살리지 않는다")
+    }
+}
+
+/// 48차 E2 — IDF 희소성 가중. 클램프 [0.85, 1.20]이 freshness 계층 역전을 수학적으로 봉인하고,
+/// idf=nil이면 factor 1.0 경로와 완전 동치라는 두 계약을 고정한다.
+struct IngredientIDFTests {
+
+    private func recipe(id: String, refs: [String]) -> Recipe {
+        Recipe(id: id, name: Recipe.LocalizedName(en: id, ko: nil), cuisine: nil, minutes: 10,
+               ingredients: refs.map { Recipe.Item(ref: $0, en: $0, ko: nil) },
+               steps: Recipe.LocalizedSteps(en: ["step"], ko: nil), isUser: nil)
+    }
+
+    private func ing(_ name: String, daysLeft: Int = 9) -> Ingredient {
+        Ingredient(name: name, category: "Veg", daysLeft: daysLeft,
+                   quantity: Quantity(value: 1, unit: .piece), glyph: .generic)
+    }
+
+    /// **계층 역전 금지** — 상수 검사. 클램프 상/하한 비율이 1.5 미만이어야 인접 urgency 계층
+    /// (3/2/1, `weight`)이 IDF로 뒤집히지 않는다: urgent×하한 > soon×상한, soon×하한 > fresh×상한.
+    /// 클램프를 넓히고 싶으면 이 부등식을 먼저 통과해야 한다 — 리서치가 예시한 [0.5, 2.0]은
+    /// urgent×0.5(1.5) < fresh×2.0(2.0)으로 1차 축을 뒤집는 범위라 기각됐다.
+    @Test func clampForbidsAdjacentTierInversion() {
+        let lo = IngredientIDF.clampRange.lowerBound
+        let hi = IngredientIDF.clampRange.upperBound
+        #expect(hi / lo < 1.5, "상/하한 비율이 1.5를 넘으면 인접 계층 역전이 수학적으로 가능해진다")
+        #expect(3.0 * lo > 2.0 * hi, "urgent 최저 기여가 soon 최고 기여를 이겨야 한다")
+        #expect(2.0 * lo > 1.0 * hi, "soon 최저 기여가 fresh 최고 기여를 이겨야 한다")
+    }
+
+    /// 미등재·미해석·상비재는 전부 1.0(중립) — 시드가 요구한 적 없는 캐논이 남의 가중을 빌리면
+    /// 안 되고, 상비재 줄은 df에 아예 안 들어가므로(soy-sauce) 자연히 중립이다.
+    @Test func unregisteredCanonsStayNeutral() {
+        let idf = IngredientIDF(recipes: RecipeCatalog.loadSeed())
+        #expect(idf.factor(nil) == 1.0)
+        #expect(idf.factor("no-such-canon") == 1.0)
+        #expect(idf.factor("soy-sauce") == 1.0, "상비재는 df 집계 밖 — 중립이어야 한다")
+        // 빈 시드는 전 재료 중립 — 시드 로드 실패가 랭킹을 흔들지 않는다.
+        let empty = IngredientIDF(recipes: [])
+        #expect(empty.factor("garlic") == 1.0)
+    }
+
+    /// **IDF 래칫** — 시드 증보로 df 분포가 움직이면 랭킹이 조용히 변한다. 커버리지 래칫과 같은
+    /// 패턴으로 상·하위를 스냅샷해, 흔들림이 의도된 재측정 없이 지나가지 못하게 한다.
+    /// 깨졌다면: 시드 변경이 의도한 것인지 확인하고, 하네스로 재측정한 값으로 갱신하라(숫자를
+    /// 맞추려고 산식을 건드리면 안 된다). 기준: 시드 128편 실측(48차).
+    @Test func idfRatchetSnapshot() {
+        let idf = IngredientIDF(recipes: RecipeCatalog.loadSeed())
+        var rows: [(id: String, factor: Double)] = IngredientLexicon.shared.entries
+            .map { (id: $0.id, factor: idf.factor($0.id)) }
+            .filter { $0.factor != 1.0 }                         // 등재(시드가 요구하는) 캐논만
+        rows.sort { a, b in a.factor != b.factor ? a.factor < b.factor : a.id < b.id }
+        #expect(rows.count == 144, "시드가 요구하는 캐논 수가 변했다(\(rows.count)) — 의도된 증보인지 확인")
+        // 하위 10종 — 하한 클램프 지대(가장 흔한 재료들). (factor, id) 전순서라 결정적이다.
+        #expect(rows.prefix(10).map(\.id) == ["beef", "bread", "butter", "carrot", "chicken",
+                                              "chili-pepper", "egg", "garlic", "ginger", "green-onion"],
+                "최빈 재료 지형이 변했다: \(rows.prefix(10).map(\.id))")
+        #expect(rows.filter { $0.factor == IngredientIDF.clampRange.lowerBound }.count == 21,
+                "하한 클램프에 걸리는 준상비 재료 수가 변했다")
+        // 상위는 df≤2 캡(df=3 취급) 동률 지대라 개별 id 스냅샷이 무의미하다 — 값 자체를 고정한다.
+        // N=128에서 상한 클램프(1.20)는 아직 안 닿는다(최대 1.0878) — 닿기 시작하면 여기가 먼저 알린다.
+        let maxFactor = rows.last!.factor
+        #expect(abs(maxFactor - 1.0877685) < 0.000001, "df 캡 지대의 정규화 값이 변했다: \(maxFactor)")
+        #expect(maxFactor < IngredientIDF.clampRange.upperBound)
+        #expect(abs(idf.factor("salmon") - 1.0877685) < 0.000001)
+        #expect(idf.factor("garlic") == IngredientIDF.clampRange.lowerBound,
+                "df=61(시드 48%) 마늘은 하한 클램프에 있어야 한다")
+    }
+
+    /// IDF가 켜지면 같은 임박도에서 희소 재료 티켓이 준상비 재료 티켓을 앞선다 — E2가 고치려는
+    /// 증상("마늘·양파·파만 쓰는 티켓이 연어 티켓을 밀어낸다")의 최소 재현. 끄면(기본 nil) 동점이라
+    /// id 순서 그대로다 — 같은 픽스처가 켬/끔 동치·차이를 함께 고정한다.
+    @Test func idfPrefersScarceIngredientAtEqualFreshness() {
+        let seed = RecipeCatalog.loadSeed()
+        let recipes = [recipe(id: "a-garlic", refs: ["garlic"]), recipe(id: "b-salmon", refs: ["salmon"])]
+        let stock = [ing("마늘", daysLeft: 9), ing("연어", daysLeft: 9)]
+        #expect(RecipeRecommender.rank(for: stock, from: recipes).map(\.id) == ["a-garlic", "b-salmon"],
+                "idf=nil이면 동점 — id 타이브레이크 그대로")
+        let on = RecipeRecommender.rank(for: stock, from: recipes,
+                                        idf: IngredientIDF(recipes: seed)).map(\.id)
+        #expect(on == ["b-salmon", "a-garlic"], "희소한 연어(×1.088)가 준상비 마늘(×0.85)을 앞선다")
+    }
+
+    /// IDF가 켜져도 임박 계층은 절대 뒤집히지 않는다 — 흔한 재료라도 임박했으면 희소한 신선
+    /// 재료를 항상 이긴다(클램프 봉인의 행동 증거: urgent 마늘 2.55 > soon 연어 2.177).
+    @Test func idfNeverInvertsFreshnessTiers() {
+        let idf = IngredientIDF(recipes: RecipeCatalog.loadSeed())
+        let recipes = [recipe(id: "a-garlic", refs: ["garlic"]), recipe(id: "b-salmon", refs: ["salmon"])]
+        let stock = [ing("마늘", daysLeft: 0), ing("연어", daysLeft: 2)]
+        #expect(RecipeRecommender.rank(for: stock, from: recipes, idf: idf).map(\.id)
+            == ["a-garlic", "b-salmon"],
+            "urgent×0.85 > soon×1.088 — 임박이 희소성을 항상 이긴다")
+    }
+}
+
+/// 48차 E3·E4 — 이력 되먹임(패스 감쇠·최근 조리 감점). 전부 **정렬 전용**이고(문턱 불참 —
+/// 덱은 안 빈다), 날짜는 `now` 주입으로 결정론이다(freshness는 daysLeft가 실시계 기준으로
+/// 만들지만, 감쇠·계단은 주입된 now와 기록 시각의 **차이**만 보므로 서로 독립이다).
+struct HistoryFeedbackTests {
+
+    private func recipe(id: String, refs: [String]) -> Recipe {
+        Recipe(id: id, name: Recipe.LocalizedName(en: id, ko: nil), cuisine: nil, minutes: 10,
+               ingredients: refs.map { Recipe.Item(ref: $0, en: $0, ko: nil) },
+               steps: Recipe.LocalizedSteps(en: ["step"], ko: nil), isUser: nil)
+    }
+
+    private func ing(_ name: String, daysLeft: Int = 9) -> Ingredient {
+        Ingredient(name: name, category: "Veg", daysLeft: daysLeft,
+                   quantity: Quantity(value: 1, unit: .piece), glyph: .generic)
+    }
+
+    private let now = Date(timeIntervalSince1970: 1_700_000_000)
+    private func daysAgo(_ d: Double) -> Date { now.addingTimeInterval(-d * 86_400) }
+
+    /// 방금 넘긴 티켓이 다음 덱 1순위로 그대로 돌아오지 않는다 — 무기억 덱(L1 A①)의 마감.
+    @Test func passSinksTheTicketJustFlickedAway() {
+        let stock = [ing("당근"), ing("감자")]
+        let recipes = [recipe(id: "a-carrot", refs: ["carrot"]), recipe(id: "b-potato", refs: ["potato"])]
+        #expect(RecipeRecommender.rank(for: stock, from: recipes, now: now).map(\.id)
+            == ["a-carrot", "b-potato"], "무패스 기준선 — 동점 id 순")
+        let hash = RecipeRecommender.fridgeHash(of: stock)
+        let passed = RecipeRecommender.rank(
+            for: stock, from: recipes,
+            passLog: ["a-carrot": .init(count: 1, last: now, fridgeHash: hash)], now: now)
+        #expect(passed.map(\.id) == ["b-potato", "a-carrot"], "패스 1회(-1)가 동점 티켓을 뒤로 보낸다")
+    }
+
+    /// 지수 감쇠(반감기 7일) — 오늘 3회 패스는 −3으로 침몰시키지만, 14일 지나면 −0.75로 줄어
+    /// 원래 순서가 복원된다. 영구 제외가 아니라 기억의 자연 소멸이다(Tinder·Hinge 공통 패턴).
+    @Test func passPenaltyDecaysWithHalfLife() {
+        let stock = [ing("당근"), ing("양배추"), ing("감자")]
+        let hash = RecipeRecommender.fridgeHash(of: stock)
+        // two(재료 2종, 2점) vs one(1종, 1점) — 감점 크기에 따라 순서가 갈리게 점수 차 1을 둔다.
+        let recipes = [recipe(id: "two", refs: ["carrot", "cabbage"]), recipe(id: "one", refs: ["potato"])]
+        let fresh = RecipeRecommender.rank(
+            for: stock, from: recipes,
+            passLog: ["two": .init(count: 3, last: now, fridgeHash: hash)], now: now)
+        #expect(fresh.map(\.id) == ["one", "two"], "오늘 3회 패스(-3)는 2점 티켓을 가라앉힌다")
+        let decayed = RecipeRecommender.rank(
+            for: stock, from: recipes,
+            passLog: ["two": .init(count: 3, last: daysAgo(14), fridgeHash: hash)], now: now)
+        #expect(decayed.map(\.id) == ["two", "one"], "14일 = 반감 2회(-0.75) — 순서가 복원된다")
+    }
+
+    /// 냉장고가 바뀌었으면 감점을 반으로 — "그 재고 조합에서의 거절"이지 영구 거절이 아니다.
+    /// 같은 조합(-2)이면 뒤로 가고, 다른 조합(-1)이면 동점 타이브레이크까지만 내려온다.
+    @Test func fridgeChangeHalvesPassPenalty() {
+        let stock = [ing("당근"), ing("양배추"), ing("감자")]
+        let hash = RecipeRecommender.fridgeHash(of: stock)
+        let recipes = [recipe(id: "a-two", refs: ["carrot", "cabbage"]), recipe(id: "b-one", refs: ["potato"])]
+        let same = RecipeRecommender.rank(
+            for: stock, from: recipes,
+            passLog: ["a-two": .init(count: 2, last: now, fridgeHash: hash)], now: now)
+        #expect(same.map(\.id) == ["b-one", "a-two"], "같은 재고 조합의 패스 2회(-2)는 그대로 무겁다")
+        let changed = RecipeRecommender.rank(
+            for: stock, from: recipes,
+            passLog: ["a-two": .init(count: 2, last: now, fridgeHash: hash &+ 1)], now: now)
+        #expect(changed.map(\.id) == ["a-two", "b-one"],
+                "다른 재고 조합의 기록은 절반(-1) — 동점이 되어 id 타이브레이크로 복귀")
+    }
+
+    /// **urgent 캡은 감점 총합에 걸린다**(48차 적대 검증) — 패스 항에만 걸면 IDF 하한(×0.85)과
+    /// "방금 해먹은" −2가 합성될 때 urgent 티켓(3×0.85=2.55)이 캡을 우회해 2.55−3=−0.45로
+    /// 완전 침몰했다(실측). 합성 세계에서도 "오늘 상하는 재료를 구하는 티켓은 이력 감점이
+    /// 한 단(−1)을 넘지 않는다"가 계약이다.
+    @Test func urgentCapHoldsUnderIDFAndRecentCookedComposition() {
+        let seed = RecipeCatalog.loadSeed()
+        let idf = IngredientIDF(recipes: seed)
+        let gUrgent = recipe(id: "g-urgent", refs: ["garlic"])
+        let sFresh = recipe(id: "s-fresh", refs: ["salmon"])
+        let now = Date(timeIntervalSinceReferenceDate: 800_000_000)
+        let stock = [ing("마늘", daysLeft: 0), ing("연어", daysLeft: 9)]
+        let hash = RecipeRecommender.fridgeHash(of: stock)
+        // 패스 1회(캡 전 −1) + 이틀 전 완주(−2): 총합 캡 없이는 2.55−3 = −0.45 < 0.85(연어 fresh×min IDF)로 역전.
+        let ids = RecipeRecommender.rank(
+            for: stock, from: [gUrgent, sFresh],
+            passLog: ["g-urgent": .init(count: 3, last: now, fridgeHash: hash)],
+            recentCooked: ["g-urgent": now.addingTimeInterval(-2 * 86_400)],
+            idf: idf, now: now).map(\.id)
+        #expect(ids == ["g-urgent", "s-fresh"],
+                "IDF 하한 × 조리 감점 합성에서도 urgent 티켓이 신선 티켓 아래로 가라앉으면 안 된다")
+    }
+
+    /// **urgent 캡** — 오늘 상하는 재료를 구하는 티켓은 패스가 쌓여도 감점이 −1에 멈춘다.
+    /// freshness 1차 축 보호: 방금 거절한 손짓도 신호지만(0은 아니다), 완전 침몰은 축의 역전이다.
+    /// 대조군(soon 티켓)은 캡이 없어 그대로 가라앉는다 — 캡의 발화 조건이 urgent임을 함께 고정.
+    @Test func urgentTicketPassPenaltyIsCappedAtOne() {
+        let stock = [ing("소고기", daysLeft: 0), ing("당근", daysLeft: 9)]
+        let hash = RecipeRecommender.fridgeHash(of: stock)
+        let recipes = [recipe(id: "beef-dish", refs: ["beef"]), recipe(id: "carrot-dish", refs: ["carrot"])]
+        let ids = RecipeRecommender.rank(
+            for: stock, from: recipes,
+            passLog: ["beef-dish": .init(count: 3, last: now, fridgeHash: hash)], now: now).map(\.id)
+        #expect(ids == ["beef-dish", "carrot-dish"],
+                "urgent 티켓은 3회 패스에도 -1 캡 — 3-1=2 > 1이라 여전히 위다")
+        let soonStock = [ing("시금치", daysLeft: 2), ing("당근", daysLeft: 9)]
+        let soonHash = RecipeRecommender.fridgeHash(of: soonStock)
+        let soonRecipes = [recipe(id: "spinach-dish", refs: ["spinach"]), recipe(id: "carrot-dish", refs: ["carrot"])]
+        let soonIDs = RecipeRecommender.rank(
+            for: soonStock, from: soonRecipes,
+            passLog: ["spinach-dish": .init(count: 3, last: now, fridgeHash: soonHash)], now: now).map(\.id)
+        #expect(soonIDs == ["carrot-dish", "spinach-dish"], "soon 티켓은 캡 없음(-3) — 가라앉는다")
+    }
+
+    /// **문턱 불참** — 패스가 아무리 쌓여도 후보 자격은 그대로라 덱이 비지 않는다.
+    /// 감점은 정렬에만 들어가고 accepts(missing·커버리지)는 점수를 아예 읽지 않는다.
+    @Test func passLogNeverEmptiesTheDeck() {
+        let stock = [ing("당근")]
+        let hash = RecipeRecommender.fridgeHash(of: stock)
+        let ids = RecipeRecommender.rank(
+            for: stock, from: [recipe(id: "only", refs: ["carrot"])],
+            passLog: ["only": .init(count: 3, last: now, fridgeHash: hash)], now: now).map(\.id)
+        #expect(ids == ["only"], "유일 후보는 3회 패스 후에도 덱에 남는다 — 공덱 방지 > 패스 기억")
+    }
+
+    /// 냉장고 해시는 **종류의 집합**이다 — 같은 재료의 중복 등록·순서는 해시를 바꾸지 않고,
+    /// 종류가 하나 바뀌면 바뀐다. `Hasher`(실행마다 시드 변동)가 아니라 FNV 기반이라 영속 기록과
+    /// 비교 가능하다는 계약의 최소 검증.
+    @Test func fridgeHashIsDeterministicOverCanonSets() {
+        let a = [ing("당근"), ing("감자")]
+        let b = [ing("감자"), ing("당근"), ing("당근")]   // 순서 뒤집기 + 중복 등록
+        #expect(RecipeRecommender.fridgeHash(of: a) == RecipeRecommender.fridgeHash(of: b))
+        let c = [ing("당근"), ing("양파")]
+        #expect(RecipeRecommender.fridgeHash(of: a) != RecipeRecommender.fridgeHash(of: c))
+    }
+
+    /// E4 계단 — 완료 후 3일 이내 −2, 7일 이내 −1, 이후 0. 어제 해먹은 요리가 오늘 또 1순위로
+    /// 오지 않되, 일주일이 지나면 아무 흔적도 남지 않는다(감점이지 제외가 아니다).
+    @Test func recentCookedStepPenalty() {
+        let stock = [ing("당근"), ing("양배추"), ing("감자")]
+        let recipes = [recipe(id: "a-two", refs: ["carrot", "cabbage"]), recipe(id: "b-one", refs: ["potato"])]
+        let d2 = RecipeRecommender.rank(for: stock, from: recipes,
+                                        recentCooked: ["a-two": daysAgo(2)], now: now).map(\.id)
+        #expect(d2 == ["b-one", "a-two"], "2일 전 조리(-2): 2-2=0 < 1")
+        let d5 = RecipeRecommender.rank(for: stock, from: recipes,
+                                        recentCooked: ["a-two": daysAgo(5)], now: now).map(\.id)
+        #expect(d5 == ["a-two", "b-one"], "5일 전 조리(-1): 동점 — id 타이브레이크로 복귀")
+        let d8 = RecipeRecommender.rank(for: stock, from: recipes,
+                                        recentCooked: ["a-two": daysAgo(8)], now: now).map(\.id)
+        #expect(d8 == ["a-two", "b-one"], "8일 전 조리(0): 감점 소멸")
+    }
+
+    /// **핀(+4·자리 보장)이 최근 조리 감점을 오버라이드한다** — "어제 해먹었지만 오늘 또 이걸로"
+    /// 는 사용자의 명시 의도라 이력 감점이 막으면 안 된다(같은 걸 연속으로 먹고 싶은 사용자의
+    /// 탈출구가 핀이라는 E4 설계 전제의 고정).
+    @Test func pinOverridesRecentCookedPenalty() {
+        let beef = ing("소고기", daysLeft: 0)
+        let carrot = ing("당근", daysLeft: 9)
+        let recipes = [recipe(id: "beef-dish", refs: ["beef"]), recipe(id: "carrot-dish", refs: ["carrot"])]
+        let ids = RecipeRecommender.rank(for: [beef, carrot], from: recipes,
+                                         pinnedIDs: [carrot.id],
+                                         recentCooked: ["carrot-dish": daysAgo(1)], now: now).map(\.id)
+        #expect(ids == ["carrot-dish", "beef-dish"],
+                "어제 해먹은 핀 티켓이 여전히 맨 앞 — 핀은 감점이 아니라 자리 보장으로 이긴다")
+    }
+
+    /// 신규 파라미터 전건 기본값 파리티 — 명시 중립값과 기본 호출이 시드 전수에서 같은 덱을 낸다.
+    /// 기존 호출부·테스트 전부가 이 동치에 기대 무수정이다(pinnedIDs 파리티와 같은 축).
+    @Test func neutralHistoryParametersMatchBaseline() {
+        let seed = RecipeCatalog.loadSeed()
+        let stock = [ing("소고기", daysLeft: 0), ing("시금치", daysLeft: 1),
+                     ing("계란", daysLeft: 2), ing("양파", daysLeft: 4), ing("우유", daysLeft: 6)]
+        let base = RecipeRecommender.rank(for: stock, from: seed).map(\.id)
+        let explicit = RecipeRecommender.rank(for: stock, from: seed,
+                                              passLog: [:], recentCooked: [:], idf: nil,
+                                              now: now).map(\.id)
+        #expect(base == explicit, "빈 이력·idf 끔은 종전 경로와 완전 동치여야 한다")
+    }
+}
+
+/// 48차 E1 — 부족-1 해금 카운트("이거 하나 사면 티켓 N장이 열려요").
+struct UnlockCountTests {
+
+    /// **골든(시드 실측)** — 샘플 냉장고 13종에서 butter=4, green-onion=3, 그 외 키 없음.
+    /// L1 B3 실측과 48차 하네스 재실행이 일치한 값이다. 깨졌다면 시드·대체 간선·상비 플래그
+    /// 중 무엇이 움직였는지 확인하고 의도된 변경일 때만 갱신하라(unlock은 현재 재고의 함수다).
+    @Test func sampleFridgeGoldenCounts() throws {
+        let unlocks = RecipeRecommender.unlockCounts(for: RecipeCatalog.loadSeed(),
+                                                     ingredients: SampleData.ingredients)
+        #expect(unlocks.keys.sorted() == ["butter", "green-onion"],
+                "샘플 냉장고의 해금 재료 지형이 변했다: \(unlocks.keys.sorted())")
+        let butter = try #require(unlocks["butter"])
+        #expect(butter.count == 4)
+        #expect(Set(butter.recipeIDs) == ["scrambled-eggs", "cheese-omelette", "grilled-cheese", "crepes"])
+        #expect(unlocks["green-onion"]?.count == 3)
+        // count와 recipeIDs는 같은 사실의 두 표현 — 어긋나면 표면 숫자와 출처 검증이 갈린다.
+        for (_, info) in unlocks { #expect(info.count == info.recipeIDs.count) }
+    }
+
+    /// **parent 총칭 접기** — 부위 캐논(beef-loin·beef-brisket-point)이 각자 한 줄씩 부족해도
+    /// 집계는 "beef: 2" 하나다. 접지 않으면 To buy 제안이 "소 부위 9종이 모두 N장 열림"이라는
+    /// 무의미한 동률 목록이 된다(L1 B3 top5 냉장고 실측).
+    /// **집계는 자기 캐논, 접기는 조회 쪽에서 매칭 방향대로**(48차 적대 검증이 뒤집은 계약).
+    /// 첫 구현은 집계에서 부위→총칭으로 접었다 — 그러면 총칭 beef 행이 부위 전용 티켓 2장을
+    /// "연다"고 표시하는데, 매칭은 단방향(구체 재고→총칭 줄)이라 총칭 소고기를 사도 등심 줄은
+    /// 그대로 부족이다(실측: 표고만 부족한 잡채가 버섯 행에 떴다). 구매 안내가 거짓이 되는
+    /// 정확히 그 지점이라, 이 테스트가 방향을 계약으로 고정한다.
+    @Test func unlockKeysStayOnTheMissingLinesOwnCanon() {
+        let cut1 = Recipe(id: "cut1", name: .init(en: "cut1", ko: nil), cuisine: nil, minutes: 5,
+                          ingredients: [.init(ref: "beef-loin", en: "beef loin", ko: nil)],
+                          steps: .init(en: ["s"], ko: nil), isUser: nil)
+        let cut2 = Recipe(id: "cut2", name: .init(en: "cut2", ko: nil), cuisine: nil, minutes: 5,
+                          ingredients: [.init(ref: "beef-brisket-point", en: "brisket point", ko: nil)],
+                          steps: .init(en: ["s"], ko: nil), isUser: nil)
+        let generic = Recipe(id: "gen", name: .init(en: "gen", ko: nil), cuisine: nil, minutes: 5,
+                             ingredients: [.init(ref: "beef", en: "beef", ko: nil)],
+                             steps: .init(en: ["s"], ko: nil), isUser: nil)
+        let raw = RecipeRecommender.unlockCounts(for: [cut1, cut2, generic], ingredients: [])
+        #expect(raw.keys.sorted() == ["beef", "beef-brisket-point", "beef-loin"],
+                "부족 줄의 자기 캐논이 키다(접기 금지): \(raw.keys.sorted())")
+        #expect(raw["beef"]?.count == 1, "총칭 키에는 총칭 줄만 선다 — 부위 티켓을 세면 거짓 안내다")
+        #expect(raw["beef-loin"]?.count == 1)
+        #expect(raw["beef-loin"]?.recipeIDs == ["cut1"])
+        // 조회식(뷰 규약): 부위 행 = 자기 줄 + 총칭 줄(구체 재고가 총칭 줄을 채우는 방향 그대로),
+        // 총칭 행 = 총칭 줄만. 등심을 사면 cut1과 gen이 열리고(2), 총칭 소고기를 사면 gen만(1).
+        let loinOpens = (raw["beef-loin"]?.count ?? 0) + (raw["beef"]?.count ?? 0)
+        #expect(loinOpens == 2)
+    }
+
+    /// 부족 2줄 이상은 집계 대상이 아니다 — "하나만 사면"의 정의. 대체·optional이 부족을 지운
+    /// 뒤의 missing 기준이라는 것은 bulkResults 재사용이 보증한다(파리티 테스트가 그 경로를 고정).
+    @Test func onlyExactlyOneMissingLineCounts() {
+        let two = Recipe(id: "two-short", name: .init(en: "t", ko: nil), cuisine: nil, minutes: 5,
+                         ingredients: [.init(ref: "beef", en: "beef", ko: nil),
+                                       .init(ref: "salmon", en: "salmon", ko: nil)],
+                         steps: .init(en: ["s"], ko: nil), isUser: nil)
+        #expect(RecipeRecommender.unlockCounts(for: [two], ingredients: []).isEmpty,
+                "부족 2줄 티켓은 어느 재료의 해금 수에도 들어가지 않는다")
+    }
+}
+
+/// 48차 E5 — 시드 공출현(빈 덱 초대의 파트너 선정 근거).
+struct CooccurrenceTests {
+
+    /// 대칭성 + 자기 쌍 0 — 조회 키가 사전순 결합이라 방향이 없어야 한다.
+    @Test func cooccurrenceIsSymmetric() {
+        for (a, b) in [("kimchi", "pork"), ("beef", "onion"), ("egg", "green-onion"),
+                       ("salmon", "kimchi")] {
+            #expect(RecipeCatalog.cooccurrence(a, b) == RecipeCatalog.cooccurrence(b, a),
+                    "\(a)·\(b): 공출현은 방향이 없다")
+        }
+        #expect(RecipeCatalog.cooccurrence("egg", "egg") == 0, "자기 공출현은 무의미 — 0")
+    }
+
+    /// **골든(시드 실측)** — 계란·파 13회(계란말이·볶음밥 축), 소고기·양파 9회. 김치·돼지 1회는
+    /// 시드가 서양식·비찌개 축으로 김치 레시피를 적게 든 현재 분포의 실측이다(제안서의 "≥3" 예시는
+    /// 추정이었고 실값이 이겼다 — 파트너 선택은 최대값 비교라 절대값이 작아도 성립한다).
+    /// 미관측 쌍 0은 "나쁜 궁합"이 아니라 무정보다(음성 증거 무정보 — 소비자는 소프트 선호로만 쓴다).
+    @Test func knownPairsMatchSeedMeasurement() {
+        #expect(RecipeCatalog.cooccurrence("egg", "green-onion") == 13)
+        #expect(RecipeCatalog.cooccurrence("beef", "onion") == 9)
+        #expect(RecipeCatalog.cooccurrence("kimchi", "pork") == 1)
+        #expect(RecipeCatalog.cooccurrence("salmon", "kimchi") == 0, "미관측 쌍은 0(무정보)")
+    }
+}
+
+/// 48차 E6·§8 — 구제 티켓 마킹(표시 전용)·바닥 채움 2차 축.
+struct DeckSurfaceContractTests {
+
+    private func recipe(id: String, refs: [String]) -> Recipe {
+        Recipe(id: id, name: Recipe.LocalizedName(en: id, ko: nil), cuisine: nil, minutes: 10,
+               ingredients: refs.map { Recipe.Item(ref: $0, en: $0, ko: nil) },
+               steps: Recipe.LocalizedSteps(en: ["step"], ko: nil), isUser: nil)
+    }
+
+    private func ing(_ name: String, daysLeft: Int = 9) -> Ingredient {
+        Ingredient(name: name, category: "Veg", daysLeft: daysLeft,
+                   quantity: Quantity(value: 1, unit: .piece), glyph: .generic)
+    }
+
+    /// missing≥3 문턱을 구제 조건으로 넘어온 티켓만 `rescued`가 선다 — 문턱 안 티켓은 false.
+    /// 랭킹은 이 값을 다시 읽지 않는다(표시 전용) — 순서는 기존 구제 테스트와 동일해야 한다.
+    @Test func rescuedFlagMarksOnlyThresholdExceptionTickets() throws {
+        // rankKeepsHeavyTicketThatAloneRescuesAtRiskStock와 같은 픽스처 — 순서 계약을 공유한다.
+        let stock = [ing("시금치", daysLeft: 1), ing("소고기", daysLeft: 0),
+                     ing("당근", daysLeft: 2), ing("계란", daysLeft: 2)]
+        let clears = recipe(id: "clears", refs: ["spinach", "beef", "carrot", "egg",
+                                                 "bean-sprouts", "zucchini", "garlic"])
+        let deck = [clears, recipe(id: "filler0", refs: ["beef"]), recipe(id: "filler1", refs: ["egg"])]
+        let out = RecipeRecommender.rank(for: stock, from: deck)
+        let rescued = try #require(out.first { $0.id == "clears" })
+        #expect(rescued.rescued, "구제 조건(①채움≥삼 ②새 임박)으로 넘어온 티켓은 마킹된다")
+        for r in out where r.id != "clears" {
+            #expect(!r.rescued, "\(r.id): 문턱 안(missing<3) 티켓은 구제가 아니다")
+        }
+    }
+
+    /// 바닥 채움(전 후보 문턱 미달)은 구제가 아니다 — 구제 조건을 통과한 게 아니라 "보여 줄 게
+    /// 없어서" 올라온 것이라, "재료가 적어 범위를 넓혔어요" 고지가 서면 거짓말이 된다.
+    @Test func floorFilledTicketsAreNotMarkedRescued() throws {
+        let stock = [ing("소고기", daysLeft: 0)]
+        let heavy = recipe(id: "heavy", refs: ["beef", "carrot", "onion", "egg"])
+        let out = RecipeRecommender.rank(for: stock, from: [heavy])
+        #expect(out.map(\.id) == ["heavy"])
+        let floorFilled = try #require(out.first)
+        #expect(!floorFilled.rescued, "바닥 채움 티켓은 rescued가 아니다")
+    }
+
+    /// §8 확인 항목의 마감 — 바닥 채움 동점은 **부족 수 오름차순**이 2차 축이다(id는 최종).
+    /// 재고 1~3종 사용자에게 같은 점수면 덜 사야 하는 티켓을 먼저 보여준다.
+    @Test func floorFillBreaksScoreTiesByFewerMissing() {
+        let stock = [ing("소고기", daysLeft: 0)]
+        // 둘 다 점수 3(urgent beef 하나) — id 순서로는 a-h4가 먼저지만 missing(3 < 4)이 이긴다.
+        let h4 = recipe(id: "a-h4", refs: ["beef", "carrot", "onion", "egg", "spinach"])
+        let h3 = recipe(id: "b-h3", refs: ["beef", "carrot", "onion", "egg"])
+        #expect(RecipeRecommender.rank(for: stock, from: [h4, h3]).map(\.id) == ["b-h3", "a-h4"],
+                "동점 바닥 채움은 부족이 적은 티켓이 먼저다")
     }
 }

@@ -1261,6 +1261,171 @@ struct FridgeStoreTests {
         // 교체 수 ≤ 2 — 가장 여유로운 fresh 하나(day 15)만 빠진다.
         #expect(store.counterIngredients.filter { $0.name.hasPrefix("Fresh") }.count == 5)
     }
+
+    // MARK: 패스 감쇠 기억 · 방금 해먹은 (48차 E3·E4 영속)
+
+    @Test func recordPassAccumulatesAndStampsEngineFridgeHash() {
+        let store = makeStore()
+        let t0 = Date(timeIntervalSince1970: 1_000_000)
+        let t1 = t0.addingTimeInterval(3_600)
+        store.recordPass(recipeID: "r-1", at: t0)
+        store.recordPass(recipeID: "r-1", at: t1)
+        let record = store.passLog["r-1"]
+        #expect(record?.count == 2)     // 캡 없이 누적 — 감점 캡·감쇠는 엔진 상수(한 곳에만 산다)
+        #expect(record?.last == t1)
+        // 해시는 **엔진 함수의 값 그대로**여야 한다 — 스토어가 자체 해시를 들면 rank의 재고 비교가
+        // 항상 불일치라 "재고가 변했다" 완화(감점 반감)가 상시 발동한다(48차 계약).
+        #expect(record?.fridgeHash == RecipeRecommender.fridgeHash(of: store.available))
+    }
+
+    @Test func recordPassEvictsOldestBeyondCap() {
+        let store = makeStore()
+        let base = Date(timeIntervalSince1970: 1_000_000)
+        for i in 0..<129 {   // 상한 128 + 1
+            store.recordPass(recipeID: "r-\(i)", at: base.addingTimeInterval(Double(i)))
+        }
+        #expect(store.passLog.count == 128)
+        #expect(store.passLog["r-0"] == nil, "last가 가장 오래된 기록부터 제거돼야 한다")
+        #expect(store.passLog["r-1"] != nil)
+        #expect(store.passLog["r-128"] != nil)
+    }
+
+    @Test func passLogAndRecentCookedSurviveSnapshotRoundTrip() throws {
+        let record = RecipeRecommender.PassRecord(count: 2, last: Date(timeIntervalSince1970: 5),
+                                                  fridgeHash: 42)
+        let cookedAt = Date(timeIntervalSince1970: 9)
+        let snap = FridgeStore.Snapshot(
+            schemaVersion: FridgeStore.currentSchemaVersion,
+            ingredients: [], history: [], dismissedToBuy: [], counterIDs: [], activeCook: nil,
+            userRecipes: nil, archivedAte: nil, archivedTossed: nil,
+            passLog: ["r-1": record], recentCooked: ["r-2": cookedAt])
+        let decoded = try #require(FridgeStore.decodeSnapshot(try JSONEncoder().encode(snap)))
+        #expect(decoded.passLog?["r-1"] == record)
+        #expect(decoded.recentCooked?["r-2"] == cookedAt)
+    }
+
+    @Test func legacySnapshotHasNoBehaviorLogs() throws {
+        // 구버전 파일엔 키 자체가 없다 — 옵셔널+기본 nil 규약(디코드 실패로 통째 격리 금지).
+        let legacy = """
+        {"ingredients":[],"history":[],"dismissedToBuy":[],"counterIDs":[]}
+        """
+        let snap = try #require(FridgeStore.decodeSnapshot(Data(legacy.utf8)))
+        #expect(snap.passLog == nil)
+        #expect(snap.recentCooked == nil)
+    }
+
+    @Test func finishCookingRecordsRecentCooked() {
+        let store = makeStore()
+        let recipe = Recipe.userRecipe(name: "Test", ingredientNames: ["Item0"], minutes: 10, steps: [])
+        let done = Date(timeIntervalSince1970: 2_000_000)
+        store.cook(RecipeRecommender.result(for: recipe, ingredients: store.sorted))
+        store.finishCooking(at: done)
+        #expect(store.recentCooked[recipe.id] == done)
+    }
+
+    @Test func recentCookedEvictsOldestBeyondCap() {
+        // '남았어요'로 재료를 매번 살려 두고 129회 완주 — 상한 128을 넘긴 뒤 가장 오래된 완료가
+        // 접히는지 본다(passLog와 같은 규율).
+        let store = makeStore()
+        let item0 = store.sorted[0]
+        let base = Date(timeIntervalSince1970: 3_000_000)
+        var recipeIDs: [String] = []
+        for i in 0..<129 {
+            let recipe = Recipe.userRecipe(name: "Dish\(i)", ingredientNames: ["Item0"],
+                                           minutes: 5, steps: [])
+            recipeIDs.append(recipe.id)
+            store.cook(RecipeRecommender.result(for: recipe, ingredients: store.sorted))
+            store.finishCooking(leftovers: [item0.id], at: base.addingTimeInterval(Double(i)))
+        }
+        #expect(store.recentCooked.count == 128)
+        #expect(store.recentCooked[recipeIDs[0]] == nil)
+        #expect(store.recentCooked[recipeIDs[1]] != nil)
+        #expect(store.recentCooked[recipeIDs[128]] != nil)
+    }
+
+    /// **패스 기억은 위약이 아니다** — 스토어 경로(rankedRecipes)가 passLog를 rank에 실제로 넘긴다
+    /// (핀 배선 테스트 `rankedRecipesFrontsPinnedTicket`과 같은 축). 동점 두 티켓 중 방금 패스한
+    /// 쪽이 뒤로 물러나야 한다 — 감점 상수가 얼마든, 0이 아니면 동점은 뒤집힌다.
+    @Test func rankedRecipesDemotesJustPassedTicket() throws {
+        let ings = [Ingredient(name: "Item0", category: "Veg", daysLeft: 0,
+                               quantity: Quantity(value: 1, unit: .piece), glyph: .generic)]
+        let a = Recipe.userRecipe(name: "A", ingredientNames: ["Item0"], minutes: 10, steps: [])
+        let b = Recipe.userRecipe(name: "B", ingredientNames: ["Item0"], minutes: 10, steps: [])
+        let store = FridgeStore(ingredients: ings, recipes: [a, b], history: [])
+        let firstID = try #require(store.rankedRecipes().first).id   // 동점 — id 타이브레이크의 1위
+        store.recordPass(recipeID: firstID)
+        #expect(store.rankedRecipes().first?.id != firstID,
+                "방금 패스한 티켓이 다음 덱 1순위로 그대로 복귀하면 배선이 죽은 것")
+    }
+
+    /// **방금 해먹은 감점도 배선까지가 기능이다** — 완주한 티켓이 같은 재고에서 곧바로 또
+    /// 1순위로 오지 않는다(E4). 재료는 '남았어요'로 살려 두 티켓의 매칭 조건을 유지한다.
+    @Test func rankedRecipesDemotesJustCookedTicket() throws {
+        let ings = [Ingredient(name: "Item0", category: "Veg", daysLeft: 0,
+                               quantity: Quantity(value: 2, unit: .piece), glyph: .generic)]
+        let a = Recipe.userRecipe(name: "A", ingredientNames: ["Item0"], minutes: 10, steps: [])
+        let b = Recipe.userRecipe(name: "B", ingredientNames: ["Item0"], minutes: 10, steps: [])
+        let store = FridgeStore(ingredients: ings, recipes: [a, b], history: [])
+        let top = try #require(store.rankedRecipes().first)
+        store.cook(top)
+        store.finishCooking(leftovers: [ings[0].id])
+        #expect(store.rankedRecipes().first?.id != top.id,
+                "어제(방금) 해먹은 레시피가 오늘 또 1순위면 recentCooked 배선이 죽은 것")
+    }
+
+    // MARK: 출처 티켓 (48차 E1 — sourceRecipeIDs)
+
+    @Test func manualBuyItemSourceRecipeIDsRoundTripAndLegacyDecode() throws {
+        let item = FridgeStore.ManualBuyItem(name: "Butter", canonicalID: "butter",
+                                             glyph: .generic, sourceRecipeIDs: ["r-1", "r-2"])
+        let decoded = try JSONDecoder().decode(FridgeStore.ManualBuyItem.self,
+                                               from: try JSONEncoder().encode(item))
+        #expect(decoded.sourceRecipeIDs == ["r-1", "r-2"])
+        // 구파일 — 키 자체가 없다 → nil(옵셔널+기본값, 디코드 비파괴).
+        let legacy = #"{"name":"Butter","canonicalID":"butter","glyph":"generic"}"#
+        let old = try JSONDecoder().decode(FridgeStore.ManualBuyItem.self, from: Data(legacy.utf8))
+        #expect(old.sourceRecipeIDs == nil)
+    }
+
+    @Test func addToBuyRecordsAndMergesSourceTickets() {
+        let store = FridgeStore(ingredients: [], recipes: [], history: [])
+        #expect(store.addToBuy(name: "버터", canonicalID: "butter", sourceRecipeIDs: ["r-a"]))
+        #expect(store.manualToBuy.first?.sourceRecipeIDs == ["r-a"])
+        // 다른 티켓이 같은 재료를 또 담음 — 새 줄 없이(반환 false) 출처만 병합된다
+        // (한 재료가 여러 티켓을 여는 게 부족-1 해금의 정상 상태).
+        #expect(!store.addToBuy(name: "butter", canonicalID: "butter", sourceRecipeIDs: ["r-b"]))
+        #expect(store.manualToBuy.count == 1)
+        #expect(store.manualToBuy.first?.sourceRecipeIDs == ["r-a", "r-b"])
+        // 출처 없는 기존 호출은 종전 그대로 no-op — 기록도 안 건드린다.
+        #expect(!store.addToBuy(name: "butter", canonicalID: "butter"))
+        #expect(store.manualToBuy.first?.sourceRecipeIDs == ["r-a", "r-b"])
+    }
+
+    @Test func addMissingToBuyStampsTheSourceTicket() {
+        let store = FridgeStore(ingredients: [], recipes: [], history: [])
+        let items = [Recipe.Item(ref: "butter", en: "butter", ko: nil)]
+        #expect(store.addMissingToBuy(items, sourceRecipeID: "r-ticket") == 1)
+        #expect(store.manualToBuy.first?.sourceRecipeIDs == ["r-ticket"])
+        // 같은 티켓의 중복 탭 — 줄도 출처도 안 늘고 반환 0(햅틱이 거짓말하지 않게).
+        #expect(store.addMissingToBuy(items, sourceRecipeID: "r-ticket") == 0)
+        #expect(store.manualToBuy.first?.sourceRecipeIDs == ["r-ticket"])
+    }
+
+    // MARK: kecap manis 사전 등재 (48차 E7-1)
+
+    /// 시드 1,054줄 중 유일했던 비상비 미해석 줄의 마감 — "kecap manis"가 자기 캐논으로 풀리고,
+    /// 신규 표기("sweet soy sauce"·"단간장")가 기존 간장 캐논을 빼앗지 않는다(키 충돌 검증).
+    @Test func kecapManisResolvesToItsOwnCanonNotSoySauce() {
+        let lex = IngredientLexicon.shared
+        #expect(lex.canonicalID(for: "kecap manis") == "kecap-manis")
+        #expect(lex.canonicalID(for: "sweet soy sauce") == "kecap-manis")
+        #expect(lex.canonicalID(for: "케찹마니스") == "kecap-manis")
+        #expect(lex.canonicalID(for: "케첩마니스") == "kecap-manis")
+        #expect(lex.canonicalID(for: "단간장") == "kecap-manis")
+        // 기존 간장 계열은 그대로 — 정확 일치 계층이 먼저라 서로를 침범하지 않는다.
+        #expect(lex.canonicalID(for: "soy sauce") == "soy-sauce")
+        #expect(lex.canonicalID(for: "간장") == "soy-sauce")
+    }
 }
 
 /// 대체 투입 스냅샷(45차) — 발주가 예약·삭제할 재고가 레시피 원문에 없는 이름일 때, 그 사실을

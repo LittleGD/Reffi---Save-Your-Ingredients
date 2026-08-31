@@ -16,18 +16,34 @@ struct RecipeMemoCarousel: View {
     let results: [RecipeRecommender.Result]
     /// 재고가 있는데 매칭 레시피가 0인 경우와 재고 자체가 없는 경우를 구분(빈 상태 카피).
     var hasIngredients: Bool = false
-    /// 빈 덱에서 **호명할** 위험 재고 표시명 — **비-fresh 전체**(soon + urgent), 마감 임박순
+    /// 빈 덱에서 **호명할** 위험 재고 표시명 — **비-fresh 전체**(soon + urgent), 중복 제거
     /// (호출부가 얼린 스냅샷). 비어 있으면(전부 신선하거나 재고 없음) 기존 일반 카피가 그대로 뜬다.
+    /// **앞 2개가 곧 호명 쌍이다**(48차 E5) — 호출부(`MainView.invitationNames`)가 앵커(덱이 못
+    /// 다루는 첫 urgent, 없으면 최임박)·파트너(시드 공출현 최대)를 앞으로 세워 보낸다. 이 뷰는
+    /// 여전히 `prefix(2)`만 읽으므로(아래 `spoken`) 선정 규칙은 전부 호출부의 일이다.
     var atRiskNames: [String] = []
-    /// 빈 덱 + 전부 신선일 때 **초대 문안이 호명할** 전체 재고 표시명 — 마감 임박순·중복 제거
-    /// (호출부가 얼린 스냅샷, 44차). `atRiskNames`가 비었을 때만 읽는다 — 임박 재료가 있으면
-    /// 위기 호명이 우선이고, 둘이 같은 이름을 다른 문장으로 두 번 부르면 안 된다.
+    /// 빈 덱 + 전부 신선일 때 **초대 문안이 호명할** 전체 재고 표시명 — 중복 제거(호출부가 얼린
+    /// 스냅샷, 44차). `atRiskNames`가 비었을 때만 읽는다 — 임박 재료가 있으면 위기 호명이
+    /// 우선이고, 둘이 같은 이름을 다른 문장으로 두 번 부르면 안 된다. 앞 2개 = 앵커·파트너
+    /// (48차 E5, 위와 같은 규칙 — 두 분기의 문안이 같은 선정을 타야 갈리지 않는다).
     var fridgeNames: [String] = []
     var onClose: () -> Void
     var onFire: (RecipeRecommender.Result) -> Void = { _ in }
+    /// 패스(왼쪽 플릭·"Next ticket" 접근성 액션) 커밋 1건 — 넘긴 티켓의 **레시피 id**를 올린다(48차 E3).
+    /// MainView가 `FridgeStore.recordPass(recipeID:)`로 잇는 유일한 배선이다. **오른쪽 플릭(발주)·
+    /// 닫기(X)에는 절대 걸지 마라** — 발주는 수용이고 닫기는 판단 보류라, 패스 감쇠 기억에 섞이면
+    /// "요리했더니 그 티켓이 가라앉는" 역신호가 된다. 스냅샷 동결 계약은 그대로다: 기록은 store로
+    /// 가지만 열려 있는 덱은 재랭크되지 않고, 다음 스냅샷 재구성 때 반영된다.
+    var onPass: ((String) -> Void)?
+    /// 오늘 요리 핀 스냅샷(48차 E6) — 티켓 used 줄의 압정 마크 판정용. 덱 입력과 같은 틱에 얼린
+    /// 값을 받는다(카드는 store에 닿지 않는 렌더 규약이라 여기로 흘려보낸다).
+    var pinnedIDs: Set<UUID> = []
     /// 고른 재료를 실제로 담는다 — **새로 담긴 수**를 돌려준다(이미 있던 것은 세지 않는다, §13.5).
     /// 덱은 팝업에서 고른 부분집합만 넘긴다. nil이면 담기 알약 자체가 그려지지 않는다.
-    var onAddMissing: (([Recipe.Item]) -> Int)?
+    /// 둘째 인자(48차 E1) = 이 담기를 시킨 **티켓의 레시피 id**(출처 기록,
+    /// `FridgeStore.addMissingToBuy(sourceRecipeID:)` → `ManualBuyItem.sourceRecipeIDs`).
+    /// 담기 흐름이 열린 뒤 덱을 넘겨도 출처가 흔들리지 않게 items와 같은 스냅샷으로 든다.
+    var onAddMissing: (([Recipe.Item], String?) -> Int)?
     /// 담기 흐름(팝업 3단)이 덱 위에 떠 있는가 — 켜지는 순간부터 끝날 때까지 **한 번씩만** 통지한다.
     /// 발주 후 지연 닫기가 이 신호를 보고 "취소가 아니라 미룸"으로 처리한다(`MainView.fire`).
     /// 중간에 false가 새면 그 틈으로 지연 닫기가 빠져나가, 사용자가 보던 팝업이 부모 커버와 함께 걷힌다.
@@ -51,6 +67,9 @@ struct RecipeMemoCarousel: View {
     // MARK: 담기 3단 팝업 상태 — 선택(체크리스트) → 알림(담김) → 질문(이동)
     /// 이번 흐름이 다루는 부족 재료. 팝업이 뜬 뒤 덱을 넘겨도 목록이 바뀌지 않게 **스냅샷**으로 든다.
     @State private var pickItems: [Recipe.Item] = []
+    /// 이번 흐름의 출처 티켓 레시피 id(48차 E1) — `pickItems`와 같은 스냅샷 규약. 팝업이 뜬 뒤
+    /// 덱이 돌아도 "어느 티켓에서 담았나"는 흐름을 연 그 티켓이다.
+    @State private var pickSourceID: String?
     /// 체크된 행 — `pickItems`의 인덱스. 기본은 **전부 체크**다(부족하다고 이미 판정된 목록이라,
     /// 기본값이 '아무것도 안 담음'이면 흔한 경우에 사용자가 매번 손을 더 대야 한다).
     @State private var pickChecked: Set<Int> = []
@@ -194,9 +213,11 @@ struct RecipeMemoCarousel: View {
     }
 
     /// 알약 탭 — 흐름의 시작. 여기서 프레젠테이션 신호를 켜고, 끝(취소·닫기·이동)에서만 끈다.
-    private func startAddFlow(_ items: [Recipe.Item]) {
+    /// `source` = 흐름을 연 티켓의 레시피 id(48차 E1) — 출처 기록으로만 흘려보낸다(담기 동작 불변).
+    private func startAddFlow(_ items: [Recipe.Item], source: String?) {
         guard !items.isEmpty else { return }
         pickItems = items
+        pickSourceID = source
         pickChecked = Set(items.indices)
         addedCount = 0
         alreadyCount = 0
@@ -207,7 +228,7 @@ struct RecipeMemoCarousel: View {
     /// 체크된 것만 담는다. 하나도 체크되지 않은 상태는 CTA가 `disabled`라 여기 도달하지 않는다.
     private func commitAdd() {
         let picked = PaperChecklistDialog.selected(pickItems, checked: pickChecked)
-        let added = onAddMissing?(picked) ?? 0
+        let added = onAddMissing?(picked, pickSourceID) ?? 0
         addedCount = added
         alreadyCount = Self.alreadyOnListCount(picked: picked, added: added)
         if added > 0 { addHaptic += 1 }   // 아무 것도 안 담겼으면 울리지 않는다(3차 ⑥ 규약)
@@ -233,6 +254,7 @@ struct RecipeMemoCarousel: View {
         showAdded = false
         showMove = false
         pickItems = []
+        pickSourceID = nil
         pickChecked = []
         onToBuyPresentationChange(false)
         if openToBuy { onOpenToBuy() }
@@ -278,7 +300,9 @@ struct RecipeMemoCarousel: View {
                       // 누를 수 없는 행동 표면이 종이 더미 사이에서 어른거린다(뒤 티켓은
                       // allowsHitTesting(false)). nil이면 카드가 같은 사실을 조용한 텍스트 한
                       // 줄("Short: …")로 말한다 — 뒤 영수증의 글자는 더미 은유대로 자연스럽다.
-                      onPickMissing: (isFront && onAddMissing != nil) ? { startAddFlow($0) } : nil)
+                      onPickMissing: (isFront && onAddMissing != nil)
+                          ? { startAddFlow($0, source: results[idx].id) } : nil,
+                      pinnedIDs: pinnedIDs)
             .padding(.horizontal, ReffiGrid.margin + ReffiSpace.s2)   // 24 — 티켓 계열 공통 인셋(§9.2)
             // 상단 예약은 **패딩이라 카드 높이에서 빠진다** — 카드는 (영역 − peekReserve)를 받고,
             // 모든 depth가 같은 값을 쓰므로 세 장의 높이가 정확히 같다(덱 실루엣의 전제).
@@ -475,8 +499,14 @@ struct RecipeMemoCarousel: View {
     }
 
     /// 맨 앞 티켓을 덱 뒤로 — 다음 티켓이 스프링으로 올라온다.
+    ///
+    /// **여기가 패스의 유일한 커밋 지점이다**(48차 E3) — 왼쪽 플릭(`flickAway`)과 "Next ticket"
+    /// 접근성 액션이 전부 이 함수로 모이므로, 기록도 여기 한 곳에서 올린다(두 경로가 각자 올리면
+    /// 접근성 경로만 기록에서 빠지는 반쪽이 된다). guard **뒤**라야 한다: 1장 덱·발주 후 잠금에서는
+    /// 덱이 돌지 않으므로 사용자가 실제로 넘긴 게 아니다 — 그때 기록하면 감쇠 기억이 거짓을 배운다.
     private func advance() {
         guard deck.count > 1, !fired else { return }
+        if let front = deck.first { onPass?(results[front].id) }
         var d = deck
         d.append(d.removeFirst())
         var t = Transaction(); t.disablesAnimations = true

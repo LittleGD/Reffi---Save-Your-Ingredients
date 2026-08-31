@@ -45,12 +45,16 @@ struct MainView: View {
     @State private var showSteps = false           // 단계별 레시피(발주 직후 + Cooking now 카드에서)
     @State private var showAdd = false
     @State private var carouselSnapshot: [RecipeRecommender.Result] = []   // 커버 입력 동결(발주 중 재랭크 방지)
-    /// 빈 덱에서 호명할 위험 재고 이름 — **비-fresh 전체**(soon + urgent). 덱과 **같은 틱**에 얼린다
-    /// (아래 `snapshotCarousel`).
+    /// 빈 덱에서 호명할 위험 재고 이름 — **비-fresh 전체**(soon + urgent), 중복 제거, **앞 2개 =
+    /// 앵커·파트너**(48차 E5, `invitationNames`). 덱과 **같은 틱**에 얼린다(아래 `snapshotCarousel`).
     @State private var atRiskSnapshot: [String] = []
-    /// 빈 덱 + 전부 신선일 때의 초대 문안이 호명할 전체 재고 이름 — 임박순·중복 제거(44차).
-    /// 위 두 스냅샷과 **같은 틱**에 얼린다 — 따로 계산하면 문구와 검색어가 다른 시점의 재고를 본다.
+    /// 빈 덱 + 전부 신선일 때의 초대 문안이 호명할 전체 재고 이름 — 중복 제거, **앞 2개 =
+    /// 앵커·파트너**(48차 E5, `invitationNames`). 위 두 스냅샷과 **같은 틱**에 얼린다 —
+    /// 따로 계산하면 문구와 검색어가 다른 시점의 재고를 본다.
     @State private var fridgeNamesSnapshot: [String] = []
+    /// 오늘 요리 핀 스냅샷(48차 E6) — 티켓 used 줄의 압정 마크 판정. 덱과 같은 틱에 얼린다
+    /// (커버가 열린 동안 핀이 바뀌어도 티켓 표시는 스냅샷 계약대로 고정).
+    @State private var pinnedSnapshot: Set<UUID> = []
     // 개봉 확인(44차 오너 결정) — 밀봉 가공식품의 2주 주기 "개봉했나요?" 프롬프트 상태.
     @State private var showSealedCheck = false
     @State private var sealedCheckItems: [Ingredient] = []   // 스냅샷(다이얼로그가 뜬 동안 불변)
@@ -251,7 +255,12 @@ struct MainView: View {
                                fridgeNames: fridgeNamesSnapshot,
                                onClose: { showCarousel = false },
                                onFire: fire,
-                               onAddMissing: { store.addMissingToBuy($0) },
+                               // 패스 기록(48차 E3) — 왼쪽 플릭·"Next ticket" 액션만 이 콜백을
+                               // 탄다(발주·닫기는 카루셀이 애초에 부르지 않는다). 기록은 즉시
+                               // store로 가지만 열린 덱은 스냅샷이라 재랭크되지 않는다.
+                               onPass: { store.recordPass(recipeID: $0) },
+                               pinnedIDs: pinnedSnapshot,
+                               onAddMissing: { store.addMissingToBuy($0, sourceRecipeID: $1) },
                                onToBuyPresentationChange: { active in
                                    toBuyOverDeck = active
                                    // 흐름이 끝나는 순간 미뤄 둔 닫기를 **그대로 잇는다** — 발주 뒤
@@ -1020,22 +1029,70 @@ struct MainView: View {
 
     // MARK: - Cook / Fire the Ticket
 
-    /// 커버 입력 2종(덱·호명 이름)을 **한 번에** 얼린다.
+    /// 커버 입력(덱·호명 이름·핀)을 **한 번에** 얼린다.
     /// 따로 계산하면 발주로 store가 바뀌는 사이에 서로 다른 시점의 재고를 보게 된다.
     private func snapshotCarousel() {
         let results = carouselResults
         let stock = store.available
         carouselSnapshot = results
+        pinnedSnapshot = store.pinnedIDs   // 티켓 압정 마크(48차 E6) — 덱과 같은 틱에 동결
         // 호명은 문장 안에 들어가는 **표시 이름**이다 — 저장 `name`은 담던 순간 표기라 로케일이 박제된다
         // (§Ingredient.displayName). 빈 덱 문구와 그 옆 영상 검색어가 같은 배열(`atRiskSnapshot`)을
         // 쓰므로 여기 한 곳만 고르면 된다.
-        atRiskSnapshot = stock.filter { $0.freshness != .fresh }.map(\.displayName)   // available은 이미 임박순
-        // 초대 문안용 전체 재고 이름(44차) — 같은 재료를 두 줄로 등록해 둔 냉장고에서 "양파 그리고
-        // 양파"를 부르지 않게 표시 이름 기준으로 중복을 걷어낸다(순서는 임박순 유지).
+        //
+        // 48차 E5 — 두 분기(위기 호명·초대 문안)가 **같은 앵커·파트너 규칙**으로 앞 2개를 세운다.
+        // 파트너 후보는 각 분기의 자기 풀 안이다: 위기 분기 문구("won't last long")가 신선 재료를
+        // 파트너로 부르면 문장이 거짓이 된다 — 풀을 갈라 문안의 참을 지킨다.
+        let uncovered = RecipeRecommender.uncoveredUrgent(ingredients: stock, results: results)
+        atRiskSnapshot = Self.invitationNames(pool: stock.filter { $0.freshness != .fresh },
+                                              uncovered: uncovered)
+        fridgeNamesSnapshot = Self.invitationNames(pool: stock, uncovered: uncovered)
+    }
+
+    /// 빈 덱 초대의 호명 순서(48차 E5) — 반환 배열의 **앞 2개가 곧 호명 쌍**이다(덱 뷰는
+    /// `prefix(2)`만 읽는다 — `RecipeMemoCarousel.spoken`). 문안·YouTube 쿼리 구조는 불변, 선정만 바뀐다.
+    ///
+    /// **앵커** = 덱이 못 다루는 첫 urgent(`RecipeRecommender.uncoveredUrgent` — 41차에 홈 배너
+    /// UI가 철거된 뒤 휴면이던 API의 소생이다. 철거된 것은 배너 UI지 함수 의미론이 아니고, 여기
+    /// 소비처는 **문안 앵커 선정**이다 — 배너를 되살리는 것이 아니다), 없으면 풀의 최임박
+    /// (= 현행 첫 항목과 동일 — 앵커 소생이 거부돼도 이 폴백만으로 항목이 성립한다).
+    /// **파트너** = 나머지 중 시드 공출현(`RecipeCatalog.cooccurrence`) 최대 — "같이 요리된 증거"가
+    /// 있는 조합이 문안·검색 쿼리로 나간다(현행 무검증 앞 2개는 "연어+요거트"류 조합을 내보낼 수
+    /// 있었다). 동률은 임박순(풀 순서 안정 스캔), **전부 0이면 현행 2번째 폴백** — 128편 코퍼스에서
+    /// 공출현 부재는 기대값 그 자체라 나쁜 궁합의 증거가 아니다(소프트 선호, 하드 필터 금지).
+    /// 폴백 보장 덕에 이 변경의 하방은 현행과 동일하다(개악 불가능 구조).
+    ///
+    /// 순수 함수(뷰 상태 무접촉) — 두 분기가 같은 규칙을 타도록 한 곳에 두고, 유닛 테스트가
+    /// 고정할 수 있게 한다(`fireDismissDelay(from:)` 선례).
+    static func invitationNames(pool: [Ingredient], uncovered: [Ingredient]) -> [String] {
+        // 표시 이름 중복 제거(44차 — "양파 그리고 양파" 방지). 임박순 입력이라 첫 등장이 곧 최임박.
         var seen = Set<String>()
-        fridgeNamesSnapshot = stock.compactMap { ing in
-            seen.insert(ing.displayName).inserted ? ing.displayName : nil
+        let unique = pool.filter { seen.insert($0.displayName).inserted }
+        guard unique.count > 1 else { return unique.map(\.displayName) }
+        // 앵커 대조는 표시 이름이다 — 중복 제거가 같은 이름의 뒤 항목을 걷어낸 뒤라 id 대조는
+        // 정확히 그 경우(같은 이름 두 줄 중 뒤가 uncovered)에 빗나간다.
+        let anchorIndex = uncovered.first
+            .flatMap { u in unique.firstIndex { $0.displayName == u.displayName } } ?? 0
+        var rest = unique
+        let anchor = rest.remove(at: anchorIndex)
+        var partnerIndex = 0
+        if let anchorCanon = canon(anchor) {
+            var best = 0
+            for (i, candidate) in rest.enumerated() {
+                guard let c = canon(candidate) else { continue }
+                let n = RecipeCatalog.cooccurrence(anchorCanon, c)
+                if n > best { best = n; partnerIndex = i }   // 초과만 갱신 — 동률은 임박순 첫 항목
+            }
         }
+        let partner = rest.remove(at: partnerIndex)
+        return [anchor.displayName, partner.displayName] + rest.map(\.displayName)
+    }
+
+    /// 재고 한 줄의 캐논 — 해석 완료면 그대로, 아니면 사전 역조회. 엔진 `stockCanon`과 같은 눈이다
+    /// (그쪽은 private — 식이 한 줄이라 재작성이 결합 해제보다 싸다는 판단. 갈리면 공출현 조회만
+    /// 빗나가고 폴백이 받는다 — 매칭·소비 경로와는 무관하다).
+    private static func canon(_ ing: Ingredient) -> String? {
+        ing.canonicalID ?? IngredientLexicon.shared.canonicalID(for: ing.name)
     }
 
     private func cook() {

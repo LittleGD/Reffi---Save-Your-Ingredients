@@ -56,6 +56,14 @@ struct ShoppingListContent: View {
     /// 동안 힌트는 다시 예약되지 않는다 — 이미 아는 동작을 가르치는 연출은 방해일 뿐이다.
     @State private var userSwiped = false
 
+    /// 부족-1 해금 사전(48차 E1) — "이거 하나 사면 티켓 N장이 열려요"의 근거. **패인 진입 시 1회**
+    /// 계산한다(`onAppear`) — `unlockCounts`는 시드 전량 매칭이라 행 렌더에 얹으면 스크롤이 같은
+    /// 값을 계속 다시 산다. **영속 캐시는 금지**: unlock은 현재 재고의 함수라 어제의 "4장"이 오늘
+    /// "0장"일 수 있다 — 패인은 탭을 오가면 뷰째 새로 서므로(위 `searchArgHandled` 주석) 등장마다
+    /// 새 계산이 곧 신선도다. 같은 등장 안의 재입고 직후 수치는 낡을 수 있지만, Bought로 채워진
+    /// 행은 그 자리에서 목록을 떠나므로 낡은 숫자가 서 있을 행 자체가 없다.
+    @State private var unlocks: [String: RecipeRecommender.UnlockInfo] = [:]
+
     /// 드러나는 빨간 조각의 폭. 44pt 히트(§7.3)에 좌우 여백을 더한 값이다.
     private static let revealWidth: CGFloat = 84
     /// 끝까지 밀기(full swipe) 커밋 거리 — **예측 종점** 기준. 드러내기(84)의 두 배가 넘어야
@@ -146,7 +154,7 @@ struct ShoppingListContent: View {
         #endif
     }
 
-    private typealias Row = (name: String, glyph: FoodGlyph, manual: Bool, key: String)
+    private typealias Row = (name: String, glyph: FoodGlyph, manual: Bool, key: String, sources: [String]?)
 
     /// 화면에 세우는 목록 — **직접 담은 것만**(2026-08 owner decision). 이력에서 파생된 "자주 쓰는데
     /// 떨어진 것" 제안 구역을 걷어냈다: 장보기 메모는 내가 적은 것이어야 하고, 앱이 추측해 채워 넣은
@@ -164,7 +172,8 @@ struct ShoppingListContent: View {
         // 갈린다. `toBuy`의 수동 절반이 쓰는 함수와 동일하다(항목당 사전 조회 1회 — 파생 절반의
         // 이력 그룹핑을 안 도는 이득은 그대로).
         store.manualToBuy.map { (name: FridgeStore.displayName(for: $0),
-                                 glyph: $0.glyph, manual: true, key: $0.matchKey) }
+                                 glyph: $0.glyph, manual: true, key: $0.matchKey,
+                                 sources: $0.sourceRecipeIDs) }
     }
 
     var body: some View {
@@ -199,7 +208,10 @@ struct ShoppingListContent: View {
         // 경우(빈 화면에서 방금 담은 직후)에는 걸지 않는다: 그 순간 사용자는 시트를 막 닫았고
         // 담김 연출이 아직 흐르는 중이라, 거기 힌트를 얹으면 방금 한 일의 피드백과 겹쳐 읽힌다.
         // 다음 등장(탭을 오가면 패인은 뷰째 새로 선다)에서 목록이 차 있으면 그때 뜬다.
-        .onAppear { startSwipeHint() }
+        .onAppear {
+            startSwipeHint()
+            refreshUnlocks()
+        }
         .onDisappear { cancelSwipeHint() }
         // 검색 시트가 올라오면 힌트는 자리를 비운다 — 덮인 채 재생되면 플래그만 소진된다.
         .onChange(of: showSearch) { _, up in if up { cancelSwipeHint() } }
@@ -357,7 +369,18 @@ struct ShoppingListContent: View {
             // (SemiBold 16)이고, 냉장고 카드·History 타임라인의 재료명과 같은 층이다. `body`
             // (Regular 16)는 §3.5가 **설정·폼의 라벨**에 준 role이라 여기 오면 같은 재료 이름이
             // 화면마다 다른 굵기로 서고, 오른쪽 'Bought' 알약(SemiBold 13)보다 이름이 가벼워진다.
-            Text(verbatim: item.name).reffiType(.checklistItem).foregroundStyle(ReffiColor.ink)
+            // 이름 ↔ 해금 문구는 §3.5의 **두 줄 텍스트 쌍**(s0 — 행간의 연장)이다. 문구는 캐논
+            // 매칭 행에만, unlock ≥ 1일 때만 붙는다. N=1도 같은 조용한 톤으로 보여준다 — 1도
+            // 정직한 정보다. 제안서의 N=1(약하게)/N≥2(강조) 이원화는 디자인 라운드로 이연됐다
+            // (48차 E1) — 여기서 임의로 굵기를 갈라 세우지 말 것.
+            VStack(alignment: .leading, spacing: ReffiSpace.s0) {
+                Text(verbatim: item.name).reffiType(.checklistItem).foregroundStyle(ReffiColor.ink)
+                if let caption = unlockCaption(for: item.key, sources: item.sources) {
+                    caption
+                        .reffiType(.metaText)
+                        .foregroundStyle(ReffiColor.ink2)
+                }
+            }
             Spacer()
             Button {
                 withAnimation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion)) {
@@ -504,6 +527,40 @@ struct ShoppingListContent: View {
         peekGeneration += 1
         guard peekX != 0 else { return }
         withAnimation(ReffiMotion.gated(ReffiMotion.exit, reduce: reduceMotion)) { peekX = 0 }
+    }
+
+    /// 해금 사전 재계산(48차 E1) — 레시피는 전체(`store.recipes`)를 넘긴다. rank의 알레르기·채식
+    /// 하드 필터는 엔진 private이라 여기서 재현하지 않는다(재현본은 반드시 조용히 갈린다) —
+    /// 알레르기 프로필에서는 수치가 실제 덱보다 부풀 수 있는 **알려진 한계**로, store 표면이
+    /// "눈높이 레시피 목록"을 내주게 되면 그걸 받는 것이 수정 경로다.
+    private func refreshUnlocks() {
+        unlocks = RecipeRecommender.unlockCounts(for: store.recipes, ingredients: store.available)
+    }
+
+    /// 행의 해금 수 — 행 키를 unlock 집계와 **같은 눈**(parent 총칭 접기)으로 접어 조회한다.
+    /// 접지 않으면 "buy 목록의 beef-shank"와 "unlock의 beef"가 서로를 못 알아본다(집계 쪽
+    /// `unlockCounts` 주석과 한 쌍). 자유 표기 줄(캐논 없는 키)은 사전 밖이라 자연히 미스 —
+    /// 문구가 안 붙는 게 정답이다(추측 매칭으로 남의 캐논 수치를 빌려오면 위약이 된다).
+    private func unlockCaption(for key: String, sources: [String]?) -> Text? {
+        // 접기는 **매칭 방향 그대로**(48차 적대 검증): 행 캐논 c를 사면 c를 요구하는 줄과
+        // parent(c)(총칭) 줄이 열린다 — 그 반대(총칭 구매가 구체 줄을 연다)는 세지 않는다.
+        // 엔진 집계(`unlockCounts`)가 raw 캐논 키인 이유가 이것이다: 집계에서 접으면 총칭 행이
+        // 구체 전용 티켓을 "연다"고 거짓말하게 된다(표고만 부족한 잡채가 버섯 행에 뜨는 실측).
+        let own = unlocks[key]
+        let generic = IngredientLexicon.shared.parentID(of: key).flatMap { unlocks[$0] }
+        let n = (own?.count ?? 0) + (generic?.count ?? 0)
+        guard n > 0 else { return nil }
+        // 담은 출처 티켓(`ManualBuyItem.sourceRecipeIDs`)이 **지금도** 이 재료 하나만 부족한
+        // 그 티켓이면 이름으로 부른다 — "잡채 티켓이 열려요"가 "1장 열려요"보다 행동에 가깝다.
+        // 검증은 별도 로직이 아니라 현재 unlock 집계와의 교집합이다: 레시피가 지워졌거나 부족이
+        // 2줄로 늘었으면 집계에 없으므로 자연히 숫자 표기로 물러난다(죽은 참조 위약 방지).
+        if n == 1, let sources,
+           let id = sources.first(where: { (own?.recipeIDs ?? []).contains($0)
+                                            || (generic?.recipeIDs ?? []).contains($0) }),
+           let recipe = store.recipes.first(where: { $0.id == id }) {
+            return Text("Opens \(recipe.displayName)")
+        }
+        return Text("^[Opens \(n) tickets](inflect: true)")
     }
 
     /// 직접 담기 진입 — 하단 도킹 CTA(`dockedCTA`)의 `PaperButton`, **`primary`(파랑)**다(21차).

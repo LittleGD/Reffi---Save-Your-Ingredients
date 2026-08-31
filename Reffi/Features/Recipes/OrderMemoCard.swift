@@ -46,6 +46,11 @@ struct OrderMemoCard: View {
     /// 레시피 항목을 그대로 넘긴다(표시명이 아니라) — `ref`가 있어야 장보기 표기를 정확히 풀 수 있다.
     /// nil이면 알약 자체를 그리지 않는다(스토어에 닿지 못하는 프리뷰·공유 렌더에서 위약 버튼 금지).
     var onPickMissing: (([Recipe.Item]) -> Void)?
+    /// 오늘 요리 핀(48차 E6) — used 줄 중 핀 재료에 압정 마크를 찍는 판정 집합. 정본은
+    /// `FridgeStore.pinnedIDs`지만 이 카드는 store에 닿지 않으므로(프리뷰·공유 렌더 규약) 덱이
+    /// 스냅샷으로 내려준다 — `Result`에는 rank 시점 핀 정보가 실리지 않아 파라미터가 맞다.
+    /// 기본 빈 집합 = 마크 없음(기존 호출부 무수정).
+    var pinnedIDs: Set<UUID> = []
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var fired = false
@@ -181,7 +186,12 @@ struct OrderMemoCard: View {
                                 .accessibilityIdentifier("ticket.menuName")
                             HStack(spacing: ReffiSpace.s0) {
                                 ReffiIcon.time.reffi(13).foregroundStyle(ReffiColor.ink2)
-                                Text("\(r.minutes) min · \(result.used.count) to use")
+                                // 분모 병기(48차 E6) — `Result.total`(비상비 재료 수)은 계산만 되고
+                                // 뷰 소비자가 없던 값이다. used 수만 말하면 "3 to use"가 3/4 티켓과
+                                // 3/9 티켓에서 같은 말이 된다 — 분모가 있어야 "얼마나 갖춰졌나"가
+                                // 판단 근거로 선다. 신규 행이 아니라 기존 메타 줄의 확장이다(46차
+                                // 절제 방향과의 타협점 — xcstrings 키도 함께 교체됐다).
+                                Text("\(r.minutes) min · \(result.used.count)/\(result.total) to use")
                                     .reffiType(.metaText)
                                     .foregroundStyle(ReffiColor.ink2)
                             }
@@ -220,7 +230,26 @@ struct OrderMemoCard: View {
                     }
                 }
 
-                if !result.missing.isEmpty { shortLine }
+                if !result.missing.isEmpty {
+                    // 구제 고지 ↔ Short 패널은 **한 덩어리**(묶음 축 s2) — 고지가 바로 아래
+                    // 부족 목록의 이유를 설명한다. rescued는 엔진 계약상 missing≥3의 구제
+                    // 통과에서만 참이라 고지가 Short 없이 홀로 서는 상태는 없다.
+                    VStack(alignment: .leading, spacing: ReffiSpace.s2) {
+                        if result.rescued {
+                            // 구제 고지(48차 E6) — missing≥3 문턱을 구제 조건으로 넘어온 티켓임을
+                            // 정직하게 말한다(RecipeRadar match_any → "partial results" 배너 패턴의
+                            // 이식). 표시 전용 — 랭킹·문턱은 이 값을 다시 읽지 않는다.
+                            // 카피는 구제 조건 ①(비우는 재료 ≥ 사는 재료)을 그대로 말한다 —
+                            // 첫 카피("맞는 티켓이 적어 범위를 넓혔어요")는 엔진이 평가한 적 없는
+                            // 희소성을 주장해 잘 채워진 냉장고의 1번 티켓에서도 떴다(적대 검증
+                            // 실측: 후보 27장 수용 중 2장이 구제 — 희소가 아니라 풍요였다).
+                            Text("Clears more than it asks you to buy.")
+                                .reffiType(.metaText)
+                                .foregroundStyle(ReffiColor.ink2)
+                        }
+                        shortLine
+                    }
+                }
             }
     }
 
@@ -392,6 +421,15 @@ struct OrderMemoCard: View {
             .map { Ingredient.substitutionLabel(stockName: ing.displayName, lineName: $0.item.displayName) }
             ?? ing.displayName
         return HStack(spacing: ReffiSpace.s2) {
+            // 핀 마크(48차 E6) — "이 티켓이 왜 위에 있나"의 최소 설명. 핀 배지(홈 좌상단 압정,
+            // `IngredientBadge`)와 같은 글리프·크기(12pt)·잉크색이고, 낭독도 같은 규칙(상태 접두 —
+            // 이름보다 먼저 들려야 구분이 선다)이다. 색 없는 잉크인 이유: 이 줄의 색 축은 이미
+            // D-day 칩(신선도)이 쓰고 있어, 핀까지 색을 들면 두 신호가 한 줄에서 다툰다.
+            if pinnedIDs.contains(ing.id) {
+                ReffiIcon.pin.reffi(12, .fill)
+                    .foregroundStyle(done ? ReffiColor.muted : ReffiColor.ink)
+                    .accessibilityLabel(Text("Pinned"))
+            }
             Text(verbatim: name)
                 .reffiType(.checklistItem)
                 .foregroundStyle(done ? ReffiColor.muted : ReffiColor.ink)
