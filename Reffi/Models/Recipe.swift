@@ -9,11 +9,19 @@ struct Recipe: Identifiable, Codable, Equatable {
     /// ref가 있으면 매칭은 ID 동일성으로만(부분문자열 오탐 원천 차단), 없으면 표기 정규화 비교.
     struct Item: Codable, Equatable {
         var ref: String?
+        /// 레시피가 **스스로 허락한** 대체 캐논(45차) — "pork (or beef)"의 beef. any-of로 매칭·부족
+        /// 판정에 참여한다. 시드 40줄이 산문으로만 들고 있던 지식의 구조화 — 사전의 대체 그래프
+        /// (`subs`)와 달리 감점이 없다(레시피 저자가 동급이라고 명시한 것이라).
+        var altRefs: [String]? = nil
+        /// "(선택)/(optional)" 줄(45차) — 없어도 요리가 성립한다. 부족(missing) 카운트에서 빠져
+        /// 문턱(maxMissing)을 앞당기지 않는다. 있으면 used로 정상 참여한다.
+        var optional: Bool? = nil
         var en: String
         var ko: String?
 
         /// 로케일 표시명.
         var displayName: String { Recipe.isKorean ? (ko ?? en) : en }
+        var isOptional: Bool { optional ?? false }
     }
 
     var id: String                 // 시드는 슬러그("beef-bulgogi"), 커스텀은 UUID 문자열

@@ -48,6 +48,9 @@ final class FridgeStore {
         var steps: [String]?              // 단계 레시피(발주 시점 스냅샷) — 없거나 빈 배열이면 링크 자체가 안 선다
         var completedSteps: [Int]?        // 체크한 단계 인덱스(주방 전표 시트에서 토글)
         var usedIDs: [UUID]?              // 예약된 재료 — v1 세션(발주 즉시 소비)엔 없음
+        var subNotes: [String: String]?   // 대체 투입(45차): 재고 uuidString → 대신한 줄 이름.
+                                          // 예약·삭제될 재고가 레시피 원문에 없는 이름일 때 그 사실을
+                                          // 조리 화면·공유 카드가 말할 수 있게 세션에 스냅샷한다.
 
         /// 순수 규칙(2026-08, 39차-b) — `CookingStepsView.resolvedSteps(for:)`가 부르는 판정만 떼어낸다
         /// (`DataOwner.shouldWipe`·`FridgeTab.initial(from:)`과 같은 문법 — 뷰를 띄우지 않고 유닛
@@ -423,11 +426,17 @@ final class FridgeStore {
         let counterBefore = counterIDs
         // 진행 중 세션이 있으면 교체 — 이전 예약은 자동 해제되고, undo가 이전 세션을 복원한다.
         let replaced = activeCook
+        let usedIDSet = Set(used.map(\.id))
+        let subNotes = Dictionary(result.substituted
+                                      .filter { usedIDSet.contains($0.with.id) }
+                                      .map { ($0.with.id.uuidString, $0.item.displayName) },
+                                  uniquingKeysWith: { a, _ in a })
         activeCook = CookSession(recipeName: result.recipe.displayName, recipeID: result.recipe.id,
                                  startedAt: Date(),
                                  count: used.count, minutes: result.recipe.minutes,
                                  steps: result.recipe.displaySteps,
-                                 usedIDs: used.map(\.id))
+                                 usedIDs: used.map(\.id),
+                                 subNotes: subNotes.isEmpty ? nil : subNotes)
         let reserved = reservedIDs
         counterIDs.removeAll { reserved.contains($0) }
         replenishCounter()

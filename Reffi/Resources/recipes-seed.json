@@ -669,7 +669,8 @@
         {
           "ref": "gochugaru",
           "en": "gochugaru (optional)",
-          "ko": "고춧가루 (선택)"
+          "ko": "고춧가루 (선택)",
+          "optional": true
         },
         {
           "ref": null,
@@ -965,7 +966,8 @@
         {
           "ref": "egg",
           "en": "boiled eggs (optional)",
-          "ko": "삶은 계란 (선택)"
+          "ko": "삶은 계란 (선택)",
+          "optional": true
         },
         {
           "ref": "gochujang",
@@ -1992,7 +1994,10 @@
         {
           "ref": "pork",
           "en": "pork (or beef)",
-          "ko": "돼지고기 (또는 소고기)"
+          "ko": "돼지고기 (또는 소고기)",
+          "altRefs": [
+            "beef"
+          ]
         },
         {
           "ref": "rice",
@@ -2523,7 +2528,8 @@
         {
           "ref": "ketchup",
           "en": "ketchup (optional, for depth)",
-          "ko": "케첩 (선택, 감칠맛용)"
+          "ko": "케첩 (선택, 감칠맛용)",
+          "optional": true
         },
         {
           "ref": "cooking-oil",
@@ -2680,7 +2686,10 @@
         {
           "ref": "green-onion",
           "en": "green onion (or garlic chives)",
-          "ko": "쪽파 (또는 부추)"
+          "ko": "쪽파 (또는 부추)",
+          "altRefs": [
+            "chive"
+          ]
         },
         {
           "ref": "fish-sauce",
@@ -2783,7 +2792,8 @@
         {
           "ref": "basil",
           "en": "Thai basil (optional)",
-          "ko": "타이 바질 (선택)"
+          "ko": "타이 바질 (선택)",
+          "optional": true
         },
         {
           "ref": "rice",
@@ -3327,7 +3337,8 @@
         {
           "ref": "basil",
           "en": "fresh basil (optional)",
-          "ko": "바질 잎 (선택)"
+          "ko": "바질 잎 (선택)",
+          "optional": true
         }
       ],
       "steps": {
@@ -3401,7 +3412,8 @@
         {
           "ref": "white-bean",
           "en": "canned white beans (optional)",
-          "ko": "흰콩 통조림 (선택)"
+          "ko": "흰콩 통조림 (선택)",
+          "optional": true
         },
         {
           "ref": "salt",
@@ -3912,7 +3924,8 @@
         {
           "ref": "cinnamon",
           "en": "cinnamon (optional)",
-          "ko": "시나몬 가루 (선택)"
+          "ko": "시나몬 가루 (선택)",
+          "optional": true
         }
       ],
       "steps": {
@@ -4587,7 +4600,8 @@
         {
           "ref": "cilantro",
           "en": "cilantro (optional)",
-          "ko": "고수 (선택)"
+          "ko": "고수 (선택)",
+          "optional": true
         }
       ],
       "steps": {
@@ -5080,7 +5094,8 @@
         {
           "ref": "olive",
           "en": "olives (optional)",
-          "ko": "올리브 (선택)"
+          "ko": "올리브 (선택)",
+          "optional": true
         },
         {
           "ref": "olive-oil",
@@ -5335,7 +5350,10 @@
         {
           "ref": "cream",
           "en": "cream (or coconut milk)",
-          "ko": "생크림 (또는 코코넛밀크)"
+          "ko": "생크림 (또는 코코넛밀크)",
+          "altRefs": [
+            "coconut-milk"
+          ]
         },
         {
           "ref": "salt",
@@ -5477,7 +5495,10 @@
         {
           "ref": "paprika-powder",
           "en": "paprika powder (or mild chili powder)",
-          "ko": "파프리카 가루 (또는 순한 칠리 파우더)"
+          "ko": "파프리카 가루 (또는 순한 칠리 파우더)",
+          "altRefs": [
+            "chili-powder"
+          ]
         },
         {
           "ref": "salt",
@@ -5553,7 +5574,10 @@
         {
           "ref": "gochugaru",
           "en": "gochugaru (or mild chili powder)",
-          "ko": "고춧가루 (또는 순한 칠리 파우더)"
+          "ko": "고춧가루 (또는 순한 칠리 파우더)",
+          "altRefs": [
+            "chili-powder"
+          ]
         },
         {
           "ref": "lemon",

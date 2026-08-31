@@ -43,6 +43,14 @@ struct CookingStepsView: View {
         return ids.compactMap { byID[$0] }
     }
 
+    /// 예약 재료의 표시 이름 — 대체 투입(세션 `subNotes`)이면 "생크림 (우유 대신)"처럼 대신한 줄을
+    /// 함께 말한다. 완료 시트·공유 카드가 같은 해석을 쓴다(오더 티켓 `ticketLine`과 한 문구).
+    private func reservedName(_ ing: Ingredient) -> String {
+        store.activeCook?.subNotes?[ing.id.uuidString]
+            .map { Ingredient.substitutionLabel(stockName: ing.displayName, lineName: $0) }
+            ?? ing.displayName
+    }
+
     /// 공유 카드 재렌더 키 — **카드에 인쇄되는 값 전부**를 담는다. 재료 이름은 세션 스냅샷이 아니라
     /// 라이브 재고에서 파생되므로(`reservedIngredients`), 조리 중에 예약 재료를 버리거나 지우면
     /// 화면은 갱신되는데 이미지만 옛 이름을 그대로 들고 있게 된다. 키를 이름 목록까지 넓혀 막는다.
@@ -61,7 +69,7 @@ struct CookingStepsView: View {
 
     private func shareCardKey(for cook: FridgeStore.CookSession) -> ShareCardKey {
         ShareCardKey(recipeName: cook.recipeName,
-                     ingredientNames: reservedIngredients.map(\.displayName),
+                     ingredientNames: reservedIngredients.map(reservedName),
                      minutes: cook.minutes,
                      count: cook.count,
                      icon: heroIcon(for: cook))
@@ -267,7 +275,7 @@ struct CookingStepsView: View {
             HStack(spacing: ReffiSpace.s3) {
                 PaperSilhouette(glyph: ing.glyph, fresh: ing.freshness)
                     .frame(width: ReffiFoodIcon.rowMini, height: ReffiFoodIcon.rowMini)
-                Text(verbatim: ing.displayName)
+                Text(verbatim: reservedName(ing))
                     .reffiType(.body).foregroundStyle(ReffiColor.ink).lineLimit(1)
                 Spacer(minLength: ReffiSpace.s2)
                 Text(left ? "Some left" : "Used it all")
@@ -455,7 +463,7 @@ struct CookingStepsView: View {
         // 공유 이미지는 물리 산출물(인쇄된 영수증)이라 기기 다크모드와 무관하게 항상 라이트 종이로 렌더한다.
         // ImageRenderer는 환경을 명시하지 않으면 항상 라이트로 해석하지만, 명시적으로 고정해 의도를 문서화한다.
         let card = RecipeShareCard(recipeName: cook.recipeName,
-                                   ingredientNames: reservedIngredients.map(\.displayName),
+                                   ingredientNames: reservedIngredients.map(reservedName),
                                    minutes: cook.minutes,
                                    count: cook.count,
                                    icon: icon)

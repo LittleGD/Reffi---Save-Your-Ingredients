@@ -11,8 +11,12 @@ enum RecipeRecommender {
     struct Result: Identifiable {
         let id: String               // = recipe.id (안정적 정체성)
         var recipe: Recipe
-        var used: [Ingredient]       // 보유 재료 중 이 레시피가 쓰는 것(임박 순)
+        var used: [Ingredient]       // 보유 재료 중 이 레시피가 쓰는 것(임박 순, 대체 투입분 포함)
         var total: Int               // 비-상비 재료 수(매치 분모)
+        /// 대체로 채워진 줄(45차) — (부족했던 줄, 투입되는 재고). 그 재고는 `used`에도 들어가
+        /// 발주 시 정상 예약·소비된다(대체로 요리하면 그 재료가 실제로 없어진다). 랭킹에서는
+        /// 줄당 `substitutionPenalty` 감점 — 정품 매칭 티켓이 항상 앞선다.
+        var substituted: [(item: Recipe.Item, with: Ingredient)] = []
         /// 비-상비 중 미보유 — **표시명이 아니라 레시피 항목 그대로** 들고 있는다.
         /// "Short:" 한 줄은 `displayName`만 있으면 되지만, 그 재료를 장보기 메모로 옮기려면
         /// `ref`(캐논 ID)가 필요하다. 표시명만 남기면 되돌릴 방법이 없다(`toBuyEntry(for:)` 참고).
@@ -118,15 +122,24 @@ enum RecipeRecommender {
     /// **총칭 매칭은 단방향이다(44차)**: 구체 재고(팽이버섯)가 총칭을 요구하는 레시피(버섯)를
     /// 채울 수 있고, 그 반대는 안 된다 — 표고 전용 레시피에 총칭 버섯이 매칭되면 발주가 엉뚱한
     /// 재고를 소비한다. 어느 쌍이 총칭 관계인지는 사전의 `parent` 필드가 정본이다(지식은 JSON에).
+    /// 레시피 줄이 받는 캐논 전부 — 1차 ref + 레시피가 명시한 대체(altRefs, 45차).
+    static func itemKeys(of item: Recipe.Item) -> [String] {
+        var keys: [String] = []
+        if let primary = canonicalID(of: item) { keys.append(primary) }
+        for alt in item.altRefs ?? [] where !keys.contains(alt) { keys.append(alt) }
+        return keys
+    }
+
     static func matches(_ ing: Ingredient, _ item: Recipe.Item) -> Bool {
         let ingName = norm(ing.name)
         guard !ingName.isEmpty else { return false }
         // 저장된 캐논 ID를 fast path로(해석 완료 재료) — nil이면 사전 조회(캐시)로 폴백.
         let ingID = ing.canonicalID ?? IngredientLexicon.shared.canonicalID(for: ing.name)
-        let itemID = canonicalID(of: item)
-        if let a = ingID, let b = itemID {
-            if a == b { return true }
-            return IngredientLexicon.shared.parentID(of: a) == b
+        let keys = itemKeys(of: item)
+        if let a = ingID, !keys.isEmpty {
+            if keys.contains(a) { return true }
+            if let parent = IngredientLexicon.shared.parentID(of: a) { return keys.contains(parent) }
+            return false
         }
         // 둘 중 하나라도 사전 밖(사용자 커스텀 표기) — 정확 일치만 허용, 부분문자열 금지.
         if ingName == norm(item.en) { return true }
@@ -142,20 +155,68 @@ enum RecipeRecommender {
         }
     }
 
+    /// 랭킹에서 대체 줄 하나당 감점(45차) — 정품 매칭 티켓이 대체 티켓보다 항상 앞서게 하는 축.
+    /// 크기는 freshness 한 단(1)과 같게 — 대체는 "가능"이지 "동급"이 아니다.
+    static let substitutionPenalty = 1
+
+    /// 대체 후보(45차) — 부족한 비상비 줄 하나를 대신할 재고 한 줄. 가드 셋:
+    /// ① **제목 가드**: 레시피 이름이 그 재료를 부르면 잠근다 — 된장찌개의 된장 줄을 미소로 채우면
+    ///    사용자가 즉시 알아채는 종류의 거짓이 된다. ② **줄 텍스트 차단**: 간선의 `block` 토큰이
+    ///    줄에 있으면 건너뛴다(레몬 "웨지" 줄은 식초가 못 채운다 — 대체 안전성은 캐논이 아니라 줄
+    ///    텍스트가 결정한다는 시드 실측). ③ **1홉**: 간선의 fills와 줄 키를 직접 비교만 —
+    ///    parent 승격·대체 체이닝과 조합하지 않는다(허용하면 임의 재료가 임의 줄을 채우며 붕괴).
+    /// stock은 임박순이라 첫 적격이 곧 최적(가장 임박한 대체재부터 소진).
+    /// ④ **1재고 1줄**(45차 적대 검증): 이 레시피의 다른 줄이 이미 예약한 재고(`excluding`)는
+    ///    대체 후보에서 뺀다 — 발주·완료가 재고 id 단위로 예약·삭제하므로, 한 알이 두 줄을 겸하면
+    ///    missing이 거짓으로 줄어 "지금 만들 수 있다"가 된다(양파 1개가 onion 줄 정품 + green
+    ///    onion 줄 대체를 겸하던 실측 15레시피).
+    static func substitute(for item: Recipe.Item, in recipe: Recipe,
+                           from stock: [Ingredient], excluding: Set<UUID> = []) -> Ingredient? {
+        let lex = IngredientLexicon.shared
+        let keys = Set(itemKeys(of: item))
+        guard !keys.isEmpty else { return nil }
+        let title = norm(recipe.name.en) + " " + norm(recipe.name.ko ?? "")
+        for key in keys where lex.normalizedNames(of: key).contains(where: { title.contains($0) }) {
+            return nil
+        }
+        let lineText = norm(item.en) + " " + norm(item.ko ?? "")
+        for ing in stock where !excluding.contains(ing.id) {
+            guard let canon = ing.canonicalID ?? lex.canonicalID(for: ing.name) else { continue }
+            for sub in lex.substitutions(of: canon) where keys.contains(sub.fills) {
+                if let blocks = sub.block,
+                   blocks.contains(where: { lineText.contains(norm($0)) }) { continue }
+                return ing
+            }
+        }
+        return nil
+    }
+
     /// `ingredients` = 티켓이 소비할 후보, `inventory` = 부족(missing) 판정 기준(전체 재고).
     /// inventory를 따로 주지 않으면 ingredients가 기준.
+    /// 45차: 선택 줄(`optional`)은 부족을 만들지 않고, 부족 줄은 대체 그래프를 한 번 조회해
+    /// 채워지면 `substituted`로 옮긴다 — 그 재고는 used에도 들어가 발주 시 실제로 소비된다.
     static func result(for recipe: Recipe, ingredients: [Ingredient],
                        inventory: [Ingredient]? = nil) -> Result {
         let nonStaple = recipe.ingredients.filter { !isStaple($0) }
-        let used = ingredients
-            .filter { ing in nonStaple.contains { matches(ing, $0) } }
-            .sorted { $0.effectiveDaysLeft < $1.effectiveDaysLeft }
+        var used = ingredients.filter { ing in nonStaple.contains { matches(ing, $0) } }
         let stock = inventory ?? ingredients
-        let missing = nonStaple
-            .filter { item in !stock.contains { matches($0, item) } }
+        var missing: [Recipe.Item] = []
+        var substituted: [(item: Recipe.Item, with: Ingredient)] = []
+        var consumed = Set(used.map(\.id))   // 1재고 1줄 — 정품 매칭분 + 앞선 줄의 대체분
+        for item in nonStaple where !stock.contains(where: { matches($0, item) }) {
+            if item.isOptional { continue }
+            if let sub = substitute(for: item, in: recipe, from: ingredients, excluding: consumed) {
+                substituted.append((item, sub))
+                consumed.insert(sub.id)
+                if !used.contains(where: { $0.id == sub.id }) { used.append(sub) }
+            } else {
+                missing.append(item)
+            }
+        }
+        used.sort { $0.effectiveDaysLeft < $1.effectiveDaysLeft }
         let urgent = used.filter { $0.freshness == .urgent }.count
-        return Result(id: recipe.id, recipe: recipe, used: used,
-                      total: nonStaple.count, missing: missing, urgentUsedCount: urgent)
+        return Result(id: recipe.id, recipe: recipe, used: used, total: nonStaple.count,
+                      substituted: substituted, missing: missing, urgentUsedCount: urgent)
     }
 
     /// 추천 제외 기준 — 부족 재료가 이 수 **이상**이면 덱에 올리지 않는다(2개는 통과, 3개는 탈락).
@@ -197,28 +258,112 @@ enum RecipeRecommender {
     /// 자리를 내주라"는 것이지 "보여 줄 게 없어도 비우라"는 것이 아니다.
     static let deckSize = 3
 
-    private static func prune(_ ranked: [Result]) -> [Result] {
-        // 재고 전체에 임박한 게 하나도 없는가 — 후보들이 쓰는 재료에서 본다(재고 원본은 여기 없다).
-        let nothingAtRisk = !ranked.contains { $0.used.contains { $0.freshness != .fresh } }
-        var coveredAtRisk = Set<UUID>()
+    /// 45차: 정렬 순서 소비형 스캔 → **한계이득(marginal gain) 그리디**.
+    ///
+    /// 이전 방식은 점수 내림차순을 위에서부터 받아들여, 최고점 티켓 셋이 **같은 소고기 한 덩이**를
+    /// 물고 나란히 서는 것을 막지 못했다(샘플 냉장고 실측: 비빔밥·버거 패티·타코가 전부 같은 D-0
+    /// 소고기를 소비 — 한 장을 발주하면 나머지 두 장의 전제가 무너지는데 화면은 '세 가지 선택지'로
+    /// 읽힌다). 이제 한 장을 고를 때마다 **이미 덮인 재고 줄의 가중치를 0으로** 보고 남은 후보의
+    /// 한계이득을 다시 계산한다 — 같은 재고를 다시 무는 티켓은 이득이 0에 수렴해 자연히 밀리고,
+    /// 방치되던 임박 재료(연어 D-1·버섯 D-2)를 잡는 티켓이 올라온다(실측: 임박 커버 4→5종, 최적 일치).
+    ///
+    /// 제외 문턱(missing ≥ 3)과 그 예외(①채우는 것 ≥ 사는 것 ②새 임박을 구한다)·바닥 채움 규칙은
+    /// 종전 계약 그대로다 — ②의 "새 임박"이 그리디의 한계이득 축과 **같은 집합**을 보게 통일됐을
+    /// 뿐이다. 타이브레이크는 전순서로 못 박는다(한계이득 → 미커버 urgent 수 → missing 오름차순 →
+    /// 원점수 → id) — 잡채와 타코가 세 키 동률로 stdlib 정렬 안정성에 운명을 맡기던 구멍의 마감.
+    /// 45차 적대 검증 두 건의 마감이 형태를 정한다:
+    /// ① **그리디는 덱 장수까지만** — 화면이 쓰는 건 상위 `deckSize`장뿐인데 후보 전수를 그리디로
+    ///   소비하면 비교자 안 marginal 재계산과 겹쳐 O(n²)가 된다(실측: 후보 106장에서 rank의 80%,
+    ///   시드 2배마다 prune 4배 — "레시피 수에 둔감"이라는 역색인의 목표가 rank 수준에서 뒤집혔다).
+    ///   덱을 채운 뒤 남는 후보는 정렬 순서 그대로 문턱만 보며 통과시킨다 — 덱 밖 순서는 화면
+    ///   계약이 없고, 바닥 채움은 어차피 원점수 순이다.
+    /// ② **취향 보정도 한계화** — 원점수에서 덮인 가중치만 걷어내면 cuisine·favorites 몫(최대 +5)이
+    ///   상수로 남아, 새 재고 기여가 0인 중복 티켓이 임박 재료를 유일하게 구하는 티켓을 앞선다
+    ///   (취향 주입 시 실측 — 바로 이 그리디가 고치려던 증상의 재발). 이득은 빼기가 아니라
+    ///   **미커버 기준 직접 재계산**: 미커버 freshness 합 − 대체 감점 + 미커버 used로 다시 센
+    ///   favorites 가점 + (미커버 기여가 있을 때만) cuisine 가점. disliked 감점은 레시피 자체의
+    ///   속성이라 상수로 유지한다. `preferences == .none`이면 종전 산식과 동치.
+    static func prune(_ ranked: [(result: Result, score: Int)],
+                      preferences: RecipePreferences = .none) -> [Result] {
+        let nothingAtRisk = !ranked.contains { $0.result.used.contains { $0.freshness != .fresh } }
+        // 후보별 소비 줄을 1회 선계산 — marginal이 비교마다 사전·달력을 다시 두드리지 않게 한다.
+        struct Cand {
+            let result: Result
+            let score: Int
+            let rows: [(id: UUID, weight: Int, urgent: Bool, atRisk: Bool, favorite: Bool)]
+            let cuisineMatch: Bool
+            let dislikedScore: Int
+        }
+        let cands: [Cand] = ranked.map { e in
+            Cand(result: e.result, score: e.score,
+                 rows: e.result.used.map { ing in
+                     (ing.id, weight(ing), ing.freshness == .urgent, ing.freshness != .fresh,
+                      preferences.favoriteIDs.contains(ing.matchKey))
+                 },
+                 cuisineMatch: e.result.recipe.cuisine.map { preferences.cuisines.contains($0) } ?? false,
+                 dislikedScore: dislikedScore(e.result, preferences: preferences))
+        }
+        var covered = Set<UUID>()          // 이미 덱이 소비하기로 한 재고 줄(재료 정체성 id)
         var out: [Result] = []
-        var dropped: [Result] = []
-        for r in ranked {
-            let atRisk = r.used.filter { $0.freshness != .fresh }
-            // 동일성 축은 **표시명이 아니라 `matchKey`**(캐논) — 같은 양파를 "양파"·"적양파" 두 줄로
-            // 등록해 둔 사용자에게 이 문턱이 공짜로 낮아지면 안 된다(같은 파일 `preferenceScore`와 같은 축).
-            let clearedCount = Set(r.used.map(\.matchKey)).count
-            let pullsItsWeight = clearedCount >= r.missing.count
-            let rescuesSomethingNew = nothingAtRisk || atRisk.contains { !coveredAtRisk.contains($0.id) }
-            let earnsItsPlace = pullsItsWeight && rescuesSomethingNew
-            guard r.missing.count < maxMissingForRecommendation || earnsItsPlace else {
-                dropped.append(r); continue
+        var remaining = Array(cands.indices)
+        var dropped: [(result: Result, score: Int)] = []
+
+        func marginal(_ c: Cand) -> (gain: Int, urgentNew: Int) {
+            var fresh = 0, favs = 0, urgentNew = 0, anyNew = false
+            for row in c.rows where !covered.contains(row.id) {
+                fresh += row.weight
+                anyNew = true
+                if row.urgent { urgentNew += 1 }
+                if row.favorite { favs += 1 }
             }
-            out.append(r)
-            coveredAtRisk.formUnion(atRisk.map(\.id))
+            var gain = fresh - substitutionPenalty * c.result.substituted.count + c.dislikedScore
+            if favs > 0 { gain += min(favs * favoriteBonusPerItem, favoriteBonusCap) }
+            if anyNew, c.cuisineMatch { gain += cuisineBonus }
+            return (gain, urgentNew)
+        }
+        func accepts(_ c: Cand) -> Bool {
+            let clearedCount = Set(c.result.used.map(\.matchKey)).count
+            let pullsItsWeight = clearedCount >= c.result.missing.count
+            let rescuesSomethingNew = nothingAtRisk
+                || c.rows.contains { $0.atRisk && !covered.contains($0.id) }
+            return c.result.missing.count < maxMissingForRecommendation
+                || (pullsItsWeight && rescuesSomethingNew)
+        }
+
+        while out.count < deckSize && !remaining.isEmpty {
+            var bestPos = 0
+            var bestKey: (gain: Int, urgentNew: Int) = marginal(cands[remaining[0]])
+            for pos in remaining.indices.dropFirst() {
+                let a = cands[remaining[pos]], b = cands[remaining[bestPos]]
+                let ka = marginal(a)
+                let better: Bool
+                if ka.gain != bestKey.gain { better = ka.gain > bestKey.gain }
+                else if ka.urgentNew != bestKey.urgentNew { better = ka.urgentNew > bestKey.urgentNew }
+                else if a.result.missing.count != b.result.missing.count {
+                    better = a.result.missing.count < b.result.missing.count
+                } else if a.score != b.score { better = a.score > b.score }
+                else { better = a.result.id < b.result.id }
+                if better { bestPos = pos; bestKey = ka }
+            }
+            let c = cands[remaining.remove(at: bestPos)]
+            guard accepts(c) else { dropped.append((c.result, c.score)); continue }
+            out.append(c.result)
+            covered.formUnion(c.rows.map(\.id))
+        }
+        // 덱 밖 — 정렬 순서 그대로 문턱만 본다(그리디 없음, O(n)).
+        for idx in remaining {
+            let c = cands[idx]
+            guard accepts(c) else { dropped.append((c.result, c.score)); continue }
+            out.append(c.result)
+            covered.formUnion(c.rows.map(\.id))
         }
         guard out.count < deckSize else { return out }
-        return out + dropped.prefix(deckSize - out.count)
+        // 바닥 채움은 원점수 순 — 탈락분 사이의 한계 경쟁은 의미가 없다(어차피 문턱 미달).
+        let fill = dropped.sorted { a, b in
+            if a.score != b.score { return a.score > b.score }
+            return a.result.id < b.result.id
+        }
+        return out + fill.prefix(deckSize - out.count).map(\.result)
     }
 
     /// 점수순 정렬된 추천 덱(보유 재료를 하나라도 쓰는 레시피만).
@@ -227,15 +372,15 @@ enum RecipeRecommender {
     static func rank(for ingredients: [Ingredient], inventory: [Ingredient]? = nil,
                      from recipes: [Recipe],
                      preferences: RecipePreferences = .none) -> [Result] {
-        // 점수는 정렬 **전에** 한 번만 계산한다(decorate-sort-undecorate) — 비교자 안에서 부르면
-        // score→weight→freshness가 비교 횟수만큼(M log M) 재계산된다(실측: 재고 100종에서 rank의
-        // 지배 비용이 이 경로였다 — 194ms 중 4.6배가 이 한 줄로 줄었다).
-        let ranked = recipes
-            .filter { recipe in
-                !containsAllergen(recipe, preferences.allergenIDs)   // 알레르기 하드 필터(안전 P0)
-                    && !(preferences.vegetarian && containsAnimalProtein(recipe))   // 채식 하드 필터
-            }
-            .map { result(for: $0, ingredients: ingredients, inventory: inventory) }
+        // 45차: 후보 계산이 레시피×재고 이중 스캔에서 **캐논 역색인**으로 바뀌었다(bulkResults).
+        // 의미는 result(for:)와 동일해야 하며(파리티 테스트가 시드 전수로 고정), 점수는 정렬 전에
+        // 한 번만 계산한다(decorate-sort). 초기 정렬에도 id 최종 타이브레이크를 둬 전순서를 만든다 —
+        // 잡채·타코가 세 키 동률로 stdlib 정렬 안정성에 걸려 있던 비결정성의 마감.
+        let eligible = recipes.filter { recipe in
+            !containsAllergen(recipe, preferences.allergenIDs)   // 알레르기 하드 필터(안전 P0)
+                && !(preferences.vegetarian && containsAnimalProtein(recipe))   // 채식 하드 필터
+        }
+        let ranked = bulkResults(for: eligible, ingredients: ingredients, inventory: inventory)
             .filter { !$0.used.isEmpty }
             .map { (result: $0, score: score($0, preferences: preferences)) }
             .sorted { a, b in
@@ -243,12 +388,104 @@ enum RecipeRecommender {
                 if a.result.urgentUsedCount != b.result.urgentUsedCount {
                     return a.result.urgentUsedCount > b.result.urgentUsedCount
                 }
-                return a.result.missing.count < b.result.missing.count
+                if a.result.missing.count != b.result.missing.count {
+                    return a.result.missing.count < b.result.missing.count
+                }
+                return a.result.id < b.result.id
             }
-            .map(\.result)
-        // 부족 재료가 너무 많은 레시피를 덱에서 뺀다 — **정렬 뒤에** 임박 커버리지를 보며 거른다.
-        // `result(for:)`의 missing 계산 자체는 건드리지 않는다 — 남는 티켓의 Short 줄이 그 값을 쓴다.
-        return prune(ranked)
+        // 부족 재료가 너무 많은 레시피를 덱에서 뺀다 — **정렬 뒤에** 한계이득 커버리지를 보며 거른다.
+        // missing 계산 자체는 건드리지 않는다 — 남는 티켓의 Short 줄이 그 값을 쓴다.
+        return prune(ranked, preferences: preferences)
+    }
+
+    /// 역색인 벌크 계산(45차) — `result(for:)`와 **의미 동일**, 비용만 다르다.
+    ///
+    /// 종전에는 레시피마다 재고×비상비줄 이중 스캔에 matches()가 캐논·정규화를 매번 재계산해
+    /// 재고 100종에서 rank 1회 33ms(맥 -O 실측, 아이폰 100ms+)였다. 이제 ① 레시피 줄과 재고의
+    /// 캐논·정규화를 각 1회만 해석하고 ② 캐논→줄 포스팅으로 재고를 한 번만 훑는다.
+    /// rank 전체(정렬·prune 포함)는 같은 조건에서 6ms — 첫 45차 구현은 전수 그리디 prune이
+    /// O(후보²)로 자라 여기서 아낀 것을 도로 삼켰다(73ms — 적대 검증 실측). prune을 덱 장수로
+    /// 한정한 뒤에야 "레시피 수에 둔감"이 rank 수준에서 성립해 시드 확충(커버리지 처방)의 전제가 된다.
+    ///
+    /// matches()의 텍스트 폴백 규약을 그대로 옮겼다: 캐논이 **양쪽 다** 있으면 ID(+parent)로만,
+    /// 어느 한쪽이라도 없으면 정규화 정확 일치로만 — 캐논 있는 재고는 캐논 없는 줄과, 캐논 없는
+    /// 재고는 모든 줄과 텍스트 비교한다. 파리티 테스트(시드×무작위 냉장고)가 이 등가를 고정한다.
+    private static func bulkResults(for recipes: [Recipe], ingredients: [Ingredient],
+                                    inventory: [Ingredient]?) -> [Result] {
+        let lex = IngredientLexicon.shared
+        // 레시피 줄 해석 1회 — (비상비 줄, 캐논들(1차+altRefs), 정규화 en/ko).
+        struct Line { let item: Recipe.Item; let keys: [String]; let en: String; let ko: String? }
+        var lines: [[Line]] = []
+        var byKey: [String: [(r: Int, l: Int)]] = [:]          // 캐논 → 줄
+        var byTextAll: [String: [(r: Int, l: Int)]] = [:]      // 정규화 표기 → 모든 줄
+        var byTextNilKey: [String: [(r: Int, l: Int)]] = [:]   // 정규화 표기 → 캐논 없는 줄만
+        lines.reserveCapacity(recipes.count)
+        for (r, recipe) in recipes.enumerated() {
+            var out: [Line] = []
+            for item in recipe.ingredients where !isStaple(item) {
+                let l = out.count
+                let keys = itemKeys(of: item)
+                let en = norm(item.en)
+                let ko = item.ko.map(norm)
+                out.append(Line(item: item, keys: keys, en: en, ko: ko))
+                for key in keys { byKey[key, default: []].append((r, l)) }
+                byTextAll[en, default: []].append((r, l))
+                if let ko { byTextAll[ko, default: []].append((r, l)) }
+                if keys.isEmpty {
+                    byTextNilKey[en, default: []].append((r, l))
+                    if let ko { byTextNilKey[ko, default: []].append((r, l)) }
+                }
+            }
+            lines.append(out)
+        }
+        // 재고 한 줄이 닿는 (레시피, 줄) 집합 — matches() 규약 그대로.
+        func hits(of ing: Ingredient) -> [(r: Int, l: Int)] {
+            let name = norm(ing.name)
+            guard !name.isEmpty else { return [] }
+            var found: [(r: Int, l: Int)] = []
+            if let canon = ing.canonicalID ?? lex.canonicalID(for: ing.name) {
+                found += byKey[canon] ?? []
+                if let parent = lex.parentID(of: canon) { found += byKey[parent] ?? [] }
+                found += byTextNilKey[name] ?? []           // 캐논 있는 재고 ↔ 캐논 없는 줄(텍스트)
+            } else {
+                found += byTextAll[name] ?? []              // 캐논 없는 재고 ↔ 모든 줄(텍스트)
+            }
+            return found
+        }
+        // used: 소비 후보(ingredients, 이미 임박순) / missing 판정: inventory ?? ingredients.
+        var used: [[Ingredient]] = Array(repeating: [], count: recipes.count)
+        var usedSeen: [Set<UUID>] = Array(repeating: [], count: recipes.count)
+        for ing in ingredients {
+            for (r, _) in hits(of: ing) where !usedSeen[r].contains(ing.id) {
+                usedSeen[r].insert(ing.id)
+                used[r].append(ing)
+            }
+        }
+        var lineHit: [[Bool]] = lines.map { Array(repeating: false, count: $0.count) }
+        for ing in (inventory ?? ingredients) {
+            for (r, l) in hits(of: ing) { lineHit[r][l] = true }
+        }
+        return recipes.indices.map { r in
+            var missing: [Recipe.Item] = []
+            var substituted: [(item: Recipe.Item, with: Ingredient)] = []
+            for l in lines[r].indices where !lineHit[r][l] {
+                let item = lines[r][l].item
+                if item.isOptional { continue }   // 선택 줄은 부족을 만들지 않는다(45차)
+                // usedSeen[r]이 곧 "이 레시피가 이미 예약한 재고" — 1재고 1줄(result(for:)와 동일 계약).
+                if let sub = substitute(for: item, in: recipes[r], from: ingredients,
+                                        excluding: usedSeen[r]) {
+                    substituted.append((item, sub))
+                    if usedSeen[r].insert(sub.id).inserted { used[r].append(sub) }
+                } else {
+                    missing.append(item)
+                }
+            }
+            let rowUsed = used[r].sorted { $0.effectiveDaysLeft < $1.effectiveDaysLeft }
+            let urgent = rowUsed.filter { $0.freshness == .urgent }.count
+            return Result(id: recipes[r].id, recipe: recipes[r], used: rowUsed,
+                          total: lines[r].count, substituted: substituted,
+                          missing: missing, urgentUsedCount: urgent)
+        }
     }
 
     // MARK: - 커버리지 점검(덱이 임박 재료를 실제로 다루는가)
@@ -290,9 +527,13 @@ enum RecipeRecommender {
     static let dislikedPenaltyPerItem = -2
     static let dislikedPenaltyFloor = -6
 
-    /// 정렬 점수 — freshness 합(1차 기준) + 취향 보정. `.none`이면 보정 0이라 순수 freshness.
+    /// 정렬 점수 — freshness 합(1차 기준) + 취향 보정 − 대체 감점(45차).
+    /// `.none`이면 취향 보정 0이라 순수 freshness. 대체 감점은 취향과 무관하게 항상 적용된다 —
+    /// 대체 티켓이 정품 매칭 티켓을 이기면 "가능"이 "동급"으로 승격되는 셈이다.
     private static func score(_ result: Result, preferences: RecipePreferences) -> Int {
-        result.used.reduce(0) { $0 + weight($1) } + preferenceScore(for: result, preferences: preferences)
+        result.used.reduce(0) { $0 + weight($1) }
+            - substitutionPenalty * result.substituted.count
+            + preferenceScore(for: result, preferences: preferences)
     }
 
     /// 취향 보정 점수 — cuisine 가점 + favorites 가점(used 기준) + disliked 감점(레시피 전체 재료 기준).
@@ -309,11 +550,16 @@ enum RecipeRecommender {
             score += min(favs * favoriteBonusPerItem, favoriteBonusCap)
         }
         // ③ disliked — 레시피 재료(전체) 중 싫어하는 항목 수만큼 감점. 하한 적용.
-        if !p.dislikedIDs.isEmpty {
-            let dis = result.recipe.ingredients.reduce(0) { $0 + (item($1, matchesAny: p.dislikedIDs) ? 1 : 0) }
-            score += max(dis * dislikedPenaltyPerItem, dislikedPenaltyFloor)
-        }
+        score += dislikedScore(result, preferences: p)
         return score
+    }
+
+    /// disliked 감점만 따로 — 레시피 자체의 속성(재고 무관)이라 `prune`의 한계이득에도
+    /// 상수로 그대로 들어간다(cuisine·favorites는 미커버 기준으로 재계산되는 것과 대조).
+    private static func dislikedScore(_ result: Result, preferences p: RecipePreferences) -> Int {
+        guard !p.dislikedIDs.isEmpty else { return 0 }
+        let dis = result.recipe.ingredients.reduce(0) { $0 + (item($1, matchesAny: p.dislikedIDs) ? 1 : 0) }
+        return max(dis * dislikedPenaltyPerItem, dislikedPenaltyFloor)
     }
 
     /// 알레르기 하드 필터 — 레시피 재료 중 하나라도 알레르겐이면 레시피 전체를 제외한다.
@@ -347,10 +593,12 @@ enum RecipeRecommender {
         }
     }
 
-    /// 레시피 항목이 정규화 키 집합에 속하는지 — canonicalID 우선, no-ref 항목은 exact 텍스트(소문자).
-    /// (`RecipePreferences`의 no-ref 태그 소문자 원문 보관 규칙과 대칭 — 표기 무관 비교가 산다.)
+    /// 레시피 항목이 정규화 키 집합에 속하는지 — canonicalID(+altRefs, 45차) 우선, no-ref 항목은
+    /// exact 텍스트(소문자). 대체 캐논도 검사한다 — "pork (or beef)" 줄은 소고기 알레르기에도
+    /// 걸려야 한다(보수: any-of 중 하나라도 알레르겐이면 레시피 전체 제외, 안전 P0).
     private static func item(_ item: Recipe.Item, matchesAny ids: Set<String>) -> Bool {
-        if let id = canonicalID(of: item) { return ids.contains(id) }
+        let keys = itemKeys(of: item)
+        if !keys.isEmpty { return keys.contains { ids.contains($0) } }
         if ids.contains(norm(item.en)) { return true }
         if let ko = item.ko, ids.contains(norm(ko)) { return true }
         return false

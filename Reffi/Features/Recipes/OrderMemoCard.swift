@@ -344,8 +344,13 @@ struct OrderMemoCard: View {
     /// D-day는 `.soon`·`.urgent`에만 붙인다 — 신선도는 앱의 본체지만, 아직 여유 있는 재료의 카운트다운은
     /// 노이즈일 뿐이라 "지금 급한 것"만 눈에 띄게 남긴다(색+텍스트 동반, §1).
     private func ticketLine(_ ing: Ingredient, done: Bool) -> some View {
-        HStack(spacing: ReffiSpace.s2) {
-            Text(verbatim: ing.displayName)
+        // 대체 투입은 이름 뒤 괄호로 그 자리에서 말한다(45차) — 대체 줄은 missing이 아니라 Short에도
+        // 안 뜨므로, 여기서 침묵하면 발주가 지울 재고를 화면 어디도 예고하지 않게 된다.
+        let name = result.substituted.first { $0.with.id == ing.id }
+            .map { Ingredient.substitutionLabel(stockName: ing.displayName, lineName: $0.item.displayName) }
+            ?? ing.displayName
+        return HStack(spacing: ReffiSpace.s2) {
+            Text(verbatim: name)
                 .reffiType(.checklistItem)
                 .foregroundStyle(done ? ReffiColor.muted : ReffiColor.ink)
                 .strikethrough(done, color: ReffiColor.muted)

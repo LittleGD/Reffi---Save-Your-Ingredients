@@ -48,10 +48,17 @@ struct ReceiptParserTests {
         #expect(onion?.quantity == Quantity(value: 1, unit: .piece))
     }
 
-    @Test func dedupesByCanonicalID() {
-        let lines = ["서울우유 1L", "저지방우유 500ml", "우유"]
-        let found = ReceiptParser.candidates(from: lines)
-        #expect(found.filter { $0.canonicalID == "milk" }.count == 1)
+    /// 45차: 중복 제거의 축이 캐논에서 **정규화 표기**로 바뀌었다 — 같은 캐논으로 떨어지는 서로
+    /// 다른 상품(서울우유 1L + 저지방우유 500ml)은 각자 산 물건이라 둘 다 확인 화면에 남아야 한다.
+    /// 예전 캐논 축은 두 번째 상품을 화면에서 통째로 지웠다(산 물건의 무성 소실).
+    @Test func dedupesByNormalizedNameNotByCanon() {
+        let found = ReceiptParser.candidates(from: ["서울우유 1L", "저지방우유 500ml", "우유",
+                                                    "서울우유 1L"])
+        let milk = found.filter { $0.canonicalID == "milk" }
+        #expect(milk.count == 3, "서로 다른 상품 세 줄은 셋 다 남는다")
+        #expect(found.count == 3, "같은 표기의 반복(네 번째 줄)만 접힌다")
+        // 첫 줄만 사전 표제어 이름을 받고, 같은 캐논의 후속 상품은 원문(정규화)을 유지해 행이 구분된다.
+        #expect(milk.dropFirst().allSatisfy { $0.name != milk[0].name })
     }
 
     /// **미매칭 라인 보존(44차)** — 사전에 없는 실구매 품목은 버리지 않고 캐논 없는 후보로 남긴다

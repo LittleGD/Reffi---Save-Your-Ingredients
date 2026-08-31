@@ -1,6 +1,17 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "%1$@ (for %2$@)": {
+      "comment": "Ticket line for substituted stock; 1st = stock name, 2nd = recipe line it stands in for",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ (%2$@ 대신)"
+          }
+        }
+      }
+    },
     "%@ %lld": {
       "extractionState": "manual",
       "localizations": {

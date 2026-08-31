@@ -61,10 +61,16 @@ enum ReceiptParser {
             // 전개는 대문자 단독 토큰만 건드리므로 한글·소문자 라인에는 원문 조회와 동일하다.
             if let id = lexicon.canonicalID(for: expandedAbbreviations(cleaned))
                 ?? lexicon.canonicalID(for: line) ?? lexicon.canonicalID(for: cleaned) {
-                guard seenIDs.insert(id).inserted else { continue }
+                // 중복 제거는 **정규화 표기** 기준(45차) — 캐논 기준으로 지우면 같은 캐논으로
+                // 떨어지는 서로 다른 상품(서울우유 1L + 저지방우유 900ml)의 두 번째 줄이
+                // 확인 화면에서 통째로 사라진다. 산 물건을 화면에서 지우면 안 된다.
+                // 같은 캐논의 두 번째 상품은 이름을 원문(정규화)으로 남겨 행이 구분되게 한다.
+                guard seenNames.insert(cleaned.lowercased()).inserted else { continue }
+                let headword = seenIDs.insert(id).inserted
                 out.append(Candidate(rawLine: line,
                                      canonicalID: id,
-                                     name: lexicon.entry(id: id)?.displayName ?? line,
+                                     name: headword ? (lexicon.entry(id: id)?.displayName ?? cleaned)
+                                                    : cleaned,
                                      quantity: extractQuantity(from: lower)))
             } else {
                 // 사전 미매칭 — 상품명 꼴일 때만, 정규화 표기로 담는다(가격·코드 꼬리를 뗀 이름이
