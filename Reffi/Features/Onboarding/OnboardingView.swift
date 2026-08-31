@@ -42,7 +42,7 @@ struct OnboardingView: View {
 
     var body: some View {
         ZStack {
-            LiquidGlassBackground(accent: accent)
+            PaperCanvasBackground()
             VStack(spacing: 0) {
                 topBar
                 TabView(selection: $page) {
@@ -72,14 +72,16 @@ struct OnboardingView: View {
         }
     }
 
-    private var accent: Color {
-        switch page {
-        case 0: ReffiColor.urgent
-        case 1: ReffiColor.soon
-        case 2: ReffiColor.fresh
-        default: ReffiColor.blue
-        }
-    }
+    // **페이지 인덱스로 배경색을 바꾸지 마라.** 이 자리엔 `page`를 urgent → soon → fresh 로 옮기는
+    // `accent`가 있었고 그 색이 전면 배경을 물들였다. 두 가지가 동시에 틀렸다.
+    // ① 앱을 처음 여는 사람이 가장 먼저 보는 화면(page 0)이 **붉은 얼룩**으로 시작했다 — 그 장이
+    //    하는 말은 "장 본 것을 영수증처럼 기록해 두라"인데, 아직 아무것도 상하지 않은 사람에게
+    //    위험색을 먼저 칠하고 있었다. 색과 카피가 서로 다른 말을 했다.
+    // ② 신선도는 배경이 지는 사실이 아니다(§2.5) — 인디케이터 바·D-day 잉크·도장이 그 몫이다.
+    // 세 장의 신선도 서사는 지금 **일러스트 안에** 있다: 냉장고 영수증 행이 자기 D-day의 신선도로
+    // 시들고(`heroRow`), 접시엔 오늘 만료 도장(urgentDark)이, 리포트엔 무낭비 도장(freshDark)이
+    // 찍힌다. 그쪽이 배경 얼룩보다 정확하다 — 페이지가 실제로 말하는 것을 말한다.
+
     private var motion: Animation? {
         ReffiMotion.gated(ReffiMotion.enter, reduce: reduceMotion)   // 면 전환 = 진입(§7.1 dur-3 ease-out)
     }
@@ -171,7 +173,7 @@ struct OnboardingView: View {
                 heroHeader("REFFI · FRIDGE")
                 ForEach(Array(receiptRows.enumerated()), id: \.offset) { i, row in
                     if i > 0 { heroDash }
-                    heroRow(row.glyph, row.name, row.dDay, row.color)
+                    heroRow(row.glyph, row.name, row.dDay, row.fresh)
                 }
             }
         }
@@ -182,7 +184,10 @@ struct OnboardingView: View {
     /// 다른 엔트리로 개수를 채워 소스코드 리터럴 재료명이 남지 않게 한다.
     private static let receiptEntryIDs = ["tomato", "spinach", "milk"]
 
-    private var receiptRows: [(glyph: FoodGlyph, name: String, dDay: String, color: Color)] {
+    /// 행이 **색이 아니라 신선도**를 들고 다니는 이유: 같은 사실을 잉크(D-day)와 일러스트(시듦)가
+    /// 함께 져야 하는데, `Color` 하나만 넘기면 실루엣이 그 사실을 볼 수 없어 조용히 `.fresh`로 굳는다
+    /// (실제로 그랬다 — D-1 재료 옆에 흠 하나 없는 일러스트가 서 있었다). 파생은 `heroRow` 한 곳에서.
+    private var receiptRows: [(glyph: FoodGlyph, name: String, dDay: String, fresh: Freshness)] {
         let lex = IngredientLexicon.shared
         var entries = Self.receiptEntryIDs.compactMap { lex.entry(id: $0) }
         if entries.count < Self.receiptEntryIDs.count {
@@ -196,7 +201,7 @@ struct OnboardingView: View {
             (glyph: FoodGlyph(rawValue: entry.glyph) ?? .generic,
              name: entry.displayName,
              dDay: Ingredient.dDayText(daysLeft: days),
-             color: Freshness(daysLeft: days).dark)
+             fresh: Freshness(daysLeft: days))
         }
     }
 
@@ -212,6 +217,8 @@ struct OnboardingView: View {
         .padding(.vertical, ReffiSpace.s3)
         .frame(width: 170)
         .background(ReffiColor.paper, in: ReceiptShape(tooth: ReffiTooth.chip))
+        // 뷰파인더·카메라 배지는 **일부러 그림자 뒤**다 — 종이 밖에 떠 있는 소품이라 종이의
+        // 그림자를 함께 받으면 안 된다. 순서를 바꾸면 브래킷과 배지가 종이의 들림을 물려받는다.
         .reffiShadow1()
         // 카메라 뷰파인더 — 종이 바깥으로 코너 브래킷.
         .overlay(ViewfinderBrackets()
@@ -323,10 +330,16 @@ struct OnboardingView: View {
         .padding(.horizontal, ReffiSpace.s4)
         .padding(.vertical, ReffiSpace.s3)
         .frame(width: 250)
+        // **자르는 것은 콘텐츠고, 그림자는 그 밖에 남는다.** 여기엔 `.reffiShadow1()` **다음에**
+        // `.clipped()`가 있었다 — 클립은 앞 체인의 렌더 결과(그림자 포함)를 뷰의 **사각** bounds로
+        // 자르는데 이 종이는 톱니(`ReceiptShape`)라 위아래가 안으로 파여 있어서, 톱니 골에 걸린
+        // 그림자만 남고 나머지는 잘려 종이 둘레에 직사각형 자국이 남았다. 방어의 목적(레시피명이
+        // 2줄로 늘어나도 종이 밖으로 넘치지 않게, 리뷰 P2-2)은 콘텐츠에만 걸면 그대로 달성되고,
+        // 종이 모양으로 자르므로 사각 클립보다 오히려 정확하다.
+        .clipShape(shape)
         .background(shape.fill(ReffiColor.paper))
         .overlay(shape.stroke(ReffiColor.paperEdge, lineWidth: 1))
         .reffiShadow1()
-        .clipped()   // 데이터 길이 방어(리뷰 P2-2) — 레시피명 2줄 등으로 늘어나도 카드 밖으로 넘치지 않게
     }
 
     /// 티켓 한 줄(축약) — 체크박스 + 이름 + D-N.
@@ -422,9 +435,13 @@ struct OnboardingView: View {
 
     private var heroDash: some View { ReffiRule(.receipt) }
 
-    private func heroRow(_ glyph: FoodGlyph, _ name: String, _ dDay: String, _ color: Color) -> some View {
+    private func heroRow(_ glyph: FoodGlyph, _ name: String, _ dDay: String, _ fresh: Freshness) -> some View {
         HStack(spacing: ReffiSpace.s3) {
-            PaperSilhouette(glyph: glyph, fresh: .fresh)
+            // **이 행이 흉내 내는 표면(냉장고 카드·간편 행)은 실루엣에 실제 신선도를 넘긴다**
+            // (`FridgeView`) — 여기만 `.fresh`로 굳혀 두면 온보딩이 "D-1"이라 적어 놓고 그 옆에
+            // 갓 딴 재료를 그려, 앱이 쓰는 시듦 언어(§13.3)를 첫 화면부터 부정한다. soon은 채도
+            // 0.85·형태 0.5라 알아채기 전에 먼저 느껴지는 정도지, 겁주는 그림이 아니다.
+            PaperSilhouette(glyph: glyph, fresh: fresh)
                 .frame(width: ReffiFoodIcon.rowMini, height: ReffiFoodIcon.rowMini)
             Text(verbatim: name)                           // 사전 표시명 — 데이터 verbatim(§i18n)
                 .reffiType(.badgeLabel)
@@ -434,7 +451,7 @@ struct OnboardingView: View {
             Spacer(minLength: 0)
             Text(dDay)
                 .font(.reffiNum(.body))
-                .foregroundStyle(color)
+                .foregroundStyle(fresh.dark)   // 캔버스 위 색-as-텍스트는 dark 단(§2.6)
         }
     }
 
@@ -573,7 +590,7 @@ struct OnboardingView: View {
 
     private var setupSheet: some View {
         ZStack {
-            LiquidGlassBackground(accent: ReffiColor.blue)
+            PaperCanvasBackground()
             VStack(spacing: 0) {
                 // 상단 — 디스플레이 폰트(Story Script)로 현재 단계를 가운데 표기.
                 // 줄 끝 숫자 잘림 주의 — SwiftUI Text는 마지막 글리프를 advance에서 클리핑한다(UILabel은 무사).

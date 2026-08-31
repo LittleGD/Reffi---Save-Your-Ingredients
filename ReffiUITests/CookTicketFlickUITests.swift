@@ -410,21 +410,19 @@ final class CookTicketFlickUITests: XCTestCase {
     }
 
 
-    /// 앞 티켓의 "Cook this"를 **탭 가능한 것으로 특정해** 누르고, 발주가 실제로 성립했는지까지
-    /// 기다린다. 뒤 티켓(depth 1)도 풀 렌더라 같은 라벨이 트리에 2개 있고, `firstMatch`가 어느 쪽을
-    /// 집는지는 기기 폭에 따라 갈린다 — iPhone 17에서는 탭 불가능한 뒤 버튼을 집어 탭이 hit point
-    /// {-1,-1}로 조용히 유실됐고, 발주가 없어도 중간 단언들이 공허하게 참이라 마지막에서야 무너졌다.
-    /// 발주 성립은 "Cook this"가 1개로 줄어드는 것으로 판정한다(발주된 앞 티켓의 CTA는 걷힌다).
+    /// 앞 티켓을 발주한다 — CTA는 **덱 밖 화면 하단에 도킹된 한 개**다(46차).
+    ///
+    /// 이 헬퍼는 원래 "티켓 종이 안의 CTA"를 상대했다: 뒤 티켓(depth 1)도 풀 렌더라 같은 라벨이
+    /// 트리에 2개 있었고, `firstMatch`가 탭 불가능한 뒤 버튼을 집어 탭이 hit point {-1,-1}로
+    /// 조용히 유실되곤 했다(발주가 없어도 중간 단언은 공허하게 참이라 마지막에서야 무너졌다).
+    /// CTA가 종이 밖으로 나가면서 그 애매성 자체가 사라졌으므로, 다중 매칭 방어와 "1개로 줄어든다"는
+    /// 판정은 **의미가 없어졌다** — 도킹 버튼은 덱이 살아 있는 동안 계속 한 개다.
+    /// 발주 성립은 호출부가 뒤에서 "ORDER · FIRED"로 확인한다.
     private func fireFrontTicket(_ app: XCUIApplication) {
-        let cooks = app.buttons.matching(identifier: "Cook this")
-        guard let hittable = cooks.allElementsBoundByIndex.first(where: { $0.isHittable }) else {
-            XCTFail("탭 가능한 'Cook this'가 없다"); return
-        }
-        hittable.tap()
-        let fired = XCTNSPredicateExpectation(predicate: NSPredicate(format: "count == 1"),
-                                              object: cooks)
-        XCTAssertEqual(XCTWaiter().wait(for: [fired], timeout: 4), .completed,
-                       "탭 후에도 'Cook this'가 2개 — 발주가 성립하지 않았다(뒤 티켓을 눌렀을 가능성)")
+        let cook = app.buttons["Cook this"]
+        XCTAssertTrue(cook.waitForExistence(timeout: 10), "하단 도킹 'Cook this'가 없다")
+        XCTAssertTrue(cook.isHittable, "도킹 CTA가 탭 불가능하다 — 네비·페이드 띠에 가렸을 가능성")
+        cook.tap()
     }
 
     /// 부족 재료가 있는 앞 티켓을 찾아 알약까지 노출한다 — 못 찾으면 false(호출부가 skip).

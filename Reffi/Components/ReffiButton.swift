@@ -18,9 +18,14 @@ struct QuietButton: View {
         Button(action: action) {
             HStack(spacing: ReffiSpace.s1) {
                 if let icon { icon.reffi(16, .bold) }
+                // 버튼 라벨은 `pillLabel`(SemiBold 13)이다 — 알약·토스트와 같은 배정(§3.5).
+                // caption(Medium 14)을 쓰던 동안 이 버튼은 같은 카드의 섹션 제목·안내문과 폰트·자간이
+                // **완전히 같아서**, 색(blueDark·urgentDark)만이 "누를 수 있다"의 유일한 신호였다.
+                // 색 하나에 기대는 신호는 색각 이상·저대비 환경·흑백 캡처에서 통째로 사라진다 —
+                // 굵기(600)가 그 몫을 나눠 진다. 되돌리면 35차가 걷어낸 "캡션처럼 읽히는 텍스트 버튼"이
+                // 그대로 돌아온다(위 `underline` 주석의 그 실패다).
                 Text(title)
-                    .font(ReffiTextRole.caption.font)
-                    .tracking(ReffiTextRole.caption.tracking)
+                    .reffiType(.pillLabel)
                     .underline(underline)
             }
             .foregroundStyle(tint)

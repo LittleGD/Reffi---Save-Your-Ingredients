@@ -70,9 +70,12 @@ extension FridgeTab {
 /// 막으려는 것이다. 탭은 필터가 아니라 **이 화면이 지금 무엇인가**를 정하는 내비게이션이라, 화면에서
 /// 가장 확실한 신호여야 한다. 두 행의 무게가 갈리는 것이 오히려 위계를 세운다(내비 > 필터).
 ///
-/// 셰이프는 `PaperRect(cornerRadius: .pill)` — pill 스케일은 `PaperCutRect`(모서리 잘린 8각)으로
-/// 라우팅되므로 "완벽한 캡슐 금지"(§13.1)를 지키면서 알약으로 읽힌다. To buy 목록의 Add/Skip 알약과
-/// 같은 문법이다.
+/// 셰이프는 `PaperCutRect`(모서리를 비스듬히 잘라낸 8각) — 손이 누르는 소형 면의 정본이다(§13.1).
+/// 예전엔 `PaperRect(cornerRadius: .pill)`로 적고 캡슐 퇴화 라우팅이 이쪽으로 보내 주기를 기대했는데,
+/// 그 라우팅은 **저자가 적은 반지름이 기하와 모순될 때 도는 안전장치**이지 계층 선언이 아니다.
+/// 라우팅에 기대면 면 크기가 조금만 바뀌어도(알약 높이·3등분 폭) 판정이 뒤집혀 같은 컨트롤이
+/// 어느 날 둥근 사각으로 그려진다 — 실제로 바로 아래 정렬 칩·보기 토글이 그렇게 갈려 있었다.
+/// **콜사이트가 자기 계층을 이름으로 선언한다.** To buy 목록의 Add/Skip 알약과 같은 문법이다.
 struct FridgeTabBar: View {
     @Binding var selection: FridgeTab
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -123,7 +126,7 @@ struct FridgeTabBar: View {
 
     @ViewBuilder
     private func surface(on: Bool, seed: Int) -> some View {
-        let s = PaperRect(cornerRadius: ReffiRadius.pill, seed: seed)
+        let s = PaperCutRect(seed: seed)
         if on {
             s.fill(ReffiColor.ink)
                 .overlay(PaperGrain(seed: UInt64(seed) &+ 11, strength: 0.9).clipShape(s))

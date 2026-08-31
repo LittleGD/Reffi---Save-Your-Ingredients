@@ -2,8 +2,12 @@ import SwiftUI
 import UserNotifications
 
 /// 프로필/마이(§5) — 무낭비 리포트 + 요리 취향(스타일·비선호·알레르기) + 알림 + 계정.
-/// 구성은 Main의 리퀴드글래스 배경 + Fridge의 "흰 영수증 더미" 문법(톱니+점선+틸트·슬립)을 그대로 따른다.
-/// 흰 종이 면은 그레인 없이 깨끗하게 — 그레인은 채도 버튼 면 전용(PaperButton 문법).
+/// 구성은 앱 공통 종이 캔버스 위에 Fridge의 "흰 영수증 더미" 문법(톱니+점선)을 얹은 것이다 —
+/// 설정 화면이라 틸트·슬립 없이 정돈된 정렬만 쓴다.
+///
+/// **글자 위계는 카드마다 세 단이다**: 이름표(`groupLabel` 12/muted) → 행 라벨(`body` 16/ink)
+/// → 행 값(`metaText` 13/ink2). 이름표가 가장 작고 옅은 것이 이 화면의 규칙이다 — 아래를
+/// 가리키는 라벨이지 스스로 읽히는 제목이 아니다(자세한 근거는 `ReceiptCard` 본문 주석).
 struct ProfileView: View {
     /// 현재 탭으로 표시 중인지 — 아니면 본문을 세우지 않는다(`MainView(isActive:)`·`FridgeView` 선례).
     /// 루트가 세 패인을 모두 살려 두는 대가로, 가려진 이 화면도 store 변이마다 body가 다시 돌아
@@ -59,6 +63,11 @@ struct ProfileView: View {
             if isActive {
                 VStack(alignment: .leading, spacing: ReffiSpace.s5) {
                     header
+                        // 헤더는 영수증 스택과 **다른 층**이다(디스플레이 34 + 부제 한 줄 = 페이지 표지).
+                        // 카드 이름표가 12로 내려간 뒤 34 ↔ 12가 카드 간격과 같은 24로 맞붙으면 헤더가
+                        // 첫 카드의 제목처럼 읽힌다 — 카드 사이보다 한 단 넓은 32를 줘, 이름표가 잃은
+                        // 경계 신호를 여백이 대신 진다.
+                        .padding(.bottom, ReffiSpace.s2)
                     // 영수증 스택 — 설정 화면이라 기울임 없이 정돈된 정렬(질서 있는 영수증 문법).
                     // 무낭비 리포트는 냉장고 페이지 History(No-waste report)로 이동.
                     tasteReceipt
@@ -88,9 +97,11 @@ struct ProfileView: View {
         #endif
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        // 배경도 게이트 안쪽이다 — 블롭 세 장 + 글래스 프로스트가 가려진 채로 서 있을 이유가 없고,
-        // `accent`가 읽는 `store.sorted`(전체 정렬)도 비활성 프레임에서는 돌지 않는다.
-        .background { if isActive { LiquidGlassBackground(accent: accent) } }
+        // 배경도 게이트 안쪽이다 — 단색 한 장이라 비용은 작지만, 본문을 세우지 않는 프레임에
+        // 배경만 세워 두면 "가려진 동안은 아무것도 세우지 않는다"는 이 화면의 계약이 반쪽이 된다.
+        // (블롭 세 장 + 글래스 프로스트를 걷어내면서 `store.sorted`를 읽던 accent 계산도 함께 사라졌다 —
+        // 신선도는 이제 배경이 아니라 뱃지·도장·D-N 잉크가 진다, §2.5.)
+        .background { if isActive { PaperCanvasBackground() } }
         .sheet(item: $sheet) { which in
             switch which {
             case .nickname:  NicknameEditSheet().presentationDetents([.height(260)])
@@ -187,9 +198,6 @@ struct ProfileView: View {
             ExpiryNotifier.reschedule(for: store.ingredients)
         }
     }
-
-    /// 배경 액센트 — 가장 임박한 재료의 신선도색(Fridge와 동일, 세 탭이 한 몸).
-    private var accent: Color { store.sorted.first?.freshness.main ?? ReffiColor.fresh }
 
     // MARK: - 헤더 (아바타 + 닉네임 — Main·Fridge 디스플레이 헤더 문법)
     private var header: some View {
@@ -376,7 +384,9 @@ struct ProfileView: View {
             Text("Some text updates right away. Restart Reffi to apply everywhere.")
                 .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
                 .padding(.horizontal, ReffiSpace.s5)
-                .padding(.vertical, ReffiSpace.s3)
+                // 같은 카드 안 행(`SettingsRow`)과 **같은 세로 리듬**이다. s3으로 좁혀 두면 절취선 하나를
+                // 사이에 두고 위 행은 16, 아래 안내문은 12가 되어 카드가 아래쪽만 눌린 것처럼 읽힌다.
+                .padding(.vertical, ReffiSpace.s4)
         }
     }
 
@@ -405,14 +415,18 @@ struct ProfileView: View {
                         showSampleConfirm = true
                     }
                 }
-                .padding(.horizontal, ReffiSpace.s3)
+                // s4인 것이 계산이다: `QuietButton`이 자기 안에 s2(8)를 이미 갖고 있어 16 + 8 = 24 =
+                // 카드 거터(s5)가 된다. s3이던 동안 이 버튼들의 잉크만 다른 모든 줄(이름표·행 라벨)보다
+                // 4pt 왼쪽에서 시작해, 영수증 한 장 안에 왼쪽 정렬선이 둘 있었다 — "규칙 없이 섞였다"는
+                // 인상은 글자 위계만의 문제가 아니라 이렇게 어긋난 정렬선이 함께 만든다.
+                .padding(.horizontal, ReffiSpace.s4)
                 .padding(.vertical, ReffiSpace.s1)
                 ReceiptRule()
             }
             QuietButton(title: "Reset all data", icon: ReffiIcon.toss, tint: ReffiColor.urgentDark) {
                 showResetConfirm = true
             }
-            .padding(.horizontal, ReffiSpace.s3)
+            .padding(.horizontal, ReffiSpace.s4)   // 위와 같은 정렬선(s4 + QuietButton 내부 s2 = 카드 거터)
             .padding(.vertical, ReffiSpace.s1)
         }
     }
@@ -435,21 +449,21 @@ struct ProfileView: View {
                     showAuth = true   // 익명 세션을 유지한 채 시트에서 전환/로그인(승계 보장).
                 }
             } else {
-                HStack {
-                    Text("Logged in")
-                        .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
-                    Spacer()
-                    Text(auth.userEmail ?? "")
-                        .reffiType(.caption).foregroundStyle(ReffiColor.ink)
-                        .lineLimit(1).truncationMode(.middle)
-                }
-                .padding(.horizontal, ReffiSpace.s5)
-                .padding(.vertical, ReffiSpace.s3)
+                // 로그인 상태도 **게스트와 같은 행 문법**으로 읽힌다(라벨=body/ink · 값=metaText/ink2).
+                // 예전엔 이 자리만 손으로 조립한 HStack이었고 라벨·값을 둘 다 caption으로 적어, 같은
+                // "계정 상태" 한 칸이 로그인 사용자에겐 14/Medium 두 조각으로, 게스트에겐 16/Regular
+                // 라벨 + 값으로 보였다 — 한 파일 여섯 줄 간격에서 같은 의미 계층이 두 위계로 갈렸고,
+                // 그 갈림이 게스트 화면에서 "Guest mode"만 혼자 다른 스타일로 떠 보이게 한 원인이다.
+                // 갈 곳이 없는 행이라 `action`을 넘기지 않는다 — 버튼으로 감싸지도, 셰브런을 그리지도
+                // 않는다(행동 없는 행에 누를 수 있다는 신호를 붙이지 않는다).
+                SettingsRow(label: "Logged in",
+                            value: auth.userEmail ?? "",
+                            valueTruncation: .middle)
                 ReceiptRule()
                 QuietButton(title: "Log out", icon: ReffiIcon.go, tint: ReffiColor.blueDark) {
                     showLogout = true
                 }
-                .padding(.horizontal, ReffiSpace.s3)
+                .padding(.horizontal, ReffiSpace.s4)   // 위 Data 영수증과 같은 정렬선
                 .padding(.vertical, ReffiSpace.s1)
             }
             ReceiptRule()
@@ -459,7 +473,7 @@ struct ProfileView: View {
             QuietButton(title: "Erase this device", icon: ReffiIcon.close, tint: ReffiColor.urgentDark) {
                 showDelete = true
             }
-            .padding(.horizontal, ReffiSpace.s3)
+            .padding(.horizontal, ReffiSpace.s4)   // 위와 같은 정렬선
             .padding(.vertical, ReffiSpace.s1)
         }
     }
@@ -468,8 +482,9 @@ struct ProfileView: View {
 // MARK: - 재사용 컴포넌트
 
 /// 흰 영수증 카드 — Fridge 영수증(FridgeCard·ExpandedFridgeCard)과 같은 문법.
-/// 톱니(절취) 엣지 + 헤더 + 점선 룰, 면은 그레인 없는 깨끗한 흰 종이.
-/// 헤더 라벨은 번역되는 문자열이라 올캡 모노 크롬이 아니라 `caption`을 쓴다(§3.5).
+/// 톱니(절취) 엣지 + 헤더 + 점선 룰.
+/// 헤더 라벨은 번역되는 문자열이라 올캡 모노 크롬(`sectionLabel`)이 아니라 그 번역 가능한
+/// 쌍둥이 `groupLabel`을 쓴다(§3.5).
 struct ReceiptCard<Content: View>: View {
     /// **`String`이 아니라 `LocalizedStringKey`인 것이 요점이다(41차).** 둘의 차이는 로컬라이즈가
     /// **언제** 일어나는가다: `Text(String)`은 verbatim 렌더라 조회가 호출부의 `String(localized:)`
@@ -495,11 +510,32 @@ struct ReceiptCard<Content: View>: View {
         return VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .center) {
                 // 섹션 제목은 **번역되는** 문자열(취향·가구 인원·알림·내 레시피)이라 올캡 모노 크롬을
-                // 쓰지 않는다(§3.5) — 한글엔 대문자가 없어 `.uppercased()`가 no-op이 되고 10pt에
-                // 자간 1.6만 남는다. 문장형 라벨은 caption.
+                // 쓰지 않는다(§3.5) — 한글엔 대문자가 없어 `.uppercased()`가 no-op이 되고 11pt에
+                // 자간 1.4만 남는다. 번역되는 라벨의 자리는 `groupLabel`이다.
+                //
+                // **이 줄은 제목이 아니라 이름표다.** 자기가 읽히려고 있는 게 아니라 아래 행 묶음을
+                // 여는 라벨이라, 아래 행 라벨(`body` 16/ink)보다 작고(12) 옅다(`muted`). 예전엔
+                // `caption`(14/Medium/ink2)이었는데 그러면 행 라벨과 비가 16/14 = 1.14라 계단이 서지
+                // 않는 데다, 더 작은 이 줄이 더 굵어(Medium 500 vs Regular 400) 크기·색이 만든 신호를
+                // 굵기가 정면으로 상쇄했다 — 위계가 약해지는 게 아니라 **없는 것으로** 읽힌다.
+                // 16/12 = 1.333이면 한 단이 확실히 선다.
+                //
+                // **다시 키우지 말 것.** 카드 안 안내문(`caption` 14/ink2 — 가구 인원·언어·토글 설명)이
+                // 이 줄보다 크고 진한 것은 결함이 아니라 이 줄이 아이브로우라는 뜻이다. 저 안내문들은
+                // "읽는 문장"이고 이 줄은 "가리키는 라벨"이라, 둘의 순서는 크기가 아니라 역할이 정한다.
+                //
+                // `muted`는 이 토큰이 성문화한 "약한 텍스트" 자리 그대로다. 읽혀야 하는 이름 줄을
+                // muted로 두지 않는다는 반대편 선례(History 히어로의 창 이름 줄, 26차 muted→ink2)와
+                // 충돌하지 않는다: 저쪽은 그 줄 자체가 콘텐츠고 여기는 아래를 가리키는 라벨이다.
+                // 대비는 실측으로 통과한다(muted on receipt 라이트 5.51 · 다크 4.66, §2.6 표).
+                //
+                // 시각 위계를 내린 대가는 **의미 위계로 갚는다**: 시각으로만 제목이던 이 줄이 더 조용해진
+                // 만큼, VoiceOver 로터의 제목 탐색이 영수증 여덟 장을 짚을 수 있어야 한다
+                // (`SheetHeader`·`CoverHeader`·`PaperDialog`가 이미 같은 계약을 지킨다).
                 Text(title)
-                    .reffiType(.caption)
-                    .foregroundStyle(ReffiColor.ink2)
+                    .reffiType(.groupLabel)
+                    .foregroundStyle(ReffiColor.muted)
+                    .accessibilityAddTraits(.isHeader)
                 if let stamp {
                     DDayStamp(text: stamp, color: ReffiColor.freshDark, size: 10)
                         .padding(.leading, ReffiSpace.s2)
@@ -511,8 +547,13 @@ struct ReceiptCard<Content: View>: View {
                 }
             }
             .padding(.horizontal, ReffiSpace.s5)
-            .padding(.top, ReffiSpace.s4 + toothH)
-            .padding(.bottom, ReffiSpace.s3)
+            // 이름표를 12/muted로 내린 만큼 **여백이 그 존재를 대신 만든다**: 위는 넓게 열어 이 줄이
+            // 카드의 시작임을 보이고(s5 + tooth — `receiptSurface`가 모든 영수증에 쓰는 상단 인셋과
+            // 같은 값이라, 손으로 조립한 이 카드만 s4로 얕던 어긋남도 함께 사라진다), 아래는 좁혀
+            // 절취선·행 묶음에 붙인다. 이름표는 자기 위가 아니라 **아래에 속한다** — 이 비대칭이
+            // 뒤집히면 이름표가 위 카드의 꼬리처럼 읽힌다.
+            .padding(.top, ReffiSpace.s5 + toothH)
+            .padding(.bottom, ReffiSpace.s2)
 
             ReceiptRule()
             content
@@ -565,35 +606,58 @@ struct SettingsToggle: View {
     }
 }
 
-/// 설정 행 — 라벨 + 값 + 셰브런. 탭하면 편집 시트로.
+/// 설정 행 — 라벨 + 값(+ 셰브런). 탭하면 편집 시트로.
+///
+/// **행 안의 위계는 한 방향으로만 준다.** 라벨은 `body`(16/Regular/ink), 값은
+/// `metaText`(13/Medium/ink2)다. 값이 `caption`(14/Medium)이던 동안 이 행은 **더 작은 쪽이 더 굵은**
+/// 상태였고 자간 부호까지 갈려 있어(값 +1% ↔ 라벨 −1%), 크기·색이 만든 "값은 보조다"라는 신호를
+/// 굵기가 상쇄했다. `metaText`는 §3.5가 애초에 "라벨=값 행의 값"에 배정해 둔 role이고,
+/// 냉장고 상세의 명세 행(`FridgeView.row(_:_:)`)이 이미 같은 분기(`numeric ? reffiNum(.body) :
+/// metaText`)를 쓴다 — 발명이 아니라 그쪽으로의 수렴이다. 값을 다시 키우려거든 라벨부터 볼 것.
+///
+/// **`action`이 nil이면 이 행은 버튼이 아니고 셰브런도 그리지 않는다.** 셰브런은 "누르면 다음이
+/// 있다"는 약속이라 갈 곳 없는 행에 그리면 그 자리에서 위약 UI가 된다. 그래서 셰브런 유무를
+/// 별도 플래그로 두지 않고 `action`에서 파생한다 — 플래그로 두면 둘을 어긋나게 넘긴 조합이
+/// 컴파일을 통과하고, 그 조합은 언젠가 반드시 넘어온다.
 struct SettingsRow: View {
     let label: LocalizedStringKey
     var value: String? = nil
     var valueColor: Color = ReffiColor.ink2
-    var showChevron: Bool = true
     var numeric: Bool = false   // 시간·수량 등 데이터성 숫자 값 → reffiNum 의무(§3.4)
-    let action: () -> Void
+    /// 값이 길어 접힐 때 **어디를** 접는가. 기본은 tail이고, 꼬리가 곧 신원인 값(이메일)만 middle로
+    /// 넘긴다 — tail로 접으면 "verylongname@ex…"가 되어 어느 계정인지가 통째로 사라진다.
+    var valueTruncation: Text.TruncationMode = .tail
+    /// nil = 표시 전용 행(위 주석) — 버튼으로 감싸지 않는다. 트레일링 클로저 호환을 위해 마지막 자리.
+    var action: (() -> Void)? = nil
 
     var body: some View {
-        Button(action: action) {
-            HStack(spacing: ReffiSpace.s3) {
-                Text(label).reffiType(.body).foregroundStyle(ReffiColor.ink)
-                Spacer(minLength: ReffiSpace.s4)
-                if let value {
-                    Text(value)
-                        .font(numeric ? .reffiNum(.body, for: value) : ReffiTextRole.caption.font)
-                        .tracking(numeric ? 0 : ReffiTextRole.caption.tracking)
-                        .foregroundStyle(valueColor)
-                        .lineLimit(1)
-                }
-                if showChevron {
-                    ReffiIcon.chevron.reffi(13, .bold).foregroundStyle(ReffiColor.muted)
-                }
-            }
-            .padding(.horizontal, ReffiSpace.s5)
-            .padding(.vertical, ReffiSpace.s4)
-            .contentShape(Rectangle())
+        if let action {
+            Button(action: action) { face.contentShape(Rectangle()) }
+                .buttonStyle(.reffiPress)
+        } else {
+            // 버튼 경로는 SwiftUI가 라벨·값을 한 요소로 묶어 주지만 이 경로는 묶어 주지 않는다 —
+            // 그대로 두면 "Logged in"과 이메일이 두 번의 스와이프로 갈린다(`FridgeView.row` 선례).
+            face.accessibilityElement(children: .combine)
         }
-        .buttonStyle(.reffiPress)
+    }
+
+    private var face: some View {
+        HStack(spacing: ReffiSpace.s3) {
+            Text(label).reffiType(.body).foregroundStyle(ReffiColor.ink)
+            Spacer(minLength: ReffiSpace.s4)
+            if let value {
+                Text(value)
+                    // 자간은 두 갈래 다 0이라(§3.5 metaText · §3.4 reffiNum) 따로 걸지 않는다.
+                    .font(numeric ? .reffiNum(.body, for: value) : ReffiActionRole.metaText.font)
+                    .foregroundStyle(valueColor)
+                    .lineLimit(1)
+                    .truncationMode(valueTruncation)
+            }
+            if action != nil {
+                ReffiIcon.chevron.reffi(13, .bold).foregroundStyle(ReffiColor.muted)
+            }
+        }
+        .padding(.horizontal, ReffiSpace.s5)
+        .padding(.vertical, ReffiSpace.s4)
     }
 }

@@ -127,10 +127,21 @@ struct PaperIconLabel: View {
         ZStack {
             let shape = PaperBlob(sides: 9, seed: seed)
             shape.fill(fill)                                              // 솔리드(그라데이션 없음)
-            PaperGrain(seed: UInt64(seed) &+ 3, strength: 0.5).clipShape(shape)  // 종이 질감(옅게)
+            // 시드는 `bitPattern`으로 넘긴다 — `UInt64(음수)`는 트랩이다. 지금 콜사이트는 전부 0~5
+            // 리터럴이라 안 터지지만, 시드를 인덱스·해시에서 뽑는 자리가 하나 생기는 순간 판정 커버가
+            // 죽는다. 비음수에서는 두 변환의 값이 같아 지금 렌더는 한 픽셀도 바뀌지 않는다
+            // (`PaperDayChip`·`PaperToggle`이 이미 쓰는 관용구).
+            PaperGrain(seed: UInt64(bitPattern: Int64(seed)) &+ 3, strength: 0.5)
+                .clipShape(shape)                                         // 종이 질감(옅게)
             icon.reffi(size * 0.42, .fill).foregroundStyle(iconColor)
         }
         .frame(width: size, height: size)
+        // **여기에 `.compositingGroup()`을 손으로 달지 마라.** `reffiShadow*` 토큰이 그림자 앞에서
+        // 이미 묶는다(`ReffiElevation.GroupedShadow`) — SwiftUI의 `.shadow`가 자식 프리미티브마다
+        // 따로 드리우는 문제는 42차에 콜사이트가 아니라 토큰이 지도록 옮겼다. 블롭의 면·그레인·
+        // 아이콘이 저마다 번짐을 얻는 그 결함은 이 자리에 **없다**. 그레인의 `.overlay` 블렌드가
+        // 그룹 안에 갇히는 것도 같은 묶음 덕이다. 여기에 그룹을 하나 더 얹으면 무해하지만, 규칙이
+        // 다시 콜사이트로 새어 나온다.
         .reffiShadow1()
     }
 }

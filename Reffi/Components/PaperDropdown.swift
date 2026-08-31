@@ -142,7 +142,10 @@ struct PaperDropdownTrigger: View {
             .padding(.horizontal, ReffiSpace.s3)
             .padding(.vertical, ReffiSpace.s2)
             .background {
-                let s = PaperRect(cornerRadius: ReffiRadius.sm, seed: seed)
+                // 소형 행동 면의 정본은 종이컷 8각이다(§13.1) — 옛 `PaperRect(.sm)`은 이 높이(≈32)에서
+                // 반지름 8이 min(w,h)/2에 눌려 둥근 알약으로 퇴화했고, 그래서 같은 컨트롤 줄에서
+                // 정렬 칩·보기 토글만 각지고 이 트리거만 둥근 채로 남았다(오너 지적 ②의 마지막 잔재).
+                let s = PaperCutRect(seed: seed)
                 s.fill(ReffiColor.paper).paperEdge(s)
             }
             .frame(minHeight: ReffiChrome.tapMin)   // §7.3 터치 타깃
