@@ -86,20 +86,21 @@ struct MainView: View {
     /// `store.counterIngredients`는 호출마다 재료 사전을 새로 만들고 전체를 다시 정렬하는데,
     /// 예전엔 헤더 문구·배경 어컨트·필드 캡·뱃지 행·씬 동기화 키가 각자 그것을 불러
     /// 한 body에 열 번 넘게 같은 정렬을 돌렸다(store가 바뀔 때마다, 즉 판정 한 번에 여러 번).
-    /// 파생값(수·맨 앞 신선도·id 배열)도 여기서 함께 굳혀 하위가 다시 훑지 않게 한다.
+    /// 파생값(임박·이연 수·id 배열)도 여기서 함께 굳혀 하위가 다시 훑지 않게 한다.
     private struct CounterDigest {
         let items: [Ingredient]
         /// 뱃지 행의 ForEach·전환 트리거가 쓰는 id 배열 — 세 곳이 각자 map 하지 않게 한 번만.
         let ids: [Ingredient.ID]
-        /// 맨 앞(가장 임박) 재료의 신선도 — 배경 색면의 어컨트.
-        let topFreshness: Freshness
+        // **"맨 앞 재료의 신선도"는 여기 없다.** 그 값의 유일한 소비처가 화면 전체를 물들이던
+        // 배경 어컨트였고, 배경이 앱 공통 크림 한 장이 되면서 함께 죽었다(아래 `background(_:)`).
+        // 다시 넣지 마라 — 여기 서 있는 것만으로 "배경이 신선도를 지는 게 자연스럽다"는 근거가 되고,
+        // 신선도는 이미 뱃지 인디케이터 바·D-day 잉크가 말한다(§2.5).
         let urgent: Int
         let soon: Int
 
         init(_ items: [Ingredient]) {
             self.items = items
             ids = items.map(\.id)
-            topFreshness = items.first?.freshness ?? .fresh
             var urgent = 0
             var soon = 0
             for item in items {
@@ -216,9 +217,13 @@ struct MainView: View {
                 .disabled(counter.items.isEmpty)   // 디밍은 PaperButton이 §7.2로 처리 — 여기서 겹치면 곱해진다.
         }
         .animation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion), value: store.activeCook)
-        // 가려진 패인은 배경(전면 리퀴드글래스 3블롭 + glassEffect)을 세우지 않는다(42차·F87 잔여) —
-        // body·물리 씬은 상태 보존을 위해 남기고 **그리기 비용의 대부분인 배경만** 내린다.
-        // FridgeView·ProfileView의 isActive 게이트와 같은 계약이다.
+        // 가려진 패인은 배경을 세우지 않는다 — FridgeView·ProfileView와 같은 계약이다.
+        // **아끼는 것은 이제 픽셀이 아니라 계약이다.** 배경이 블러 블롭 세 장이던 시절엔 이 게이트가
+        // 그리기 비용의 대부분을 내리는 최적화였는데, 지금 여기 서는 것은 단색 한 장 + 시노라 비용이
+        // 거의 없다. 그래도 남기는 이유는 셋이 같은 규칙을 따라야 다음에 배경에 무엇이 붙어도
+        // 가려진 패인이 그것을 그리지 않기 때문이고, 무엇보다 **루트가 이미 같은 크림을 칠하고 있어서**
+        // (`RootTabView`) 게이트가 닫혀도 보이는 색은 한 톨도 달라지지 않기 때문이다 — 그 일치가
+        // 애니메이션 없는 `pane` 전환에서 바탕이 튀지 않는 유일한 근거다.
         .background { if isActive { background(counter) } }
         .reffiFeedback(.impact(weight: .medium), trigger: fireHaptic)
         .reffiFeedback(.impact(weight: .light), trigger: decisionHaptic)
@@ -480,29 +485,45 @@ struct MainView: View {
 
     // MARK: - Background
 
-    /// 배경 색면 — 신선도 어컨트 한 장 + 긴급 시노.
+    /// 배경 — 앱 공통 크림 한 장(`PaperCanvasBackground`) + 오늘 만료 시노.
     ///
-    /// **어컨트 색 자체를 애니메이션하지 않는다.** `LiquidGlassBackground`는 blur(80~90)를 태운
-    /// 블롭 세 장인데, 색을 보간하면 그 세 장의 필터 입력이 매 프레임 바뀌어 **프레임마다 블러가
-    /// 다시 구워진다**(0.5초짜리 ambient라 그 비용이 30프레임 넘게 이어졌다). 대신 신선도마다
-    /// 배경을 **다른 뷰로 세우고**(`.id`) 두 장을 불투명도로만 교차시킨다 — 각 장의 내용은 상수라
-    /// 블러가 한 번만 구워지고, 도는 것은 합성 알파뿐이다. 길이는 그대로 `ambient`(§7.1 유일 예외)로,
-    /// 화면을 통째로 덮은 색이 dur3로 갈아타면 "깜빡"으로 읽힌다는 그 규칙은 변하지 않았다.
+    /// **이 자리에 신선도 3색을 다시 들이지 마라.** 여기는 원래 최임박 재료의 신선도를 받아
+    /// 화면 전체를 물들이는 블러 블롭 세 장이었고, 그 구조가 코드에 남긴 흉터가 둘이었다.
+    /// ① 색을 보간하면 blur(80~90)의 필터 입력이 매 프레임 바뀌어 **프레임마다 블러가 다시
+    /// 구워지므로**, 색을 애니메이션하는 대신 신선도마다 배경을 다른 뷰로 세우고(`.id`) 두 장을
+    /// 불투명도로 교차시키는 우회로가 필요했다. ② 그런데 그 색면은 화면마다 accent가 달랐고
+    /// `RootTabView.pane`은 애니메이션 없는 즉시 전환이라, 탭을 누를 때마다 바탕색이 한 프레임에
+    /// 갈아탔다 — 화면을 한 몸으로 묶으라고 넣은 층이 정확히 그 반대를 하고 있었다.
+    /// 배경이 상수가 되면서 `.id` 교차 페이드는 교차시킬 두 장을 잃었고(그래서 걷었다), 신선도는
+    /// 뱃지 인디케이터 바·D-day 잉크·냉장고 카드가 이미 말한다(§2.5).
+    ///
+    /// **배경이 지는 사실은 이제 하나뿐이다: 오늘 만료가 있는가.** 3색이 아니라 이진값이라
+    /// 바탕색이 갈아타는 일이 없고, 웜톤 한 겹이 얹혔다 걷힐 뿐이다. 길이는 그대로
+    /// `ambient`(§7.1 유일 예외) — 화면을 덮은 색이 dur3로 갈아타면 "깜빡"으로 읽힌다는 규칙은
+    /// 배경이 단색이 되었다고 달라지지 않는다.
     @ViewBuilder private func background(_ counter: CounterDigest) -> some View {
-        let top = counter.topFreshness
         ZStack {
-            LiquidGlassBackground(accent: top.main, accentDeep: top.dark)
-                .id(top)
-                .transition(.opacity)
+            PaperCanvasBackground()
             // 긴급도 연출(F) — 오늘 만료가 있으면 상단에 옅은 웜톤 시노.
+            //
+            // 끝 색이 `.clear`가 아니라 **같은 색의 알파 0**이다. `Color.clear`는 알파 0의 *검정*이라
+            // 보간 중간값이 urgent가 아니라 "urgent와 검정 사이"가 된다 — 같은 색으로 끝내면 어떤
+            // 보간 규약에서도 색상은 상수고 알파만 준다. 블롭·프로스트가 깔려 있던 시절엔 그 얼룩이
+            // 차이를 덮었지만, 평탄한 크림 위에서는 띠 가운데의 탁함을 가려 줄 것이 없다.
+            //
+            // 감쇠를 선형이 아니라 앞이 무겁게(.14 → .05 → 0) 잡는 것도 같은 이유다: 두 정지점
+            // 선형 램프는 끝점에서 기울기가 꺾이고, 그 꺾임이 평탄한 바탕 위에서는 "띠의 아랫선"
+            // 으로 읽힌다(블롭 얼룩이 덮어 주던 또 하나). 세기(.14)와 끝나는 지점(.center)은 옛 값
+            // 그대로다 — 시노를 강하게 만든 게 아니라 끊겨 보이던 자리를 없앤 것이다.
             if counter.urgent > 0 {
-                LinearGradient(colors: [ReffiColor.urgent.opacity(0.14), .clear],
+                LinearGradient(stops: [.init(color: ReffiColor.urgent.opacity(0.14), location: 0),
+                                       .init(color: ReffiColor.urgent.opacity(0.05), location: 0.45),
+                                       .init(color: ReffiColor.urgent.opacity(0), location: 1)],
                                startPoint: .top, endPoint: .center)
                     .ignoresSafeArea()
                     .allowsHitTesting(false)
             }
         }
-        .animation(ReffiMotion.gated(ReffiMotion.ambient, reduce: reduceMotion), value: top)
         .animation(ReffiMotion.gated(ReffiMotion.ambient, reduce: reduceMotion), value: counter.urgent > 0)
     }
 

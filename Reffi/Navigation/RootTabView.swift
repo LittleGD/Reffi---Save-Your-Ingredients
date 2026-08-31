@@ -44,8 +44,8 @@ struct RootTabView: View {
             // 프로필 탭은 PR #4의 ProfileView(계정·취향·리포트)로 교체.
             //
             // **공존은 상태를 살리기 위한 것이지 그리기까지 살리자는 뜻이 아니다.** 세 뷰가 전부
-            // store를 보므로 판정 한 번에 세 화면분 body가 돌고, 가려진 둘도 리퀴드글래스와 종이
-            // 카드를 그대로 다시 그렸다. 그래서 셋 다 `isActive`를 받아 **비활성이면 본문을 세우지
+            // store를 보므로 판정 한 번에 세 화면분 body가 돌고, 가려진 둘도 배경과 종이 카드를
+            // 그대로 다시 그렸다. 그래서 셋 다 `isActive`를 받아 **비활성이면 본문을 세우지
             // 않는다** — @State·@AppStorage·시트는 뷰가 살아 있는 한 그대로다(메인의 물리 씬은
             // 여전히 여기서 일시정지된다).
             pane(MainView(isActive: tab == .home, onOpenToBuy: { openFridge(.toBuy) }), visible: tab == .home)
@@ -55,6 +55,12 @@ struct RootTabView: View {
             CapsuleNav(tab: $tab, onAdd: { showAdd = true })
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // **루트가 칠하는 이 크림이 세 패인이 칠하는 것과 같은 한 색이어야 한다**(`PaperCanvasBackground`).
+        // `pane(_:visible:)`은 애니메이션 없는 즉시 전환이라, 탭마다 배경색이 다르면 화면 전체를 덮은
+        // 색이 한 프레임에 갈아탄다 — 실제로 그랬다(세 화면이 각자 다른 신선도 accent로 블롭을 깔던
+        // 시절). 여기와 패인 셋이 같은 값을 칠하는 한, 전환은 그릴 것이 바뀌는 것이지 바탕이 바뀌는
+        // 것이 아니다. 이 배경은 그래서 중복이 아니라 **바닥**이다: 패인들은 `isActive`가 꺼지면
+        // 배경을 세우지 않으므로, 첫 프레임과 게이트가 닫힌 순간을 이 한 장이 받는다.
         .background(ReffiColor.canvas.ignoresSafeArea())
         // 되돌리기 토스트 — 위에서 내려온다(하단 CTA·네비를 가리지 않게). 어느 탭이든 같은 자리.
         .overlay(alignment: .top) {

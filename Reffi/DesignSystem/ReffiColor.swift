@@ -161,30 +161,14 @@ enum ReffiColor {
     /// 말하는 자리가 넷 있었고(임박 재료 편집·내 레시피·조리 스텝·발주 티켓) 전부 `.opacity(0.18)`을 손으로
     /// 적고 있었다. 숫자가 콜사이트에 있으면 다음 튜닝에서 한 곳만 움직인다 — 값이 아니라 역할을 부른다.
     static func paperEdgeAccent(_ accent: Color) -> Color { accent.opacity(0.18) }
-    /// 배경 블롭 알파(§13.2·42차) — 색은 인자로 받고 토큰이 **라이트/다크 α만** 쥔다
-    /// (`paperEdgeAccent` 패턴). 다크에서 내리는 이유: 어두운 캔버스 위에선 같은 α가 네온처럼
-    /// 타올라 종이 표면의 대비를 잡아먹는다(은은한 발광까지만). 옛 구현은 이 여섯 값이
-    /// 뷰 안의 무명 삼항이라 MD·HTML 3자 대조의 사각지대였다.
-    static func bgBlobStrong(_ base: Color) -> Color { adaptiveAlpha(base, light: 0.55, dark: 0.35) }
-    static func bgBlobMid(_ base: Color) -> Color    { adaptiveAlpha(base, light: 0.30, dark: 0.20) }
-    static func bgBlobSoft(_ base: Color) -> Color   { adaptiveAlpha(base, light: 0.16, dark: 0.10) }
 
-    /// 임의 색에 라이트/다크 **다른 α**를 입힌다 — `Color.opacity(_:)`는 스칼라라 스킴 적응이
-    /// 불가능해, 동적 색을 트레이트에서 다시 풀어 α만 갈아 끼운다.
-    private static func adaptiveAlpha(_ base: Color, light: Double, dark: Double) -> Color {
-        let ui = UIColor(base)
-        return Color(uiColor: UIColor { t in
-            ui.resolvedColor(with: t)
-                .withAlphaComponent(CGFloat(t.userInterfaceStyle == .dark ? dark : light))
-        })
-    }
+    // **배경 틴트 토큰은 없다** — 화면 배경은 `canvas` 단색 한 장이다(`PaperCanvasBackground`).
+    // 여기엔 블롭 α 3단(`bgBlob*`)과 상하 흰 시노(`bgSheen`·`bgSheenBottom`)가 있었다. 색면을
+    // 떠받치던 값이라 색면이 사라진 순간 쥘 사실이 없어졌다. 되살리기 전에 근거부터 다시 세워라:
+    // 루트·시트·도킹 CTA·냉장고 하단 마스크가 전부 `canvas`를 칠하므로, 한 화면만 다른 바탕을
+    // 깔면 그 경계에 톤이 갈린 띠가 남는다(그것이 이 토큰들을 지운 이유다).
+    // 배경이 지는 유일한 신호는 메인의 오늘 만료 웜톤 시노 하나이고, 그건 `urgent`를 그대로 쓴다.
 
-    /// 메인 배경(리퀴드글래스) 상단 흰 시노 — L white 0.22 · D white 0.045
-    static let bgSheen         = dynamic(light: (1, 0, 0), lightAlpha: 0.22,
-                                         dark:  (1, 0, 0), darkAlpha:  0.045)
-    /// 하단 흰 시노(42차 정본화) — 상단과 짝인데 코드에만 존재하던 값. L white 0.06 · D white 0.02
-    static let bgSheenBottom   = dynamic(light: (1, 0, 0), lightAlpha: 0.06,
-                                         dark:  (1, 0, 0), darkAlpha:  0.02)
     /// 모달·결정 오버레이 딤 — L ink 틴트 0.22 · D 순검정 0.55
     /// (다크에선 아래 면이 이미 어두워 ink 틴트로는 딤이 안 먹는다 → 검정으로 더 깊게)
     static let scrim           = dynamic(light: (0.25, 0.012, 80), lightAlpha: 0.22,

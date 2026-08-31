@@ -9,9 +9,11 @@ import SwiftUI
 /// 빨간 종이 조각이 드러난다. 밀기는 보조기술에 존재하지 않으므로 같은 동작을 행의 **커스텀 접근성
 /// 액션**으로도 낸다. 오발이 잦은 어포던스라 되돌리기 토스트를 짝지었다(`FridgeStore.skipBuyUndoable`).
 ///
-/// **커버 크롬(헤더·닫기)을 갖지 않는 임베더블 본문**이다 — 냉장고 To buy 탭이 이 뷰를 그대로 얹고,
-/// 풀스크린 커버가 필요한 자리는 아래 `ShoppingListView`가 헤더만 씌운다. 목록·재입고·빼기·검색 시트
-/// 같은 실제 동작은 **여기 한 곳**에 산다(두 표면이 같은 규칙을 각자 적으면 조용히 갈린다).
+/// **커버 크롬(헤더·닫기)을 갖지 않는 임베더블 본문**이다 — 지금 호출부는 냉장고 To buy 탭
+/// (`FridgeView.pane`) 하나뿐이고, 그 자리는 헤더 대신 `ctaBottomInset`만 넘긴다. 커버가 다시
+/// 필요해지면 **이 본문을 감싸는 래퍼**를 세운다(옛 `ShoppingListView` 커버가 그 형태였다).
+/// 목록·재입고·빼기·검색 시트 같은 실제 동작은 **여기 한 곳**에 산다(두 표면이 같은 규칙을 각자
+/// 적으면 조용히 갈린다).
 struct ShoppingListContent: View {
     /// 하단 도킹 CTA 아래로 남길 여백 — 커버는 기본값(`s3`), 떠 있는 캡슐 네비가 있는 탭 패인은
     /// 그 자리(`ReffiChrome.navReserve`)를 비운다.
@@ -182,6 +184,13 @@ struct ShoppingListContent: View {
         }
         // 직접 담기 진입은 목록 꼬리가 아니라 화면 하단에 도킹한다(§13.5) — 목록이 짧든 길든 같은
         // 자리에 있고, 커버·시트·메인이 공유하는 하단 CTA 관례와 어긋나지 않는다.
+        //
+        // **`over:`는 이 패인의 실제 바탕색과 반드시 같은 토큰이어야 한다.** `dockedCTA`는
+        // `[surface.opacity(0) → surface]` 페이드 + `surface` 솔리드를 깔기 때문에, 넘긴 색이
+        // 실제 배경과 다르면 화면 아래 ~1/6이 **다른 톤의 띠**로 읽힌다. 한동안 정확히 그 상태였다
+        // (이 자리는 `canvas`인데 패인 배경은 컬러 블롭 + 글래스 프로스트였다). 지금은 배경이
+        // `PaperCanvasBackground`(= `canvas` 단색)라 둘이 같은 값이고, 그래서 이 인자는 장식이
+        // 아니라 **불변식**이다 — 패인 배경을 바꾸는 사람은 이 줄도 같이 바꿔야 한다.
         .dockedCTA(over: ReffiColor.canvas, bottomInset: ctaBottomInset) { addItemButton }
         .reffiFeedback(.success, trigger: restockHaptic)
         .reffiFeedback(.impact(weight: .light), trigger: skipHaptic)
@@ -344,7 +353,11 @@ struct ShoppingListContent: View {
         HStack(spacing: ReffiSpace.s3) {
             PaperSilhouette(glyph: item.glyph, fresh: .fresh)
                 .frame(width: ReffiFoodIcon.row, height: ReffiFoodIcon.row)
-            Text(verbatim: item.name).reffiType(.body).foregroundStyle(ReffiColor.ink)
+            // 재료 이름은 이 행의 **콘텐츠**다 — 목록을 훑는 눈이 잡는 유일한 값이라 `checklistItem`
+            // (SemiBold 16)이고, 냉장고 카드·History 타임라인의 재료명과 같은 층이다. `body`
+            // (Regular 16)는 §3.5가 **설정·폼의 라벨**에 준 role이라 여기 오면 같은 재료 이름이
+            // 화면마다 다른 굵기로 서고, 오른쪽 'Bought' 알약(SemiBold 13)보다 이름이 가벼워진다.
+            Text(verbatim: item.name).reffiType(.checklistItem).foregroundStyle(ReffiColor.ink)
             Spacer()
             Button {
                 withAnimation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion)) {
@@ -576,8 +589,8 @@ private struct ToBuySearchSheet: View {
         // 검색 필드 포커스 → 시트를 .large로. 키보드가 떠도 그리드가 가리지 않는다(원본 픽커 P0-2 계승).
         // 진입 자동 포커스는 두지 않는다: 이 시트의 기본 상태는 `content` 주석이 선언한 대로 타이핑 없이
         // 끝나는 재료 배열인데, 자동 포커스는 .medium 높이에서 그 배열을 키보드로 덮어 스스로의 원칙을
-        // 무효화했다. `-toBuy.search` QA 인자는 시트를 여는 역할만 하므로(ShoppingListView:44-47) 그대로
-        // 동작하고, 이제 그 스크린샷이 기본 상태(=그리드)를 찍는다.
+        // 무효화했다. `-toBuy.search` QA 인자는 시트를 여는 역할만 하므로(`ShoppingListContent.body`
+        // 안의 DEBUG `onAppear`) 그대로 동작하고, 이제 그 스크린샷이 기본 상태(=그리드)를 찍는다.
         .onChange(of: searchFocused) { _, focused in
             if focused, detent != .large {
                 withAnimation(ReffiMotion.gated(ReffiMotion.enter, reduce: reduceMotion)) {
@@ -741,12 +754,19 @@ private struct ToBuySearchSheet: View {
     private func gridSection(_ label: LocalizedStringKey, tiles: [GridTile],
                              listed: Set<String>) -> some View {
         VStack(alignment: .leading, spacing: ReffiSpace.s2) {
-            // 카테고리·Frequent는 **번역되는** 라벨이라 올캡 모노 role을 쓰지 않는다(§3.5) —
-            // 한국어에선 `.textCase(.uppercase)`가 무동작이라 올캡이라는 시각 문법이 사라지고
-            // 11pt에 자간 1.4만 남는다. 번역되는 섹션 라벨은 caption으로 내린다.
+            // 카테고리·Frequent는 **번역되는** 라벨이라 올캡 모노 role(`sectionLabel`)을 쓰지 않는다
+            // (§3.5) — 한국어에선 `.textCase(.uppercase)`가 무동작이라 올캡이라는 시각 문법이
+            // 사라지고 11pt에 자간 1.4만 남는다. 그 자리를 받는 것은 `caption`이 **아니라**
+            // `groupLabel`이다: `caption`(14)은 문장으로 읽는 부제·안내문의 role이라, 이름표에
+            // 얹으면 자기가 여는 타일 이름(`metaText` 13)보다 **커진다** — 묶음 이름표가 내용보다
+            // 앞에 서는 것이고, 이름표는 자기가 읽히려는 게 아니라 아래를 열어 주는 줄이다.
+            // 색이 `muted`인 것도 같은 이유다. 이 시트 바탕은 `canvas`이고 `muted`는 그 면 위에서
+            // §2.6 하한을 넘는다(다섯 면 실측 범위는 `ReffiColor.muted` 주석).
             Text(label)
-                .reffiType(.caption)
-                .foregroundStyle(ReffiColor.ink2)
+                .reffiType(.groupLabel)
+                .foregroundStyle(ReffiColor.muted)
+                // 섹션을 로터로 건너뛸 수 있게 — 시각 위계를 내렸으니 의미 위계는 트레잇이 진다.
+                .accessibilityAddTraits(.isHeader)
             LazyVGrid(columns: Self.gridColumns, spacing: ReffiSpace.s2) {
                 ForEach(tiles) { tile($0, listed: listed.contains($0.key)) }
             }

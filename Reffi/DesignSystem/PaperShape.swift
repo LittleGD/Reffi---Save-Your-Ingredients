@@ -4,7 +4,16 @@ import SwiftUI
 /// 완벽한 원·사각 금지: 변·코너를 고정 시드로 미세하게 흩뜨려 손으로 오린 종이 느낌을 낸다.
 /// 시드(seed)가 같으면 항상 같은 모양 → 레이아웃이 흔들리지 않는다(애니메이션 안정).
 
-/// 종이 둥근 사각 — 버튼·뱃지·카드 면. 변은 살짝 휘고 코너 반지름은 변마다 다르다.
+/// 종이 둥근 사각 — **뱃지·카드·입력 칸·큰 다이얼로그 면**. 변은 살짝 휘고 코너 반지름은 변마다 다르다.
+///
+/// **역할로 고르는 셰이프다. 크기로 고르지 마라.** §13.1의 2계층은 이렇다 — 행동을 받는 소형 면
+/// (칩·필·드롭다운 트리거·토글·닫기 X·와이드 CTA)의 정본은 `PaperCutRect`(정사각에 가까우면
+/// `PaperChipCut`)이고, 여기 `PaperRect`는 **읽는 면**(뱃지·카드·`fieldSurface`·`PaperDialog`)이다.
+/// 둘은 기하로 갈리지 않는다: 재료 뱃지(≈150×34)와 정렬 칩(≈100×32)은 크기가 사실상 같은데
+/// 정본이 서로 다르다. 그래서 이 프리미티브는 **역할을 추론하지 않는다** — 콜사이트가 어느
+/// 계층인지 이름으로 선언해야 하고, 아래 캡슐 라우팅은 그 선언이 기하와 정면으로 모순될 때
+/// (= 저자가 적은 반지름으로는 둥근 사각이 애초에 그려질 수 없을 때) 도는 안전장치일 뿐이다.
+/// 칩이 둥글게 보인다면 이 파일이 아니라 그 칩의 콜사이트를 고쳐라.
 struct PaperRect: Shape {
     var cornerRadius: CGFloat = 14
     var seed: Int = 0
@@ -25,18 +34,28 @@ struct PaperRect: Shape {
 
     private func pick<T>(_ a: [[T]]) -> [T] { a[((seed % a.count) + a.count) % a.count] }
 
-    /// 네 코너가 전부 `min(w,h)/2`로 클램프되는가 = 이 크기에서 캡슐로 퇴화하는가(§13.1).
-    /// 반지름 지터의 최솟값까지 클램프될 때만 참이라, 일부만 클램프되는 비대칭 손맛은 그대로 둔다.
+    /// 저자가 적은 반지름이 짧은 변의 절반을 넘는가 = 이 크기에서 캡슐로 퇴화하는가(§13.1).
+    ///
+    /// **판정은 시드와 무관하다 — 그것이 이 식의 요점이다.** 예전엔 반지름 지터의 최솟값까지
+    /// 클램프될 때만 참이었는데(`cornerRadius * lowest >= maxR`), 그 최솟값이 시드마다 0.84~0.88로
+    /// 갈리는 바람에 **크기도 반지름도 같은 두 면이 시드만 다르다고 종(種)이 갈렸다**: `md`(12)에서
+    /// 짧은 변 20.5pt면 seed 0은 둥근 사각(임계 20.16), seed 2는 8각(임계 21.12)이다. 셰이프가
+    /// 각지느냐 둥그냐가 손맛 난수에 걸리면 그건 규칙이 아니라 우연이고, 오너가 화면에서 본
+    /// "규칙 없이 섞여 있다"가 프리미티브 안에서 그대로 재현된다. 이제 임계는 콜사이트에서 읽고
+    /// 예측할 수 있는 한 줄뿐이다.
+    ///
+    /// `seed` 인자는 호출부·테스트 계약을 위해 남기지만 판정에 **쓰지 않는다**. 다시 쓰지 마라.
     static func degeneratesToCapsule(cornerRadius: CGFloat, in rect: CGRect, seed: Int) -> Bool {
-        let cj = cornerJit[((seed % cornerJit.count) + cornerJit.count) % cornerJit.count]
         let maxR = min(rect.width, rect.height) / 2
-        guard maxR > 0, let lowest = cj.min() else { return false }
-        return cornerRadius * lowest >= maxR
+        guard maxR > 0 else { return false }
+        return cornerRadius >= maxR
     }
 
     func path(in rect: CGRect) -> Path {
         // §13.1 "완벽한 캡슐 금지" — pill 스케일 반지름이 들어오면 좌우가 정확한 반원인 캡슐이 된다.
         // 그 크기의 정본은 모서리를 잘라낸 8각(`PaperCutRect`)이므로 셰입 자체를 그쪽으로 라우팅한다.
+        // 라우팅이 **정사각에 가까운 면에서 도로 사각을 만들던 구멍**은 `PaperCutRect` 안에서 막았다
+        // (그쪽 `c` 주석) — 캡슐을 막고 사각을 내놓으면 규칙이 스스로를 무효로 만든다.
         if Self.degeneratesToCapsule(cornerRadius: cornerRadius, in: rect, seed: seed) {
             return PaperCutRect(seed: seed).path(in: rect)
         }
@@ -114,6 +133,11 @@ struct PaperBlob: Shape {
 
 /// 와이드 종이컷 — 네 모서리를 비스듬히 **잘라낸**(chamfer) 길쭉한 8각형. `PaperBlob`(아이콘 버튼 9각형)과
 /// 같은 "손으로 자른 종이" 계열. 정점에 미세 지터로 손맛. 와이드 CTA 버튼·면에 쓴다(직선 변 = octagon 일치).
+///
+/// **소형 행동 면(칩·필·트리거·토글·닫기 X)의 정본이 여기다**(§13.1). 다만 잘림이 높이·폭 양쪽에
+/// 매여 있어 정사각에 가까운 칩에서는 얕아지므로, 그런 자리는 잘림을 짧은 변에만 매단 형제
+/// `PaperChipCut`(`PaperDayChip.swift`)을 쓴다. 도장(`DDayStamp`)도 폭이 라벨 길이를 따라 흔들려
+/// 그쪽 형제를 쓴다 — 근거는 그 파일의 다이(die) 주석.
 struct PaperCutRect: Shape {
     var seed: Int = 0
 
@@ -124,8 +148,25 @@ struct PaperCutRect: Shape {
     ]
 
     func path(in rect: CGRect) -> Path {
-        let c = min(rect.height * 0.32, rect.width * 0.12)        // 모서리 잘림(끝 수직변 유지 = 깔끔한 8각형)
-        let j = max(1.2, min(rect.width, rect.height) * 0.025)    // 손맛 지터(px)
+        // 모서리 잘림. 폭 12% 항은 **윗변·아랫변의 직선 구간을 지키는 상한**이지 잘림의 정의가 아니다 —
+        // 그 항이 없으면 세로로 긴 면에서 잘림이 폭을 다 먹어 8각이 마름모로 뭉갠다. 그런데 정사각에
+        // 가까운 면에서는 상한이 잘림 **자체**를 삼킨다: 30×30이면 min(9.6, 3.6) = 3.6pt라 모서리가
+        // 잘린 것으로 읽히지 않고 그냥 사각이 된다(`PaperDayChip`이 형제 프리미티브를 따로 세운
+        // 이유가 정확히 이 눌림이다 — 그 파일의 `PaperChipCut` 주석).
+        //
+        // 이건 단순한 미감 문제가 아니라 **규칙의 구멍**이었다: `PaperRect`의 캡슐 금지 라우팅이
+        // 이 셰이프로 보내는 면 중에 정사각에 가까운 것이 있어서(pill 반지름을 받은 40×40 아바타·
+        // 토글 슬롯 등), 상한이 그대로면 라우팅이 캡슐을 막고 **사각을 만든다**. §13.1이 한 줄에
+        // 나란히 금지한 두 형태 중 하나를 피하려다 다른 하나에 착지하는 자리다.
+        //
+        // 그래서 짧은 변의 20%를 하한으로 깐다. 20%인 근거는 레포의 실패 사례다 — 30pt 면에서
+        // 3.6pt(12%)는 사각으로 읽혔고, 51×31 토글 슬롯의 6.1pt(19.7%)는 8각으로 읽힌다.
+        // 하한은 짧은 변에만 걸리므로 어떤 비율에서도 두 직선 구간이 각각 60% 이상 남는다.
+        // **폭 ≥ 높이 × 1.67인 면(와이드 CTA·칩·탭 알약 = 지금 콜사이트의 대부분)은 상한이 하한보다
+        // 크므로 잘림이 예전과 완전히 동일하다** — 이 하한은 눌리던 구간만 들어 올린다.
+        let short = min(rect.width, rect.height)
+        let c = max(min(rect.height * 0.32, rect.width * 0.12), short * 0.20)
+        let j = max(1.2, short * 0.025)                           // 손맛 지터(px)
         let js = Self.jit[((seed % Self.jit.count) + Self.jit.count) % Self.jit.count]
         let (minX, maxX, minY, maxY) = (rect.minX, rect.maxX, rect.minY, rect.maxY)
         let base: [CGPoint] = [

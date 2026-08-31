@@ -33,7 +33,10 @@ struct AuthView: View {
 
     var body: some View {
         ZStack {
-            LiquidGlassBackground(accent: ReffiColor.blue)
+            // 파일 첫 줄이 줄곧 "크림 캔버스 위 흰 영수증 한 장"이라 적어 놓고, 실제로는 blue 틴트
+            // 블롭 + 글래스 프로스트를 깔고 있었다. 이제 주석이 참이다 — 그리고 이 화면은 시트로도
+            // 뜨므로(프로필 → 로그인) 바탕이 앱 공통 크림이어야 시트 뒤 화면과 톤이 갈리지 않는다.
+            PaperCanvasBackground()
             ScrollView {
                 VStack(spacing: ReffiSpace.s5) {
                     wordmark

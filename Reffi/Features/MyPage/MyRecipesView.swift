@@ -99,8 +99,13 @@ struct MyRecipesView: View {
                 RecipeHeroIconView(icon: recipe.heroIcon)
                     .frame(width: ReffiDishIcon.row, height: ReffiDishIcon.row)
                 VStack(alignment: .leading, spacing: ReffiSpace.s0) {
+                    // 레시피 이름은 **행 자체가 콘텐츠인 목록의 항목명**이라 `checklistItem`이다 —
+                    // `body`(Regular 16)는 설정·폼의 라벨 자리다(§3.5). 크기가 같아 굵기만 남는 구분이라
+                    // 규칙이 없으면 같은 성격의 행이 화면마다 굵기가 달라진다: 냉장고 카드의 재료명,
+                    // History 정산 카드의 품목 줄, 담기 목록이 전부 `checklistItem`이고 이 목록만
+                    // `body`였다. 여기서 되돌리면 그 정렬이 이 한 화면에서만 깨진다.
                     Text(verbatim: recipe.displayName)
-                        .reffiType(.body).foregroundStyle(ReffiColor.ink)
+                        .reffiType(.checklistItem).foregroundStyle(ReffiColor.ink)
                         .lineLimit(1).truncationMode(.tail)
                     Text(verbatim: recipe.ingredients.map(\.displayName).joined(separator: ", "))
                         .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
