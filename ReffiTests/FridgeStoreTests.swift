@@ -1170,3 +1170,30 @@ struct FridgeStoreTests {
         #expect(store.counterIngredients.filter { $0.name.hasPrefix("Fresh") }.count == 5)
     }
 }
+
+/// 대체 투입 스냅샷(45차) — 발주가 예약·삭제할 재고가 레시피 원문에 없는 이름일 때, 그 사실을
+/// 조리 화면·공유 카드가 말할 수 있게 세션이 (재고 id → 대신한 줄 이름)을 들고 간다.
+/// 대체가 없으면 nil — 옛 세션과 같은 모양이라 디코드 경로가 갈리지 않는다.
+@MainActor
+struct CookSubNotesTests {
+    @Test func cookSnapshotsSubstitutionNotes() throws {
+        let cream = Ingredient(name: "생크림", category: "유제품", daysLeft: 2,
+                               quantity: Quantity(value: 1, unit: .piece), glyph: .milk)
+        let store = FridgeStore(ingredients: [cream], recipes: [], history: [])
+        let recipe = Recipe.userRecipe(name: "Fixture", ingredientNames: ["우유"], minutes: 5, steps: [])
+        let milkLine = Recipe.Item(ref: "milk", en: "milk", ko: "우유")
+        let result = RecipeRecommender.Result(id: recipe.id, recipe: recipe,
+                                              used: [cream], total: 1,
+                                              substituted: [(item: milkLine, with: cream)],
+                                              missing: [], urgentUsedCount: 0)
+        store.cook(result)
+        let notes = try #require(store.activeCook?.subNotes)
+        #expect(notes[cream.id.uuidString] == milkLine.displayName)
+        // 대체 없는 발주는 subNotes 자체가 없다.
+        let plain = RecipeRecommender.Result(id: recipe.id, recipe: recipe,
+                                             used: [cream], total: 1,
+                                             substituted: [], missing: [], urgentUsedCount: 0)
+        store.cook(plain)
+        #expect(store.activeCook?.subNotes == nil)
+    }
+}

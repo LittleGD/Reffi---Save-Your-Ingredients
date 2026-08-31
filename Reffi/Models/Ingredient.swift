@@ -296,19 +296,32 @@ struct Ingredient: Identifiable, Codable, Equatable {
     func daysLeft(asOf now: Date) -> Int { Self.days(from: now, to: expiresAt) }
     var daysLeft: Int { daysLeft(asOf: Date()) }
 
-    /// 실효 만료 시각 — 냉동 중(frozenAt 기록)이면 냉동 시점 + 유예, 아니면 원본 소비기한.
-    /// 처음부터 냉동 보관으로 산 재료(frozenAt 없음)는 등록 시점의 소비기한을 그대로 쓴다.
-    /// 개봉된 밀봉식품(44차)은 `개봉일 + 개봉 후 기한`으로 줄어든다 — 원 기한과의 min이라
-    /// 개봉 기록이 기한을 **늘리는** 일은 없다(임박 직전에 개봉해도 임박은 그대로).
+    /// 실효 만료 시각(45차 두 번 벼려짐) — 냉동은 개봉 시계를 **멈추는 사건**이다.
+    ///
+    /// 44차까지는 냉동이 early return이라 개봉 시계를 덮었다: 20일 전 개봉한 크림치즈(개봉 후
+    /// 10일 = 이미 지남)를 냉동으로 옮기면 D+14로 되살아났다. 45차 1차 처방은 단순 min이었는데,
+    /// 적대 검증이 반대편 구멍을 실측했다 — 개봉 후 기한(사전 opened 전수 3~10일)은 냉동 유예
+    /// (14일)보다 항상 짧아 min이 **언제나 개봉 시계를 이기고**, 어제 딴 코코넛밀크·홀토마토를
+    /// 얼려도 기한이 하루도 안 늘어난 채 1회권(`canFreeze`)만 소모됐다(위약 25종 전수) — 현실에선
+    /// 개봉품이야말로 냉동이 정답인 품목군인데.
+    ///
+    /// 그래서 min이 아니라 **사건**으로 푼다: 냉동 시점에 개봉 시계가 살아 있었으면 시계가 멈추고
+    /// 유예(frozenAt+14일)가 대신 돈다(두 번째 기회, §13.6). 이미 죽어 있었으면 죽은 날짜를
+    /// 그대로 둔다 — 냉동이 지난 개봉 기한을 되살리는 일은 없다(44차 크림치즈 케이스 그대로 유지).
     var effectiveExpiresAt: Date {
-        if storage == .freezer, let frozenAt {
-            return Self.day(offset: Self.freezerGraceDays, from: frozenAt)
+        let openedDeadline: Date? = {
+            guard let openedAt, let id = canonicalID,
+                  let days = IngredientLexicon.shared.openedShelfLifeDays(id: id) else { return nil }
+            return Self.day(offset: days, from: openedAt)
+        }()
+        guard storage == .freezer, let frozenAt else {
+            guard let openedDeadline else { return expiresAt }
+            return min(expiresAt, openedDeadline)
         }
-        if let openedAt, let id = canonicalID,
-           let days = IngredientLexicon.shared.openedShelfLifeDays(id: id) {
-            return min(expiresAt, Self.day(offset: days, from: openedAt))
-        }
-        return expiresAt
+        let grace = Self.day(offset: Self.freezerGraceDays, from: frozenAt)
+        guard let openedDeadline else { return grace }
+        // 냉동 당시 개봉 시계가 이미 지나 있었나 — 달력 일 기준(같은 날 냉동은 산 것으로 본다).
+        return Self.days(from: frozenAt, to: openedDeadline) < 0 ? openedDeadline : grace
     }
 
     /// 개봉 확인이 필요한가(44차) — 밀봉 항목이 미개봉인 채 마지막 확인(없으면 구매)에서 14일이
@@ -329,8 +342,16 @@ struct Ingredient: Identifiable, Codable, Equatable {
     var freshness: Freshness { Freshness(daysLeft: effectiveDaysLeft) }
 
     var isFrozen: Bool { storage == .freezer }
-    /// 냉동 가능 — 이미 냉동이 아니고, 한 번도 얼린 적 없어야(재냉동 금지) 한다.
-    var canFreeze: Bool { storage != .freezer && frozenAt == nil }
+    /// 냉동 가능 — 이미 냉동이 아니고, 한 번도 얼린 적 없어야(재냉동 금지) 하며, **효과가 있어야**
+    /// 한다: 개봉 시계가 이미 지난 항목은 냉동해도 기한이 되살아나지 않으므로(`effectiveExpiresAt`
+    /// 사건 규칙) 버튼을 열어 두면 1회권만 태우는 위약이 된다(MVP 원칙 — 동작 없는 UI 금지).
+    var canFreeze: Bool {
+        guard storage != .freezer, frozenAt == nil else { return false }
+        if let openedAt, let id = canonicalID,
+           let days = IngredientLexicon.shared.openedShelfLifeDays(id: id),
+           Self.days(from: Date(), to: Self.day(offset: days, from: openedAt)) < 0 { return false }
+        return true
+    }
 
     /// 남은 일수 라벨(로컬라이즈). 데이터성 숫자(§3.4).
     var dDayText: String { Self.dDayText(daysLeft: effectiveDaysLeft) }
@@ -344,6 +365,16 @@ struct Ingredient: Identifiable, Codable, Equatable {
         case 0:    String(localized: "Today", comment: "D-day label when expiring today")
         default:   String(localized: "\(daysLeft)d", comment: "D-day shorthand, e.g. 3d")
         }
+    }
+
+    /// 대체 투입 표기(45차) — 오더 티켓·조리 완료 시트·공유 카드가 **같은 문구**를 쓴다.
+    /// 대체로 채워진 줄은 missing에서 빠져 Short 줄에도 안 뜨는데, 발주하면 그 재고가 실제로
+    /// 예약·삭제된다 — 어디에도 "우유 대신 생크림"이라는 말이 없으면 사용자는 재고가 사라진
+    /// 이유를 알 수 없다(발주=재고 소비 앱에서 가장 비싼 침묵). 표기는 이름 뒤 괄호 주석 —
+    /// 레시피 원문 괄호("소고기 (얇게 썬 것)")와 같은 문법이라 줄 형식이 안 갈라진다.
+    static func substitutionLabel(stockName: String, lineName: String) -> String {
+        String(localized: "\(stockName) (for \(lineName))",
+               comment: "Ticket line for substituted stock; 1st = stock name, 2nd = recipe line it stands in for")
     }
 
     /// 남은 일수를 **소리로** 읽는 문구 — 화면 표기(`dDayText`)는 도장·배지 폭에 맞춘 축약이라

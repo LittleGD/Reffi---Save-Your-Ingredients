@@ -25,6 +25,16 @@ struct IngredientLexicon {
         /// 밀봉 가공식품(캔·병·레토르트) 플래그 — 개봉 전에는 장기, 개봉 후에는 `shelfLife.opened`가
         /// 기한이 된다(44차 오너 결정: 미개봉 방치 방지를 위해 2주 주기 개봉 확인을 묻는다).
         var sealed: Bool?
+        /// 대체 간선(45차, 일방향) — **이 재고가** `fills` 캐논을 요구하는 레시피 줄을 대신할 수 있다
+        /// (생크림→우유). 요리 실무 표준 대체표(USU·King Arthur) 근거의 수작업 40간선. 체이닝 금지
+        /// (1홉), parent와 조합 금지, 랭킹에서는 감점 — 정품 매칭보다 항상 뒤에 선다.
+        /// `block`: 줄 텍스트에 이 토큰이 있으면 그 줄에는 이 간선을 쓰지 않는다(레몬 "웨지" 줄을
+        /// 식초로 채우지 않는다 — 대체 안전성은 캐논이 아니라 줄 텍스트가 결정한다는 시드 실측).
+        struct Sub: Decodable {
+            var fills: String
+            var block: [String]?
+        }
+        var subs: [Sub]?
 
         struct Names: Decodable {
             var en: [String]
@@ -81,15 +91,26 @@ struct IngredientLexicon {
     /// 유지한다는 저장소 선례(사전 전체를 카테고리로 묶어 노출하는 다른 화면이 생기면 바로 재사용 가능).
     let categorySections: [(category: String, entries: [Entry])]
 
+    /// 수식 토큰(45차) — 재료 토큰 **바로 뒤**에 이 토큰이 오면 그 상품은 재료가 아니라 파생품이다
+    /// ("onion powder"는 양파가 아니다). 지식은 코드가 아니라 JSON에 둔다(프로젝트 규칙).
+    let modifierTokens: Set<String>
+
     init(bundle: Bundle = .main) {
-        struct File: Decodable { var version: Int; var entries: [Entry] }
+        struct File: Decodable {
+            var version: Int
+            var entries: [Entry]
+            var modifierTokens: [String]?
+        }
         var loaded: [Entry] = []
+        var modifiers: [String] = []
         if let url = bundle.url(forResource: "ingredient-lexicon", withExtension: "json"),
            let data = try? Data(contentsOf: url),
            let file = try? JSONDecoder().decode(File.self, from: data) {
             loaded = file.entries
+            modifiers = file.modifierTokens ?? []
         }
         entries = loaded
+        modifierTokens = Set(modifiers.map(Self.norm))
         byID = Dictionary(loaded.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
 
         var exact: [String: String] = [:]
@@ -170,14 +191,22 @@ struct IngredientLexicon {
     private let headNounCache = NSCache<NSString, NSString>()
     private static let cacheMiss = "\u{1}"
 
-    /// 자유 표기 → canonical ID. ① 정확 일치 ② 머리말 일치 ③ 긴 키워드 우선 포함 매칭.
+    /// 자유 표기 → canonical ID. ① 정확 일치 ② 머리말 일치 ③ **토큰 매칭** ④ 오타 허용.
     ///
     /// ②가 ③보다 먼저다 — 한국어·영어 복합명사는 **뒤가 머리**라, 앞에서 걸리는 키워드는 대개
-    /// 재료가 아니라 수식어다(실측: ③만 쓰던 시절 "딸기우유"가 strawberry에, "고추참치"가
-    /// chili-pepper에, "하인즈 토마토 케첩"이 신선 tomato에 붙었다). 캐논 오귀속은 표시 오류가
-    /// 아니라 데이터 파괴다 — 장보기 줄이 남의 캐논에 흡수돼 사라지고, 레시피 오매칭이 요리 완료
-    /// 시 엉뚱한 재고를 삭제하며, 소비기한이 오탐 캐논 값(케첩 540일 → 토마토 7일)으로 오염된다.
-    /// ③은 머리에 수량·용량이 붙어 ②가 못 잡는 실표기("서울우유1L")의 마지막 폴백으로 남긴다.
+    /// 재료가 아니라 수식어다(실측: 무제한 포함 매칭 시절 "딸기우유"가 strawberry에, "고추참치"가
+    /// chili-pepper에 붙었다). 캐논 오귀속은 표시 오류가 아니라 데이터 파괴다 — 장보기 줄이 남의
+    /// 캐논에 흡수돼 사라지고, 레시피 오매칭이 요리 완료 시 엉뚱한 재고를 삭제하며, 소비기한이
+    /// 오탐 캐논 값(간장 730일 → 게장에)으로 오염된다.
+    ///
+    /// ③은 45차에 **경계 없는 포함 매칭에서 토큰 매칭으로 교체**됐다. 포함 매칭은 구조적으로 못
+    /// 고치는 대문이었다 — "onion powder"→양파, "간장게장"→간장(730일), "cornstarch"→전분,
+    /// "감자탕"→감자(전부 실행 확인). 토큰 규칙: 여러 단어 키워드는 연속 토큰열 일치(마지막
+    /// 토큰만 +s/es 복수 허용 — "chicken breasts"가 부위를 잃고 chicken 총칭에 떨어지던 45차
+    /// 검증 실측 125건의 마감), 한 단어
+    /// 키워드는 토큰 전체 일치 또는 (한글 한정) 토큰 **끝** 일치("서울우유1L"의 서울우유 토큰).
+    /// 토큰 **앞**에서 걸리는 합성어(간장게장·감자탕·새우깡)는 대개 완성요리·과자라 받지 않고,
+    /// 재료 토큰 바로 뒤에 수식 토큰(가루·powder·오일…, 사전 `modifierTokens`)이 오면 강등한다.
     func canonicalID(for rawName: String) -> String? {
         let n = Self.norm(rawName)
         guard !n.isEmpty else { return nil }
@@ -187,11 +216,65 @@ struct IngredientLexicon {
         }
         let raw = exactKeyword[n]
             ?? headNounID(normalized: n)
-            ?? containsKeywords.first { n.contains($0.keyword) }?.id
+            ?? tokenMatchID(normalized: n)
             ?? fuzzyCanonicalID(normalized: n)
         let result = raw.map { speciesGuarded($0, input: n) }
         matchCache.setObject((result ?? Self.cacheMiss) as NSString, forKey: n as NSString)
         return result
+    }
+
+    /// 표기 → 토큰열 — 유니코드 글자 연속만 토큰으로 남긴다(숫자·기호·공백이 경계).
+    /// "서울우유1L" → [서울우유, l], "boneless skinless chicken breast 2.1LB" → [..., chicken, breast, lb].
+    static func matchTokens(_ n: String) -> [String] {
+        var out: [String] = []
+        var cur = ""
+        for ch in n {
+            if ch.isLetter { cur.append(ch) }
+            else if !cur.isEmpty { out.append(cur); cur = "" }
+        }
+        if !cur.isEmpty { out.append(cur) }
+        return out
+    }
+
+    /// ③ 토큰 매칭 본체 — 키워드는 여전히 길이 내림차순(+등재순)이라 "chili powder"(재료)가
+    /// chili(수식 강등 대상)보다 먼저 잡힌다. 수식 강등은 **한 단어 전체 일치**에만 적용한다 —
+    /// 여러 단어 키워드는 수식어가 키워드의 일부이고, 한글 끝 일치는 수식어가 앞(안전한 방향)이다.
+    private func tokenMatchID(normalized n: String) -> String? {
+        let toks = Self.matchTokens(n)
+        guard !toks.isEmpty else { return nil }
+        for (keyword, id) in containsKeywords {
+            if keyword.contains(" ") || keyword.contains("-") {
+                // 키워드도 재고와 **같은 토크나이저**로 자른다 — split(" ")로 두면 "fresh-pressed
+                // juice"의 하이픈 덩어리가 재고 토큰([fresh, pressed, juice])과 영원히 어긋난다.
+                let kw = Self.matchTokens(keyword)
+                guard !kw.isEmpty, kw.count <= toks.count else { continue }
+                // 다단어도 **마지막 토큰만** 복수형을 받는다(영문 소매 라벨 최빈형: "chicken
+                // breasts"·"pork chops"). 앞 토큰은 완전 일치 유지 — 앞이 굴절하는 표기는 없다.
+                let last = kw[kw.count - 1]
+                for start in 0...(toks.count - kw.count) {
+                    guard toks[start..<(start + kw.count - 1)].elementsEqual(kw.dropLast()) else { continue }
+                    let t = toks[start + kw.count - 1]
+                    if t == last || t == last + "s" || t == last + "es" { return id }
+                }
+            } else {
+                let hangul = keyword.unicodeScalars.contains { (0xAC00...0xD7A3).contains($0.value) }
+                for (i, t) in toks.enumerated() {
+                    if t == keyword || (!hangul && (t == keyword + "s" || t == keyword + "es")) {
+                        // 재료 토큰 뒤에 수식 토큰이 붙으면 파생품이다("onion powder") — 이 키워드는
+                        // 버리고 다음 후보를 계속 본다(다른 키워드가 정답일 수 있다).
+                        if i + 1 < toks.count, modifierTokens.contains(toks[i + 1]) { break }
+                        return id
+                    }
+                    // 한글 키워드는 토큰 **끝** 일치도 받는다(수량이 붙어 굳은 실표기: 서울우유1L).
+                    // 토큰 앞 일치는 받지 않는다 — 간장게장·감자탕·새우깡은 재료가 아니다.
+                    if hangul, t.count > keyword.count, t.hasSuffix(keyword) {
+                        if i + 1 < toks.count, modifierTokens.contains(toks[i + 1]) { break }
+                        return id
+                    }
+                }
+            }
+        }
+        return nil
     }
 
     /// 정육 부위의 **종 토큰 가드**(44차 리서치 요구사항) — 부위명은 접두 관행으로 종이 갈리는데
@@ -330,7 +413,11 @@ struct IngredientLexicon {
         for (keyword, id) in containsKeywords {
             for suffix in [keyword, keyword + "s", keyword + "es"] where n.hasSuffix(suffix) {
                 let boundary = n.index(n.endIndex, offsetBy: -suffix.count)
-                guard boundary > n.startIndex else { continue }
+                // 문자열 **전체**가 표제어(+s/es)면 그대로 채택 — 맨 표제어는 ①정확 일치가 먼저
+                // 잡으므로 여기 닿는 전체 일치는 복수형뿐이다("green onions"·"bell peppers").
+                // 45차 검증에서 이 가드가 continue였던 탓에 다단어 복수형이 ②③ 모두 새어
+                // 단어 키워드(onion·pepper)에 오귀속됐다 — 표기 125건 실측.
+                guard boundary > n.startIndex else { return id }
                 let prev = n[n.index(before: boundary)]
                 if prev == " " || !prev.isASCII { return id }
             }
@@ -433,6 +520,13 @@ struct IngredientLexicon {
 
     /// **개봉 후** 냉장 소비기한(일) — sealed 항목 전용. 없으면 nil(개봉 추적 대상 아님).
     func openedShelfLifeDays(id: String) -> Int? { byID[id]?.shelfLife.opened }
+
+    /// 대체 간선(45차) — 이 재고 캐논이 대신할 수 있는 레시피 줄 캐논들. 방향은 재고→줄 하나뿐이다.
+    func substitutions(of stockID: String) -> [Entry.Sub] { byID[stockID]?.subs ?? [] }
+
+    /// 항목의 정규화 표기 전수(en+ko) — 대체의 제목 가드가 "레시피 이름이 그 재료를 부르는가"를
+    /// 판정할 때 쓴다(된장찌개의 된장 줄은 미소로 채우지 않는다).
+    func normalizedNames(of id: String) -> Set<String> { normalizedNamesByID[id] ?? [] }
 
     /// 보관 위치별 기본 소비기한(일). 해당 보관에 값이 없으면 냉장 → 실온보관 → 실온 순으로 폴백.
     /// 냉장 하나만 폴백하면 fridge=null인 건조·상온 식품(소금·파스타 등)이 사전에 pantry 값을

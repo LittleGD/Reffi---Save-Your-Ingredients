@@ -421,6 +421,130 @@ struct RecommenderTests {
         #expect(!RecipeRecommender.matches(ing("딸기우유"), Recipe.Item(ref: "milk", en: "milk", ko: "우유")))
     }
 
+    /// **한계이득 덱(45차)** — 같은 임박 재고를 무는 티켓이 나란히 서지 않는다. 예전 점수순 소비는
+    /// 최고점 셋이 같은 소고기 한 덩이를 물었다("세 가지 선택지"처럼 보이지만 한 장을 발주하면
+    /// 나머지 둘의 전제가 무너진다). 이제 한 장을 고를 때마다 덮인 재고의 가중치를 0으로 보고
+    /// 재정렬한다 — 방치되던 연어 티켓이 두 번째 소고기 티켓보다 앞선다.
+    @Test func deckDiversifiesByMarginalGain() {
+        let beefA = recipe(id: "beef-a", refs: ["beef"], en: ["beef"])
+        let beefB = recipe(id: "beef-b", refs: ["beef"], en: ["beef"])
+        let salmon = recipe(id: "salmon-c", refs: ["salmon"], en: ["salmon"])
+        let stock = [ing("소고기", daysLeft: 0), ing("연어", daysLeft: 1)]
+        let ids = RecipeRecommender.rank(for: stock, from: [beefA, beefB, salmon]).map(\.id)
+        #expect(ids == ["beef-a", "salmon-c", "beef-b"],
+                "소고기(3점) 두 장이 연어(2점)를 사이에 두고 갈라져야 한다 — 두 번째 소고기의 한계이득은 0이다")
+    }
+
+    /// **대체 그래프(45차)** — 생크림 재고가 우유 줄을 채운다(사전 subs `cream→milk`, 일방향).
+    /// 대체 티켓은 감점을 받아 정품 매칭 티켓보다 항상 뒤에 서고, 레시피 이름이 그 재료를 부르면
+    /// (우유푸딩의 milk 줄) 대체를 잠근다 — 사용자가 즉시 알아채는 종류의 거짓 방지.
+    @Test func substitutionFillsMissingWithPenaltyAndTitleGuard() {
+        // 픽스처 이름에 재료명을 넣으면 제목 가드가 (정확하게) 대체를 잠근다 — 중립 이름을 쓴다.
+        let needsMilk = recipe(id: "bechamel", refs: ["milk"], en: ["milk"])
+        let needsCream = recipe(id: "panna", refs: ["cream"], en: ["cream"])
+        let stock = [ing("생크림", daysLeft: 2)]
+        let results = RecipeRecommender.rank(for: stock, from: [needsMilk, needsCream])
+        #expect(results.map(\.id) == ["panna", "bechamel"], "정품 매칭이 대체보다 앞선다(감점)")
+        let milkResult = results.first { $0.id == "bechamel" }!
+        #expect(milkResult.missing.isEmpty, "생크림이 milk 줄을 대체로 채운다")
+        #expect(milkResult.substituted.count == 1)
+        #expect(milkResult.used.contains { $0.name == "생크림" }, "대체 투입분은 used에 들어가 발주 시 소비된다")
+        // 제목 가드 — 이름이 우유를 부르는 요리의 milk 줄은 잠긴다.
+        var titled = recipe(id: "milk-pudding", refs: ["milk"], en: ["milk"])
+        titled.name = Recipe.LocalizedName(en: "Milk Pudding", ko: "우유푸딩")
+        let guarded = RecipeRecommender.result(for: titled, ingredients: stock)
+        #expect(guarded.substituted.isEmpty && guarded.missing.count == 1,
+                "우유푸딩의 우유는 생크림으로 대신하지 않는다")
+    }
+
+    /// **레시피 명시 대체(altRefs, 45차)** — "pork (or beef)"가 산문으로만 들고 있던 지식의 구조화.
+    /// 소고기 재고가 그 줄을 채우고(감점 없음 — 저자가 동급이라 했다), 알레르기는 any-of 전체를 본다.
+    @Test func altRefsMatchAndTriggerAllergens() throws {
+        let seedRecipes = RecipeCatalog.loadSeed()
+        let curry = try #require(seedRecipes.first { $0.id == "japanese-curry-rice" })
+        let porkLine = try #require(curry.ingredients.first { $0.en.lowercased().hasPrefix("pork") })
+        #expect(porkLine.altRefs == ["beef"], "시드 변환이 괄호 대체어를 altRefs로 구조화했다")
+        #expect(RecipeRecommender.matches(ing("소고기"), porkLine), "소고기가 pork(or beef) 줄을 채운다")
+        // 알레르기 보수 판정 — 대체 캐논도 알레르겐 검사에 걸린다.
+        let beefAllergy = RecipePreferences(cuisines: [], favoriteIDs: [],
+                                            dislikedIDs: [], allergenIDs: ["beef"])
+        let stock = [ing("돼지고기", daysLeft: 1), ing("양파", daysLeft: 2), ing("감자", daysLeft: 3)]
+        let ids = RecipeRecommender.rank(for: stock, from: seedRecipes, preferences: beefAllergy).map(\.id)
+        #expect(!ids.contains("japanese-curry-rice"), "or beef 줄은 소고기 알레르기에 걸린다(안전 P0)")
+    }
+
+    /// **선택 줄(optional, 45차)** — 없어도 요리가 성립하는 줄은 부족을 만들지 않는다.
+    /// 있으면 그만인 재료가 missing 문턱(3)을 앞당겨 티켓을 덱에서 밀어내던 결함의 마감.
+    @Test func optionalLinesDoNotCountAsMissing() {
+        var r = recipe(id: "opt-dish", refs: ["tofu", "egg"], en: ["tofu", "boiled eggs (optional)"])
+        r.ingredients[1].optional = true
+        let result = RecipeRecommender.result(for: r, ingredients: [ing("두부", daysLeft: 1)])
+        #expect(result.missing.isEmpty, "선택 줄은 부족이 아니다")
+        #expect(result.total == 2, "분모(비상비 줄 수)에는 그대로 선다")
+        // 있으면 정상 참여한다.
+        let with = RecipeRecommender.result(for: r, ingredients: [ing("두부", daysLeft: 1),
+                                                                  ing("계란", daysLeft: 2)])
+        #expect(with.used.count == 2)
+    }
+
+    /// **커버리지 래칫(45차)** — "이 재료만 가진 냉장고가 추천 0장"인 비상비 캐논 수가 늘지 못하게
+    /// 못 박는다(엔진 실측 기준선 89종 — parent 승격·altRefs·대체 간선 리프트 포함, 잔여는 대부분
+    /// 그냥 먹는 과일·즉석식품). 사전에 항목을 더할 때 이 수가 늘면 여기서 깨진다 — 사전만 커지고
+    /// 레시피가 못 따라오면 빈 덱 확률만 올라간다는 41차 실측의 CI 고정.
+    /// 판정은 문서가 아니라 **실제 엔진**(rank — parent·altRefs·대체가 전부 작동하는 경로)으로 한다.
+    @Test func coverageOrphanCountDoesNotGrow() {
+        let seedRecipes = RecipeCatalog.loadSeed()
+        let lexEntries = IngredientLexicon.shared.entries
+        var orphans: [String] = []
+        for entry in lexEntries where !entry.staple {
+            let stock = [Ingredient(name: entry.displayName, category: "t",
+                                    daysLeft: 1, quantity: Quantity(value: 1, unit: .piece),
+                                    glyph: .generic)]
+            var probe = stock[0]
+            probe.canonicalID = entry.id
+            let results = RecipeRecommender.rank(for: [probe], from: seedRecipes)
+            if results.isEmpty { orphans.append(entry.id) }
+        }
+        #expect(orphans.count <= 89,
+                "레시피 0장 재료가 \(orphans.count)종으로 늘었다(기준 89): \(orphans.prefix(12))…")
+    }
+
+    /// **역색인 파리티(45차)** — rank의 벌크 경로(bulkResults)는 result(for:) 기준 경로와 의미가
+    /// 같아야 한다. 시드 전수 × 냉장고 여럿에서 두 경로의 최종 덱이 일치함을 고정한다 —
+    /// 빨라진 경로가 조용히 다른 답을 내기 시작하면 여기서 즉시 깨진다.
+    @Test func bulkRankMatchesReferencePipeline() {
+        let seedRecipes = RecipeCatalog.loadSeed()
+        let fridges: [[Ingredient]] = [
+            [ing("소고기", daysLeft: 0), ing("시금치", daysLeft: 1), ing("계란", daysLeft: 2),
+             ing("양파", daysLeft: 4), ing("우유", daysLeft: 6)],
+            [ing("두부", daysLeft: 1), ing("김치", daysLeft: 30), ing("대파", daysLeft: 3)],
+            [ing("팽이버섯", daysLeft: 2), ing("닭가슴살", daysLeft: 1), ing("밥알수없는것", daysLeft: 5)],
+            [ing("연어", daysLeft: 1), ing("브로콜리", daysLeft: 3), ing("파스타면", daysLeft: 200),
+             ing("방울토마토", daysLeft: 2)],
+        ]
+        for stock in fridges {
+            let fast = RecipeRecommender.rank(for: stock, from: seedRecipes).map(\.id)
+            let slow = RecipeRecommender.prune(
+                seedRecipes
+                    .map { RecipeRecommender.result(for: $0, ingredients: stock) }
+                    .filter { !$0.used.isEmpty }
+                    .map { (result: $0, score: $0.used.reduce(0) { $0 + RecipeRecommender.weight($1) }
+                                              - RecipeRecommender.substitutionPenalty * $0.substituted.count) }
+                    .sorted { a, b in
+                        if a.score != b.score { return a.score > b.score }
+                        if a.result.urgentUsedCount != b.result.urgentUsedCount {
+                            return a.result.urgentUsedCount > b.result.urgentUsedCount
+                        }
+                        if a.result.missing.count != b.result.missing.count {
+                            return a.result.missing.count < b.result.missing.count
+                        }
+                        return a.result.id < b.result.id
+                    }
+            ).map(\.id)
+            #expect(fast == slow, "냉장고 \(stock.map(\.name)): 벌크와 기준 경로의 덱이 갈렸다")
+        }
+    }
+
     @Test func urgencyWeightsRanking() {
         let r1 = recipe(id: "uses-urgent", refs: ["beef"], en: ["beef"])
         let r2 = recipe(id: "uses-fresh", refs: ["carrot"], en: ["carrot"])
@@ -1026,5 +1150,178 @@ struct DisplayNameTests {
         #expect(kept.displayName == "old label")
         let free = RemovalLog(name: "직접 만든 잼", glyph: .generic, removedAt: Date(), wasted: true)
         #expect(free.displayName == "직접 만든 잼")
+    }
+}
+
+/// 45차 적대 검증 후속 — 다단어 영문 표제어의 복수형·소매 라벨 실꼴이 **자기 캐논**으로 돌아온다.
+/// 검증 실측: 표제어+s 450건 중 125건이 다른 재료의 캐논(bell peppers→black-pepper, chicken
+/// breasts→chicken)에 붙었다 — 이 파일 서두가 규정한 데이터 파괴 등급(소비기한 오염·오예약) 그대로.
+struct PluralMatchingTests {
+
+    /// 사전 전수 래칫 — 영문 표제어의 +s 꼴은 **자기 id 아니면 nil**(안전한 실패)이다.
+    /// 다른 id로 떨어지는 순간이 데이터 파괴의 시작이라, 개별 사례가 아니라 전수로 못 박는다.
+    /// (-y→-ies 같은 불규칙 복수는 nil로 남는다 — 오귀속만 아니면 실패는 허용.)
+    @Test func pluralFormsNeverLandOnAnotherCanon() {
+        let lex = IngredientLexicon.shared
+        for entry in lex.entries {
+            for name in entry.names.en where !name.hasSuffix("s") {
+                let got = lex.canonicalID(for: name + "s")
+                #expect(got == nil || got == entry.id,
+                        "'\(name)s'가 \(entry.id)이 아니라 \(got ?? "nil")로 갔다 — 남의 캐논 오귀속")
+            }
+        }
+    }
+
+    /// 소매 라벨 최빈형 고정 — 부위 정밀도(44차 정육 분리)와 밀봉 기한(소스·시럽)이 복수형에서
+    /// 무효화되지 않는다. 마지막 셋은 수량·단위가 붙은 실표기(토큰 창 매칭 경로).
+    @Test func retailPluralFormsKeepTheirPrecision() {
+        let lex = IngredientLexicon.shared
+        let cases: [(String, String)] = [
+            ("green onions", "green-onion"),
+            ("bell peppers", "bell-pepper"),
+            ("chicken breasts", "chicken-breast"),
+            ("pork chops", "pork-loin"),
+            ("rice cakes", "rice-cake"),
+            ("tomato sauces", "tomato-sauce"),
+            ("red pepper pastes", "gochujang"),
+            ("paprika powders", "paprika-powder"),
+            ("sea mustards", "seaweed"),
+            ("water dropworts", "water-parsley"),
+            ("boneless skinless chicken breasts 2.1LB", "chicken-breast"),
+            ("rice cakes 500g", "rice-cake"),
+            ("GREEN ONIONS 1단", "green-onion"),
+            ("onions 1kg", "onion"),
+            ("fresh-pressed juice 2", "fresh-juice"),
+        ]
+        for (input, want) in cases {
+            #expect(lex.canonicalID(for: input) == want, "\(input) → \(want)")
+        }
+    }
+}
+
+/// 45차 적대 검증 후속 — 대체 그래프의 두 불변식.
+struct SubstitutionInvariantTests {
+
+    private func recipe(id: String, refs: [String], en: [String]) -> Recipe {
+        Recipe(id: id,
+               name: Recipe.LocalizedName(en: id, ko: nil),
+               cuisine: nil, minutes: 10,
+               ingredients: zip(refs, en).map { Recipe.Item(ref: $0.0, en: $0.1, ko: nil) },
+               steps: Recipe.LocalizedSteps(en: ["step"], ko: nil),
+               isUser: nil)
+    }
+
+    private func ing(_ name: String, daysLeft: Int = 3) -> Ingredient {
+        Ingredient(name: name, category: "Veg", daysLeft: daysLeft,
+                   quantity: Quantity(value: 1, unit: .piece), glyph: .generic)
+    }
+
+    /// **1재고 1줄** — 발주·완료는 재고 id 단위로 예약·삭제하므로, 한 알이 정품 줄과 대체 줄을
+    /// 겸하면 missing이 거짓으로 줄어 "지금 만들 수 있는 요리"가 된다(검증 실측: 양파 1개가
+    /// onion+green onion 두 줄을 겸한 시드 15레시피). 두 경로(기준·벌크) 모두 고정한다.
+    @Test func oneStockCannotFillTwoLines() {
+        let dish = recipe(id: "gratin-fixture", refs: ["milk", "cream"], en: ["milk", "cream"])
+        let stock = [ing("생크림", daysLeft: 2)]
+        let r = RecipeRecommender.result(for: dish, ingredients: stock)
+        #expect(r.used.count == 1)
+        #expect(r.substituted.isEmpty, "생크림은 cream 줄에 정품으로 이미 예약됐다 — 겸직 금지")
+        #expect(r.missing.count == 1 && r.missing.first?.en == "milk")
+        let ranked = RecipeRecommender.rank(for: stock, from: [dish])
+        #expect(ranked.first?.missing.count == 1, "벌크 경로도 같은 계약")
+    }
+
+    /// **간선·차단 어휘는 살아 있어야 한다** — 상비(staple) 캐논을 fills 하는 간선은 구조적으로
+    /// 발화 불가(상비 줄은 missing이 되지 않는다)이고, 시드 표기에 0회 등장하는 block 토큰은
+    /// 있는 척만 하는 가드다(검증 실측: 40간선 중 15간선·13토큰 중 9개가 죽어 있었다).
+    @Test func subsEdgesAndBlockTokensAreLive() {
+        let lex = IngredientLexicon.shared
+        let seedRecipes = RecipeCatalog.loadSeed()
+        for entry in lex.entries {
+            for sub in entry.subs ?? [] {
+                let target = lex.entry(id: sub.fills)
+                #expect(target != nil, "\(entry.id)→\(sub.fills): 미등재 fills")
+                #expect(target?.staple != true, "\(entry.id)→\(sub.fills): 상비 fills는 영구 사장")
+                guard let blocks = sub.block else { continue }
+                // 이 간선이 실제로 닿는 시드 줄(비상비 + fills 키 보유)의 표기 코퍼스.
+                let targetLines: [String] = seedRecipes.flatMap { r in
+                    r.ingredients.compactMap { item -> String? in
+                        let keys = [item.ref].compactMap { $0 } + (item.altRefs ?? [])
+                        guard keys.contains(sub.fills),
+                              item.ref.flatMap({ lex.entry(id: $0)?.staple }) != true else { return nil }
+                        return (item.en + " " + (item.ko ?? "")).lowercased()
+                    }
+                }
+                for token in blocks {
+                    let fires = targetLines.contains { $0.contains(token.lowercased()) }
+                    #expect(fires, "\(entry.id)→\(sub.fills) block '\(token)': 시드 대상 줄 0회 발화(죽은 가드)")
+                }
+            }
+        }
+    }
+}
+
+/// 45차 적대 검증 후속 — 한계이득 그리디의 취향 보정 한계화.
+struct MarginalPreferenceTests {
+
+    private func recipe(id: String, refs: [String], cuisine: String? = nil) -> Recipe {
+        Recipe(id: id,
+               name: Recipe.LocalizedName(en: id, ko: nil),
+               cuisine: cuisine, minutes: 10,
+               ingredients: refs.map { Recipe.Item(ref: $0, en: $0, ko: nil) },
+               steps: Recipe.LocalizedSteps(en: ["step"], ko: nil),
+               isUser: nil)
+    }
+
+    private func ing(_ name: String, daysLeft: Int = 3) -> Ingredient {
+        Ingredient(name: name, category: "Veg", daysLeft: daysLeft,
+                   quantity: Quantity(value: 1, unit: .piece), glyph: .generic)
+    }
+
+    /// cuisine·favorites 가점이 상수로 남으면, 새 재고 기여가 0인 중복 티켓(+5)이 D-1 연어를
+    /// 유일하게 구하는 티켓(+2)을 앞선다 — 이 그리디가 고치려던 바로 그 증상이 취향이 켜지는
+    /// 실앱 경로에서만 재발한다(검증 실측 A/B/C). 가점도 미커버 기준으로 다시 세야 한다.
+    @Test func marginalGainRecomputesPreferenceBonuses() {
+        let a = recipe(id: "a-covers", refs: ["beef", "onion", "carrot"], cuisine: "korean")
+        let b = recipe(id: "b-duplicate", refs: ["beef", "onion", "carrot"], cuisine: "korean")
+        let c = recipe(id: "c-rescues-salmon", refs: ["salmon"])
+        let stock = [ing("소고기", daysLeft: 0), ing("양파"), ing("당근"), ing("연어", daysLeft: 1)]
+        let prefs = RecipePreferences(cuisines: ["korean"],
+                                      favoriteIDs: ["beef", "onion", "carrot"],
+                                      dislikedIDs: [], allergenIDs: [])
+        let ids = RecipeRecommender.rank(for: stock, from: [a, b, c], preferences: prefs).map(\.id)
+        #expect(ids == ["a-covers", "c-rescues-salmon", "b-duplicate"],
+                "중복 티켓의 한계이득은 취향 가점까지 0으로 — 연어 티켓이 2번 자리를 가져간다")
+    }
+}
+
+/// 45차 적대 검증 후속 — 냉동은 개봉 시계를 **멈추는 사건**이다(§13.6 두 번째 기회).
+struct FreezeOpenedClockTests {
+
+    /// 살아 있는 개봉 시계는 냉동이 멈추고 유예(14일)가 대신 돈다 — 어제 딴 코코넛밀크를 얼렸는데
+    /// 기한이 하루도 안 늘면 냉동 버튼은 1회권만 태우는 위약이다(검증 실측: 밀봉 25종 전수).
+    @Test func freezePausesLiveOpenedClock() {
+        var coco = Ingredient(name: "코코넛밀크", category: "가공", daysLeft: 300,
+                              quantity: Quantity(value: 1, unit: .piece), glyph: .can)
+        coco.canonicalID = "coconut-milk"
+        coco.openedAt = Calendar.current.date(byAdding: .day, value: -1, to: Date())
+        #expect(coco.effectiveDaysLeft <= 4, "개봉 시계(개봉 후 5일)가 지배한다")
+        #expect(coco.canFreeze)
+        coco.storage = .freezer
+        coco.frozenAt = Date()
+        #expect(coco.effectiveDaysLeft >= 10, "냉동이 개봉 시계를 멈추고 유예가 돈다")
+    }
+
+    /// 이미 지난 개봉 시계는 냉동이 되살리지 않고(44차 크림치즈 케이스 유지), 그때는 버튼도
+    /// 서지 않는다 — 효과 없는 냉동은 위약 UI다(MVP 원칙).
+    @Test func freezeDoesNotReviveDeadOpenedClock() {
+        var cheese = Ingredient(name: "크림치즈", category: "유제품", daysLeft: 300,
+                                quantity: Quantity(value: 1, unit: .piece), glyph: .cheese)
+        cheese.canonicalID = "cream-cheese"
+        cheese.openedAt = Calendar.current.date(byAdding: .day, value: -20, to: Date())
+        #expect(cheese.effectiveDaysLeft < 0, "개봉 후 10일이 지났다")
+        #expect(!cheese.canFreeze, "되살릴 수 없는 항목에 냉동 버튼을 열지 않는다")
+        cheese.storage = .freezer
+        cheese.frozenAt = Date()
+        #expect(cheese.effectiveDaysLeft < 0, "냉동이 지난 개봉 기한을 되살리지 않는다")
     }
 }
