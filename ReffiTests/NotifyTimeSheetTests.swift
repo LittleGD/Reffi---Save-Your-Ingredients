@@ -214,6 +214,36 @@ struct NotifyTimeSheetTests {
         #expect(NotifyTimeSheet.snapIndex(forOffset: 10, topInset: 5, rowHeight: 0, count: 16) == 0)
     }
 
+    /// 전행 스윕 — 4행 표본이 아니라 16행 전부: 행 i 정착 오프셋(`i*44 - 76`)이 정확히 i로 돌아온다.
+    /// 위 앵커 테스트가 고른 네 점만 맞고 나머지가 어긋나는 보정(예: 부호만 맞은 변형)을 막는다.
+    @Test func snapIndexRoundTripsEveryRowSettleOffset() {
+        for i in NotifyTimeSheet.hours.indices {
+            #expect(NotifyTimeSheet.snapIndex(forOffset: CGFloat(i) * 44 - 76, topInset: 76,
+                                              rowHeight: 44, count: 16) == i)
+        }
+    }
+
+    /// 커밋 소비자(`snapIndex`)와 렌더 소비자(`dialDistance`)의 교차 불변식 — 커밋으로 고른 행은
+    /// 원근 좌표계로도 밴드 중앙에서 반 행 이내다. 58차-b가 갈라진 두 소비자를 다시 묶은 계약
+    /// 그 자체라, 한쪽 보정만 또 바뀌면 여기서 갈린다. 스윕은 첫·마지막 행 정착 오프셋 사이
+    /// (clamp 미개입 구간), 타이 지점에선 양쪽 다 0.5라 어느 쪽을 골라도 성립한다.
+    @Test func snapIndexAgreesWithDialDistanceAcrossOffsets() {
+        for offset in stride(from: CGFloat(-76), through: 584, by: 4) {
+            let picked = NotifyTimeSheet.snapIndex(forOffset: offset, topInset: 76, rowHeight: 44, count: 16)
+            let distance = NotifyTimeSheet.dialDistance(index: picked, scrollOffsetY: offset,
+                                                         topInset: 76, rowHeight: 44)
+            #expect(abs(distance) <= 0.5 + 1e-9)
+        }
+    }
+
+    /// clamp × 보정 결합 — 관성 오버슛이 보정 후에도 목록 범위를 안 벗어난다. 위 clamp 테스트는
+    /// `topInset` 0만 다뤄 되더하기가 clamp 경계를 옮기는지 잠그지 못했다:
+    /// (-200+76)/44 ≈ -2.82 → -3 → 0, (10000+76)/44 = 229 → 15.
+    @Test func snapIndexClampsWithNonZeroTopInset() {
+        #expect(NotifyTimeSheet.snapIndex(forOffset: -200, topInset: 76, rowHeight: 44, count: 16) == 0)
+        #expect(NotifyTimeSheet.snapIndex(forOffset: 10_000, topInset: 76, rowHeight: 44, count: 16) == 15)
+    }
+
     /// 접근성 adjustable 스텝 — 위/아래 스와이프 한 번 = 한 시간 칸.
     @Test func adjustableStepMovesOneHour() {
         #expect(NotifyTimeSheet.steppedHour(from: 9, direction: .increment) == 10)

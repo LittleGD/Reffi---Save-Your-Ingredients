@@ -240,9 +240,9 @@ struct NotifyTimeSheet: View {
                         // 두 소비자가 **함께** `topInset`을 되더해 보정한다 — 원근 계산
                         // (`dialDistance`)과 커밋 판정(`snapIndex`)이다. 원근에서 빠뜨리면 밴드 밖
                         // 위쪽 행이 선택 행보다 진하게 보이고(58차), 커밋에서 빠뜨리면 저장값이
-                        // 2행 아래로 어긋난다(58차-b) — 각각 아래 두 주석 참고. transform이 원시
-                        // 오프셋을 보고한다는 컨벤션 자체는 58차가 잠근 계약이라 그대로 둔다:
-                        // 보정은 소비자 쪽에서 한다.
+                        // 두 칸 이른 시각(화면상 위쪽 행)으로 어긋난다(58차-b) — 각각 아래 두
+                        // 주석 참고. transform이 원시 오프셋을 보고한다는 컨벤션 자체는 58차가
+                        // 잠근 계약이라 그대로 둔다: 보정은 소비자 쪽에서 한다.
                         .safeAreaPadding(.vertical, topInset)
                         .scrollTargetBehavior(.viewAligned)
                         .scrollBounceBehavior(.basedOnSize)
@@ -330,9 +330,10 @@ struct NotifyTimeSheet: View {
     /// 좌표계다. 58차는 이 보정을 렌더 소비자(`dialDistance`)에만 넣고 커밋 소비자인 여기를
     /// 빠뜨렸다. 보정 전에는 시간 9(인덱스 3)가 밴드 중앙에 정착한 오프셋 56이
     /// `round(56/44)`=1(=7시)로 계산돼, **열기만 해도** 그리고 다이얼을 굴릴 때마다 저장값이
-    /// 2행 아래로 어긋났다(`i*44 - 76`을 무보정으로 나누면 언제나 `round(i - 1.727)` = `i - 2`).
-    /// 직전 세션 콘솔에서 실측된 9→6은 그중 프리젠테이션 도중 상단 근처(-76) 콜백이 끼어
-    /// `round(-1.727)`=-2가 0으로 clamp된 경우다.
+    /// 두 칸 이른 시각(화면상 위쪽 행)으로 어긋났다 — 다이얼은 위가 06시라 인덱스가 2 작다는 건
+    /// 곧 두 시간 이른 값이다(`i*44 - 76`을 무보정으로 나누면 언제나 `round(i - 1.727)` = `i - 2`).
+    /// 직전 세션 콘솔에서 실측된 9→6은 그중 프리젠테이션 도중 상단 근처(원시 오프셋 < 22 —
+    /// 무보정 반올림이 0 이하로 떨어져 clamp가 인덱스 0으로 끌어올린다) 콜백이 끼어든 경우다.
     static func snapIndex(forOffset offset: CGFloat, topInset: CGFloat, rowHeight: CGFloat, count: Int) -> Int {
         guard count > 0, rowHeight > 0 else { return 0 }
         let raw = Int(((offset + topInset) / rowHeight).rounded())
