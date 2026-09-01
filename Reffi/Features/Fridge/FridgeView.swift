@@ -925,18 +925,20 @@ struct FridgeView: View {
         // 순간 액션이 한 방향뿐이면 보조기술 사용자만 도달하지 못하는 재료가 생긴다.
         // 라벨이 덱 위에서 읽히므로 무엇의 다음/이전인지는 문맥이 말한다.
         //
-        // **닫기는 여기에 같은 방식(전용 액션)을 얹지 않는다(57차-a 판단).** 위 Next/Previous가
-        // 액션으로 존재하는 이유는 "제스처 말고는 도달할 방법이 아예 없어서"다 — 덱엔 이전 재료로
-        // 가는 버튼이 없다. 닫기는 다르다: `PaperCloseButton`(X)이 이미 상시 노출된, 전량 접근
-        // 가능한 경로라 보조기술 사용자가 못 닿는 상태 자체가 없다. 이 저장소 전체에
-        // `accessibilityAction(.escape)` 선례도 없다(그렙 확인) — 없는 관례를 이 화면 하나에
-        // 처음 만드는 근거가 없고, 만들어도 X와 완전히 같은 동작을 한 번 더 노출할 뿐이다.
+        // **닫기는 여기서도 이 저장소의 확립된 관례를 따른다(61차 리뷰 반영).** `PaperCloseButton`
+        // (X)이 이미 상시 노출된, 전량 접근 가능한 경로라 보조기술 사용자가 못 닿는 상태 자체는
+        // 없다 — 그 점에서 Next/Previous(제스처 말고는 도달할 방법이 아예 없는 액션)와는 이유가
+        // 다르다. 그런데도 얹는 건, 오버레이를 닫는 `accessibilityAction(.escape)`가 이미 이
+        // 저장소 전역 관례이기 때문이다 — `MainView.swift`의 `DecisionCover`, `PaperDialog`,
+        // `PaperDropdown`, `PaperChecklistDialog` 넷 다 오버레이 닫기에 `.escape`를 단다. X와
+        // 완전히 같은 동작을 한 번 더 노출할 뿐이어도, 그 중복이 곧 이 저장소의 관례다.
         .accessibilityAction(named: Text("Next")) {
             if let next { select(next, direction: .forward) }
         }
         .accessibilityAction(named: Text("Previous")) {
             if let previous { select(previous, direction: .back) }
         }
+        .accessibilityAction(.escape) { deselect() }
     }
 
     /// 방금 밀어 넘겼다는 표. 같은 터치의 버튼 탭이 **바로 다음 런루프**에 도착하므로
