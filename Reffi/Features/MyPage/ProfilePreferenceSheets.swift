@@ -167,21 +167,81 @@ struct TagEditorSheet: View {
 /// 알림 시간 선택(§2.1.2) — 아침 리마인더 시각(시 단위).
 /// SSOT는 `ExpiryNotifier.hourKey`(ProfileView 토글과 같은 키). ExpiryNotifier는 정시(:00)에만
 /// 발화하므로 시(hour) 단위로 선택한다 — 스케줄에 반영되지 않을 분(minute)은 UI에 노출하지 않는다.
+///
+/// **네이티브 휠 → 종이컷 리스트(51차, 오너 피드백 — "이것도 종이컷 스타일로 만들 수 있나?")**.
+/// `.wheel`은 이 화면 유일의 시스템 룩이라 크림 캔버스·종이 시트 사이에서 홀로 튀었다. 새 컨트롤을
+/// 짓지 않고 `PaperChecklistDialog`/`KitchenCopySheet`가 이미 쓰는 체크 상자 문법(§14.7)을 그대로
+/// 가져온다 — 켜짐 = blue 솔리드 + `PaperGrain` + `paperEdgeOnFill` + onAccent 체크, 꺼짐 = paper
+/// 면 + `paperEdgeState` 헤어라인. 다만 이 목록은 여럿을 담는 체크리스트가 아니라 **단일 선택**이라,
+/// 접근성은 그 둘의 "담김 여부" 값 대신 `SelectableChip`·`PaperDropdown`과 같은 축의 `.isSelected`
+/// 트레잇 하나로 말한다(상태 채널은 하나, §13.5). 16개 행(06시~21시)은 이 시트의 고정 높이(300)에
+/// 다 들어가지 않아 자체 스크롤하고, 뜨는 순간 현재 선택 행으로 스크롤한다 — `.onAppear`가 아니라
+/// `.task`에서 여는 것은 `PaperChecklistDialog`의 포커스 이동과 같은 이유다(42차, 요소 등록 전에
+/// 실행되면 이동이 유실되는 창이 있다).
 struct NotifyTimeSheet: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage(ExpiryNotifier.hourKey) private var alertHour = ExpiryNotifier.defaultHour
+
+    private static let hours = Array(6..<22)
 
     var body: some View {
         SheetShell(title: "Alert time", onClose: { dismiss() }) {
-            Picker("", selection: $alertHour) {
-                ForEach(6..<22, id: \.self) { h in
-                    Text(verbatim: Self.hourLabel(h)).tag(h)
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 0) {
+                        ForEach(Array(Self.hours.enumerated()), id: \.offset) { index, hour in
+                            hourRow(hour)
+                                .id(hour)
+                            if index < Self.hours.count - 1 { ReffiRule(.ticket) }
+                        }
+                    }
                 }
+                .scrollBounceBehavior(.basedOnSize)
+                .task { proxy.scrollTo(alertHour, anchor: .center) }
             }
-            .pickerStyle(.wheel)
-            .labelsHidden()
-            .frame(maxWidth: .infinity)
         }
+    }
+
+    private func hourRow(_ hour: Int) -> some View {
+        let selected = hour == alertHour
+        let label = Self.hourLabel(hour)
+        return Button { alertHour = hour } label: {
+            HStack(spacing: ReffiSpace.s3) {
+                checkbox(on: selected, seed: hour)
+                Text(verbatim: label)
+                    .font(.reffiNum(.body, for: label))
+                    .foregroundStyle(ReffiColor.ink)
+                Spacer(minLength: 0)
+            }
+            .padding(.vertical, ReffiSpace.s2)
+            .frame(minHeight: ReffiChrome.tapMin)   // §7.3 — 행 전체가 타깃
+            .contentShape(Rectangle())
+            .animation(ReffiMotion.gated(ReffiMotion.standard, reduce: reduceMotion), value: selected)
+        }
+        .buttonStyle(.reffiPress)
+        .accessibilityLabel(Text(verbatim: label))
+        .accessibilityAddTraits(selected ? [.isSelected] : [])
+    }
+
+    /// 체크 상자 — `PaperChecklistDialog.checkbox`·`KitchenCopySheet.checkbox`와 같은 시각 문법(§14.7).
+    /// 사설 함수를 공유하지 않는 이유도 그 둘과 같다 — 이 시트는 `Set` 없이 `Int` 하나만 비교하는
+    /// 훨씬 얕은 계약이라, 파일을 가로지르는 의존보다 같은 그림을 다시 그리는 쪽이 더 작은 결합이다.
+    @ViewBuilder
+    private func checkbox(on: Bool, seed: Int) -> some View {
+        let shape = PaperRect(cornerRadius: ReffiRadius.xs, seed: seed)
+        ZStack {
+            if on {
+                shape.fill(ReffiColor.blue)
+                    .overlay(PaperGrain(seed: UInt64(max(0, seed)) &+ 11, strength: 0.9).clipShape(shape))
+                    .paperEdge(shape, tint: ReffiColor.paperEdgeOnFill)
+                    .compositingGroup()
+                ReffiIcon.check.reffi(13, .bold).foregroundStyle(ReffiColor.onAccent)
+            } else {
+                shape.fill(ReffiColor.paper).paperEdge(shape, tint: ReffiColor.paperEdgeState)
+            }
+        }
+        .frame(width: 22, height: 22)
     }
 
     /// 정시 라벨 — "8:00 AM" 형식(로케일 자동).
