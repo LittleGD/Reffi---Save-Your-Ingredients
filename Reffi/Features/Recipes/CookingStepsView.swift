@@ -201,7 +201,7 @@ struct CookingStepsView: View {
         // 그대로다 — 다른 다이얼로그 전부에서 Cancel은 "안전하게 빠져나감"(secondary)이다.
         .paperDialog(isPresented: $showCancelConfirm,
                      title: "Put ingredients back?",
-                     message: "Nothing is logged. Reserved ingredients return to the fridge.",
+                     message: "Nothing is logged.\nReserved ingredients return to the fridge.",
                      backdropDismisses: true,
                      primary: PaperDialogAction("Stop", role: .destructive) {
                          withAnimation(ReffiMotion.gated(ReffiMotion.pop, reduce: reduceMotion)) {

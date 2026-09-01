@@ -310,7 +310,7 @@ struct MainView: View {
             if showSealedCheck {
                 PaperChecklistDialog(
                     title: "Anything opened yet?",
-                    message: "Sealed items keep their long dates until opened. Checked ones switch to the after-opening use-by date.",
+                    message: "Sealed items keep their long dates until opened.\nChecked ones switch to the after-opening use-by date.",
                     rows: sealedCheckItems.enumerated().map { i, ing in
                         PaperChecklistDialog.Row(id: i, name: ing.displayName, glyph: ing.glyph)
                     },
@@ -907,7 +907,7 @@ struct MainView: View {
                 // 왜 비었는지와 어디서 볼 수 있는지를 말해 준다.
                 VStack(spacing: ReffiSpace.s1) {
                     Text("Counter is clear").reffiType(.subhead).foregroundStyle(ReffiColor.ink)
-                    Text("Stock is waiting in the freezer or reserved for cooking. Check the Fridge tab.")
+                    Text("Stock is waiting in the freezer or reserved for cooking.\nCheck the Fridge tab.")
                         .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
                         .multilineTextAlignment(.center)
                 }

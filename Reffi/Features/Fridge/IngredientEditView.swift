@@ -77,7 +77,7 @@ struct IngredientEditView: View {
         // 40차 — 팝업 전수 종이화(§14.7 개정). 원본은 취소 버튼을 명시하지 않아(시스템 자동 Cancel)
         // 여기선 명시적 secondary Cancel(무동작)로 같은 뜻을 옮긴다.
         .paperDialog(isPresented: $showDeleteConfirm, title: "Delete this ingredient?",
-                    message: "Removes it without history. Stats and the shopping list won't count it.",
+                    message: "Removes it without history.\nStats and the shopping list won't count it.",
                     seed: 1, backdropDismisses: true,
                     primary: PaperDialogAction("Delete", role: .destructive) {
                         store.remove(draft)

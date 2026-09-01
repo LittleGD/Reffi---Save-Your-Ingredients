@@ -517,7 +517,7 @@ struct HistoryContent: View {
 
                 if ledger.recentEmpty {
                     // 빈 이력 — 0건 두 행과 0% 도장은 "잘하고 있다"는 거짓 성과가 된다. 정산할 게 없다고 말한다.
-                    Text("Nothing tallied yet. What you eat and toss lands here.")
+                    Text("Nothing tallied yet.\nWhat you eat and toss lands here.")
                         .reffiType(.body).foregroundStyle(ReffiColor.ink2)
                         .padding(.vertical, ReffiSpace.s2)
                 } else {

@@ -54,7 +54,7 @@ struct MyRecipesView: View {
         // 40차 — 팝업 전수 종이화(§14.7 개정). 강도(복구 불가능)와 무관하게 PaperDialog로 옮긴다 —
         // 행동 배선·햅틱·카피는 그대로다. Cancel도 `deleteTarget`을 비우는 원본 핸들러를 그대로 옮긴다.
         .paperDialog(isPresented: $showDeleteConfirm, title: "Delete this recipe?",
-                    message: "Removes it from your recipes. This can't be undone. Built-in recipes stay.",
+                    message: "Removes it from your recipes.\nThis can't be undone.\nBuilt-in recipes stay.",
                     seed: 1, backdropDismisses: true,
                     primary: PaperDialogAction("Delete", role: .destructive) {
                         if let target = deleteTarget { store.deleteUserRecipe(id: target.id) }  // 스토어가 persist까지 수행.
@@ -224,7 +224,7 @@ struct RecipeEditorView: View {
                     primary: PaperDialogAction("Discard", role: .destructive) { dismiss() },
                     secondary: PaperDialogAction("Cancel", role: .cancel) {})
         .paperDialog(isPresented: $showDeleteConfirm, title: "Delete this recipe?",
-                    message: "Removes it from your recipes. This can't be undone. Built-in recipes stay.",
+                    message: "Removes it from your recipes.\nThis can't be undone.\nBuilt-in recipes stay.",
                     seed: 3, backdropDismisses: true,
                     primary: PaperDialogAction("Delete", role: .destructive) {
                         if let existing = recipe { store.deleteUserRecipe(id: existing.id) }

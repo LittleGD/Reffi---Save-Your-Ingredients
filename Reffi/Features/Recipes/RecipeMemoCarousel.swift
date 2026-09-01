@@ -590,7 +590,7 @@ struct RecipeMemoCarousel: View {
     /// 첫 프레임 튐의 원인이었다(`body` 주석).
     private var topBar: some View {
         CoverHeader(title: "Today's tickets",
-                    subtitle: "Flick left to pass, right to cook. Ranked by what spoils first.",
+                    subtitle: "Flick left to pass, right to cook.\nRanked by what spoils first.",
                     onClose: onClose)
     }
 
@@ -616,7 +616,7 @@ struct RecipeMemoCarousel: View {
             FoodMotif(glyph: .generic).frame(width: 110, height: 110)
             Text("No tickets yet").reffiType(.heading).foregroundStyle(ReffiColor.ink)
             if !atRiskNames.isEmpty {
-                Text("\(named(atRiskNames)) won't last long. Cook it today.")
+                Text("\(named(atRiskNames)) won't last long.\nCook it today.")
                     .reffiType(.body).foregroundStyle(ReffiColor.ink2).multilineTextAlignment(.center)
                 PaperButton(title: "Open recipe videos", fullWidth: false, seed: 5) {
                     openURL(RecipeVideoSearch.urlForIngredients(spoken(atRiskNames)))
@@ -630,10 +630,10 @@ struct RecipeMemoCarousel: View {
                 // 지우면 오타로 등록한 사용자는 장을 봐도 덱이 계속 빈다(§13.6).
                 let names = spoken(fridgeNames)
                 if names.count >= 2 {
-                    Text("Turn \(names[0]) and \(names[1]) into your own recipe. Add it in Profile.")
+                    Text("Turn \(names[0]) and \(names[1]) into your own recipe.\nAdd it in Profile.")
                         .reffiType(.body).foregroundStyle(ReffiColor.ink2).multilineTextAlignment(.center)
                 } else if let first = names.first {
-                    Text("Turn \(first) into your own recipe. Add it in Profile.")
+                    Text("Turn \(first) into your own recipe.\nAdd it in Profile.")
                         .reffiType(.body).foregroundStyle(ReffiColor.ink2).multilineTextAlignment(.center)
                 }
                 if !names.isEmpty {

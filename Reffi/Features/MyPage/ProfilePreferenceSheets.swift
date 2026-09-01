@@ -87,7 +87,7 @@ struct CuisinePickerSheet: View {
     var body: some View {
         SheetShell(title: "Cuisines", onClose: { dismiss() }) {
             VStack(alignment: .leading, spacing: ReffiSpace.s4) {
-                Text("Pick as many as you like. Recipes will follow.")
+                Text("Pick as many as you like.\nRecipes will follow.")
                     .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
 
                 LazyVGrid(columns: columns, alignment: .leading, spacing: ReffiSpace.s2) {

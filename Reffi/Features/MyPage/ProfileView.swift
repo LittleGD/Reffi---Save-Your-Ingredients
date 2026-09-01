@@ -150,12 +150,12 @@ struct ProfileView: View {
         // 사용자 결정으로 폐기됐다). 행동 배선·role·햅틱·카피는 원본과 완전히 동일하다 — 의미는
         // 얼리고 재질만 바꾼다. 딤 탭은 취소 행동이 있는 질문형만 취소로 받는다(§14.7).
         .paperDialog(isPresented: $showLogout, title: "Log out of Reffi?",
-                    message: "Your fridge and history stay on this device. Log back in anytime.",
+                    message: "Your fridge and history stay on this device.\nLog back in anytime.",
                     seed: 1, backdropDismisses: true,
                     primary: PaperDialogAction("Log out", role: .destructive) { Task { await auth.signOut() } },
                     secondary: PaperDialogAction("Cancel", role: .cancel) {})
         .paperDialog(isPresented: $showDelete, title: "Erase this device's data?",
-                    message: "This erases this device's data and logs you out. Your account stays on the server.",
+                    message: "This erases this device's data and logs you out.\nYour account stays on the server.",
                     seed: 2, backdropDismisses: true,
                     primary: PaperDialogAction("Erase", role: .destructive) {
                         destructiveHaptic += 1   // 룰⑦ — 파괴 확정(.warning)
@@ -192,7 +192,7 @@ struct ProfileView: View {
                     },
                     secondary: PaperDialogAction("Cancel", role: .cancel) {})
         .paperDialog(isPresented: $showResetConfirm, title: "Reset all data?",
-                    message: "Ingredients and history will be deleted. This can't be undone.",
+                    message: "Ingredients and history will be deleted.\nThis can't be undone.",
                     seed: 5, backdropDismisses: true,
                     primary: PaperDialogAction("Reset", role: .destructive) {
                         destructiveHaptic += 1   // 룰⑦ — 파괴 확정(.warning)
@@ -398,7 +398,7 @@ struct ProfileView: View {
                 languagePickerOpen ? $0 : nil
             }
             ReceiptRule()
-            Text("Some text updates right away. Restart Reffi to apply everywhere.")
+            Text("Some text updates right away.\nRestart Reffi to apply everywhere.")
                 .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
                 .padding(.horizontal, ReffiSpace.s5)
                 // 같은 카드 안 행(`SettingsRow`)과 **같은 세로 리듬**이다. s3으로 좁혀 두면 절취선 하나를
