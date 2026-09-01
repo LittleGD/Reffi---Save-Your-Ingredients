@@ -168,80 +168,182 @@ struct TagEditorSheet: View {
 /// SSOT는 `ExpiryNotifier.hourKey`(ProfileView 토글과 같은 키). ExpiryNotifier는 정시(:00)에만
 /// 발화하므로 시(hour) 단위로 선택한다 — 스케줄에 반영되지 않을 분(minute)은 UI에 노출하지 않는다.
 ///
-/// **네이티브 휠 → 종이컷 리스트(51차, 오너 피드백 — "이것도 종이컷 스타일로 만들 수 있나?")**.
-/// `.wheel`은 이 화면 유일의 시스템 룩이라 크림 캔버스·종이 시트 사이에서 홀로 튀었다. 새 컨트롤을
-/// 짓지 않고 `PaperChecklistDialog`/`KitchenCopySheet`가 이미 쓰는 체크 상자 문법(§14.7)을 그대로
-/// 가져온다 — 켜짐 = blue 솔리드 + `PaperGrain` + `paperEdgeOnFill` + onAccent 체크, 꺼짐 = paper
-/// 면 + `paperEdgeState` 헤어라인. 다만 이 목록은 여럿을 담는 체크리스트가 아니라 **단일 선택**이라,
-/// 접근성은 그 둘의 "담김 여부" 값 대신 `SelectableChip`·`PaperDropdown`과 같은 축의 `.isSelected`
-/// 트레잇 하나로 말한다(상태 채널은 하나, §13.5). 16개 행(06시~21시)은 이 시트의 고정 높이(300)에
-/// 다 들어가지 않아 자체 스크롤하고, 뜨는 순간 현재 선택 행으로 스크롤한다 — `.onAppear`가 아니라
-/// `.task`에서 여는 것은 `PaperChecklistDialog`의 포커스 이동과 같은 이유다(42차, 요소 등록 전에
-/// 실행되면 이동이 유실되는 창이 있다).
+/// **종이컷 체크 리스트(51차) → 종이컷 다이얼(56차, 오너 판정 — "종이컷 스타일은 유지하되 시간
+/// 선택은 다이얼로")**. `.wheel`의 시스템 룩을 걷어낸다는 51차의 원칙은 그대로 두고 형태만 되돌아온다 —
+/// 06~21시 16행을 훑는 세로 스크롤에 가운데 고정 **선택 밴드**(`PaperRect` sub 톤 + 위아래
+/// `ReffiRule(.ticket)`)를 얹어 종이 문법을 지키고, 중심에서 먼 행일수록 옅고 작아지는 **원근**
+/// (`dialPerspective`, 리듀스모션에선 페이드만 남고 스케일은 꺼진다)이 시스템 휠의 페이드를 대신한다.
+/// 스냅 물리는 iOS 17+ `scrollTargetLayout`/`scrollTargetBehavior(.viewAligned)`가 지고(프로젝트
+/// 최소 배포 타깃 18.0 확인 — GeometryReader 수동 스냅 폴백은 불필요), 어느 행이 지금 중심인지는
+/// 뷰 렌더 없이 잠기는 순수 함수(`snapIndex`)가 판정해 `alertHour`를 갱신하고 선택 틱 햅틱을 낸다 —
+/// **51차가 유지한 저장·재스케줄 로직은 그대로다**: 여전히 같은 `@AppStorage` 키에 쓰고, ProfileView의
+/// `.onChange(of: alertHour)`가 그대로 `ExpiryNotifier.reschedule`을 편다.
+///
+/// **`.selection` 햅틱은 §7.6 판정·성공·파괴 3종 표 밖의 새 결이다.** 순수 정보성 스크롤(§7.6 "탭
+/// 전환·스크롤 등에는 햅틱을 쓰지 않는다")과 달리, 이 스크롤 자체가 곧 커밋되는 값이라 시스템
+/// `Picker(.wheel)`처럼 칸을 지날 때마다 틱이 울려야 "값을 고르고 있다"는 게 손끝으로 느껴진다 —
+/// 표 밖의 예외라 여기 이름과 이유를 남긴다(§7.6을 고치는 대신 이 시트에 적어 둔다, 파급을 이 다이얼로 좁힌다).
+///
+/// **접근성은 51차의 "행별 버튼 + `.isSelected`" 모델을 완전히 대체한다.** 낱개 행은 트리에서
+/// 지워지고(`accessibilityElement(children: .ignore)`) 다이얼 전체가 **요소 하나**로 묶여
+/// `accessibilityValue`가 현재 시각을 말하며, 위/아래 스와이프(`accessibilityAdjustableAction`)가
+/// 한 칸씩 시간을 옮긴다 — 시스템 `Picker(.wheel)`·`Stepper`가 VoiceOver에 보이는 것과 같은 문법이다.
 struct NotifyTimeSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage(ExpiryNotifier.hourKey) private var alertHour = ExpiryNotifier.defaultHour
 
-    private static let hours = Array(6..<22)
+    static let hours = Array(6..<22)
+    /// 다이얼 행 높이 — §7.3 최소 터치 타깃(44)을 새 숫자 없이 그대로 쓴다. 51차의 "행 전체가 탭
+    /// 타깃"이라는 계약을, 이번엔 스크롤 스냅 격자 한 칸의 크기로 옮긴다.
+    static let rowHeight: CGFloat = ReffiChrome.tapMin
+
+    /// 연속 스크롤 오프셋 — `dialPerspective` 계산 전용(매 프레임 필요). 커밋 경로(`alertHour`·햅틱)는
+    /// `committedIndex`가 따로 진다 — 원근은 부드러운 연속값이 필요하고 커밋은 "새 행이 중심에
+    /// 왔다"는 이산 사건이라 세밀도가 다르다.
+    @State private var scrollOffsetY: CGFloat
+    /// 마지막으로 커밋한 행 인덱스 — 이 값이 바뀔 때만 `alertHour`를 쓰고 햅틱을 낸다.
+    @State private var committedIndex: Int
+    /// 시트가 뜨며 하는 초기 센터링 스크롤과, 사용자가 실제로 다이얼을 굴리는 것을 가른다.
+    /// 이게 없으면 `.task`의 초기 `scrollTo`가 만드는 지오메트리 콜백이 "행이 바뀌었다"로 오판되어
+    /// 아무것도 만지지 않았는데 스퓨리어스 햅틱이 한 번 운다.
+    @State private var isInteractive = false
+
+    init() {
+        let hour = ExpiryNotifier.alertHour
+        let idx = Self.index(ofHour: hour) ?? 0
+        _scrollOffsetY = State(initialValue: CGFloat(idx) * Self.rowHeight)
+        _committedIndex = State(initialValue: idx)
+    }
 
     var body: some View {
         SheetShell(title: "Alert time", onClose: { dismiss() }) {
             ScrollViewReader { proxy in
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 0) {
-                        ForEach(Array(Self.hours.enumerated()), id: \.offset) { index, hour in
-                            hourRow(hour)
-                                .id(hour)
-                            if index < Self.hours.count - 1 { ReffiRule(.ticket) }
+                GeometryReader { geo in
+                    let bandHeight = geo.size.height
+                    ZStack {
+                        selectionBand
+                        ScrollView(.vertical, showsIndicators: false) {
+                            LazyVStack(spacing: 0) {
+                                ForEach(Self.hours, id: \.self) { hour in
+                                    dialRow(hour).id(hour)
+                                }
+                            }
+                            .scrollTargetLayout()
+                        }
+                        // 첫·마지막 행도 밴드 중앙까지 올 수 있게 위아래를 행 반 폭만큼 비운다
+                        // (§ safeAreaPadding 트릭 — `.viewAligned`가 재는 "정렬 경계"가 이 여백의
+                        // 안쪽 가장자리라, 콘텐츠 오프셋 0 = 0번 행이 밴드 중앙에 오는 자리가 된다).
+                        .safeAreaPadding(.vertical, max(0, (bandHeight - Self.rowHeight) / 2))
+                        .scrollTargetBehavior(.viewAligned)
+                        .scrollBounceBehavior(.basedOnSize)
+                        .onScrollGeometryChange(for: CGFloat.self) { $0.contentOffset.y } action: { _, newOffset in
+                            scrollOffsetY = newOffset
+                            guard isInteractive else { return }
+                            let newIndex = Self.snapIndex(forOffset: newOffset, rowHeight: Self.rowHeight,
+                                                          count: Self.hours.count)
+                            guard newIndex != committedIndex else { return }
+                            committedIndex = newIndex
+                            alertHour = Self.hours[newIndex]
                         }
                     }
                 }
-                .scrollBounceBehavior(.basedOnSize)
-                .task { proxy.scrollTo(alertHour, anchor: .center) }
+                // `.onAppear`가 아니라 `.task`인 이유는 51차와 같다(42차 — 요소 등록 전에 실행되면
+                // 이동이 유실되는 창이 있다). `isInteractive`는 이 초기 스크롤이 끝난 뒤에 켠다.
+                .task {
+                    proxy.scrollTo(alertHour, anchor: .center)
+                    isInteractive = true
+                }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Alert time")
+                .accessibilityValue(Text(verbatim: Self.hourLabel(alertHour)))
+                .accessibilityAdjustableAction { direction in
+                    let newHour = Self.steppedHour(from: alertHour, direction: direction)
+                    guard newHour != alertHour, let idx = Self.index(ofHour: newHour) else { return }
+                    alertHour = newHour
+                    committedIndex = idx
+                    scrollOffsetY = CGFloat(idx) * Self.rowHeight
+                    withAnimation(ReffiMotion.gated(ReffiMotion.standard, reduce: reduceMotion)) {
+                        proxy.scrollTo(newHour, anchor: .center)
+                    }
+                }
             }
+            .reffiFeedback(.selection, trigger: committedIndex)
         }
     }
 
-    private func hourRow(_ hour: Int) -> some View {
-        let selected = hour == alertHour
+    /// 가운데 고정 선택 밴드 — 종이 면(`sub` 톤, 캔버스 위 전용 서브 면이라 시트 배경과 짝이 맞는다) +
+    /// 위아래 `ReffiRule(.ticket)`. 스크롤 콘텐츠 **뒤에** 깔리는 장식층이라 제스처를 먹지 않는다.
+    private var selectionBand: some View {
+        let shape = PaperRect(cornerRadius: ReffiRadius.sm, seed: 3)
+        return VStack(spacing: 0) {
+            ReffiRule(.ticket)
+            Spacer(minLength: 0)
+            ReffiRule(.ticket)
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: Self.rowHeight)
+        .background { shape.fill(ReffiColor.sub) }
+        .allowsHitTesting(false)
+    }
+
+    /// 다이얼 한 칸 — 더는 버튼이 아니다(선택은 탭이 아니라 다이얼 위치가 말한다). 중심에서의
+    /// 연속 거리(`distance`)로 원근을 매겨 시스템 휠의 페이드를 종이 문법으로 옮긴다.
+    private func dialRow(_ hour: Int) -> some View {
         let label = Self.hourLabel(hour)
-        return Button { alertHour = hour } label: {
-            HStack(spacing: ReffiSpace.s3) {
-                checkbox(on: selected, seed: hour)
-                Text(verbatim: label)
-                    .font(.reffiNum(.body, for: label))
-                    .foregroundStyle(ReffiColor.ink)
-                Spacer(minLength: 0)
-            }
-            .padding(.vertical, ReffiSpace.s2)
-            .frame(minHeight: ReffiChrome.tapMin)   // §7.3 — 행 전체가 타깃
-            .contentShape(Rectangle())
-            .animation(ReffiMotion.gated(ReffiMotion.standard, reduce: reduceMotion), value: selected)
-        }
-        .buttonStyle(.reffiPress)
-        .accessibilityLabel(Text(verbatim: label))
-        .accessibilityAddTraits(selected ? [.isSelected] : [])
+        let index = Self.index(ofHour: hour) ?? 0
+        let distance = Double(index) - Double(scrollOffsetY / Self.rowHeight)
+        let perspective = Self.dialPerspective(distance: distance)
+        return Text(verbatim: label)
+            .font(.reffiNum(.body, for: label))
+            .foregroundStyle(ReffiColor.ink)
+            .frame(maxWidth: .infinity)
+            .frame(height: Self.rowHeight)
+            .opacity(perspective.opacity)
+            .scaleEffect(reduceMotion ? 1 : perspective.scale)
     }
 
-    /// 체크 상자 — `PaperChecklistDialog.checkbox`·`KitchenCopySheet.checkbox`와 같은 시각 문법(§14.7).
-    /// 사설 함수를 공유하지 않는 이유도 그 둘과 같다 — 이 시트는 `Set` 없이 `Int` 하나만 비교하는
-    /// 훨씬 얕은 계약이라, 파일을 가로지르는 의존보다 같은 그림을 다시 그리는 쪽이 더 작은 결합이다.
-    @ViewBuilder
-    private func checkbox(on: Bool, seed: Int) -> some View {
-        let shape = PaperRect(cornerRadius: ReffiRadius.xs, seed: seed)
-        ZStack {
-            if on {
-                shape.fill(ReffiColor.blue)
-                    .overlay(PaperGrain(seed: UInt64(max(0, seed)) &+ 11, strength: 0.9).clipShape(shape))
-                    .paperEdge(shape, tint: ReffiColor.paperEdgeOnFill)
-                    .compositingGroup()
-                ReffiIcon.check.reffi(13, .bold).foregroundStyle(ReffiColor.onAccent)
-            } else {
-                shape.fill(ReffiColor.paper).paperEdge(shape, tint: ReffiColor.paperEdgeState)
-            }
+    // MARK: - 순수 로직(뷰 렌더 없이 `NotifyTimeSheetTests`가 잠근다 — 56차)
+
+    /// `hours` 안에서 이 시각의 위치. 다이얼이 06~21시 연속 구간이라 `hour - 6`과 같지만, 그 사실에
+    /// 기대지 않고 목록에서 직접 찾는다 — `hours`가 나중에 비연속으로 바뀌어도 원근·스냅 계산이 안 깨진다.
+    static func index(ofHour hour: Int) -> Int? { hours.firstIndex(of: hour) }
+
+    /// 연속 스크롤 오프셋 → 가장 가까운 행 인덱스(0-based, `hours` 범위로 clamp). 실제 스냅 물리는
+    /// `.scrollTargetBehavior(.viewAligned)`가 지지만, 몇 번째 행이 지금 중심에 왔는지는 이 순수
+    /// 계산이 판정한다 — `alertHour` 갱신·선택 햅틱이 이 값의 변화를 트리거로 쓴다.
+    static func snapIndex(forOffset offset: CGFloat, rowHeight: CGFloat, count: Int) -> Int {
+        guard count > 0, rowHeight > 0 else { return 0 }
+        let raw = Int((offset / rowHeight).rounded())
+        return min(max(raw, 0), count - 1)
+    }
+
+    /// 원근 감쇠 상수 — 몇 행 떨어지면 바닥에 닿는지(range)와 그 바닥값. §3.4류 타이포 스케일이
+    /// 아니라 이 다이얼 전용의 새 시각 효과라 재사용할 기존 토큰이 없다(§4의 스페이싱·곡률과
+    /// 다른 축 — "몇 pt인가"가 아니라 "몇 행 떨어지면 얼마나 옅어지는가"다).
+    private static let perspectiveRange: Double = 2.5
+    private static let perspectiveOpacityFloor: Double = 0.25
+    private static let perspectiveScaleFloor: Double = 0.8
+
+    /// 다이얼 원근 — 중심(거리 0)은 완전 불투명·원래 크기, 멀어질수록 옅고 작아지되 바닥 아래로는
+    /// 안 내려간다. `distance`는 "행 몇 칸 떨어졌는가"(연속값 — 스크롤 중엔 정수 사이를 매끄럽게
+    /// 지난다). 순수 함수라 스크롤·뷰 없이 잠글 수 있다.
+    static func dialPerspective(distance: Double) -> (opacity: Double, scale: CGFloat) {
+        let clamped = min(abs(distance), perspectiveRange)
+        let opacity = 1 - clamped * ((1 - perspectiveOpacityFloor) / perspectiveRange)
+        let scale = 1 - clamped * ((1 - perspectiveScaleFloor) / perspectiveRange)
+        return (opacity, CGFloat(scale))
+    }
+
+    /// 접근성 adjustable 스텝 — 위/아래 스와이프 한 번 = 한 시간 칸. 경계(06·21시)에서 랩어라운드
+    /// 하지 않는다 — 다이얼의 물리적 끝과 같다.
+    static func steppedHour(from hour: Int, direction: AccessibilityAdjustmentDirection) -> Int {
+        guard let idx = index(ofHour: hour) else { return hour }
+        switch direction {
+        case .increment: return hours[min(hours.count - 1, idx + 1)]
+        case .decrement: return hours[max(0, idx - 1)]
+        @unknown default: return hour
         }
-        .frame(width: 22, height: 22)
     }
 
     /// 정시 라벨 — "8:00 AM" 형식(로케일 자동).

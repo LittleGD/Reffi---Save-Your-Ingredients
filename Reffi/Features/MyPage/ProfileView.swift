@@ -108,6 +108,16 @@ struct ProfileView: View {
                 }
             }
         }
+        // 스크린샷·QA용 — Alert time 시트를 곧장 연다(56차 종이컷 다이얼 렌더 확인, 위 -profileBottom
+        // 선례). `alertsEnabled`은 건드리지 않는다 — 건드리면 토글의 `.onChange`가 시스템 알림 권한
+        // 다이얼로그를 띄워 캡처를 막는다. 시트 자체는 그 토글과 무관하게 열 수 있다.
+        .onAppear {
+            if ProcessInfo.processInfo.arguments.contains("-notifyTimeDial") {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                    sheet = .time
+                }
+            }
+        }
         #endif
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
