@@ -483,6 +483,22 @@ final class CookTicketFlickUITests: XCTestCase {
         XCTAssertTrue(app.buttons["How to cook"].waitForExistence(timeout: 4),
                       "단계가 있는 레시피엔 주방 전표를 여는 조용한 링크가 서야 한다")
 
+        // CTA 배치 — 55차, 사용자 시안으로 오너 49차의 칩 행 통일을 부분 역전한다(§13.6 4-1).
+        // "How to cook"은 자기 행을 전폭으로 혼자 쓰고, 그 아래 한 행에 "Videos"(강조 톤 와이드 CTA)와
+        // "Share"(캡션 없는 블롭)가 나란히 선다.
+        let howToCook = app.buttons["How to cook"]
+        let videos = app.buttons["Open recipe videos"]
+        let share = app.buttons["Share"]
+        XCTAssertTrue(share.waitForExistence(timeout: 4), "공유 블롭이 있어야 한다")
+        XCTAssertLessThan(howToCook.frame.maxY, videos.frame.minY,
+                          "How to cook은 자기 행을 전폭으로 차지하고, Videos·Share는 그 아래 행이어야 한다(55차 시안)")
+        XCTAssertEqual(videos.frame.midY, share.frame.midY, accuracy: 4,
+                       "Videos와 Share는 같은 행에 나란히 서야 한다(55차 시안)")
+        XCTAssertLessThanOrEqual(videos.frame.maxX, share.frame.minX,
+                                 "Share 블롭은 Videos 오른쪽에 서야 한다(55차 시안)")
+        XCTAssertEqual(share.frame.width, share.frame.height, accuracy: 6,
+                       "Share는 캡션 없는 정사각 블롭(52pt)이어야 한다 — 라벨이 있는 와이드 버튼이면 폭이 높이를 크게 넘는다(55차 시안)")
+
         // 히어로 아래 요리 소개 한 줄 — 시드 레시피에는 반드시 있다(§13.6 4-1).
         // 문구는 시드에서 오므로 테스트에 박지 않고 식별자로 집는다(`ticket.menuName` 선례).
         let intro = app.staticTexts["cook.intro"]
