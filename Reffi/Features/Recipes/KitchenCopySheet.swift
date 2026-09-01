@@ -39,26 +39,41 @@ struct KitchenCopySheet: View {
         .background(ReffiColor.canvas.ignoresSafeArea())
     }
 
+    /// 헤더 3단(50차, 오너 피드백) — 아이브로("KITCHEN COPY") + 타이틀(레시피명) + 메타("N steps")
+    /// 하이라키로 나눈다. 옛 구조는 크라운과 레시피명을 같은 13pt 밴드에 얹어(`monoTicketLabel` +
+    /// `metaText`) 한 줄로 붙였는데, 그러면 이 시트의 **주인공**(레시피명)이 크롬 라벨과 같은 크기로
+    /// 묻혀 위계가 없었다(§3.5 "역할로 가른다" 원칙과 충돌 — 크기가 아니라 무엇이 이 화면의 제목인지로
+    /// 골라야 한다). 타이틀 role은 새로 만들지 않고 **오더·조리 티켓이 이미 쓰는** `menuName`(Bold 26,
+    /// §3.5)을 그대로 가져온다 — `CookingStepsView`의 "ORDER · FIRED" + 레시피명, `OrderMemoCard`의
+    /// 크라운 + 메뉴명과 **같은 문법**(크라운=`monoTicketLabel`, 이름=`menuName`)이라 이 시트만의
+    /// 예외가 아니라 티켓 어휘 전체와 일관된다.
+    ///
     /// 크라운 — 오더/조리 티켓의 "ORDER · FIRED"와 같은 모노 문법. **크롬과 데이터를 가른다**(42차):
     /// `monoTicketLabel`(올캡·자간 2.5)은 §3.5가 비번역 라틴 크롬 전용으로 못 박은 role이라,
     /// 번역되는 레시피명을 같은 문자열에 이어 붙이면 한국어에서 `.uppercased()`가 no-op이 되고
-    /// 13pt 한글에 em의 19% 자간이 걸려 낱글자로 흩어진다("김 치 찌 개"). 크라운 조각만 그 role에
-    /// 남기고 레시피명은 같은 13pt 밴드의 `metaText`(자간 0)로 — 티켓 표면의 "한 크기·다른 무게"
-    /// 문법 그대로다. 레시피명 자체는 데이터라 verbatim(§i18n, `cook.recipeName`과 같은 규칙).
+    /// 13pt 한글에 em의 19% 자간이 걸려 낱글자로 흩어진다("김 치 찌 개"). 이제 레시피명이 크라운과
+    /// 아예 다른 줄(타이틀)로 내려가 이 문제 자체가 없어졌지만, 크라운 문자열은 그대로 verbatim
+    /// 비번역 라틴 크롬으로 남는다.
+    ///
+    /// "N steps" 메타는 **아이브로 행 우측**에 남긴다(타이틀 아래로 내리지 않는다) — `OrderMemoCard.header`가
+    /// 크라운 좌·번호("#NN") 우를 `monoTicketLabel` 한 role로 같은 행에 앉히는 것과 같은 자리다.
+    /// 옛 자리(우상단)를 그대로 지켜 시각적 이동을 최소화하면서, 무게만 이 시트의 진짜 제목인
+    /// 레시피명 줄로 옮긴다.
     private var header: some View {
-        HStack(alignment: .firstTextBaseline) {
-            HStack(alignment: .firstTextBaseline, spacing: ReffiSpace.s1) {
-                Text(verbatim: "KITCHEN COPY ·")
+        VStack(alignment: .leading, spacing: ReffiSpace.s3) {
+            HStack(alignment: .firstTextBaseline, spacing: ReffiSpace.s2) {
+                Text(verbatim: "KITCHEN COPY")
                     .reffiType(.monoTicketLabel).foregroundStyle(ReffiColor.ink2)
-                Text(verbatim: recipeName)
-                    .reffiType(.metaText).foregroundStyle(ReffiColor.ink2)
+                    .lineLimit(1).minimumScaleFactor(ReffiShrink.fit)
+                Spacer(minLength: ReffiSpace.s3)
+                Text("\(steps.count) steps")
+                    .reffiType(.metaText).foregroundStyle(ReffiColor.muted)
+                    .fixedSize()
             }
-            .lineLimit(1)
-            .minimumScaleFactor(ReffiShrink.chrome)
-            Spacer(minLength: ReffiSpace.s3)
-            Text("\(steps.count) steps")
-                .reffiType(.metaText).foregroundStyle(ReffiColor.muted)
-                .fixedSize()
+            Text(verbatim: recipeName)
+                .reffiType(.menuName).foregroundStyle(ReffiColor.ink)
+                .lineLimit(2).minimumScaleFactor(ReffiShrink.chrome)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .padding(.bottom, ReffiSpace.s3)
         .accessibilityElement(children: .combine)

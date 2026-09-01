@@ -512,10 +512,12 @@ final class CookTicketFlickUITests: XCTestCase {
         XCTAssertTrue(link.waitForExistence(timeout: 30))
         link.tap()
 
-        // 크라운 헤더 — "KITCHEN COPY · <레시피명>"은 레시피명이 시드에서 오므로 접두사만 확인.
+        // 크라운 헤더 — 50차로 크라운("KITCHEN COPY")과 레시피명(타이틀, 시드에서 온다)이 다른 줄로
+        // 갈렸지만 `.accessibilityElement(children: .combine)`은 그대로라 결합 라벨은 여전히
+        // "KITCHEN COPY"로 시작한다 — 접두사만 확인.
         // 존재 확인 외에, 닫기 드래그의 시작점으로도 재사용한다(아래) — 스크롤 리스트 **밖**의
         // 고정 영역이라 드래그 시작점으로 안전하다.
-        let crownHeader = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "KITCHEN COPY ·")).firstMatch
+        let crownHeader = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "KITCHEN COPY")).firstMatch
         XCTAssertTrue(crownHeader.waitForExistence(timeout: 6), "주방 전표 시트가 열리면 크라운 헤더가 있어야 한다")
 
         // 첫 단계 행을 찾아 체크 — 단계 문장은 시드 데이터라 텍스트를 박지 않고 첫 번째 버튼으로 집는다.
@@ -544,7 +546,7 @@ final class CookTicketFlickUITests: XCTestCase {
         dragStart.press(forDuration: 0.05, thenDragTo: dragEnd)
         // 닫힘은 애니메이션이라 즉시 `.exists`를 재면 전환 중간에 걸릴 수 있다 — 짧게 유예한 뒤 확인한다.
         Thread.sleep(forTimeInterval: 0.6)
-        let crown = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "KITCHEN COPY ·")).firstMatch
+        let crown = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "KITCHEN COPY")).firstMatch
         XCTAssertFalse(crown.exists, "스와이프 다운으로 시트가 닫혀야 한다")
 
         link.tap()   // 다시 열기
