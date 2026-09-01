@@ -2601,7 +2601,19 @@
         }
       }
     },
+    "Put back": {
+      "comment": "Bottom-docked cancel-cooking button label (54차, shortened from \"Put ingredients back\" per user request; the confirm dialog title keeps the full sentence)",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "되돌리기"
+          }
+        }
+      }
+    },
     "Put ingredients back": {
+      "comment": "accessibilityLabel for the \"Put back\" button (54차), keeps the full sentence for VoiceOver after the visible label was shortened",
       "localizations": {
         "ko": {
           "stringUnit": {

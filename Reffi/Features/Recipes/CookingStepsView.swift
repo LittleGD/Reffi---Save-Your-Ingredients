@@ -233,14 +233,17 @@ struct CookingStepsView: View {
                 }
 
                 // 조리 포기 — 예약을 해제하고 재료를 되돌린다(기록 없음). fire의 안전한 반대 방향.
-                // 종이 버튼화(2026-08, 35차) 후 42차에서 라벨을 "Put ingredients back"으로 —
-                // 다이얼로그 제목("Put ingredients back?")과 같은 동사를 쓴다. 실행 버튼은 pr20의
-                // 한 단어 규칙(§14.7)으로 "Stop"이고, "Cancel"이라는 낱말은 앱 전역에서
-                // secondary(안전한 빠져나감) 전용으로 예약한다.
+                // 종이 버튼화(2026-08, 35차) 후 42차에서 오너가 라벨을 "Cancel cooking"에서
+                // "Put ingredients back"으로 바꿨다 — 다이얼로그 제목("Put ingredients back?")과 같은
+                // 동사를 쓴다. 54차, 사용자 요청으로 시각 라벨만 "Put back"으로 축약했고 다이얼로그
+                // 제목은 전체 문장을 그대로 유지한다 — accessibilityLabel이 원래 문장을 이어받아
+                // 스크린리더는 맥락을 잃지 않는다. 실행 버튼은 pr20의 한 단어 규칙(§14.7)으로 "Stop"이고,
+                // "Cancel"이라는 낱말은 앱 전역에서 secondary(안전한 빠져나감) 전용으로 예약한다.
                 // 파랑 "Finish cooking"과 경쟁하지 않도록 면 없는 조용한 등급은 유지한다.
-                QuietButton(title: "Put ingredients back", tint: ReffiColor.urgentDark) {
+                QuietButton(title: "Put back", tint: ReffiColor.urgentDark) {
                     showCancelConfirm = true
                 }
+                .accessibilityLabel(Text("Put ingredients back"))
                 .accessibilityHint(Text("Nothing is logged."))
             }
         }
