@@ -483,6 +483,22 @@ final class CookTicketFlickUITests: XCTestCase {
         XCTAssertTrue(app.buttons["How to cook"].waitForExistence(timeout: 4),
                       "단계가 있는 레시피엔 주방 전표를 여는 조용한 링크가 서야 한다")
 
+        // CTA 배치 — 55차, 사용자 시안으로 오너 49차의 칩 행 통일을 부분 역전한다(§13.6 4-1).
+        // "How to cook"은 자기 행을 전폭으로 혼자 쓰고, 그 아래 한 행에 "Videos"(강조 톤 와이드 CTA)와
+        // "Share"(캡션 없는 블롭)가 나란히 선다.
+        let howToCook = app.buttons["How to cook"]
+        let videos = app.buttons["Open recipe videos"]
+        let share = app.buttons["Share"]
+        XCTAssertTrue(share.waitForExistence(timeout: 4), "공유 블롭이 있어야 한다")
+        XCTAssertLessThan(howToCook.frame.maxY, videos.frame.minY,
+                          "How to cook은 자기 행을 전폭으로 차지하고, Videos·Share는 그 아래 행이어야 한다(55차 시안)")
+        XCTAssertEqual(videos.frame.midY, share.frame.midY, accuracy: 4,
+                       "Videos와 Share는 같은 행에 나란히 서야 한다(55차 시안)")
+        XCTAssertLessThanOrEqual(videos.frame.maxX, share.frame.minX,
+                                 "Share 블롭은 Videos 오른쪽에 서야 한다(55차 시안)")
+        XCTAssertEqual(share.frame.width, share.frame.height, accuracy: 6,
+                       "Share는 캡션 없는 정사각 블롭(52pt)이어야 한다 — 라벨이 있는 와이드 버튼이면 폭이 높이를 크게 넘는다(55차 시안)")
+
         // 히어로 아래 요리 소개 한 줄 — 시드 레시피에는 반드시 있다(§13.6 4-1).
         // 문구는 시드에서 오므로 테스트에 박지 않고 식별자로 집는다(`ticket.menuName` 선례).
         let intro = app.staticTexts["cook.intro"]
@@ -512,10 +528,12 @@ final class CookTicketFlickUITests: XCTestCase {
         XCTAssertTrue(link.waitForExistence(timeout: 30))
         link.tap()
 
-        // 크라운 헤더 — "KITCHEN COPY · <레시피명>"은 레시피명이 시드에서 오므로 접두사만 확인.
+        // 크라운 헤더 — 50차로 크라운("KITCHEN COPY")과 레시피명(타이틀, 시드에서 온다)이 다른 줄로
+        // 갈렸지만 `.accessibilityElement(children: .combine)`은 그대로라 결합 라벨은 여전히
+        // "KITCHEN COPY"로 시작한다 — 접두사만 확인.
         // 존재 확인 외에, 닫기 드래그의 시작점으로도 재사용한다(아래) — 스크롤 리스트 **밖**의
         // 고정 영역이라 드래그 시작점으로 안전하다.
-        let crownHeader = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "KITCHEN COPY ·")).firstMatch
+        let crownHeader = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "KITCHEN COPY")).firstMatch
         XCTAssertTrue(crownHeader.waitForExistence(timeout: 6), "주방 전표 시트가 열리면 크라운 헤더가 있어야 한다")
 
         // 첫 단계 행을 찾아 체크 — 단계 문장은 시드 데이터라 텍스트를 박지 않고 첫 번째 버튼으로 집는다.
@@ -544,7 +562,7 @@ final class CookTicketFlickUITests: XCTestCase {
         dragStart.press(forDuration: 0.05, thenDragTo: dragEnd)
         // 닫힘은 애니메이션이라 즉시 `.exists`를 재면 전환 중간에 걸릴 수 있다 — 짧게 유예한 뒤 확인한다.
         Thread.sleep(forTimeInterval: 0.6)
-        let crown = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "KITCHEN COPY ·")).firstMatch
+        let crown = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "KITCHEN COPY")).firstMatch
         XCTAssertFalse(crown.exists, "스와이프 다운으로 시트가 닫혀야 한다")
 
         link.tap()   // 다시 열기

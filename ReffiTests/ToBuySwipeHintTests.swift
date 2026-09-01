@@ -3,12 +3,15 @@ import Testing
 import Foundation
 @testable import Reffi
 
-/// 밀기 어포던스 힌트(28차)의 **순수 로직** — 언제 뜨는가(`shouldPeek`)와 QA 인자 해석
-/// (`swipeHintConfig(from:)`). 둘 다 뷰 상태에서 떼어 낸 함수라 시뮬레이터 없이 갈래를 전부 고정한다
-/// (`FridgeTab.initial(from:)`·`MainView.fireDismissDelay(from:)` 선례).
+/// 밀기 어포던스 힌트(28차)의 **순수 로직** — 언제 뜨는가(`shouldPeek`), QA 인자 해석
+/// (`swipeHintConfig(from:)`), 그리고 "이미 봤음" 시작값 해석(`swipeHintSeenAtLaunch(in:)`, 52차).
+/// 셋 다 뷰 상태에서 떼어 낸 함수라 시뮬레이터 없이 갈래를 전부 고정한다(`FridgeTab.initial(from:)`·
+/// `MainView.fireDismissDelay(from:)` 선례).
 ///
-/// 이 힌트는 **설치당 한 번**이라 실사용에서 재현 기회가 사실상 없다 — 조건 하나가 어긋나면 그 설치의
-/// 유일한 재생이 조용히 사라지고 아무도 알아채지 못한다. 그래서 판정을 여기서 잠근다.
+/// 이 힌트는 **실행(런치)당 한 번**이다(52차 — 이전엔 설치당 한 번이라 조건 하나가 어긋나면 그 설치가
+/// 지워질 때까지 재생 기회가 돌아오지 않았다, 사용자 리포트). 스코프가 좁아졌어도 판정 자체가 잠겨
+/// 있어야 하는 이유는 그대로다 — 다음 실행을 기다리게 하더라도, 그 실행 안에서는 여전히 다섯 갈래
+/// 전부가 정확히 한 번만 맞아떨어져야 한다.
 struct ToBuySwipeHintTests {
 
     // MARK: shouldPeek — 다섯 게이트
@@ -29,7 +32,7 @@ struct ToBuySwipeHintTests {
                                                 userSwiped: false, sheetUp: false, forced: true))
     }
 
-    /// 한 번 본 뒤에는 다시 뜨지 않는다(설치당 한 번).
+    /// 한 번 본 뒤에는 이 실행 동안 다시 뜨지 않는다(런치당 한 번, 52차).
     @Test func doesNotRepeatOnceSeen() {
         #expect(!ShoppingListContent.shouldPeek(rowCount: 3, seen: true, reduceMotion: false,
                                                 userSwiped: false, sheetUp: false, forced: false))
@@ -111,13 +114,29 @@ struct ToBuySwipeHintTests {
         }
     }
 
-    /// **플래그 주입 인자와 이름이 겹치지 않는다.** `-toBuy.swipeHintSeen YES`는 UserDefaults로
-    /// `@AppStorage("toBuy.swipeHintSeen")`을 덮는 인자이고, 이 파서가 접두어 매칭을 하면 그 인자만
-    /// 줘도 힌트가 강제로 켜져 "플래그가 서 있으면 안 뜬다"를 재현할 수 없게 된다.
+    /// **이미-봤음 시작값 인자와 이름이 겹치지 않는다.** `-toBuy.swipeHintSeen`은(52차부터) 이 실행을
+    /// 이미 본 상태로 세우는 별개의 인자이고, 이 파서가 접두어 매칭을 하면 그 인자만 줘도 힌트가
+    /// 강제로 켜져 "이미 봤으면 안 뜬다"를 재현할 수 없게 된다.
     @Test func configDoesNotMatchTheSeenFlagArgument() {
-        let c = ShoppingListContent.swipeHintConfig(from: ["-toBuy.swipeHintSeen", "YES"])
+        let c = ShoppingListContent.swipeHintConfig(from: ["-toBuy.swipeHintSeen"])
         #expect(c.forced == false)
         #expect(c.hold == ShoppingListContent.defaultPeekHold)
+    }
+
+    // MARK: swipeHintSeenAtLaunch — `-toBuy.swipeHintSeen`(52차)
+
+    /// 인자가 있으면(값 불필요) 이 실행을 이미 본 상태로 시작한다.
+    @Test func seenAtLaunchDetectsBareFlag() {
+        #expect(ShoppingListContent.swipeHintSeenAtLaunch(in: ["-toBuy.swipeHintSeen"]))
+        #expect(ShoppingListContent.swipeHintSeenAtLaunch(in: ["-fridgeTab", "-toBuy.swipeHintSeen", "-toBuy"]))
+    }
+
+    /// 인자가 없으면 기본은 "아직 안 봄" — 실사용 런치와 같은 조건이다.
+    @Test func seenAtLaunchAbsentByDefault() {
+        #expect(!ShoppingListContent.swipeHintSeenAtLaunch(in: []))
+        // 강제 인자(`-toBuy.swipeHint`)와는 이름이 겹치지 않는다 — 축이 다르다(강제는 seen을 무시하고,
+        // 이 인자는 seen을 미리 참으로 세운다).
+        #expect(!ShoppingListContent.swipeHintSeenAtLaunch(in: ["-toBuy.swipeHint"]))
     }
 
     // MARK: 모션 값

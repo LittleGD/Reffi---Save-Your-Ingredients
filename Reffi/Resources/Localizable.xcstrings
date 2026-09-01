@@ -73,7 +73,7 @@
         }
       }
     },
-    "%@ won't last long. Cook it today.": {
+    "%@ won't last long.\nCook it today.": {
       "localizations": {
         "ko": {
           "stringUnit": {
@@ -588,7 +588,7 @@
         }
       }
     },
-    "Add what you buy. We'll count down the expiry dates.": {
+    "Add what you buy.\nWe'll count down the expiry dates.": {
       "localizations": {
         "ko": {
           "stringUnit": {
@@ -842,12 +842,12 @@
         }
       }
     },
-    "Check your inbox. Once verified, your guest data carries over.": {
+    "Check your inbox.\nOnce verified, your guest data carries over.": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "받은 편지함을 확인해 주세요. 인증하면 게스트 데이터가 그대로 이어져요."
+            "value": "받은 편지함을 확인해 주세요.\n인증하면 게스트 데이터가 그대로 이어져요."
           }
         }
       }
@@ -953,12 +953,12 @@
         }
       }
     },
-    "Confirmation email sent. Verify it, then log in.": {
+    "Confirmation email sent.\nVerify it, then log in.": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "확인 메일을 보냈어요. 인증 후 로그인해 주세요."
+            "value": "확인 메일을 보냈어요.\n인증 후 로그인해 주세요."
           }
         }
       }
@@ -1054,12 +1054,12 @@
         }
       }
     },
-    "Couldn't sign you in. Try again in a moment.": {
+    "Couldn't sign you in.\nTry again in a moment.": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "로그인하지 못했어요. 잠시 후 다시 시도해 주세요."
+            "value": "로그인하지 못했어요.\n잠시 후 다시 시도해 주세요."
           }
         }
       }
@@ -1426,7 +1426,7 @@
         }
       }
     },
-    "Everything is read on this device. Nothing is uploaded.": {
+    "Everything is read on this device.\nNothing is uploaded.": {
       "localizations": {
         "ko": {
           "stringUnit": {
@@ -1557,12 +1557,12 @@
         }
       }
     },
-    "Flick left to pass, right to cook. Ranked by what spoils first.": {
+    "Flick left to pass, right to cook.\nRanked by what spoils first.": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "왼쪽으로 튕기면 넘기고, 오른쪽으로 튕기면 요리해요. 먼저 상할 순서예요."
+            "value": "왼쪽으로 튕기면 넘기고, 오른쪽으로 튕기면 요리해요.\n먼저 상할 순서예요."
           }
         }
       }
@@ -1750,7 +1750,7 @@
         }
       }
     },
-    "Ingredients and history will be deleted. This can't be undone.": {
+    "Ingredients and history will be deleted.\nThis can't be undone.": {
       "localizations": {
         "ko": {
           "stringUnit": {
@@ -2214,12 +2214,12 @@
         }
       }
     },
-    "Nothing is logged. Reserved ingredients return to the fridge.": {
+    "Nothing is logged.\nReserved ingredients return to the fridge.": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "기록은 남지 않아요. 쓰려던 재료가 냉장고로 돌아가요."
+            "value": "기록은 남지 않아요.\n쓰려던 재료가 냉장고로 돌아가요."
           }
         }
       }
@@ -2254,12 +2254,12 @@
         }
       }
     },
-    "Nothing tallied yet. What you eat and toss lands here.": {
+    "Nothing tallied yet.\nWhat you eat and toss lands here.": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "아직 정산할 기록이 없어요. 먹거나 버린 재료가 여기에 쌓여요."
+            "value": "아직 정산할 기록이 없어요.\n먹거나 버린 재료가 여기에 쌓여요."
           }
         }
       }
@@ -2498,12 +2498,12 @@
         }
       }
     },
-    "Pick as many as you like. Recipes will follow.": {
+    "Pick as many as you like.\nRecipes will follow.": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "원하는 만큼 골라주세요. 레시피를 거기에 맞출게요."
+            "value": "원하는 만큼 골라주세요.\n레시피를 거기에 맞출게요."
           }
         }
       }
@@ -2549,12 +2549,12 @@
         }
       }
     },
-    "Please verify your email first. Check your inbox.": {
+    "Please verify your email first.\nCheck your inbox.": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "먼저 이메일을 인증해 주세요. 받은 편지함을 확인해 보세요."
+            "value": "먼저 이메일을 인증해 주세요.\n받은 편지함을 확인해 보세요."
           }
         }
       }
@@ -2601,7 +2601,19 @@
         }
       }
     },
+    "Put back": {
+      "comment": "Bottom-docked cancel-cooking button label (54차, shortened from \"Put ingredients back\" per user request; the confirm dialog title keeps the full sentence)",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "되돌리기"
+          }
+        }
+      }
+    },
     "Put ingredients back": {
+      "comment": "accessibilityLabel for the \"Put back\" button (54차), keeps the full sentence for VoiceOver after the visible label was shortened",
       "localizations": {
         "ko": {
           "stringUnit": {
@@ -2721,22 +2733,12 @@
         }
       }
     },
-    "Removes it from your recipes. Built-in recipes stay.": {
+    "Removes it from your recipes.\nThis can't be undone.\nBuilt-in recipes stay.": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "내 레시피에서만 지워져요. 기본 레시피는 그대로예요."
-          }
-        }
-      }
-    },
-    "Removes it from your recipes. This can't be undone. Built-in recipes stay.": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "내 레시피에서만 지워져요. 되돌릴 수 없어요."
+            "value": "내 레시피에서만 지워져요.\n되돌릴 수 없어요.\n기본 레시피는 그대로예요."
           }
         }
       }
@@ -2751,12 +2753,12 @@
         }
       }
     },
-    "Removes it without history. Stats and the shopping list won't count it.": {
+    "Removes it without history.\nStats and the shopping list won't count it.": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "기록 없이 삭제돼요. 통계와 쇼핑리스트에 반영되지 않아요."
+            "value": "기록 없이 삭제돼요.\n통계와 쇼핑리스트에 반영되지 않아요."
           }
         }
       }
@@ -2913,13 +2915,13 @@
         }
       }
     },
-    "Sealed items keep their long dates until opened. Checked ones switch to the after-opening use-by date.": {
+    "Sealed items keep their long dates until opened.\nChecked ones switch to the after-opening use-by date.": {
       "extractionState": "manual",
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "밀봉 식품은 개봉 전까지 기한이 깁니다. 체크한 항목은 개봉 후 소비기한으로 바뀌어요."
+            "value": "밀봉 식품은 개봉 전까지 기한이 깁니다.\n체크한 항목은 개봉 후 소비기한으로 바뀌어요."
           }
         }
       }
@@ -3026,7 +3028,7 @@
         }
       }
     },
-    "Snap the receipt. Groceries land in your fridge.": {
+    "Snap the receipt.\nGroceries land in your fridge.": {
       "localizations": {
         "ko": {
           "stringUnit": {
@@ -3046,12 +3048,12 @@
         }
       }
     },
-    "Some text updates right away. Restart Reffi to apply everywhere.": {
+    "Some text updates right away.\nRestart Reffi to apply everywhere.": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "일부 문구는 바로 바뀌어요. 전부 적용하려면 Reffi를 다시 실행하세요."
+            "value": "일부 문구는 바로 바뀌어요.\n전부 적용하려면 Reffi를 다시 실행하세요."
           }
         }
       }
@@ -3136,12 +3138,12 @@
         }
       }
     },
-    "Stock is waiting in the freezer or reserved for cooking. Check the Fridge tab.": {
+    "Stock is waiting in the freezer or reserved for cooking.\nCheck the Fridge tab.": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "재고가 냉동 보관 중이거나 조리에 쓰일 예정이에요. 냉장고 탭에서 확인해 보세요."
+            "value": "재고가 냉동 보관 중이거나 조리에 쓰일 예정이에요.\n냉장고 탭에서 확인해 보세요."
           }
         }
       }
@@ -3236,12 +3238,12 @@
         }
       }
     },
-    "The camera closed unexpectedly. Try again or add by hand.": {
+    "The camera closed unexpectedly.\nTry again or add by hand.": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "카메라가 예기치 않게 닫혔어요. 다시 시도하거나 직접 입력해 주세요."
+            "value": "카메라가 예기치 않게 닫혔어요.\n다시 시도하거나 직접 입력해 주세요."
           }
         }
       }
@@ -3256,7 +3258,7 @@
         }
       }
     },
-    "This email is already registered. Try logging in.": {
+    "This email is already registered.\nTry logging in.": {
       "localizations": {
         "ko": {
           "stringUnit": {
@@ -3266,12 +3268,12 @@
         }
       }
     },
-    "This erases this device's data and logs you out. Your account stays on the server.": {
+    "This erases this device's data and logs you out.\nYour account stays on the server.": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "이 기기의 데이터를 지우고 로그아웃해요. 계정은 서버에 남아 있어요."
+            "value": "이 기기의 데이터를 지우고 로그아웃해요.\n계정은 서버에 남아 있어요."
           }
         }
       }
@@ -3497,24 +3499,24 @@
         }
       }
     },
-    "Turn %@ and %@ into your own recipe. Add it in Profile.": {
+    "Turn %@ and %@ into your own recipe.\nAdd it in Profile.": {
       "extractionState": "manual",
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "%1$@ 그리고 %2$@, 이 조합으로 나만의 레시피를 만들어 보세요! 프로필에서 바로 추가할 수 있어요."
+            "value": "%1$@ 그리고 %2$@, 이 조합으로 나만의 레시피를 만들어 보세요!\n프로필에서 바로 추가할 수 있어요."
           }
         }
       }
     },
-    "Turn %@ into your own recipe. Add it in Profile.": {
+    "Turn %@ into your own recipe.\nAdd it in Profile.": {
       "extractionState": "manual",
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ 하나로 나만의 레시피를 만들어 보세요! 프로필에서 바로 추가할 수 있어요."
+            "value": "%@ 하나로 나만의 레시피를 만들어 보세요!\n프로필에서 바로 추가할 수 있어요."
           }
         }
       }
@@ -3619,12 +3621,12 @@
         }
       }
     },
-    "Use-by dates are filled from the ingredient dictionary. Adjust anytime in Fridge.": {
+    "Use-by dates are filled from the ingredient dictionary.\nAdjust anytime in Fridge.": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "소비기한은 재료 사전 기본값으로 채워져요. 냉장고에서 언제든 수정할 수 있어요."
+            "value": "소비기한은 재료 사전 기본값으로 채워져요.\n냉장고에서 언제든 수정할 수 있어요."
           }
         }
       }
@@ -3822,12 +3824,12 @@
         }
       }
     },
-    "Your fridge and history stay on this device. Log back in anytime.": {
+    "Your fridge and history stay on this device.\nLog back in anytime.": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "냉장고와 기록은 이 기기에 그대로 남아요. 언제든 다시 로그인할 수 있어요."
+            "value": "냉장고와 기록은 이 기기에 그대로 남아요.\n언제든 다시 로그인할 수 있어요."
           }
         }
       }

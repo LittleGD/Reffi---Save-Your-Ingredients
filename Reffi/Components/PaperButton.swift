@@ -12,7 +12,11 @@ struct PaperButtonLabel: View {
     /// 쓴다: §2.6 실측표의 "각 색-dark 솔리드 + white = AA+"(urgent 5.92) 행이 정확히 이 조합이다 —
     /// 파스텔 `urgent` 위에 흰 글자를 얹는 건 §2.6이 명시적으로 금지한다("따뜻한 파스텔 면 위 글자는
     /// ink, 흰 글자 금지"). `blue`(면 전용)와 같은 축의 "채운 면" 색이라 취급한다.
-    enum Kind { case primary, secondary, destructive }
+    /// `soft`(2026-08, 55차 — 사용자 결정으로 오너 49차 통일을 부분 역전) — 블러시 `urgentLight` 면 +
+    /// `urgentDark` 잉크. `PaperIconLabel.Intent.soft`(§13.5 "블러시(Tossed)")와 **같은 색 쌍**이라
+    /// 이름을 맞췄다. 강조 톤이 필요한 CTA(조리 티켓 "Videos")가 콜사이트에서 표면을 손으로
+    /// 재조립하는 대신(§13.5 "표면을 손으로 재조립하지 않는다" 금지) 정본 하나로 이 톤을 받게 한다.
+    enum Kind { case primary, secondary, destructive, soft }
 
     let title: LocalizedStringKey
     var kind: Kind = .primary
@@ -68,16 +72,20 @@ struct PaperButtonLabel: View {
         case .primary: ReffiColor.blue
         case .secondary: onCard ? ReffiColor.subRaised : ReffiColor.sub
         case .destructive: ReffiColor.urgentDark
+        case .soft: ReffiColor.urgentLight
         }
     }
     // `blue` 면 위 콘텐츠는 `onAccent`(§2.7 — 흰색 근거가 blue의 다크 L 상한 .565에 묶여 있다).
     // `urgentDark`는 다크에서 L .74로 **밝게 뒤집히는** 면이라 고정 흰색을 얹으면 2.43:1로 무너진다 —
     // 그 위 콘텐츠는 `onInk`다(라이트 흰색 그대로 5.92, 다크 7.14 — `PaperDayChip`이 먼저 실측한 짝).
+    // `soft`(블러시 `urgentLight` 면)는 파스텔이라 그 규칙 밖이다 — `PaperIconLabel.Intent.soft`와
+    // 같은 근거로 **`urgentDark`** 잉크(§2.6, "따뜻한 파스텔 면 위 글자는 ink, 흰 글자 금지").
     private var foreground: Color {
         switch kind {
         case .primary: ReffiColor.onAccent
         case .destructive: ReffiColor.onInk
         case .secondary: ReffiColor.ink
+        case .soft: ReffiColor.urgentDark
         }
     }
 

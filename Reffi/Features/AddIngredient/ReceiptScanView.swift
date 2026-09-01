@@ -59,7 +59,7 @@ struct ReceiptScanView: View {
             } onFail: {
                 showCamera = false
                 scanFailed = true
-                ReffiAnnounce.say(AppLanguage.localizedNow("The camera closed unexpectedly. Try again or add by hand."))
+                ReffiAnnounce.say(AppLanguage.localizedNow("The camera closed unexpectedly.\nTry again or add by hand."))
             }
             .ignoresSafeArea()
         }
@@ -119,7 +119,7 @@ struct ReceiptScanView: View {
             Spacer(minLength: ReffiSpace.s4)
             VStack(spacing: ReffiSpace.s4) {
                 ReffiIcon.receipt.reffi(44).foregroundStyle(ReffiColor.blueDark)
-                Text("Snap the receipt. Groceries land in your fridge.")
+                Text("Snap the receipt.\nGroceries land in your fridge.")
                     .reffiType(.body).foregroundStyle(ReffiColor.ink2)
                     .multilineTextAlignment(.center)
 
@@ -145,7 +145,7 @@ struct ReceiptScanView: View {
             if scanFailed {
                 // 표지형 블록(s6 컬럼) 밖, 페이지 마진 컬럼 안에 사는 **읽는 문장**이라 좌측이다
                 // (49차, §9.4) — 지금까지는 표지에 속하지도 페이지 컬럼에 붙지도 않은 중간이었다.
-                Text("The camera closed unexpectedly. Try again or add by hand.")
+                Text("The camera closed unexpectedly.\nTry again or add by hand.")
                     .reffiType(.caption)
                     .foregroundStyle(ReffiColor.urgentDark)
                     .multilineTextAlignment(.leading)
@@ -163,7 +163,7 @@ struct ReceiptScanView: View {
     /// 온디바이스 고지 — 화면이 아니라 **바닥**이 할 말이다(버튼 옆에 붙으면 선택을 방해한다).
     /// 잉크는 muted 대신 ink2로 한 단 어둡게(캡션 크기에서 muted는 캔버스 위 대비가 얕다).
     private var privacyNote: some View {
-        Text("Everything is read on this device. Nothing is uploaded.")
+        Text("Everything is read on this device.\nNothing is uploaded.")
             .reffiType(.caption)
             .foregroundStyle(ReffiColor.ink2)
             .multilineTextAlignment(.leading)
@@ -213,7 +213,7 @@ struct ReceiptScanView: View {
                                 .listRowSeparatorTint(ReffiColor.paperEdge)
                         }
                     } footer: {
-                        Text("Use-by dates are filled from the ingredient dictionary. Adjust anytime in Fridge.")
+                        Text("Use-by dates are filled from the ingredient dictionary.\nAdjust anytime in Fridge.")
                             .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
                     }
                 }

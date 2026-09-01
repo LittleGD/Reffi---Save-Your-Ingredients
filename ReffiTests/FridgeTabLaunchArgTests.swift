@@ -32,10 +32,11 @@ struct FridgeTabLaunchArgTests {
         #expect(FridgeTab.initial(from: ["-toBuy.swipeHint", "6"]) == .toBuy)
     }
 
-    /// 플래그 주입 인자(`-toBuy.swipeHintSeen YES`)는 **착지를 바꾸지 않는다** — 그건 UserDefaults를
-    /// 덮는 값이지 목적지 지시가 아니다. 접두어 매칭을 했다면 여기서 To buy로 새어 나간다.
+    /// QA 인자(`-toBuy.swipeHintSeen`)는 **착지를 바꾸지 않는다** — 그건 밀기 힌트를 이미 본 상태로
+    /// 세우는 값이지(52차부터 프로세스 스코프 플래그를 시드한다, `ShoppingListContent` 참고) 목적지
+    /// 지시가 아니다. 우연히 문자열 포함 매칭을 했다면 여기서 To buy로 새어 나간다.
     @Test func seenFlagArgDoesNotChangeLanding() {
-        #expect(FridgeTab.initial(from: ["-toBuy.swipeHintSeen", "YES"]) == .stock)
+        #expect(FridgeTab.initial(from: ["-toBuy.swipeHintSeen"]) == .stock)
     }
 
     /// `-showHistory` — 옛 History 커버 직행 인자가 History 탭으로 착지한다.

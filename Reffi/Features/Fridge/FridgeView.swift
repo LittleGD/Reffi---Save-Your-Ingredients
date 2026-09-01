@@ -55,6 +55,10 @@ struct FridgeView: View {
     /// 상세 좌표계(`DetailSpace`)에서 영수증 스크롤 뷰의 바닥선 — 넘김 제스처가 "여기부터는 내 몫"을
     /// 가르는 경계. 손을 대기 전 값만 받는다(측정 지점 주석).
     @State private var receiptBottomY: CGFloat = 0
+    /// 상세 좌표계에서 하단 더미(덱, 없으면 그 자리의 네비 예약 띠)의 윗선 — 큰 위쪽 스와이프가
+    /// "더미 위에서 시작했다"고 판정하는 경계(57차-a, `advanceDrag`의 닫기 분기). 기본값 `.infinity`는
+    /// 첫 레이아웃 전에는 어떤 시작점도 이 경계를 넘지 못하게 하는 안전값이다(측정 전 오발동 방지).
+    @State private var deckTopY: CGFloat = .infinity
     /// 직전 넘김의 방향 — 펼침 전환의 앵커만 정한다(아래 `AdvanceDirection`).
     @State private var advanceDir: AdvanceDirection = .tap
 
@@ -200,7 +204,7 @@ struct FridgeView: View {
                     expanded(sel, in: list)
                 } else {
                     VStack(spacing: 0) {
-                        fridgeHeader
+                        fridgeHeader(list)
                         pane(list)
                     }
                 }
@@ -374,16 +378,40 @@ struct FridgeView: View {
 
     @State private var dayTick = 0   // 자정 리렌더 트리거
 
-    // MARK: 고정 헤더 — 타이틀 + 탭 행. 스크롤 밖이다: 세 패인을 오가는 조작이라 항상 같은 자리에
-    // 있어야 하고, 스크롤과 함께 사라지면 "지금 어느 탭인가"라는 유일한 표시를 잃는다.
-    private var fridgeHeader: some View {
-        VStack(alignment: .leading, spacing: ReffiSpace.s3) {   // s3 = 제목-본문 간격
-            titleRow
-            FridgeTabBar(selection: $tab)
+    // MARK: 고정 헤더 — 타이틀 + 탭 행 + (In stock일 때) 컨트롤 한 줄. 스크롤 밖이다: 세 패인을
+    // 오가는 조작이라 항상 같은 자리에 있어야 하고, 스크롤과 함께 사라지면 "지금 어느 탭인가"라는
+    // 유일한 표시를 잃는다.
+    //
+    // 컨트롤 행(필터·정렬·보기 토글)은 59차에 여기로 승격됐다 — 옛 위치(`stockPane` 스크롤 콘텐츠의
+    // 첫 줄)에서는 목록을 스크롤하면 탭 행 밑으로 함께 밀려 올라가 사라졌다. 아래 `controlRow` 앞
+    // MARK 주석("여기가 어디인가 → 무엇을 보는가 → 목록 조작"의 순서)이 애초에 셋을 한 헤더로
+    // 서술하고 있었는데 구현만 갈라져 있었다 — 서술을 코드가 뒤늦게 따라잡은 것이다.
+    // `pinnedScrollableViews` 스티키 헤더 대신 **완전히 스크롤 밖**에 두는 쪽을 골랐다: 스티키는
+    // 여전히 스크롤 콘텐츠의 일부라 카드가 그 뒤로 지나가지 않게 불투명 배경을 별도로 덧대야 하고,
+    // "세 패인을 오가는 조작이라 항상 같은 자리"라는 위 철학 자체가 스크롤 영역 안에서 들러붙는
+    // 것이 아니라 스크롤 영역 밖에 서는 것을 말한다 — 탭 행이 이미 그 방식으로 서 있다.
+    private func fridgeHeader(_ list: ListDigest) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: ReffiSpace.s3) {   // s3 = 제목-본문 간격
+                titleRow
+                FridgeTabBar(selection: $tab)
+            }
+            // 필터·정렬·보기 토글은 스택 목록 전용 파라미터라 To buy·History에는 의미가 없다 —
+            // 그 두 패인은 옛 동작 그대로 컨트롤 없이 탭 행 바로 아래에서 시작한다.
+            if tab == .stock {
+                controlRow(list)
+                    // 탭 ↔ 컨트롤 간격 — 옛 "탭 ↔ 패인" 경계값(s5)을 그대로 승계해 이음매의
+                    // 체감 간격이 달라지지 않게 한다.
+                    .padding(.top, ReffiSpace.s5)
+                    // AX 크기에서 텍스트가 무한정 자라면 고정 헤더가 화면을 과점한다 — 바로 위
+                    // 탭 행과 같은 상한(accessibility1)을 걸어 헤더 높이를 예측 가능하게 묶는다
+                    // (`FridgeTabBar`의 같은 캡과 같은 이유: 크롬은 콘텐츠가 아니다).
+                    .dynamicTypeSize(...DynamicTypeSize.accessibility1)
+            }
         }
         .padding(.horizontal, ReffiGrid.margin)
         .padding(.top, ReffiSpace.s5)
-        // **탭 행 ↔ 패인의 유일한 경계**다 — 세 패인 모두 자체 상단 패딩이 없으므로(실측 확인)
+        // **헤더 ↔ 패인의 유일한 경계**다 — 세 패인 모두 자체 상단 패딩이 없으므로(실측 확인)
         // 이 한 값이 셋에 그대로 간다. s4(16)에서 s5(24)로 넓혀 탭이 콘텐츠에서 숨을 쉬게 한다:
         // 탭은 화면의 IA라 아래 목록에 붙어 있으면 목록의 머리처럼 읽힌다.
         .padding(.bottom, ReffiSpace.s5)
@@ -404,10 +432,9 @@ struct FridgeView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: ReffiSpace.s5) {
                 let _ = dayTick   // 자정 틱 의존 — 날이 바뀌면 이 서브트리를 재계산
-                // 목록 조작 컨트롤은 **한 줄**이다(2026-08 declutter): 재고 수는 타이틀 옆 캡션으로 올라갔고
-                // 카테고리 칩 행은 이 줄 왼쪽의 드롭다운 하나로 접혔다. 남은 s5는 "컨트롤 블록 ↔ 콘텐츠"
-                // 경계 값 그대로다 — 블록이 두 줄에서 한 줄로 준 것이지 경계의 성격이 바뀐 건 아니다.
-                controlRow(list)
+                // 컨트롤 행(카테고리·정렬·보기 토글)은 59차에 `fridgeHeader`로 옮겨 스크롤 밖
+                // 고정 크롬이 됐다(그쪽 주석 참고) — 여기 남는 것은 스크롤 콘텐츠 하나뿐이라
+                // 위 spacing은 지금은 나눌 형제가 없다(향후 형제가 늘면 다시 의미를 갖는다).
                 if list.items.isEmpty {
                     emptyState
                 } else if showsCompactList {
@@ -608,12 +635,22 @@ struct FridgeView: View {
             .padding(.bottom, ReffiSpace.s3)
             outcomeButtons(sel)
             Spacer(minLength: ReffiSpace.s7)   // 32 — 판정 버튼은 위(영수증)에 속한다는 구조적 선언
-            if !following.isEmpty {
-                bottomDeck(following, previous: previous)
-            } else {
-                // 마지막 재료 — 하단 덱이 없으면 그 몫의 네비 자리 예약도 사라져
-                // Ate/Tossed 버튼이 떠 있는 네비 밑에 깔린다. 덱 자리만큼 바닥을 비워둔다.
-                Color.clear.frame(height: ReffiChrome.navReserve)
+            Group {
+                if !following.isEmpty {
+                    bottomDeck(following, previous: previous)
+                } else {
+                    // 마지막 재료 — 하단 덱이 없으면 그 몫의 네비 자리 예약도 사라져
+                    // Ate/Tossed 버튼이 떠 있는 네비 밑에 깔린다. 덱 자리만큼 바닥을 비워둔다.
+                    Color.clear.frame(height: ReffiChrome.navReserve)
+                }
+            }
+            // 두 분기 중 어느 쪽이 서 있든 **같은 자리**에서 윗선을 잰다(57차-a) — 마지막 재료라
+            // 덱이 없어도 그 자리의 네비 예약 띠가 대신 경계를 낸다(스택된 값이 이전 재료의 덱
+            // 윗선으로 굳어 있는 채로 남는 사고를 막는다). 덱 카드 자체는 `.offset`으로만 움직이므로
+            // 드래그 중에도 이 프레임은 흔들리지 않는다(`receiptBottomY`처럼 `deckLift == 0` 가드가
+            // 필요 없다).
+            .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named(DetailSpace.name)).minY } action: { y in
+                deckTopY = y
             }
         }
         // 넘김 제스처의 면은 **화면 전체**다(아래 `advanceDrag`). `contentShape`로 빈 캔버스까지
@@ -668,6 +705,25 @@ struct FridgeView: View {
                 // 사람은 이미 "밀어 올렸다"고 느낀다. 던진 속도(`predictedEndTranslation`)를 함께
                 // 본다: 끝까지 끌었거나(변위), 짧아도 세게 튕겼으면(예측) 넘긴다.
                 let d = v.translation.height, p = v.predictedEndTranslation.height
+                // 하단 더미 위에서 시작한 **큰** 위쪽 스와이프 — 커버를 닫고 리스트로 복귀한다(57차-a,
+                // "아래 티켓들을 위로 올리면 이전 리스트로 돌아가게"). 아래 "다음 카드로 한 장 넘기기"
+                // 분기보다 **먼저** 검사해야 한다 — 같은 제스처 하나(`DragGesture` 인스턴스 하나)를
+                // 재사용하므로 새 인식기를 얹어 생기는 이중 발화가 구조적으로 없다: 더미 위에서
+                // 시작했고(`deckTopY` 밖에서는 절대 참이 되지 않는다) 이 값을 넘겨야만 닫히고,
+                // 못 넘기면 그대로 아래 분기로 떨어져 **종전처럼** 다음 카드로 넘긴다 — 히트 영역이
+                // 더미로 한정되면서도 "살짝 밀면 한 장, 세게 치우면 전부"라는 자연스러운 힘의 위계가 된다.
+                // 닫기는 X와 **같은 경로**(`deselect`)를 그대로 불러 상태 정리 로직을 중복하지 않는다.
+                // 햅틱은 새로 추가하지 않는다 — `PaperCloseButton`(X)도 의미 햅틱이 없어(§7.6 표는
+                // 판정·성공·파괴만 다루고 닫기는 순수 정보성 전환이다), "기존 닫기와 같은 결"은 여기서
+                // 무음이 곧 그 결이다. 모션은 `deselect()`가 이미 쓰는 `motion`(reduceMotion이면 nil)이
+                // 그대로 처리하고, 더미가 손을 따라 오르는 페이퍼 모션·미달 시 원위치 스프링도 위
+                // `.updating`의 `deckLift`(reduceMotion 게이트 포함)와 `@GestureState`의 자동 리셋
+                // 스프링(`.settle`)을 그대로 물려받는다 — 새 모션 코드가 필요 없다.
+                if v.startLocation.y >= deckTopY,
+                   d < -Self.deckDismissDistance || p < -Self.deckDismissPredicted {
+                    deselect()
+                    return
+                }
                 if d < -Self.deckAdvanceDistance || p < -Self.deckAdvancePredicted {
                     if let next { markAdvanced(); select(next, direction: .forward) }
                 } else if d > Self.deckAdvanceDistance || p > Self.deckAdvancePredicted {
@@ -853,19 +909,36 @@ struct FridgeView: View {
         // 46차엔 이 자리에만 붙어 있었고(옛 "위로 밀어 닫기"의 자리를 그대로 물려받았다) 그 결과
         // 유효 면적이 화면의 9.5%였다. 덱에 하나 더 붙이면 덱 위에서 두 번 발화하므로 **다시 붙이지 마라.**
         //
-        // 닫는 길은 그대로 둘이다: ① 오른쪽 위 종이 X(`doneBar`) ② 영수증 본문 탭
+        // 닫는 길은 원래 둘이었다: ① 오른쪽 위 종이 X(`doneBar`) ② 영수증 본문 탭
         // (`onTapGesture { deselect() }`). 아래로 미는 손이 "이전 재료"인 이유가 이것이다 —
-        // 닫기 경로가 이미 둘인데 세 번째를 만드는 것보다, 넘김을 양방향으로 완성하는 편이 낫다.
+        // 46차 시점엔 닫기 경로가 이미 둘인데 세 번째를 만드는 것보다, 넘김을 양방향으로
+        // 완성하는 편이 나았다(그래서 아래로 밀어 닫는 세 번째 경로는 만들지 않았다).
+        //
+        // **57차-a가 세 번째 닫기 경로를 더한다** — 단 방향도 자리도 다르다: 이 더미 **위에서
+        // 시작한, 위로 미는, 세게 던진** 스와이프만 닫는다(위 `advanceDrag`의 `deckDismissDistance`
+        // 분기). 아래로 미는 손은 여전히 "이전 재료"고, 위 46차 결론(도달 범위가 넓은 제스처 면
+        // 전체에 세 번째 닫기를 얹지 않는다)도 그대로다 — 새 경로는 히트 영역을 이 더미로,
+        // 힘의 크기를 "카드 한 장 넘기기"보다 뚜렷이 크게 좁혀서, 아래로 미는 손과도 넘기려는
+        // 손과도 부딪히지 않는 오너 요청의 새 지점이다.
         //
         // 미는 제스처는 보조기술에 없다 — 넘김을 **양방향 액션**으로 낸다. 제스처가 두 방향이 된
         // 순간 액션이 한 방향뿐이면 보조기술 사용자만 도달하지 못하는 재료가 생긴다.
         // 라벨이 덱 위에서 읽히므로 무엇의 다음/이전인지는 문맥이 말한다.
+        //
+        // **닫기는 여기서도 이 저장소의 확립된 관례를 따른다(61차 리뷰 반영).** `PaperCloseButton`
+        // (X)이 이미 상시 노출된, 전량 접근 가능한 경로라 보조기술 사용자가 못 닿는 상태 자체는
+        // 없다 — 그 점에서 Next/Previous(제스처 말고는 도달할 방법이 아예 없는 액션)와는 이유가
+        // 다르다. 그런데도 얹는 건, 오버레이를 닫는 `accessibilityAction(.escape)`가 이미 이
+        // 저장소 전역 관례이기 때문이다 — `MainView.swift`의 `DecisionCover`, `PaperDialog`,
+        // `PaperDropdown`, `PaperChecklistDialog` 넷 다 오버레이 닫기에 `.escape`를 단다. X와
+        // 완전히 같은 동작을 한 번 더 노출할 뿐이어도, 그 중복이 곧 이 저장소의 관례다.
         .accessibilityAction(named: Text("Next")) {
             if let next { select(next, direction: .forward) }
         }
         .accessibilityAction(named: Text("Previous")) {
             if let previous { select(previous, direction: .back) }
         }
+        .accessibilityAction(.escape) { deselect() }
     }
 
     /// 방금 밀어 넘겼다는 표. 같은 터치의 버튼 탭이 **바로 다음 런루프**에 도착하므로
@@ -894,6 +967,15 @@ struct FridgeView: View {
     private static let deckAdvanceDistance: CGFloat = 36
     /// 튕겨 넘기는 예측 변위 — 감속까지 더한 예측이라 실제 변위보다 크게 잡는다.
     private static let deckAdvancePredicted: CGFloat = 120
+
+    /// 하단 더미를 밀어 커버를 닫는 변위(57차-a) — `deckAdvanceDistance`(36)를 그대로 쓰면 "다음
+    /// 카드를 보려던" 손이 커버 전체를 닫아 버린다. 덱 한 장의 히트 영역(74, `FridgeCardHead` 주석)을
+    /// 웃도는 값으로 잡아 "카드 한 장을 넘긴다"가 아니라 "더미 전체를 밀어 치운다"는 힘이 실렸을
+    /// 때만 반응한다.
+    private static let deckDismissDistance: CGFloat = 100
+    /// 닫기의 예측 변위 — `deckAdvancePredicted`가 `deckAdvanceDistance`의 ≈3.3배였던 기존 비율을
+    /// 그대로 유지해, 짧고 강한 플릭도 "다음 카드"보다 세게 던져야 닫기로 커밋되게 한다.
+    private static let deckDismissPredicted: CGFloat = 330
 
     // MARK: 헤더 — "여기가 어디인가(Fridge · N) → 무엇을 보는가(탭) → 목록 조작(컨트롤 한 줄)"의 순서.
 
@@ -1434,23 +1516,32 @@ struct FridgeCardHead: View {
 
 /// 펼친 상세 — 흰 영수증 한 장에 큰 일러스트 + 구매 정보(영수증 명세). 색은 Due date에만.
 ///
-/// **컴포지션은 위에서 아래로 네 층이다: 크라운(카테고리·편집) / 히어로(실루엣 + 겹쳐 찍은 도장) /
+/// **컴포지션은 위에서 아래로 네 층이다: 크라운(카테고리·상태 도장·편집) / 히어로(실루엣만) /
 /// 이름 / 절취선 + 명세.** 옛 배치는 실루엣 오른쪽 한 칸에 그 넷을 다 욱여넣어, 이름과 D-day 도장이
 /// **같은 한 줄에서 폭을 다퉜다**. 그 줄의 가용폭은 197pt인데 'Overdue' 도장 한 개가 83pt를 먹고
 /// 24pt Bold 이름은 100pt대라, 한 단어짜리 재료명(mushroom)은 줄바꿈이 불가능해 tail로 잘렸다.
 /// **이름에 자기 줄을 통째로 주면 그 경합이 구조적으로 사라진다** — 폭을 다툴 상대가 없다.
-/// 도장을 다시 이름 옆으로 되돌리지 마라: 도장 폭은 라벨 길이(언어마다 다르다)를 따르고 이름 폭도
-/// 재료마다 다르므로, 둘을 한 줄에 두는 배치에는 "잘리지 않는" 폭이 존재하지 않는다.
+/// 도장을 다시 **이름** 옆으로 되돌리지 마라: 도장 폭은 라벨 길이(언어마다 다르다)를 따르고 이름
+/// 폭도 재료마다 다르므로, 둘을 한 줄에 두는 배치에는 "잘리지 않는" 폭이 존재하지 않는다.
+///
+/// **도장은 57차-b부터 히어로가 아니라 크라운에 산다.** 46차는 도장을 실루엣 오른쪽-위에 겹쳐
+/// 찍었는데("그림 위에 눌러 찍은 인상"), 'Overdue'처럼 폭이 넓은 라벨은 그 겹침이 실루엣의
+/// 밀도 높은 윗부분(잎 등 글리프 "머리")까지 먹어 "재료 아이콘과 스탬프가 겹쳐 이상하다"는
+/// 결함으로 돌아왔다(오너 지적, Spinach 실측). 도장을 크라운 행(카테고리 옆)으로 옮기면 라벨
+/// 폭과 무관하게 실루엣과는 아예 다른 세로 자리라 겹칠 여지가 구조적으로 없다 — 카테고리는
+/// "Veg"처럼 짧은 캐논 단어라(이름과 달리) 옆에 서도 폭을 다투지 않는다.
 struct ExpandedFridgeCard: View {
     let ingredient: Ingredient
     var onEdit: () -> Void = {}
     private let toothH: CGFloat = ReffiTooth.card
 
-    /// 히어로 실루엣 한 변 — 상태 도장을 **위에 겹쳐 찍는** 크기(`ReffiFoodIcon.detail`).
+    /// 히어로 실루엣 한 변(`ReffiFoodIcon.detail`).
     ///
-    /// 옛 `hero`(64)로는 안 된다: 도장 한 개의 폭이 'Overdue'에서 83pt라 실루엣보다 넓어 그림을
-    /// 덮어 버린다. 반대로 더 키우면 카드가 뷰포트를 넘겨 영수증이 잘린 채 선다(기본 글자 크기
-    /// iPhone 17에서 실측: 120이면 55pt 초과). 도장 폭과 카드 높이 예산 사이의 값이다.
+    /// 57차-b 이전엔 이 값이 "도장과 겹쳐도 그림을 다 덮지 않을 하한"까지 겸했다(옛 `hero` 64는
+    /// 'Overdue' 83pt 도장보다 좁아 그림을 덮었다) — 도장이 크라운으로 옮겨간 지금은 그 하한
+    /// 근거가 사라졌지만 값은 바꾸지 않는다: 위쪽 상한(카드가 뷰포트를 넘겨 영수증이 잘린 채
+    /// 서는 지점 — 기본 글자 크기 iPhone 17 실측, 120이면 55pt 초과)은 도장과 무관하게 여전히
+    /// 유효하고, 이 화면의 다른 실측도 전부 이 값을 전제로 잡혀 있다.
     private static let heroSide: CGFloat = ReffiFoodIcon.detail
 
     var body: some View {
@@ -1458,46 +1549,46 @@ struct ExpandedFridgeCard: View {
         let shape = ReceiptShape(tooth: toothH, seed: ingredient.receiptSeed)
 
         return VStack(alignment: .leading, spacing: 0) {
-            // ① 크라운 — 카테고리 한 줄. 편집은 **행의 자식이 아니라 카드 오버레이**다(아래 body 끝):
-            //    44pt 히트 타깃이 행 안에 있으면 그 행이 44pt로 자라 카드 높이를 그만큼 먹는데,
-            //    이 화면은 판정 버튼·덱이 스크롤 밖에 도킹돼 영수증 몫이 고정이라 그 24pt가 곧
-            //    마지막 명세 행의 자리다(실측: 편집을 행에서 빼야 Storage 행까지 들어온다).
-            //    히트 영역은 오버레이에서 그대로 44를 지킨다 — 줄이는 게 아니라 겹치는 것이다.
-            Text(LocalizedStringKey(ingredient.category))   // 카테고리는 영문 캐논 저장 — 표시만 로컬라이즈
-                .reffiType(.caption).foregroundStyle(ReffiColor.ink2).lineLimit(1)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.trailing, ReffiChrome.tapMin)   // 오버레이 편집 버튼이 앉을 자리를 비워 둔다
-                .padding(.horizontal, ReffiSpace.s5)
-                .padding(.top, ReffiSpace.s3 + toothH)
-            // 도장이 시각적으로 이름 위에 오면서 보조기술의 기본 순서가 뒤집힌다 — 종전 순서
-            // (카테고리·편집 → 이름 → 상태)를 명시적으로 고정한다. 큰 값이 먼저 읽힌다.
+            // ① 크라운 — 카테고리 + 상태 도장(FROZEN·D-day) 한 줄. 편집은 **행의 자식이 아니라
+            //    카드 오버레이**다(아래 body 끝): 44pt 히트 타깃이 행 안에 있으면 그 행이 44pt로
+            //    자라 카드 높이를 그만큼 먹는데, 이 화면은 판정 버튼·덱이 스크롤 밖에 도킹돼 영수증
+            //    몫이 고정이라 그 24pt가 곧 마지막 명세 행의 자리다(실측: 편집을 행에서 빼야
+            //    Storage 행까지 들어온다). 히트 영역은 오버레이에서 그대로 44를 지킨다 —
+            //    줄이는 게 아니라 겹치는 것이다.
+            //
+            // **도장이 여기 사는 이유(57차-b).** 옛 자리(히어로 오른쪽-위 겹침)는 'Overdue'처럼
+            // 넓은 라벨에서 실루엣의 밀도 높은 윗부분(잎 등 글리프 "머리")을 덮어 "재료 아이콘과
+            // 스탬프가 겹쳐 이상하다"는 결함으로 나왔다(오너 지적). 여기서는 카테고리와 **같은 행**에
+            // 서므로 실루엣과는 아예 다른 세로 자리라 라벨 폭이 얼마든 겹칠 수가 없다 — 오프셋을
+            // 조정해 겹침을 "줄이는" 대신, 겹칠 축 자체를 없앴다. 카테고리는 "Veg"처럼 짧은 캐논
+            // 단어라(이름과 달리, 위 struct 주석의 46차 결함) 옆에 서도 폭을 다투지 않는다.
+            HStack(alignment: .top, spacing: ReffiSpace.s3) {
+                Text(LocalizedStringKey(ingredient.category))   // 카테고리는 영문 캐논 저장 — 표시만 로컬라이즈
+                    .reffiType(.caption).foregroundStyle(ReffiColor.ink2).lineLimit(1)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                VStack(alignment: .trailing, spacing: ReffiSpace.s1) {
+                    if ingredient.isFrozen {
+                        DDayStamp(text: String(localized: "FROZEN"), color: ReffiColor.blueDark, size: 12)
+                    }
+                    DDayStamp(text: ingredient.dDayText, color: f.dark, size: 17,
+                              caps: false, accessibilityLabel: ingredient.dDayAccessibilityText)
+                }
+                // 카테고리 Text처럼 남는 폭을 눌려 받으면 ko "기한 지남"이 도장 안에서 줄바꿈된다
+                // (각인은 한 줄이어야 도장으로 읽힌다) — 옛 히어로 오버레이와 같은 이유로 고정폭.
+                .fixedSize()
+            }
+            .padding(.trailing, ReffiChrome.tapMin)   // 오버레이 편집 버튼이 앉을 자리를 비워 둔다
+            .padding(.horizontal, ReffiSpace.s5)
+            .padding(.top, ReffiSpace.s3 + toothH)
+            // 도장·카테고리가 시각적으로 이름보다 위에 오면서 보조기술의 기본 순서가 뒤집힐 수 있다 —
+            // 종전 순서(카테고리·상태·편집 → 이름 → 실루엣)를 명시적으로 고정한다. 큰 값이 먼저 읽힌다.
             .accessibilitySortPriority(3)
 
-            // ② 히어로 — 일러스트 한 장 **위에** 상태 도장을 겹쳐 찍는다(온보딩 접시 도장의 선례).
-            //    도장이 여기로 오면서 이름 줄에서 폭을 빼앗지 않는다. 도장 묶음은 실루엣 상자의
-            //    오른쪽 위로 조금 넘어가 앉는다 — 그림 위에 눌러 찍은 인상은 그 걸침에서 나온다.
-            //    냉동은 D-day와 **함께** 선다(스택을 쪼개지 않고 도장 하나로 구분한다는 §13 규약).
-            //    `ZStack`이 아니라 `overlay`인 이유: ZStack은 자식 중 가장 큰 것으로 커지므로,
-            //    접근성 글자 크기에서 도장이 실루엣보다 넓어지는 순간 상자가 도장 폭으로 자라고
-            //    그림이 top-trailing 정렬을 따라 오른쪽으로 밀린다. 오버레이면 레이아웃 크기는
-            //    언제나 실루엣의 것이고 도장은 그 위로 **넘쳐도 된다**(양옆에 88pt 여유가 있다).
+            // ② 히어로 — 일러스트 한 장(§13 신선도 실루엣). 상태 도장은 이제 위 ①에 산다.
+            //    `PaperSilhouette` 자신은 장식이라 접근성에 잡히지 않는다(`.accessibilityHidden(true)`).
             PaperSilhouette(glyph: ingredient.glyph, fresh: f)
                 .frame(width: Self.heroSide, height: Self.heroSide)
-                .overlay(alignment: .topTrailing) {
-                    VStack(alignment: .trailing, spacing: ReffiSpace.s1) {
-                        if ingredient.isFrozen {
-                            DDayStamp(text: String(localized: "FROZEN"), color: ReffiColor.blueDark, size: 12)
-                        }
-                        DDayStamp(text: ingredient.dDayText, color: f.dark, size: 17,
-                                  caps: false, accessibilityLabel: ingredient.dDayAccessibilityText)
-                    }
-                    // 오버레이는 실루엣 상자를 제안폭으로 받는다 — 고정하지 않으면 ko "기한 지남"이
-                    // 120pt에 눌려 도장 안에서 줄바꿈된다(각인은 한 줄이어야 도장으로 읽힌다).
-                    .fixedSize()
-                    .offset(x: ReffiSpace.s3, y: -ReffiSpace.s2)
-                }
                 .frame(maxWidth: .infinity, alignment: .center)
-                .accessibilitySortPriority(1)
 
             // ③ 이름 — 한 줄을 통째로 쓴다. 폭 경합이 없으므로 트런케이트가 성립하지 않고,
             //    긴 이름·큰 글자는 잘리는 대신 두 줄로 흐른다(§7.3 잘림 금지).

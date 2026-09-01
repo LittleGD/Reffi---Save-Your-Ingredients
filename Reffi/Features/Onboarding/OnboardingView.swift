@@ -48,7 +48,7 @@ struct OnboardingView: View {
                 TabView(selection: $page) {
                     valuePage(hero: { recordHero(active: page == 0) },
                               title: "Log your fridge\nlike a receipt",
-                              body: "Add what you buy. We'll count down the expiry dates.")
+                              body: "Add what you buy.\nWe'll count down the expiry dates.")
                         .tag(0)
                     valuePage(hero: { recipeHero(active: page == 1) },
                               title: "Today's recipes,\nfrom what expires first",
@@ -483,7 +483,7 @@ struct OnboardingView: View {
 
     private var cuisinePage: some View {
         questionPage(title: "What do you like to cook?",
-                     body: "Pick as many as you like. Recipes will follow.") {
+                     body: "Pick as many as you like.\nRecipes will follow.") {
             // 같은 데이터를 같은 칩으로 그리는 프로필 시트(`CuisinePickerSheet`)가 `.leading`이다 —
             // 온보딩에서 고른 것을 프로필에서 고치는 흐름이라 두 화면이 연달아 보인다(49차).
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 92), spacing: ReffiSpace.s2)],

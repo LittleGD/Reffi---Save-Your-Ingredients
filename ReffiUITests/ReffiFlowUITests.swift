@@ -290,6 +290,17 @@ final class ReffiFlowUITests: XCTestCase {
         app.buttons["Sort: Recently added"].tap()
         app.buttons["Expiring first"].tap()
         XCTAssertTrue(app.buttons["Sort: Expiring first"].waitForExistence(timeout: 4), "기본 정렬 복귀")
+
+        // 목록 스크롤 — 59차: 컨트롤 행(필터·정렬)이 탭 행과 같은 스크롤 밖 고정 크롬으로
+        // 승격됐다. 옛 버그는 목록을 스크롤하면 이 줄이 함께 밀려 올라가 사라지는 것이었다.
+        attach(app, named: "fridge-in-stock-before-scroll")
+        for _ in 0..<4 where stockCard(app, "Beef").isHittable { app.swipeUp() }
+        XCTAssertFalse(stockCard(app, "Beef").isHittable, "스크롤 전제 확인 — 맨 위 카드는 화면 밖으로 밀려야 한다")
+        XCTAssertTrue(app.buttons["Filter: All"].isHittable,
+                      "카테고리 필터는 스크롤 밖 고정 크롬이라 목록을 스크롤해도 남아 있어야 한다")
+        XCTAssertTrue(app.buttons["Sort: Expiring first"].isHittable,
+                      "정렬 칩은 스크롤 밖 고정 크롬이라 목록을 스크롤해도 남아 있어야 한다")
+        attach(app, named: "fridge-in-stock-after-scroll")
     }
 
     // MARK: History 히어로 — 오늘의 판정이 곧 값 덩이와 오늘 칩의 값
@@ -372,6 +383,38 @@ final class ReffiFlowUITests: XCTestCase {
         attach(app, named: "history-after-judgement")
         XCTAssertNotEqual(headline.label, before,
                           "다른 패인의 판정이 History에 반영돼야 한다(분모가 최소 1 늘어난다)")
+    }
+
+    // MARK: Fridge — 하단 더미 위로 크게 스와이프하면 커버가 닫히고 리스트로 복귀(57차-a)
+
+    /// 사용자 지시: "아래 티켓들을 위로 올리면 이전 리스트로 돌아가게". 펼친 상세 하단 더미(다음
+    /// 재료 덱) 위에서 시작한 크고 빠른 위쪽 스와이프는 X와 같은 경로(`deselect`)로 커버를 닫아야
+    /// 한다. 시작점을 Tossed 버튼 바로 아래(더미가 실제로 서는 자리)로 잡아 히트 영역이 더미로
+    /// 한정된다는 계약도 함께 고정한다 — 영수증·버튼 위에서 시작한 위쪽 스와이프는 여전히
+    /// "다음 재료로 넘기기"이지 닫기가 아니다(그 회귀는 `advanceDrag`의 기존 분기가 계속 지킨다).
+    func testFridge_SwipeUpOnBottomDeck_ClosesCoverAndReturnsToList() {
+        let app = XCUIApplication()
+        // -fridgeExpand: 첫 재료의 펼친 상세로 바로 착지 — 샘플 냉장고는 재료가 여럿이라 하단
+        // 더미가 실제로 선다(재료가 하나뿐이면 더미 대신 네비 예약 띠가 서서 이 제스처가 무의미해진다).
+        app.launchArguments = ["-skipAuth", "-onboarding.done", "YES",
+                               "-fridgeTab", "-uiTestSampleFridge", "-fridgeExpand"]
+        app.launch()
+
+        let toss = app.buttons["Tossed"]
+        XCTAssertTrue(toss.waitForExistence(timeout: 8), "펼친 상세의 Tossed 버튼")
+        attach(app, named: "swipe-dismiss-before")
+
+        // 더미는 판정 버튼 아래 s7(32) + 자기 몫의 톱니 여백을 두고 선다 — 버튼 바로 아래 지점에서
+        // 시작하면 더미의 히트 영역 안이다(위 상수 실측 여유 70pt). 느린 프레스(0.2s)로 눌러 속도
+        // 성분보다 실제 변위(220pt > `deckDismissDistance` 100pt)가 판정을 결정하게 한다.
+        let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0))
+            .withOffset(CGVector(dx: 0, dy: toss.frame.maxY + 70))
+        start.press(forDuration: 0.2, thenDragTo: start.withOffset(CGVector(dx: 0, dy: -220)))
+
+        waitForDisappearance(toss, "더미 위로 크게 스와이프하면 판정 버튼과 함께 커버가 닫혀야 한다")
+        XCTAssertTrue(stockCard(app, "Beef").waitForExistence(timeout: 4),
+                      "커버가 닫히면 In stock 리스트(재고 카드)가 다시 보여야 한다")
+        attach(app, named: "swipe-dismiss-after-list")
     }
 
     // MARK: To buy — 사전 밖 이름 직접 입력 담기
@@ -471,11 +514,16 @@ final class ReffiFlowUITests: XCTestCase {
     // MARK: To buy — 밀기 어포던스 힌트(28차)
 
     /// **첫 등장의 힌트**: 목록에 줄이 있는 채로 패인이 서면 맨 윗줄이 왼쪽으로 한 번 밀렸다 돌아온다.
-    /// 그리고 **플래그가 서 있으면 뜨지 않는다** — 설치당 한 번이라는 규약이 실제로 잠기는지 본다.
+    /// 그리고 **이미 본 상태로 시작한 실행에서는 뜨지 않는다** — 그 게이트가 실제로 잠기는지 본다.
     ///
-    /// 두 번 런치하는 이유: 이 힌트의 게이트 중 하나가 `@AppStorage`라 **프로세스 경계를 넘어야**
-    /// 관측된다. 첫 런치는 `-toBuy.swipeHint <초>`로 강제하고(유지 시간을 넓혀 프레임 조회가 닿게 한다),
-    /// 둘째 런치는 `-toBuy.swipeHintSeen YES`로 플래그만 주입한 뒤 **아무 일도 없음**을 단언한다.
+    /// 두 번 런치하는 이유: 강제(시각 확인)와 "이미 봤음" 부기는 서로 다른 축이라 한 런치로는 둘을
+    /// 함께 관측할 수 없다(강제는 부기를 아예 건드리지 않는다 — `swipeHintConfig` 참고). 첫 런치는
+    /// `-toBuy.swipeHint <초>`로 강제하고(유지 시간을 넓혀 프레임 조회가 닿게 한다), 둘째 런치는
+    /// `-toBuy.swipeHintSeen`으로 이 실행을 처음부터 이미 본 상태로 세운 뒤 **아무 일도 없음**을
+    /// 단언한다. **52차부터 이 "이미 봤음"은 프로세스 스코프다** — 옛 `@AppStorage`(설치 스코프)와
+    /// 달리 이 인자를 주지 않은 새 런치는(둘째 런치가 첫 런치 뒤에 떠도) 매번 다시 힌트를 볼 기회를
+    /// 얻는다. 그래서 아래 단언은 "설치당 한 번"이 아니라 "이 실행에서는 이미 본 상태로 시작했으니
+    /// 다시 뜨지 않는다"만 증명한다.
     func testToBuy_SwipeHint_PeeksWhenForcedAndStaysPutOnceSeen() {
         // ① 강제 — `-toBuy.sampleMemo`가 **두 줄**을 시드한다. 두 줄인 것이 요점이다: 움직이는 줄과
         //    움직이지 않는 줄을 같은 실행에서 대조해야 "맨 윗줄만"이라는 규약이 잠기고, 행 사이
@@ -521,11 +569,11 @@ final class ReffiFlowUITests: XCTestCase {
         // 21차가 세운 계약도 그대로다.
         XCTAssertTrue(app.buttons["Bought \(top)"].exists, "행의 1차 액션은 그대로 'Bought <이름>'")
 
-        // ② 플래그가 서 있으면 뜨지 않는다 — 강제 인자 없이, 같은 조건(줄 있음·새 등장)을 다시 만든다.
+        // ② 이미 본 상태로 시작하면 뜨지 않는다 — 강제 인자 없이, 같은 조건(줄 있음·새 등장)을 다시 만든다.
         let seen = XCUIApplication()
         seen.launchArguments = ["-skipAuth", "-onboarding.done", "YES", "-fridgeTab",
                                 "-uiTestSampleFridge", "-toBuy.sampleMemo", "-toBuy",
-                                "-toBuy.swipeHintSeen", "YES"]
+                                "-toBuy.swipeHintSeen"]
         seen.launch()
         XCTAssertTrue(seen.staticTexts["Grocery memo"].waitForExistence(timeout: 10), "To buy 패인")
 
@@ -537,7 +585,7 @@ final class ReffiFlowUITests: XCTestCase {
             return XCTFail("표본이 하나도 없다 — 행이 조회되지 않았다")
         }
         attach(seen, named: "to-buy-swipe-hint-suppressed")
-        XCTAssertLessThan(hi - lo, 3, "이미 본 뒤에는 행이 움직이지 않는다(설치당 한 번)")
+        XCTAssertLessThan(hi - lo, 3, "이미 본 상태로 시작한 실행에서는 행이 움직이지 않는다(런치당 한 번)")
     }
 
     /// 강제 재생의 유지 시간(초). 기본 0.4초는 **런치와 `waitForExistence`만으로 지나가** 프레임

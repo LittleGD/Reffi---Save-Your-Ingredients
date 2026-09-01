@@ -84,11 +84,11 @@ final class AuthStore {
                 try await Self.client.auth.update(
                     user: UserAttributes(email: email, password: password)
                 )
-                self.notice = String(localized: "Check your inbox. Once verified, your guest data carries over.")
+                self.notice = String(localized: "Check your inbox.\nOnce verified, your guest data carries over.")
             } else {
                 let res = try await Self.client.auth.signUp(email: email, password: password)
                 if res.session == nil {
-                    self.notice = String(localized: "Confirmation email sent. Verify it, then log in.")
+                    self.notice = String(localized: "Confirmation email sent.\nVerify it, then log in.")
                 }
             }
         }
@@ -189,8 +189,8 @@ final class AuthStore {
         let raw = error.localizedDescription
         let lower = raw.lowercased()
         if lower.contains("invalid login credentials") { return String(localized: "Email or password doesn't match.") }
-        if lower.contains("email not confirmed") { return String(localized: "Please verify your email first. Check your inbox.") }
-        if lower.contains("already registered") { return String(localized: "This email is already registered. Try logging in.") }
+        if lower.contains("email not confirmed") { return String(localized: "Please verify your email first.\nCheck your inbox.") }
+        if lower.contains("already registered") { return String(localized: "This email is already registered.\nTry logging in.") }
         if lower.contains("at least 6 characters") || lower.contains("password should")
             { return String(localized: "Password must be at least 6 characters.") }
         if lower.contains("invalid format") || lower.contains("validate email")
@@ -203,7 +203,7 @@ final class AuthStore {
         // "invalid_grant")를 그대로 노출해, 한국어 기기에서 유일하게 영어로 뜨는 문장이 되고 사용자가
         // 할 수 있는 일도 알려주지 않는다. 원문은 로그로만 남긴다(진단은 잃지 않는다).
         log.error("unmatched auth error: \(raw)")
-        return String(localized: "Couldn't sign you in. Try again in a moment.")
+        return String(localized: "Couldn't sign you in.\nTry again in a moment.")
     }
 
     enum AuthLocalError: LocalizedError {

@@ -87,7 +87,7 @@ struct CuisinePickerSheet: View {
     var body: some View {
         SheetShell(title: "Cuisines", onClose: { dismiss() }) {
             VStack(alignment: .leading, spacing: ReffiSpace.s4) {
-                Text("Pick as many as you like. Recipes will follow.")
+                Text("Pick as many as you like.\nRecipes will follow.")
                     .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
 
                 LazyVGrid(columns: columns, alignment: .leading, spacing: ReffiSpace.s2) {
@@ -167,20 +167,257 @@ struct TagEditorSheet: View {
 /// 알림 시간 선택(§2.1.2) — 아침 리마인더 시각(시 단위).
 /// SSOT는 `ExpiryNotifier.hourKey`(ProfileView 토글과 같은 키). ExpiryNotifier는 정시(:00)에만
 /// 발화하므로 시(hour) 단위로 선택한다 — 스케줄에 반영되지 않을 분(minute)은 UI에 노출하지 않는다.
+///
+/// **종이컷 체크 리스트(51차) → 종이컷 다이얼(56차, 오너 판정 — "종이컷 스타일은 유지하되 시간
+/// 선택은 다이얼로")**. `.wheel`의 시스템 룩을 걷어낸다는 51차의 원칙은 그대로 두고 형태만 되돌아온다 —
+/// 06~21시 16행을 훑는 세로 스크롤에 가운데 고정 **선택 밴드**(`PaperRect` sub 톤 + 위아래
+/// `ReffiRule(.ticket)`)를 얹어 종이 문법을 지키고, 중심에서 먼 행일수록 옅고 작아지는 **원근**
+/// (`dialPerspective`, 리듀스모션에선 페이드만 남고 스케일은 꺼진다)이 시스템 휠의 페이드를 대신한다.
+/// 스냅 물리는 iOS 17+ `scrollTargetLayout`/`scrollTargetBehavior(.viewAligned)`가 지고(프로젝트
+/// 최소 배포 타깃 18.0 확인 — GeometryReader 수동 스냅 폴백은 불필요), 어느 행이 지금 중심인지는
+/// 뷰 렌더 없이 잠기는 순수 함수(`snapIndex`)가 판정해 `alertHour`를 갱신하고 선택 틱 햅틱을 낸다 —
+/// **51차가 유지한 저장·재스케줄 로직은 그대로다**: 여전히 같은 `@AppStorage` 키에 쓰고, ProfileView의
+/// `.onChange(of: alertHour)`가 그대로 `ExpiryNotifier.reschedule`을 편다.
+///
+/// **`.selection` 햅틱은 §7.6 판정·성공·파괴 3종 표 밖의 새 결이다.** 순수 정보성 스크롤(§7.6 "탭
+/// 전환·스크롤 등에는 햅틱을 쓰지 않는다")과 달리, 이 스크롤 자체가 곧 커밋되는 값이라 시스템
+/// `Picker(.wheel)`처럼 칸을 지날 때마다 틱이 울려야 "값을 고르고 있다"는 게 손끝으로 느껴진다 —
+/// 표 밖의 예외라 여기 이름과 이유를 남긴다(§7.6을 고치는 대신 이 시트에 적어 둔다, 파급을 이 다이얼로 좁힌다).
+///
+/// **접근성은 51차의 "행별 버튼 + `.isSelected`" 모델을 완전히 대체한다.** 낱개 행은 트리에서
+/// 지워지고(`accessibilityElement(children: .ignore)`) 다이얼 전체가 **요소 하나**로 묶여
+/// `accessibilityValue`가 현재 시각을 말하며, 위/아래 스와이프(`accessibilityAdjustableAction`)가
+/// 한 칸씩 시간을 옮긴다 — 시스템 `Picker(.wheel)`·`Stepper`가 VoiceOver에 보이는 것과 같은 문법이다.
 struct NotifyTimeSheet: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage(ExpiryNotifier.hourKey) private var alertHour = ExpiryNotifier.defaultHour
+
+    static let hours = Array(6..<22)
+    /// 다이얼 행 높이 — §7.3 최소 터치 타깃(44)을 새 숫자 없이 그대로 쓴다. 51차의 "행 전체가 탭
+    /// 타깃"이라는 계약을, 이번엔 스크롤 스냅 격자 한 칸의 크기로 옮긴다.
+    static let rowHeight: CGFloat = ReffiChrome.tapMin
+
+    /// 연속 스크롤 오프셋 — `dialPerspective` 계산 전용(매 프레임 필요). 커밋 경로(`alertHour`·햅틱)는
+    /// `committedIndex`가 따로 진다 — 원근은 부드러운 연속값이 필요하고 커밋은 "새 행이 중심에
+    /// 왔다"는 이산 사건이라 세밀도가 다르다.
+    @State private var scrollOffsetY: CGFloat
+    /// 마지막으로 커밋한 행 인덱스 — 이 값이 바뀔 때만 `alertHour`를 쓰고 햅틱을 낸다.
+    @State private var committedIndex: Int
+    /// 시트가 뜨며 하는 초기 센터링 스크롤과, 사용자가 실제로 다이얼을 굴리는 것을 가른다.
+    /// 이게 없으면 `.task`의 초기 `scrollTo`가 만드는 지오메트리 콜백이 "행이 바뀌었다"로 오판되어
+    /// 아무것도 만지지 않았는데 스퓨리어스 햅틱이 한 번 운다.
+    @State private var isInteractive = false
+
+    init() {
+        let hour = ExpiryNotifier.alertHour
+        let idx = Self.index(ofHour: hour) ?? 0
+        _scrollOffsetY = State(initialValue: CGFloat(idx) * Self.rowHeight)
+        _committedIndex = State(initialValue: idx)
+    }
 
     var body: some View {
         SheetShell(title: "Alert time", onClose: { dismiss() }) {
-            Picker("", selection: $alertHour) {
-                ForEach(6..<22, id: \.self) { h in
-                    Text(verbatim: Self.hourLabel(h)).tag(h)
+            ScrollViewReader { proxy in
+                GeometryReader { geo in
+                    let bandHeight = geo.size.height
+                    let topInset = max(0, (bandHeight - Self.rowHeight) / 2)
+                    ZStack {
+                        selectionBand
+                        ScrollView(.vertical, showsIndicators: false) {
+                            LazyVStack(spacing: 0) {
+                                ForEach(Self.hours, id: \.self) { hour in
+                                    dialRow(hour, topInset: topInset).id(hour)
+                                }
+                            }
+                            .scrollTargetLayout()
+                        }
+                        // 첫·마지막 행도 밴드 중앙까지 올 수 있게 위아래를 행 반 폭만큼 비운다
+                        // (§ safeAreaPadding 트릭 — `.viewAligned`가 재는 "정렬 경계"가 이 여백의
+                        // 안쪽 가장자리라, 그 좌표계에서는 오프셋 0 = 0번 행이 밴드 중앙이다.
+                        // **58차** — `onScrollGeometryChange`가 보고하는 원시 `contentOffset.y`는
+                        // 이 여백(`topInset`)만큼 밀려 있어 같은 불변식이 아니다. 이 오프셋을 쓰는
+                        // 두 소비자가 **함께** `topInset`을 되더해 보정한다 — 원근 계산
+                        // (`dialDistance`)과 커밋 판정(`snapIndex`)이다. 원근에서 빠뜨리면 밴드 밖
+                        // 위쪽 행이 선택 행보다 진하게 보이고(58차), 커밋에서 빠뜨리면 저장값이
+                        // 두 칸 이른 시각(화면상 위쪽 행)으로 어긋난다(58차-b) — 각각 아래 두
+                        // 주석 참고. transform이 원시 오프셋을 보고한다는 컨벤션 자체는 58차가
+                        // 잠근 계약이라 그대로 둔다: 보정은 소비자 쪽에서 한다.
+                        .safeAreaPadding(.vertical, topInset)
+                        .scrollTargetBehavior(.viewAligned)
+                        .scrollBounceBehavior(.basedOnSize)
+                        .onScrollGeometryChange(for: CGFloat.self) { $0.contentOffset.y } action: { _, newOffset in
+                            scrollOffsetY = newOffset
+                            guard isInteractive else { return }
+                            let newIndex = Self.snapIndex(forOffset: newOffset, topInset: topInset,
+                                                          rowHeight: Self.rowHeight,
+                                                          count: Self.hours.count)
+                            guard newIndex != committedIndex else { return }
+                            committedIndex = newIndex
+                            alertHour = Self.hours[newIndex]
+                        }
+                    }
+                }
+                // `.onAppear`가 아니라 `.task`인 이유는 51차와 같다(42차 — 요소 등록 전에 실행되면
+                // 이동이 유실되는 창이 있다). `isInteractive`는 이 초기 스크롤이 끝난 뒤에 켠다.
+                .task {
+                    proxy.scrollTo(alertHour, anchor: .center)
+                    isInteractive = true
+                }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Alert time")
+                .accessibilityValue(Text(verbatim: Self.hourLabel(alertHour)))
+                .accessibilityAdjustableAction { direction in
+                    let newHour = Self.steppedHour(from: alertHour, direction: direction)
+                    guard newHour != alertHour, let idx = Self.index(ofHour: newHour) else { return }
+                    alertHour = newHour
+                    committedIndex = idx
+                    scrollOffsetY = CGFloat(idx) * Self.rowHeight
+                    withAnimation(ReffiMotion.gated(ReffiMotion.standard, reduce: reduceMotion)) {
+                        proxy.scrollTo(newHour, anchor: .center)
+                    }
                 }
             }
-            .pickerStyle(.wheel)
-            .labelsHidden()
-            .frame(maxWidth: .infinity)
+            .reffiFeedback(.selection, trigger: committedIndex)
+        }
+    }
+
+    /// 가운데 고정 선택 밴드 — 종이 면(`sub` 톤, 캔버스 위 전용 서브 면이라 시트 배경과 짝이 맞는다) +
+    /// 위아래 `ReffiRule(.ticket)`. 스크롤 콘텐츠 **뒤에** 깔리는 장식층이라 제스처를 먹지 않는다.
+    private var selectionBand: some View {
+        let shape = PaperRect(cornerRadius: ReffiRadius.sm, seed: 3)
+        return VStack(spacing: 0) {
+            ReffiRule(.ticket)
+            Spacer(minLength: 0)
+            ReffiRule(.ticket)
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: Self.rowHeight)
+        .background { shape.fill(ReffiColor.sub) }
+        .allowsHitTesting(false)
+    }
+
+    /// 다이얼 한 칸 — 더는 버튼이 아니다(선택은 탭이 아니라 다이얼 위치가 말한다). 중심에서의
+    /// 연속 거리(`distance`)로 원근을 매겨 시스템 휠의 페이드를 종이 문법으로 옮긴다. `topInset`은
+    /// 호출부(`GeometryReader`)가 재는 밴드 상단 여백 — `dialDistance`가 왜 필요한지는 그쪽 주석.
+    ///
+    /// **60차 — 선택(밴드 중앙) 행만 hero(32)로 확대한다(오너 판정, §3.4).** §3.4의 숫자 3단
+    /// 규율은 새 중간 크기 발명을 금지하지만, `hero`는 애초 "화면당 하나뿐인 주지표"를 위해 남겨
+    /// 둔 단이고 이 다이얼이 지금 보여주는 선택된 시각이 정확히 그 자리다 — 그래서 넷째 단을 여는
+    /// 대신 이미 있는 hero·body 두 단 사이에서 이 행의 소속만 거리로 정한다. `body`·`hero` 두
+    /// `Text`를 겹쳐 두고 `dialHeroBlend`로 불투명도만 크로스페이드하는 이유는 `Font`가 SwiftUI의
+    /// 보간 대상이 아니기 때문이다(opacity·scale과 달리 폰트 자체를 바꾸면 중간 프레임 없이 즉시
+    /// 팝된다). 두 레이어가 각자 제 role로 그려지므로(`hero`의 `.largeTitle` 램프, `body`의
+    /// `.subheadline` 램프) 크로스페이드 도중에도 접근성 글자 크기마다 그 role의 진짜 Dynamic
+    /// Type 곡선을 탄다 — body를 상수 배율로 스케일업하는 방식이었다면 hero의 실제 곡선과
+    /// 어긋났을 것이다. `rowHeight`·`topInset`·`snapIndex`는 전혀 건드리지 않는다 — hero는
+    /// 시각 크로스페이드일 뿐 스냅 기하와 무관해 56~58차가 잠근 앵커 테스트가 그대로 선다.
+    private func dialRow(_ hour: Int, topInset: CGFloat) -> some View {
+        let label = Self.hourLabel(hour)
+        let index = Self.index(ofHour: hour) ?? 0
+        let distance = Self.dialDistance(index: index, scrollOffsetY: scrollOffsetY,
+                                          topInset: topInset, rowHeight: Self.rowHeight)
+        let perspective = Self.dialPerspective(distance: distance)
+        let rawHeroBlend = Self.dialHeroBlend(distance: distance)
+        // 리듀스모션에선 크로스페이드 대신 즉시 전환(§7.4) — 0.5 문턱은 두 이웃 행이 정확히
+        // 절반씩 걸치는 대칭 핸드오프 지점과 같아, 끊어도 어색하지 않다.
+        let heroBlend = reduceMotion ? (rawHeroBlend >= 0.5 ? 1.0 : 0.0) : rawHeroBlend
+        return ZStack {
+            Text(verbatim: label)
+                .font(.reffiNum(.body, for: label))
+                .opacity(1 - heroBlend)
+            Text(verbatim: label)
+                .font(.reffiNum(.hero, for: label))
+                .opacity(heroBlend)
+        }
+        .foregroundStyle(ReffiColor.ink)
+        .frame(maxWidth: .infinity)
+        .frame(height: Self.rowHeight)
+        .opacity(perspective.opacity)
+        .scaleEffect(reduceMotion ? 1 : perspective.scale)
+    }
+
+    // MARK: - 순수 로직(뷰 렌더 없이 `NotifyTimeSheetTests`가 잠근다 — 56차)
+
+    /// `hours` 안에서 이 시각의 위치. 다이얼이 06~21시 연속 구간이라 `hour - 6`과 같지만, 그 사실에
+    /// 기대지 않고 목록에서 직접 찾는다 — `hours`가 나중에 비연속으로 바뀌어도 원근·스냅 계산이 안 깨진다.
+    static func index(ofHour hour: Int) -> Int? { hours.firstIndex(of: hour) }
+
+    /// 연속 스크롤 오프셋 → 가장 가까운 행 인덱스(0-based, `hours` 범위로 clamp). 실제 스냅 물리는
+    /// `.scrollTargetBehavior(.viewAligned)`가 지지만, 몇 번째 행이 지금 중심에 왔는지는 이 순수
+    /// 계산이 판정한다 — `alertHour` 갱신·선택 햅틱이 이 값의 변화를 트리거로 쓴다.
+    ///
+    /// **58차-b 회귀**: `topInset` 되더하기는 `dialDistance`와 같은 이유로 필요하다 — 원시
+    /// `contentOffset.y`는 `safeAreaPadding` 여백만큼 밀려 있어, 되더해야 비로소 행 인덱스
+    /// 좌표계다. 58차는 이 보정을 렌더 소비자(`dialDistance`)에만 넣고 커밋 소비자인 여기를
+    /// 빠뜨렸다. 보정 전에는 시간 9(인덱스 3)가 밴드 중앙에 정착한 오프셋 56이
+    /// `round(56/44)`=1(=7시)로 계산돼, **열기만 해도** 그리고 다이얼을 굴릴 때마다 저장값이
+    /// 두 칸 이른 시각(화면상 위쪽 행)으로 어긋났다 — 다이얼은 위가 06시라 인덱스가 2 작다는 건
+    /// 곧 두 시간 이른 값이다(`i*44 - 76`을 무보정으로 나누면 언제나 `round(i - 1.727)` = `i - 2`).
+    /// 직전 세션 콘솔에서 실측된 9→6은 그중 프리젠테이션 도중 상단 근처(원시 오프셋 < 22 —
+    /// 무보정 반올림이 0 이하로 떨어져 clamp가 인덱스 0으로 끌어올린다) 콜백이 끼어든 경우다.
+    static func snapIndex(forOffset offset: CGFloat, topInset: CGFloat, rowHeight: CGFloat, count: Int) -> Int {
+        guard count > 0, rowHeight > 0 else { return 0 }
+        let raw = Int(((offset + topInset) / rowHeight).rounded())
+        return min(max(raw, 0), count - 1)
+    }
+
+    /// 다이얼 원근 거리 — 이 행이 지금 밴드 중앙에서 몇 칸 떨어져 있는가. `scrollOffsetY`(스크롤뷰가
+    /// `onScrollGeometryChange`로 보고하는 원시 `contentOffset.y`)는 위 `safeAreaPadding` 트릭이
+    /// 만든 상단 여백(`topInset`)만큼 밴드 중앙 기준에서 밀려 있다 — `.viewAligned`의 정렬 좌표계는
+    /// "오프셋 0 = 0번 행이 중앙"이지만, 원시 `contentOffset.y`는 그 좌표계와 `topInset`만큼 어긋난다.
+    ///
+    /// **58차 회귀**: 이 되더하기가 빠진 채 `scrollOffsetY`를 그대로 `rowHeight`로 나눠 쓰면, 원근의
+    /// 정점(거리 0)이 실제 밴드 중앙보다 `topInset/rowHeight`행 위에 잡힌다(이 다이얼 실측값
+    /// `topInset`≈76·`rowHeight`=44 → 약 1.7행 — 정수 행에 안 맞아떨어져 애매하게 걸치는 게 아니라
+    /// 뚜렷하게 위쪽 행 쪽으로 쏠린다). 그 결과 밴드 안의 선택 행(예: 9시)이 바로 위 미선택 행(예: 8시)
+    /// 보다 옅게 보였다 — 페이드 정점이 밴드를 등지고 위쪽으로 새어 있었던 것. 순수 함수라 스크롤·뷰 없이 잠글 수 있다.
+    static func dialDistance(index: Int, scrollOffsetY: CGFloat, topInset: CGFloat, rowHeight: CGFloat) -> Double {
+        guard rowHeight > 0 else { return 0 }
+        return Double(index) - Double((scrollOffsetY + topInset) / rowHeight)
+    }
+
+    /// 원근 감쇠 상수 — 몇 행 떨어지면 바닥에 닿는지(range)와 그 바닥값. §3.4류 타이포 스케일이
+    /// 아니라 이 다이얼 전용의 새 시각 효과라 재사용할 기존 토큰이 없다(§4의 스페이싱·곡률과
+    /// 다른 축 — "몇 pt인가"가 아니라 "몇 행 떨어지면 얼마나 옅어지는가"다).
+    private static let perspectiveRange: Double = 2.5
+    private static let perspectiveOpacityFloor: Double = 0.25
+    private static let perspectiveScaleFloor: Double = 0.8
+
+    /// 다이얼 원근 — 중심(거리 0)은 완전 불투명·원래 크기, 멀어질수록 옅고 작아지되 바닥 아래로는
+    /// 안 내려간다. `distance`는 "행 몇 칸 떨어졌는가"(연속값 — 스크롤 중엔 정수 사이를 매끄럽게
+    /// 지난다). 순수 함수라 스크롤·뷰 없이 잠글 수 있다.
+    static func dialPerspective(distance: Double) -> (opacity: Double, scale: CGFloat) {
+        let clamped = min(abs(distance), perspectiveRange)
+        let opacity = 1 - clamped * ((1 - perspectiveOpacityFloor) / perspectiveRange)
+        let scale = 1 - clamped * ((1 - perspectiveScaleFloor) / perspectiveRange)
+        return (opacity, CGFloat(scale))
+    }
+
+    /// Hero 전이 폭(60차) — 이 폭 안에서 선택 행(hero)과 인접 행(body) 사이를 선형 크로스페이드
+    /// 한다. 1행 전체를 쓰는 이유는 대칭 핸드오프다: 인접 행이 정확히 밴드 중앙에 오는 순간
+    /// (거리 1)엔 이 행이 완전히 body로 넘어가 있어야, 두 행이 동시에 hero로 보이는 "이중
+    /// 히어로" 순간이 생기지 않는다. `perspectiveRange`(2.5, 옅음·작아짐의 감쇠 폭)와 다른
+    /// 축이라 별도 상수다 — 저건 "몇 행 떨어지면 바닥에 닿는가", 이건 "몇 행 안에서 딱 한
+    /// 행만 hero로 남는가"라 감쇠 곡선을 공유할 이유가 없다.
+    private static let heroBlendRange: Double = 1.0
+
+    /// 선택 행 hero 확대(60차, §3.4) — 이 행이 지금 "화면당 하나뿐인 주지표" 자리에 얼마나
+    /// 들어와 있는가(0=완전 body, 1=완전 hero). 중심(거리 0)에서 1, `heroBlendRange` 밖에서
+    /// 0 — 선형 보간. 순수 함수라 스크롤·뷰 없이 잠글 수 있다(`dialRow`가 실제 렌더에 쓴다).
+    static func dialHeroBlend(distance: Double) -> Double {
+        let clamped = min(abs(distance), heroBlendRange)
+        return 1 - clamped / heroBlendRange
+    }
+
+    /// 접근성 adjustable 스텝 — 위/아래 스와이프 한 번 = 한 시간 칸. 경계(06·21시)에서 랩어라운드
+    /// 하지 않는다 — 다이얼의 물리적 끝과 같다.
+    static func steppedHour(from hour: Int, direction: AccessibilityAdjustmentDirection) -> Int {
+        guard let idx = index(ofHour: hour) else { return hour }
+        switch direction {
+        case .increment: return hours[min(hours.count - 1, idx + 1)]
+        case .decrement: return hours[max(0, idx - 1)]
+        @unknown default: return hour
         }
     }
 
