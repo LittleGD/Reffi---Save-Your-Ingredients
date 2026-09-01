@@ -39,9 +39,12 @@
 ### 룰 ③ — 헤더 타이틀 정렬·타이포
 - **현행 편차**: 정렬은 대부분 좌측인데 `ReceiptScanView`만 중앙(`ZStack`). 타이포는 대부분 `.heading`인데 스캔 계열 2종만 `.subhead`(`ReceiptScanView.swift:68`, `:369`).
 - **확정 룰**:
-  - **커버 헤더 = 중앙 타이틀**, **시트 헤더 = 좌측 타이틀**. ("2개 분리"의 의도적 차이를 정렬로 표현.)
+  - **커버·시트 헤더 모두 좌측 타이틀**(49차 오너 지시로 개정 — 옛 "커버=중앙"은 폐기). 두 헤더의
+    성격 차이는 정렬이 아니라 닫기 신호(X 상시 / 핸들 주신호)와 타이틀 보호(2줄 접힘 / 한 줄 말줄임)로 표현한다.
+    전역 정렬 원칙은 `design_system.md` §9.4.
   - 타이포는 **커버·시트 모두 `.heading` 통일**. 스캔 계열의 `.subhead` 예외 제거.
 - **적용**: `ReceiptScanView`의 중앙 정렬·`.subhead`를 시트 규칙(좌측·`.heading`)으로 교정.
+- **49차 적용**: `CoverHeader`의 중앙 정렬과 좌측 44pt 투명 균형자 제거 → 좌측 타이틀(부제·accessory 포함).
 
 ### 룰 ④ — 닫기 방법 (모달 종류별)
 - **현행 편차**: 종이 X / 시스템 Cancel 텍스트 / 스와이프 전용 / scrim 탭 4개 idiom 혼재. `AuthView`(`:46`)·조리완료 시트는 X·dragIndicator 모두 없어 닫기 신호가 0.
@@ -183,7 +186,8 @@ SheetHeader(title: LocalizedStringKey, showsClose: Bool = false, onClose: (() ->
 - 하단 시트 헤더의 유일한 공급원. **예외 0(2026-08-13)** — 마지막 인라인 헤더였던 `IngredientEditView`가 "동적 타이틀 truncation 보호" 때문에 커스텀 HStack을 유지했는데, 그 보호를 컴포넌트가 흡수하며(모든 시트가 함께 안전해진다) 예외 사유가 사라졌다. 인라인으로 두면 패딩이 달라(위 s4/아래 s2 vs s5/s3) 시트 간 타이틀 기준선이 어긋난다.
 
 ### `CoverHeader` (기존, 재사용 강제)
-- 중앙 타이틀(`.heading`) + `PaperCloseButton`(X). 풀스크린 커버의 유일한 공급원.
+- **좌측** 타이틀(`.heading`, 2줄 접힘 + 축소) + `PaperCloseButton`(X). 부제·accessory도 같은 좌측선.
+  풀스크린 커버의 유일한 공급원.
 - `CookingStepsView`·`RecipeMemoCarousel`의 복붙 제거하고 이걸 호출.
 
 ---

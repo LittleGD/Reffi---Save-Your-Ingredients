@@ -240,9 +240,12 @@ struct FridgeView: View {
                 if openMenu != .none, let anchor {
                     let rect = proxy[anchor]
                     let width: CGFloat = 220
-                    // 정렬 칩은 행 오른쪽 끝, 카테고리 칩은 왼쪽 끝에 산다 — 팝업도 그 변에 맞춰 붙인다
-                    // (반대편에 붙이면 트리거에서 먼 쪽으로 열려 어느 칩이 열었는지가 흐려진다).
-                    let leading = openMenu == .category
+                    // 팝업은 트리거와 **가까운 변**에 붙는다(반대편에 붙이면 트리거에서 먼 쪽으로 열려
+                    // 어느 칩이 열었는지가 흐려진다). 판정은 컨트롤 정체성이 아니라 **기하**로 한다 —
+                    // 49차에 두 트리거가 모두 좌측으로 묶이면서, `openMenu == .category`로 판정하던
+                    // 옛 코드는 정렬 팝업만 오른쪽 변에 붙여 트리거에서 떨어뜨렸다. 기하로 유도하면
+                    // 다음에 배치가 또 바뀌어도 따라온다.
+                    let leading = rect.midX < proxy.size.width / 2
                     let rawX = leading ? rect.minX : rect.maxX - width
                     let x = min(max(ReffiGrid.margin, rawX),
                                 max(ReffiGrid.margin, proxy.size.width - width - ReffiGrid.margin))
@@ -738,15 +741,25 @@ struct FridgeView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// 목록 조작 한 줄 — 좌: 카테고리 필터 드롭다운 / 우: 정렬 + 보기 토글.
-    /// 좌우로 가르는 이유는 성격이 다르기 때문이다: 왼쪽은 **무엇을 보이는가**(범위를 좁힌다),
-    /// 오른쪽은 **어떻게 보이는가**(순서·밀도). 셋 다 같은 44pt 종이 칩이라 한 줄로 읽힌다.
+    /// 목록 조작 한 줄 — 좌: **질의**(카테고리 필터 + 정렬) / 우: **렌더러**(보기 토글).
+    ///
+    /// **49차에 관절을 다시 잡았다.** 옛 분기는 "좌=무엇을 보이는가 / 우=어떻게 보이는가(순서·밀도)"로
+    /// 정렬을 토글 쪽에 붙였다. 실재하는 구분이긴 하나 관절이 틀렸다 — 판별은 한 문장으로 끝난다:
+    /// **"이 컨트롤을 만지면 목록 맨 위 항목이 바뀌는가?"** 필터는 바뀌고(집합이 달라진다),
+    /// 정렬도 바뀌고(같은 집합, 다른 1번), 보기 토글은 **안 바뀐다**(같은 집합·같은 순서, 셀 템플릿만).
+    /// 즉 필터와 정렬은 둘 다 *목록을 만들어 내는 질의 파라미터*고 토글만 *결과를 그리는 설정*이다.
+    /// 정렬의 "어떻게"는 데이터의 순서, 토글의 "어떻게"는 픽셀의 밀도 — 두 "어떻게"는 다른 층이다.
+    /// (레퍼런스 감사: 여러 앱이 정렬·필터를 아예 한 진입점 "Sort and filter"로 합치는 반면,
+    /// 보기 모드는 예외 없이 별도 구역·별도 줄로 떼어 놓는다.)
+    ///
+    /// 참고로 이 변경은 **빈 폭을 줄이지 않는다**(실측 163 → 168pt). 근거는 여백이 아니라
+    /// 그 여백이 **어느 쌍을 가르느냐**다 — 이제 질의 둘이 붙고, 그 사이가 아니라 질의와 렌더러 사이가 벌어진다.
     private func controlRow(_ list: ListDigest) -> some View {
         HStack(spacing: ReffiSpace.s2) {
             // 카테고리가 한 종류뿐이면 필터가 무의미하다 — 칩 행 시절과 같은 규칙(동작 없는 UI 금지).
             if list.categories.count > 1 { categoryMenu }
-            Spacer(minLength: ReffiSpace.s2)
             sortMenu
+            Spacer(minLength: ReffiSpace.s2)
             // 접근성 글자 크기에서는 목록이 항상 간편 행이라(`showsCompactList`) 이 토글이 아무것도
             // 바꾸지 못한다 — 눌러도 화면이 그대로인 컨트롤은 두지 않는다(동작 없는 UI 금지).
             // 저장된 `compact` 값은 손대지 않으므로, 글자 크기를 되돌리면 사용자의 선택이 그대로 돌아온다.
@@ -797,6 +810,8 @@ struct FridgeView: View {
                 Text(sort.label)
                     .font(ReffiTextRole.caption.font)
                     .tracking(ReffiTextRole.caption.tracking)
+                    // 좌측 묶음 후 카테고리 칩과 폭을 나눠 쓴다(49차) — 큰 글자·긴 라벨에서 줄바꿈 방지.
+                    .lineLimit(1)
             }
             .foregroundStyle(ReffiColor.ink)
             .padding(.horizontal, ReffiSpace.s3)
@@ -857,11 +872,19 @@ struct FridgeView: View {
         .accessibilityLabel(compact ? "Switch to stack view" : "Switch to simple view")
     }
 
+    /// 빈 상태 — **그림 · 제목 · 문장**(49차). 텍스트 두 줄뿐이던 자리에 글리프를 세워 To buy 빈
+    /// 카드와 같은 3요소 골격으로 맞춘다(두 빈 상태가 같은 탭 안에서 다른 완성도로 서 있었다).
+    /// 여기 행동 행을 넣지 않는 것은 이 화면의 추가 경로가 **전역 ＋ 탭**이라, 카드 안에 또 하나
+    /// 만들면 같은 목적지가 한 화면에 둘이 되기 때문이다(To buy는 자기 검색 시트를 갖고 있어 다르다).
     private var emptyState: some View {
-        VStack(alignment: .leading, spacing: ReffiSpace.s2) {
-            Text("Nothing here yet").reffiType(.subhead).foregroundStyle(ReffiColor.ink)
-            Text("Add ingredients and they’ll stack up here.")
-                .reffiType(.body).foregroundStyle(ReffiColor.ink2)
+        HStack(spacing: ReffiSpace.s3) {
+            FoodMotif(glyph: .root)
+                .frame(width: ReffiFoodIcon.row, height: ReffiFoodIcon.row)
+            VStack(alignment: .leading, spacing: ReffiSpace.s0) {
+                Text("Nothing here yet").reffiType(.subhead).foregroundStyle(ReffiColor.ink)
+                Text("Add ingredients and they’ll stack up here.")
+                    .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
+            }
         }
         .padding(.horizontal, ReffiSpace.s5)
         // 톱니는 면 안쪽으로 파고들어 그만큼 여백을 먹는다 — 세로만 보정한다(`receiptSurface`와 같은 식).
@@ -1134,13 +1157,21 @@ struct FridgeCard: View {
         let f = ingredient.freshness
         let shape = ReceiptShape(tooth: toothH, seed: ingredient.receiptSeed)
 
+        // **재단(49차)** — 좌측 정렬선을 둘로 줄인다. 옛 배치는 카테고리와 실루엣이 같은 좌 24선을
+        // 공유했는데, 실루엣 글리프가 46pt 상자를 채우지 않아(여백 6~11pt) 카드마다 두 요소의
+        // **렌더 좌변이 1.6~11.4pt씩 어긋났다**(실캡처 4장 실측). 명목상 한 선인데 눈에는 두 선이라,
+        // "개별 요소는 다 맞는데 화면 전체가 자로 안 잰 느낌"의 물리적 정체가 이것이었다.
+        // 카테고리를 **이름 아래로** 옮겨 좌 24선에는 실루엣만 남긴다 — 랙이 구조적으로 소멸하고,
+        // 카테고리가 자기가 수식하는 이름에 붙어 정보 관계도 맞아진다(낭독도 이름이 먼저 온다).
+        //
+        // **도장은 이름 행에 내리지 않는다.** 46차가 `ExpandedFridgeCard`에서 같은 배치를 금지했고
+        // 그 근거를 이번에 스택 카드 폭(334)으로 재측정해도 성립한다: 이름 가용폭이 228 → 최악
+        // 62pt(ko "기한 지남" + "냉동")로 무너져 "닭가슴살"이 잘린다. 도장은 자기 코너에 남는다.
         return VStack(alignment: .leading, spacing: ReffiSpace.s1) {
-            // 상단 행 — 카테고리(좌) / [FROZEN] + D-day 도장(우 상단 코너).
+            // 상단 행 — [FROZEN] + D-day 도장(우 상단 코너). 급한 것이 코너에서 먼저 읽힌다.
             // 냉동은 스택을 쪼개지 않고(영수증 더미 메타포 유지) 도장 하나로 구분한다(§13).
             HStack(alignment: .top, spacing: ReffiSpace.s2) {
-                Text(LocalizedStringKey(ingredient.category))   // 카테고리는 영문 캐논 저장 — 표시만 로컬라이즈
-                    .reffiType(.caption).foregroundStyle(ReffiColor.ink2).lineLimit(1)
-                Spacer(minLength: ReffiSpace.s3)
+                Spacer(minLength: 0)
                 if ingredient.isFrozen {
                     DDayStamp(text: String(localized: "FROZEN"), color: ReffiColor.blueDark, size: 12)
                 }
@@ -1150,8 +1181,14 @@ struct FridgeCard: View {
             HStack(spacing: ReffiSpace.s3) {
                 PaperSilhouette(glyph: ingredient.glyph, fresh: f)
                     .frame(width: ReffiFoodIcon.card, height: ReffiFoodIcon.card)
-                Text(verbatim: ingredient.displayName)
-                    .reffiType(.subhead).foregroundStyle(ReffiColor.ink).lineLimit(1)
+                VStack(alignment: .leading, spacing: ReffiSpace.s0) {
+                    Text(verbatim: ingredient.displayName)
+                        .reffiType(.subhead).foregroundStyle(ReffiColor.ink).lineLimit(1)
+                    // 카테고리는 영문 캐논 저장 — 표시만 로컬라이즈. 이름의 종속 메타라 한 단 내린다
+                    // (`caption`/ink2 → `metaText`/muted: §3.5 데이터형 메타 · SettingsRow의 라벨>값과 같은 방향).
+                    Text(LocalizedStringKey(ingredient.category))
+                        .reffiType(.metaText).foregroundStyle(ReffiColor.muted).lineLimit(1)
+                }
                 Spacer(minLength: 0)
             }
         }

@@ -12,7 +12,8 @@ import UIKit
 /// 조용한 톤(`kind: .secondary`)의 종이 버튼("How to cook", 48차 — "Steps"(44차)가 내용이 와닿지
 /// 않는다는 피드백으로 교체. 41차엔 39차의 밑줄 링크를 대체)이
 /// 서고, 탭하면 `KitchenCopySheet`가 하단에서 올라온다. 영상 CTA는 이 버튼의 유무와 무관하게
-/// 항상 조리법의 1차 경로를 맡는다(§videoButton) — 톤만 낮췄을 뿐 자리가 없어지는 게 아니다.
+/// 항상 조리법의 1차 경로를 맡는다(§actions) — 자리가 없어지는 게 아니다.
+/// **49차**: 단계·영상·공유 셋이 한 문법(종이컷 secondary)으로 모였다 — 위계는 색이 아니라 순서와 폭이다.
 /// 파일명은 진입점 참조가 흩어져 있어 그대로 둔다.
 struct CookingStepsView: View {
     @Environment(FridgeStore.self) private var store
@@ -345,10 +346,15 @@ struct CookingStepsView: View {
             // (읽히는 정보는 위 메뉴명이 맡는다 — 옛 자리에서 그대로 이어지는 규칙).
             // 그림과 그 한 줄 설명은 **한 덩어리**다 — 사이를 s2로 좁혀 붙이고, 바깥 s2로 위아래를
             // 띄운다(캡션과 영상 CTA 사이는 s2+VStack s3 = 20이라 CTA에 붙어 보이지 않는다).
-            VStack(spacing: ReffiSpace.s2) {
-                RecipeHeroIconView(icon: heroIcon(for: cook))
-                    .frame(width: ticketWidth * 0.5, height: ticketWidth * 0.5)
+            // 일러스트는 **텍스트가 아니라 그림**이라 종이 한복판을 쓴다(§9.4 정렬 원칙의 예외 ③).
+            // 아래 소개문과 한 덩어리로 묶어 가운데 정렬하던 것을 49차에 풀었다 — 그 묶음 때문에
+            // 카드 안에 좌측선(크라운·메뉴명·버튼)과 중앙선(소개문) 둘이 서서, 설명이 어디에도
+            // 걸리지 않고 떠 보였다(오너 지적). 그림만 가운데 남기고 글자는 전부 좌측선으로 돌린다.
+            RecipeHeroIconView(icon: heroIcon(for: cook))
+                .frame(width: ticketWidth * 0.5, height: ticketWidth * 0.5)
+                .frame(maxWidth: .infinity, alignment: .center)
 
+            VStack(alignment: .leading, spacing: ReffiSpace.s3) {
                 // 요리 소개 — 무엇이고 어느 나라 음식인가. 시드 레시피에만 있고, 없으면
                 // **아무것도 그리지 않는다**(빈 자리표시는 티켓을 늘리기만 한다).
                 if let intro = intro(for: cook) {
@@ -360,7 +366,8 @@ struct CookingStepsView: View {
                     Text(verbatim: intro)
                         .reffiType(.caption)
                         .foregroundStyle(ReffiColor.ink2)
-                        .multilineTextAlignment(.center)
+                        .multilineTextAlignment(.leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                         .lineLimit(3)
                         .minimumScaleFactor(ReffiShrink.subtle)
                         .fixedSize(horizontal: false, vertical: true)
@@ -368,49 +375,19 @@ struct CookingStepsView: View {
                         // (`ticket.menuName` 선례). 라벨은 그대로라 VoiceOver는 문장을 읽는다.
                         .accessibilityIdentifier("cook.intro")
                 }
-            }
-            .frame(maxWidth: .infinity)   // leading VStack 안에서 가운데로
-            .padding(.vertical, ReffiSpace.s2)
 
-            // 상세 링크 → 종이컷 버튼(2026-08, 41차 owner decision) — 옛 밑줄 텍스트 링크를 걷어내고
-            // 요리 아이콘 바로 아래, 영상·공유 행보다 먼저 서는 `PaperButton`(§13.5 변형)으로 올린다.
-            // **단계가 있을 때만** 선다(대부분의 커스텀 레시피는 없다 — §KitchenCopySheet). 화면엔
-            // 이제 종이 버튼이 셋(디테일·영상·Finish cooking)이라 위계는 톤으로 가른다 — 영상 CTA는
-            // 강조 톤(urgentLight/urgentDark 커스텀 면)을 그대로 유지하고, 이 버튼은 `kind: .secondary`
-            // (sub 면 + ink 잉크, "Maybe later"·`PaperDialog` 보조 버튼과 같은 등급)로 눌러 셋 중
-            // 가장 조용하게 읽히게 한다 — 자리는 먼저 만나지만 톤은 낮다.
-            // **39차-b**: 스냅샷만 보면 39차 이전에 발주된 구세션은 `cook.steps`가 nil이라 이 링크가
-            // 실제 단계 있는 레시피에서도 안 섰다(실기기 리포트) — `resolvedSteps(for:)`가 스냅샷 →
-            // 원본 레시피 순으로 폴백해 게이트와 시트 콘텐츠가 항상 같은 답을 보게 한다.
-            if let steps = resolvedSteps(for: cook) {
-                PaperButton(title: "How to cook", kind: .secondary, seed: 6) {
-                    showKitchenCopy = true
-                }
-                // accessibilityLabel 제거(48차) — "How to cook"은 이미 서술적이라 별도 라벨은 이중화만 남긴다(44차 보완 사유 소멸).
-                .accessibilityHint(Text("Opens the full list of cooking steps"))
+                // 정보와 행동을 절취선으로 가른다(49차) — 영수증의 기존 어휘 그대로다. 소개문이
+                // 아래 버튼 무리에 곧장 이어지면 설명인지 버튼 캡션인지가 흐려져, 그 모호함이
+                // "설명이 붕 떠 있다"로 읽힌다. 선 하나가 그 아래를 행동 구역으로 선언한다.
+                ReffiRule(.ticket)
+
+                // 조리법 두 경로(단계·영상)와 공유 — **셋이 한 문법**이다(49차). 예전엔 단계 버튼만
+                // 정본 `PaperButton`이고 영상은 손조립 틴트 면, 공유는 블롭+아래 라벨이라 한 무리
+                // 안에서 표면이 셋으로 갈렸다. 전부 같은 종이컷 secondary 면으로 통일하고 위계는
+                // **순서와 폭**으로만 준다 — 파란 솔리드는 이 화면에 이미 하나뿐이다(하단 Finish, §2.4).
+                actions(for: cook)
             }
 
-            // 조리법의 1차 경로 — 레시피명으로 유튜브 검색을 연다. 아이콘+라벨 와이드 CTA(아이콘 단독 아님).
-            // 공유는 그 옆의 보조 행동이라 조용한 종이컷 아이콘(§13.5)으로 남긴다.
-            HStack(spacing: ReffiSpace.s4) {
-                videoButton(for: cook.recipeName)
-                if let shareImage {
-                    ShareLink(
-                        item: shareImage,
-                        preview: SharePreview(Text(verbatim: cook.recipeName), image: shareImage)
-                    ) {
-                        PaperIconLabel(icon: ReffiIcon.share, label: "Share", intent: .neutral, size: 52, seed: 4, onCard: true)
-                    }
-                    .buttonStyle(.paperPress)
-                    .accessibilityLabel(Text("Share"))
-                    .accessibilityHint(Text("Opens the share sheet"))
-                } else {
-                    // 렌더 완료 전 짧은 순간의 비활성 플레이스홀더(크래시·빈 공유 방지) — 렌더는 즉시 끝나 실사용엔 티 안 남.
-                    PaperIconLabel(icon: ReffiIcon.share, label: "Share", intent: .neutral, size: 52, seed: 4, onCard: true)
-                        .opacity(ReffiOpacity.disabled)
-                        .accessibilityHidden(true)
-                }
-            }
         }
         .padding(.horizontal, ReffiSpace.s5)
         .padding(.vertical, ReffiSpace.ticketTop)
@@ -419,35 +396,80 @@ struct CookingStepsView: View {
         .reffiShadow1()
     }
 
-    /// 조리법 1차 CTA — 레시피명으로 유튜브 검색을 연다. `PaperButton`은 텍스트 전용이라
-    /// 같은 종이컷 표면(§13.5)에 아이콘+라벨을 직접 얹는다. 면은 blush 틴트(urgentLight) —
-    /// 하단 파랑 Finish CTA와 색으로 역할이 갈리고, 예전 YouTube 아이콘 버튼(intent .soft)의 결을 잇는다.
-    private func videoButton(for recipeName: String) -> some View {
-        Button { openURL(youtubeSearchURL(for: recipeName)) } label: {
-            HStack(spacing: ReffiSpace.s2) {
-                ReffiIcon.youtube.reffi(20, .fill).foregroundStyle(ReffiColor.urgentDark)
-                // 라벨은 짧게(2026-08, 41차 owner 요청) — 화면 라벨은 "Videos"로 줄이고,
-                // 전체 뜻("Open recipe videos")은 accessibilityLabel(아래)이 그대로 맡는다.
-                Text("Videos")
-                    .font(ReffiTextRole.subhead.font)
-                    .tracking(ReffiTextRole.subhead.tracking)
-                    .foregroundStyle(ReffiColor.urgentDark)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.horizontal, ReffiSpace.s5)
-            .padding(.vertical, ReffiSpace.s4)
-            .background {
-                let shape = PaperCutRect(seed: 3)
-                shape.fill(ReffiColor.urgentLight)
-                    .overlay(PaperGrain(seed: 14).clipShape(shape))
-                    .paperEdge(shape, tint: ReffiColor.paperEdgeAccent(ReffiColor.urgentDark))
-                    .compositingGroup()
-                    .reffiShadow1()
-            }
+    /// 티켓의 행동 구역 — 조리법 두 경로(단계·영상)와 공유가 **한 문법·한 등급**으로 선다(49차).
+    ///
+    /// 셋 다 `PaperButton` 계열 secondary(카드 위라 `onCard`)다. 예전에는 영상 버튼이 콜사이트에서
+    /// 표면을 손으로 재조립해(틴트 면 + 강조 아웃라인 + 그레인) 앱 어디에도 없는 네 번째 CTA 재질을
+    /// 만들었고, 공유만 블롭 아래에 라벨을 달아 행 안에서 혼자 키가 달랐다. 표면을 정본 하나로 모으면
+    /// 위계를 색으로 지어낼 필요가 없어진다 — **순서**(깊은 것부터)와 **폭**(주행동이 넓다)이 대신한다.
+    ///
+    /// 행 구성: 조리 단계는 있을 때만 서므로 전폭 한 줄로 먼저 두고, 영상·공유는 성격이 갈리는
+    /// 한 쌍이라 같은 줄에 넓은 것과 좁은 것으로 앉힌다.
+    private func actions(for cook: FridgeStore.CookSession) -> some View {
+        // 한 줄에 들어가면 칩 행, 넘치면 전폭 스택 — 후보 둘이 **같은 하위 뷰**를 공유해 한쪽만
+        // 조용히 어긋나는 경로를 구조로 막는다(판정 3버튼·알림 배너가 쓰는 그 처세).
+        // 큰 글자·긴 번역에서 칩 세 개가 안 들어가면 자동으로 옛 스택 배치로 내려간다.
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: ReffiSpace.s3) { actionButtons(for: cook, compact: true) }
+            VStack(spacing: ReffiSpace.s3) { actionButtons(for: cook, compact: false) }
         }
-        .buttonStyle(.paperPress)
+    }
+
+    /// 티켓의 보조 행동 셋 — 두 배치가 **같은 버튼 셋**을 같은 순서로 세운다.
+    @ViewBuilder
+    private func actionButtons(for cook: FridgeStore.CookSession, compact: Bool) -> some View {
+        // **39차-b**: 스냅샷만 보면 39차 이전에 발주된 구세션은 `cook.steps`가 nil이라 이 버튼이
+        // 실제 단계 있는 레시피에서도 안 섰다(실기기 리포트) — `resolvedSteps(for:)`가 스냅샷 →
+        // 원본 레시피 순으로 폴백해 게이트와 시트 콘텐츠가 항상 같은 답을 보게 한다.
+        if resolvedSteps(for: cook) != nil {
+            PaperButton(title: "How to cook", kind: .secondary, fullWidth: !compact, seed: 6,
+                        icon: ReffiIcon.recipe, onCard: true, compact: compact) {
+                showKitchenCopy = true
+            }
+            // accessibilityLabel 제거(48차) — "How to cook"은 이미 서술적이라 별도 라벨은 이중화만 남긴다.
+            .accessibilityHint(Text("Opens the full list of cooking steps"))
+        }
+
+        // 영상 — 라벨은 짧게(41차 owner), 전체 뜻은 accessibilityLabel이 맡는다.
+        PaperButton(title: "Videos", kind: .secondary, fullWidth: !compact, seed: 3,
+                    icon: ReffiIcon.youtube, iconWeight: .fill, onCard: true, compact: compact) {
+            openURL(youtubeSearchURL(for: cook.recipeName))
+        }
         .accessibilityLabel(Text("Open recipe videos"))
         .accessibilityHint(Text("Opens YouTube in your browser"))
+
+        shareButton(for: cook, compact: compact)
+    }
+
+    /// 공유 — `ShareLink`는 `Button`이 아니라서 같은 표면을 `PaperButtonLabel`로 직접 씌운다
+    /// (그 프리미티브가 존재하는 이유가 이것이다). 폭은 내용에 맞춰 줄여 옆 영상 버튼이 넓게 서고,
+    /// 라벨은 면 **안**에 있다 — 블롭 아래 라벨은 이 행에서 혼자 두 줄 높이를 만들던 옛 형태다.
+    @ViewBuilder
+    private func shareButton(for cook: FridgeStore.CookSession, compact: Bool) -> some View {
+        if let shareImage {
+            ShareLink(item: shareImage,
+                      preview: SharePreview(Text(verbatim: cook.recipeName), image: shareImage)) {
+                shareLabel(compact: compact)
+            }
+            .buttonStyle(.paperPress)
+            .accessibilityLabel(Text("Share"))
+            .accessibilityHint(Text("Opens the share sheet"))
+        } else {
+            // 렌더 완료 전 짧은 순간의 비활성 플레이스홀더(크래시·빈 공유 방지) — 렌더는 즉시 끝나 실사용엔 티 안 남.
+            shareLabel(compact: compact)
+                .opacity(ReffiOpacity.disabled)
+                .accessibilityHidden(true)
+        }
+    }
+
+    /// `ShareLink`는 `Button`이 아니라서 같은 표면을 `PaperButtonLabel`로 직접 씌운다
+    /// (그 프리미티브가 존재하는 이유가 이것이다). 히트 하한도 여기서 함께 건다 — `PaperButton`이
+    /// 자기 안에서 하는 일을 이 경로에서는 호출부가 대신해야 두 폼의 타깃이 같아진다.
+    private func shareLabel(compact: Bool) -> some View {
+        PaperButtonLabel(title: "Share", kind: .secondary, fullWidth: !compact, seed: 4,
+                         icon: ReffiIcon.share, onCard: true, compact: compact)
+            .frame(minHeight: compact ? ReffiChrome.tapMin : nil)
+            .contentShape(Rectangle())
     }
 
     /// 유튜브 검색 URL — 조립은 `RecipeVideoSearch`(단일 공급원)가 한다. 티켓 덱의 영상 브리지와

@@ -99,7 +99,12 @@ struct FridgeTabBar: View {
         let on = selection == tab
         return Button {
             guard !on else { return }   // 같은 탭 재탭은 무동작(패인 상태를 흔들지 않는다)
-            withAnimation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion)) {
+            // 탭 전환은 `settle`(스프링, 실효 정착 ≈0.46~0.53s)이 아니라 `enter`(dur3 0.24s)다(49차).
+            // 근거 셋이 겹친다: ① 같은 화면의 정렬 드롭다운이 "메뉴는 읽으러 여는 것이라 예산이
+            // 150~250ms"라고 명문화해 두었는데(`FridgeView`) 그보다 훨씬 자주 눌리는 IA가 두 배 넘게
+            // 길었다 ② 한 단계 위 캡슐 네비는 아예 무애니메이션이라, 같은 "탭을 옮긴다"는 제스처가
+            // 층위마다 다른 물리를 갖고 있었다 ③ §7.5 스프링 사용표에 탭 전환은 원래 없다.
+            withAnimation(ReffiMotion.gated(ReffiMotion.enter, reduce: reduceMotion)) {
                 selection = tab
             }
         } label: {

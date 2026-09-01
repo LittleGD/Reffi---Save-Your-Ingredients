@@ -120,7 +120,14 @@ struct OnboardingView: View {
         return GeometryReader { geo in
             ScrollView {
                 VStack(alignment: .center, spacing: ReffiSpace.s5) {
-                    Spacer(minLength: 0)
+                    // **상단 정박**(49차) — 대칭 Spacer 쌍이 블록을 세로 중앙에 세워, 타이틀이
+                    // 화면 62% 지점에서 시작하고 히어로 위에 큰 빈 띠가 남았다. 레퍼런스 감사에서
+                    // 인트로 장은 예외 없이 히어로·텍스트를 **상단 절반에 붙이고** 남는 슬랙을
+                    // 텍스트 아래 한 덩어리로 몰아 점·CTA 바로 위에 둔다. 앞 Spacer를 고정
+                    // `s7`로 바꾸고 뒤만 가변으로 두면 타이틀이 약 47%로 올라오고, 히어로 슬롯이
+                    // 292 고정이라 3장 정렬은 그대로다. 큰 글씨에서 콘텐츠가 화면을 넘으면
+                    // `minHeight` 덕에 지금처럼 스크롤로 전환된다(동작 불변).
+                    Spacer(minLength: 0).frame(height: ReffiSpace.s7)
                     heroView
                         .frame(maxWidth: .infinity)
                         .frame(height: 292)       // 고정 히어로 슬롯 — 3페이지 타이틀·본문 위치를 동일하게 고정
@@ -143,8 +150,8 @@ struct OnboardingView: View {
                         .foregroundStyle(ReffiColor.ink2)
                     Spacer(minLength: 0)
                 }
-                // 컨테이너 높이를 바닥으로 깔아 기본 크기에서는 지금처럼 세로 가운데에 서고,
-                // 콘텐츠가 그보다 커질 때만 스크롤이 생긴다(위아래 Spacer가 남는 높이를 나눠 갖는다).
+                // 컨테이너 높이를 바닥으로 깔아 남는 세로를 **아래 Spacer 하나가** 흡수하고,
+                // 콘텐츠가 그보다 커질 때만 스크롤이 생긴다(49차 — 옛 대칭 Spacer 쌍은 위 주석).
                 .frame(maxWidth: .infinity, minHeight: geo.size.height)
                 .padding(.horizontal, ReffiGrid.margin + ReffiSpace.s2)
             }
@@ -477,8 +484,10 @@ struct OnboardingView: View {
     private var cuisinePage: some View {
         questionPage(title: "What do you like to cook?",
                      body: "Pick as many as you like. Recipes will follow.") {
+            // 같은 데이터를 같은 칩으로 그리는 프로필 시트(`CuisinePickerSheet`)가 `.leading`이다 —
+            // 온보딩에서 고른 것을 프로필에서 고치는 흐름이라 두 화면이 연달아 보인다(49차).
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 92), spacing: ReffiSpace.s2)],
-                      alignment: .center, spacing: ReffiSpace.s2) {
+                      alignment: .leading, spacing: ReffiSpace.s2) {
                 ForEach(CuisineStyle.allCases) { c in
                     SelectableChip(text: c.labelKey, selected: profile.cuisines.contains(c),
                                    fullWidth: false, onCard: true) {
@@ -492,9 +501,14 @@ struct OnboardingView: View {
     // MARK: 알림 프라이밍 — 가치 설명 후 시스템 권한(소프트 애스크)
 
     private var notifyPage: some View {
-        questionPage(title: "A heads-up before\nfood goes bad?",
+        // 하드 개행 제거(49차) — 그 `\n`은 **중앙 2줄 균형용** 장치였다. 좌측 정렬에서는 짧은 첫 줄
+        // 뒤에 들쭉날쭉한 둘째 줄이 남아 오히려 어색하다 — 자연 줄바꿈에 맡긴다(§9.4 마지막 항).
+        questionPage(title: "A heads-up before food goes bad?",
                      body: "Once a day, only when something's expiring.") {
-            VStack(alignment: .center, spacing: ReffiSpace.s3) {
+            // 두 행은 각각 내용 크기로 줄어드는데 문구 길이가 달라, 중앙 정렬에서는 두 아이콘이
+            // 서로 다른 x에 섰다(49차) — 좌측으로 붙이면 아이콘 열이 하나로 정렬되고, 취향 미선택으로
+            // 첫 행이 빠질 때도 남은 행이 옆으로 밀리지 않는다.
+            VStack(alignment: .leading, spacing: ReffiSpace.s3) {
                 // 개인화 payoff — 방금 답한 내용을 즉시 반영해 "맞춰졌다"는 신호(리서치: aha moment).
                 // 실동작 정합: 레시피 튜닝은 요리 취향(cuisines)만, 가구 인원(household)은 재입고·수량
                 // 맥락이라 서로 다른 구로 분리한다. 취향 미선택이면 튜닝 구는 생략(빈 요약을 안 보이게).
@@ -520,25 +534,64 @@ struct OnboardingView: View {
         }
     }
 
-    /// 질문 페이지 공통 — 흰 영수증 카드에 질문 + 컨트롤. 셋업 3장은 전부 중앙정렬(§UX).
-    private func questionPage<C: View>(title: LocalizedStringKey, body copy: LocalizedStringKey,
+    /// 질문 페이지 공통 — 흰 영수증 카드에 질문 + 컨트롤.
+    ///
+    /// **좌측 정렬이다(49차, §9.4).** 옛 주석은 "셋업 3장은 전부 중앙정렬"이었지만 이 세 장은
+    /// 표지가 아니라 **폼**이다(가구 인원 단일선택·취향 멀티선택·알림 프라이밍) — §9.4의 중앙 예외
+    /// ②는 "주변에 정렬선이 없고 화면에 그것 하나뿐인 표지형"이라 여기에 걸리지 않는다. 결정적
+    /// 근거는 컴포넌트 쪽에 있다: `receiptSurface(alignment:)`의 기본값이 `.leading`이고 앱의 호출
+    /// 아홉 곳 중 **여기 한 곳만** `.center`를 넘기고 있었다 — 같은 종이가 이 화면에서만 다른 축이었다.
+    /// `title`이 `LocalizedStringKey`가 아니라 `String.LocalizationValue`인 이유: display role은
+    /// 한글이 섞이면 Story Script → Pretendard Bold로 폴백해야 하는데(§3.1), 그 판별에 **실제로
+    /// 그려질 문자열**이 필요하다. SwiftUI는 `Text`가 든 키의 해석 결과를 밖으로 주지 않으므로
+    /// 호출부 대신 여기서 한 번 풀어 같은 값을 `Text`와 `reffiType(_:for:)` 둘에 함께 넘긴다.
+    private func questionPage<C: View>(title: String.LocalizationValue, body copy: LocalizedStringKey,
                                        @ViewBuilder control: () -> C) -> some View {
-        VStack(spacing: 0) {
-            Spacer(minLength: 0)
-            VStack(alignment: .center, spacing: ReffiSpace.s4) {
-                Text(title)
-                    .reffiType(.menuName)
-                    .lineSpacing(3)
-                    .multilineTextAlignment(.center)
-                    .foregroundStyle(ReffiColor.ink)
-                Text(copy).reffiType(.body).multilineTextAlignment(.center).foregroundStyle(ReffiColor.ink2)
+        let titleText = String(localized: title)
+        return VStack(alignment: .leading, spacing: ReffiSpace.s4) {
+            // **질문이 페이지 헤드라인이다**(49차). 옛 배치는 질문을 카드 **안** `menuName`(26)에 두고
+            // 화면 최대 글자(34 display)를 "Step N" 인덱스가 썼다 — 이 장의 주제는 인덱스가 아니라
+            // 질문이므로 자리를 맞바꾼다. 이제 카드는 **답하는 자리**(설명 + 컨트롤)만 담는다.
+            // display role은 번역되는 텍스트라 스크립트 폴백을 경유해야 한다(§3.1, `for:` 오버로드).
+            Text(verbatim: titleText)
+                .reffiType(.display, for: titleText)
+                .foregroundStyle(ReffiColor.ink)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, ReffiGrid.margin)
+
+            VStack(alignment: .leading, spacing: ReffiSpace.s4) {
+                Text(copy).reffiType(.body).foregroundStyle(ReffiColor.ink2)
                 control()
                     .padding(.top, ReffiSpace.s2)
             }
-            .receiptSurface(alignment: .center, elevated: .floating)
+            .receiptSurface(elevated: .floating)
             .padding(.horizontal, ReffiGrid.margin)
+
             Spacer(minLength: 0)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.top, ReffiSpace.s5)
+    }
+
+    /// 셋업 진행 게이지(49차) — 3칸 절취선. 완료·현재 칸은 `ink2`, 남은 칸은 `muted`를 `inactive`로
+    /// 흐린다(§7.2 — 표시자의 "지금이 아님"은 `disabled`가 아니라 `inactive`다).
+    /// 옛 `setupDots`가 지던 낭독("Setup N of M")을 그대로 옮겨 받는다 — 진행 표시가 하나로 줄어도
+    /// 보조기술이 듣는 문장은 같다.
+    private var setupGauge: some View {
+        HStack(spacing: ReffiSpace.s2) {
+            ForEach(0...setupLast, id: \.self) { i in
+                Capsule(style: .continuous)
+                    .fill(i <= setupPage ? ReffiColor.ink2
+                                         : ReffiColor.muted.opacity(ReffiOpacity.inactive))
+                    .frame(height: 3)
+            }
+        }
+        .padding(.horizontal, ReffiGrid.margin)
+        .padding(.top, ReffiSpace.s5 + 20)     // 그래버 대신 상태바에서 ~20px 내림(옛 헤더와 같은 값)
+        .padding(.bottom, ReffiSpace.s5)
+        .animation(motion, value: setupPage)
+        .accessibilityElement()
+        .accessibilityLabel("Setup \(setupPage + 1) of \(setupLast + 1)")
     }
 
     // MARK: 하단 — 페이지 점 + 진행 버튼
@@ -592,21 +645,13 @@ struct OnboardingView: View {
         ZStack {
             PaperCanvasBackground()
             VStack(spacing: 0) {
-                // 상단 — 디스플레이 폰트(Story Script)로 현재 단계를 가운데 표기.
-                // 줄 끝 숫자 잘림 주의 — SwiftUI Text는 마지막 글리프를 advance에서 클리핑한다(UILabel은 무사).
-                // StoryScript 숫자 advance는 폰트에서 잉크 폭만큼 패치됨(§Fonts/StoryScript — `-titleClipLab` 실험 근거).
-                // ko는 "N단계" — 번역되는 Display라 스크립트 폴백을 경유한다(§3.1).
-                let stepText = String(localized: "Step \(setupPage + 1)")
-                Text(verbatim: stepText)
-                    .reffiType(.display, for: stepText)
-                    .multilineTextAlignment(.center)
-                    .foregroundStyle(ReffiColor.ink)
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, ReffiSpace.s5 + 20)              // 그래버 대신 상태바에서 ~20px 내림
-                    .padding(.bottom, ReffiSpace.s2)
-                    // StoryScript 글리프가 폰트 메트릭(ascent)을 벗어나 크로스페이드 래스터라이즈 시 잘림(§버그) — 타이틀은 즉시 교체.
-                    .transaction { $0.animation = nil }
-                    .accessibilityLabel("Step \(setupPage + 1) of \(setupLast + 1)")
+                // 상단 — **절취 게이지**(49차). 옛 형태는 `display` 34pt Story Script로 "Step 2"라는
+                // **인덱스**를 화면 최대 글자로 세우고, 정작 이 장의 질문은 카드 안 26pt에 있었다 —
+                // 홈 헤더와 같은 종류의 위계 역전이다(인덱스는 정보가 아니라 좌표다). 게다가 그 줄과
+                // 하단 `setupDots`가 **같은 사실**(N번째 장)을 두 번 말해, 진행 표시가 화면에 둘이었다.
+                // 둘을 한 쌍으로 은퇴시키고 진행은 게이지 하나가 진다 — 새 어휘가 아니라 이미 우리
+                // 것인 절취선 문법으로 점을 다시 그린 것이다(§13.8 `ReffiRule`).
+                setupGauge
 
                 TabView(selection: $setupPage) {
                     householdPage.tag(0)
@@ -616,7 +661,6 @@ struct OnboardingView: View {
                 .tabViewStyle(.page(indexDisplayMode: .never))
                 .animation(motion, value: setupPage)
 
-                setupDots
                 setupButton
             }
         }
@@ -667,21 +711,6 @@ struct OnboardingView: View {
     }
 
     /// 셋업 하단 3점 인디케이터.
-    private var setupDots: some View {
-        HStack(spacing: 6) {
-            ForEach(0...setupLast, id: \.self) { i in
-                Circle()
-                    .fill(i == setupPage ? ReffiColor.ink2 : ReffiColor.muted.opacity(ReffiOpacity.inactive))
-                    .frame(width: 7, height: 7)
-            }
-        }
-        .frame(maxWidth: .infinity)               // 가로 가운데 정렬
-        .padding(.bottom, ReffiSpace.s4)
-        .animation(motion, value: setupPage)
-        .accessibilityElement()
-        .accessibilityLabel("Setup \(setupPage + 1) of \(setupLast + 1)")
-    }
-
     /// 셋업 하단 — 마지막(알림)에서만 시작 버튼, 그 전엔 Next.
     @ViewBuilder private var setupButton: some View {
         VStack(spacing: ReffiSpace.s1) {

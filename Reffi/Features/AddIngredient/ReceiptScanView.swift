@@ -23,6 +23,10 @@ struct ReceiptScanView: View {
     }
 
     @State private var phase: Phase = .pick
+    /// 시트 높이를 **단계에 맨다**(49차). 소스 선택은 결정이 셋뿐인데 `.large` 고정이라 시트의 약
+    /// 절반이 빈 크림이었다 — 선택 시트는 어디서나 콘텐츠에 붙는 짧은 시트다(레퍼런스 감사).
+    /// 확인 단계는 후보가 열댓 줄이라 `.large`가 맞으므로, 고정값이 아니라 단계가 높이를 정한다.
+    @State private var detent: PresentationDetent = .medium
     @State private var showCamera = false
     /// 카메라가 오류로 닫힌 직후 — 취소와 달리 화면이 한 줄로 말한다(42차·F24).
     @State private var scanFailed = false
@@ -40,7 +44,9 @@ struct ReceiptScanView: View {
             content
         }
         .background(ReffiColor.canvas)
-        .presentationDetents([.large])
+        .presentationDetents([.medium, .large], selection: $detent)
+        // 사용자가 손으로 올린 높이는 존중한다 — 단계가 **앞으로** 갈 때만 승격시키고 되돌리지 않는다.
+        .onChange(of: phase) { _, p in if p != .pick { detent = .large } }
         .presentationDragIndicator(.visible)
         .presentationBackground(ReffiColor.canvas)
         .reffiFeedback(.success, trigger: addedHaptic)
@@ -137,11 +143,13 @@ struct ReceiptScanView: View {
             }
             .padding(.horizontal, ReffiSpace.s6)
             if scanFailed {
+                // 표지형 블록(s6 컬럼) 밖, 페이지 마진 컬럼 안에 사는 **읽는 문장**이라 좌측이다
+                // (49차, §9.4) — 지금까지는 표지에 속하지도 페이지 컬럼에 붙지도 않은 중간이었다.
                 Text("The camera closed unexpectedly. Try again or add by hand.")
                     .reffiType(.caption)
                     .foregroundStyle(ReffiColor.urgentDark)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: .infinity)
+                    .multilineTextAlignment(.leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, ReffiGrid.margin)
                     .padding(.top, ReffiSpace.s3)
             }
@@ -158,9 +166,11 @@ struct ReceiptScanView: View {
         Text("Everything is read on this device. Nothing is uploaded.")
             .reffiType(.caption)
             .foregroundStyle(ReffiColor.ink2)
-            .multilineTextAlignment(.center)
+            .multilineTextAlignment(.leading)
             // 폭은 버튼 스택이 아니라 **화면**이 정한다 — 전폭에서 가로 마진만 물리면 두 줄로 고르게 앉는다.
-            .frame(maxWidth: .infinity)
+            // 그 전폭이 확보된 지금, 축은 페이지 좌측선을 따른다(49차, §9.4). 옛 중앙 정렬의 근거였던
+            // "버튼 폭을 물려받아 어중간하게 끊긴다"는 폭 문제였지 정렬 문제가 아니었다.
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, ReffiGrid.margin)   // 주석의 의도 그대로 — 페이지 마진(§9.2·42차)
             .padding(.bottom, ReffiSpace.s5)
     }
@@ -247,6 +257,15 @@ struct ReceiptScanView: View {
             // 이름 블록도 체크와 **같은 토글**이라 같은 컨트롤이어야 한다 — 탭 제스처만 얹으면
             // 보조기술엔 그냥 글자로 서고(누를 수 있다는 신호가 없다) 눌림도 없다(§7.5).
             Button { toggleSelection(c.id) } label: {
+                // **수량 레일**(49차) — 수량이 `Spacer` 건너 연필 옆에 앉아 있어 이름 길이에 따라
+                // x가 매 행 달라졌고, 세로로 열이 서지 않아 "무엇을 몇 개"가 한눈에 안 읽혔다.
+                // 이름 왼쪽 44pt trailing 레일로 옮기면 `reffiNum`이 tabular라 숫자가 자릿수에
+                // 관계없이 정확히 정렬된다(§3.4) — 그게 곧 종이 영수증의 수량 열이다.
+                HStack(alignment: .firstTextBaseline, spacing: ReffiSpace.s2) {
+                Text(verbatim: c.quantity.text)
+                    .font(.reffiNum(.meta))
+                    .foregroundStyle(ReffiColor.ink2)
+                    .frame(width: 44, alignment: .trailing)
                 VStack(alignment: .leading, spacing: ReffiSpace.s0) {
                     HStack(spacing: ReffiSpace.s2) {
                         Text(verbatim: c.name).reffiType(.body).foregroundStyle(ReffiColor.ink)
@@ -258,15 +277,13 @@ struct ReceiptScanView: View {
                     Text(verbatim: c.rawLine).reffiType(.caption).foregroundStyle(ReffiColor.muted)
                         .lineLimit(1)
                 }
+                }
                 .contentShape(Rectangle())
             }
             .buttonStyle(.paperPress)
             .accessibilityValue(isOn ? Text("Checked") : Text("Not checked"))
 
             Spacer(minLength: ReffiSpace.s2)
-
-            Text(verbatim: c.quantity.text)
-                .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
 
             Button {
                 editingCandidate = c

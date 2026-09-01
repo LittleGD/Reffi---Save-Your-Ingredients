@@ -241,7 +241,10 @@ struct HistoryContent: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .padding(.horizontal, ReffiGrid.margin + ReffiSpace.s2)
+        // 밴드 안쪽 인셋을 페이지 마진으로 내린다(49차) — 헤드라인이 좌측으로 오면서 이 밴드의
+        // 좌측선(24)이 패인 헤드라인·정산서 카드(16)와 8pt 어긋나는 게 눈에 보이게 됐다.
+        // 칩 폭 검산(375pt 기준): 콘텐츠 343 = 칩 7×38(266) + 간격 6×s1(36) = 302 ≤ 343, 여유 41pt.
+        .padding(.horizontal, ReffiGrid.margin)
         .padding(.vertical, ReffiSpace.s5)
         .background {
             PaperGlyphPile(glyphs: ledger.pileGlyphs, base: ReffiColor.canvas)
@@ -307,8 +310,13 @@ struct HistoryContent: View {
     /// 자기 날의 먹음·버림 개수를 든다, §13.10), 추세의 방향은 이 화살표가 잇는다. 분류 자체
     /// (`ConsumptionWeek.Trend` — better/worse/same)는 그대로 살아 있고, 화살표는 그 결과를
     /// 그림 하나로 옮길 뿐이다.
+    /// **49차 — 좌측 정렬**(§9.4). 레퍼런스 감사에서 리포트 히어로 숫자를 가운데 놓은 화면이 46장 중
+    /// 하나도 없었다: 요약 카드는 예외 없이 라벨·값·격자를 **한 좌측선**에 세운다. 우리도 이 화면의
+    /// 축이 좌(패인 헤드라인) → 중(이 블록) → 좌(정산서)로 두 번 꺾여 있었다 — §9.4의 "한 표면에
+    /// 축은 하나다"가 그대로 걸린다. 아래 요일 칩 행은 밴드 전폭에 균등 분배되는 **격자**라
+    /// 이 블록과 중심을 맞출 대상이 아니었고(§9.4 예외 ③), 그래서 옮겨도 관계가 깨지지 않는다.
     private func headlineBlock(_ week: ConsumptionWeek.Summary) -> some View {
-        VStack(spacing: ReffiSpace.s0) {
+        VStack(alignment: .leading, spacing: ReffiSpace.s0) {
             if let rate = week.eatenRate {
                 // `reffiNum(.hero)`(32)가 숫자 계열의 **맨 위 단**이다(§3.4). 34를 새로 만들지
                 // 않는 이유: 그 절이 크기를 자유 파라미터로 두었다가 여덟 종이 유통된 사고를
@@ -366,7 +374,9 @@ struct HistoryContent: View {
         }
         .lineLimit(1)
         .minimumScaleFactor(ReffiShrink.fit)
-        .multilineTextAlignment(.center)
+        .multilineTextAlignment(.leading)
+        // 안쪽 블록이 제 내용 폭만 잡으면 부모가 도로 가운데로 민다 — 좌측선을 실제로 세우는 건 이 프레임이다(§9.4).
+        .frame(maxWidth: .infinity, alignment: .leading)
         // 값 덩이는 숫자 하나가 아니라 "무엇의 몇 퍼센트인가"다 — 화면에서 화살표 하나로 줄인 추세를
         // 소리에서는 그대로 문장으로 편다(분자·분모·추세 방향·지난 주 값까지, 아래 `headlineLabel`).
         // 화면 혼잡이 33차의 문제였지 VoiceOver 정보량이 문제가 아니었다 — 말은 공짜다.

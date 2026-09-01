@@ -32,6 +32,9 @@ struct ProfileView: View {
     // 앱 내 언어 SSOT(38차) — `RootGateView`가 같은 키로 루트 `.environment(\.locale)`을 건다.
     @AppStorage(AppLanguage.key) private var languageRaw = AppLanguage.system.rawValue
     @State private var languagePickerOpen = false
+    /// 가구 인원 드롭다운(49차) — 언어 행과 같은 문법. 두 픽커는 **동시에 열리지 않으므로**
+    /// `DropdownAnchorKey`(마지막 non-nil을 남긴다)를 공유해도 앵커가 섞이지 않는다.
+    @State private var householdPickerOpen = false
 
     @State private var sheet: Sheet?
     @State private var showLogout = false
@@ -70,13 +73,15 @@ struct ProfileView: View {
                         .padding(.bottom, ReffiSpace.s2)
                     // 영수증 스택 — 설정 화면이라 기울임 없이 정돈된 정렬(질서 있는 영수증 문법).
                     // 무낭비 리포트는 냉장고 페이지 History(No-waste report)로 이동.
-                    tasteReceipt
-                    householdReceipt
-                    notifyReceipt
+                    // **영수증 다섯 장**(49차) — 이전엔 여덟 장이었고 그중 셋(Recipes·Language·Household)이
+                    // 행 하나 또는 컨트롤 하나만 담은 카드였다. 1행짜리 영수증은 카드 여백(위 23 + 아래 15
+                    // + 이름표 줄)이 내용보다 큰 상태라, 스크롤할수록 "칸만 많고 든 게 없다"로 읽힌다.
+                    // 묶는 축은 **무엇에 대한 설정인가**다: 요리(추천을 정하는 값 전부) / 알림 / 감각 /
+                    // 앱(언어·데이터) / 계정.
+                    cookingReceipt
+                    alertsReceipt
                     feelReceipt
-                    recipesReceipt
-                    languageReceipt
-                    dataReceipt
+                    appReceipt
                     accountReceipt
                     Color.clear.frame(height: 1).id(Anchor.bottom)   // 스크롤 하단 앵커(QA 스크린샷)
                 }
@@ -125,6 +130,12 @@ struct ProfileView: View {
                               label: { $0.displayName(in: currentDisplayLocale) },
                               seed: 4,
                               onDismiss: { languagePickerOpen = false }) { applyLanguage($0) }
+        .paperDropdownOverlay(isPresented: householdPickerOpen,
+                              options: HouseholdSize.allCases,
+                              selected: profile.household,
+                              label: { $0.label },
+                              seed: 6,
+                              onDismiss: { householdPickerOpen = false }) { profile.household = $0 }
         // 40차 — 팝업 전수 종이화. 시스템 alert·confirmationDialog를 전부 PaperDialog로 옮긴다
         // (design_system.md §14.7 개정 — 룰⑧의 "파괴 확인은 시스템에 남긴다" 경계는 이 라운드의
         // 사용자 결정으로 폐기됐다). 행동 배선·role·햅틱·카피는 원본과 완전히 동일하다 — 의미는
@@ -253,8 +264,15 @@ struct ProfileView: View {
     private var subtitle: String { AppLanguage.localizedNow("Saving food with Reffi") }
 
     // MARK: - 요리 취향 영수증
-    private var tasteReceipt: some View {
-        ReceiptCard(title: "Taste") {
+    /// 요리 영수증(49차) — 추천·재입고 수량을 정하는 값이 **한 장에** 모인다.
+    /// 옛 Taste(4행) + Household(칩 카드) + Recipes(1행) 셋을 합쳤다. 가구 인원이 칩 넉 장에서
+    /// `SettingsRow` + 드롭다운으로 접힌 것이 이 통합의 유일한 실질 변경이다 — 카드 안 컨트롤 문법이
+    /// 행 하나로 통일되고(같은 카드에 "행 + chevron"과 "칩 단일선택" 두 문법이 섞이지 않는다),
+    /// 언어 행이 이미 쓰는 `paperDropdownOverlay`를 그대로 재사용해 새 컴포넌트가 0개다.
+    /// **트레이드오프**: 선택지 넷이 한눈에 보이던 것이 한 탭 뒤로 간다. 되돌리려면 이 행을 옛
+    /// `householdReceipt`의 칩 행으로 바꾸면 되고, 그때는 카드가 여섯 장이 된다.
+    private var cookingReceipt: some View {
+        ReceiptCard(title: "Cooking") {
             SettingsRow(label: "Cuisines", value: profile.cuisines.summaryText,
                         valueColor: profile.cuisines.isEmpty ? ReffiColor.muted : ReffiColor.blueDark) {
                 sheet = .cuisines
@@ -265,26 +283,20 @@ struct ProfileView: View {
             SettingsRow(label: "Disliked", value: tagSummary(profile.disliked)) { sheet = .disliked }
             ReceiptRule()
             SettingsRow(label: "Allergies", value: tagSummary(profile.allergies)) { sheet = .allergies }
-        }
-    }
-
-    // MARK: - 가구 인원 영수증 — 레시피 양·쇼핑 수량의 근거. 인라인 칩 단일 선택(Remind me 문법).
-    private var householdReceipt: some View {
-        ReceiptCard(title: "Household") {
-            VStack(alignment: .leading, spacing: ReffiSpace.s3) {
-                Text("We'll size your restock amounts to match.")
-                    .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
-                HStack(spacing: ReffiSpace.s2) {
-                    ForEach(HouseholdSize.allCases) { h in
-                        SelectableChip(text: h.labelKey, selected: profile.household == h,
-                                       fullWidth: false, onCard: true) {
-                            profile.household = h
-                        }
-                    }
-                }
+            ReceiptRule()
+            SettingsRow(label: "Household", value: profile.household.label) {
+                householdPickerOpen.toggle()
             }
-            .padding(.horizontal, ReffiSpace.s5)
-            .padding(.vertical, ReffiSpace.s4)
+            .anchorPreference(key: DropdownAnchorKey.self, value: .bounds) {
+                householdPickerOpen ? $0 : nil
+            }
+            ReceiptRule()
+            SettingsRow(label: "My recipes",
+                        value: store.userRecipes.isEmpty ? AppLanguage.localizedNow("None yet") : "\(store.userRecipes.count)",
+                        valueColor: store.userRecipes.isEmpty ? ReffiColor.muted : ReffiColor.blueDark,
+                        numeric: !store.userRecipes.isEmpty) {
+                showMyRecipes = true
+            }
         }
     }
 
@@ -296,11 +308,11 @@ struct ProfileView: View {
     }
 
     // MARK: - 알림 영수증 — ExpiryNotifier 실배선(토글=권한요청·롤백, 시각=스케줄 반영).
-    private var notifyReceipt: some View {
-        ReceiptCard(title: "Notifications") {
+    private var alertsReceipt: some View {
+        ReceiptCard(title: "Alerts") {
             // 감각 영수증과 같은 토글 행 문법(SettingsToggle) — 여백·타이포·VoiceOver 처리를 공유한다.
             SettingsToggle(title: "Expiry alerts",
-                           caption: "A morning reminder for what expires today and tomorrow",
+                           caption: "Every morning",
                            isOn: $alertsEnabled, seed: 0)
             .onChange(of: alertsEnabled) { _, on in
                 if on {
@@ -341,27 +353,16 @@ struct ProfileView: View {
     private var feelReceipt: some View {
         ReceiptCard(title: "Feel") {
             SettingsToggle(title: "Collision haptics",
-                           caption: "Feel ingredients knock into each other on the counter",
+                           caption: "When ingredients bump",
                            isOn: $hapticsEnabled, seed: 1)
             ReceiptRule()
             SettingsToggle(title: "Tilt gravity",
-                           caption: "Tilt your phone and the ingredients roll that way",
+                           caption: "When you tilt the phone",
                            isOn: $tiltEnabled, seed: 2)
         }
     }
 
     // MARK: - 내 레시피 영수증 (커스텀 — 추천 풀에 합류)
-    private var recipesReceipt: some View {
-        ReceiptCard(title: "Recipes") {
-            SettingsRow(label: "My recipes",
-                        value: store.userRecipes.isEmpty ? AppLanguage.localizedNow("None yet") : "\(store.userRecipes.count)",
-                        valueColor: store.userRecipes.isEmpty ? ReffiColor.muted : ReffiColor.blueDark,
-                        numeric: !store.userRecipes.isEmpty) {
-                showMyRecipes = true
-            }
-        }
-    }
-
     // MARK: - 언어 영수증(2026-08, 38차) — 인앱 픽커로 전환.
     // 이전엔 iOS 설정 딥링크가 정본이었다(§Data 79번째 줄 옛 근거). `.environment(\.locale)` +
     // `AppleLanguages` 오버라이드로 실제 전환이 가능해져 딥링크를 걷었다 — `AppLanguage.swift`가
@@ -371,8 +372,10 @@ struct ProfileView: View {
     /// `.environment(\.locale)`에 기대면 방금 바꾼 언어를 못 따라간다).
     private var currentDisplayLocale: Locale { AppLanguage.resolve(stored: languageRaw).resolvedLocale }
 
-    private var languageReceipt: some View {
-        ReceiptCard(title: "Language") {
+    /// 앱 영수증(49차) — 옛 Language(1행 + 각주)와 Data(버튼 1~2개)를 합쳤다. 둘 다 "요리"도
+    /// "계정"도 아닌 **앱 자체의 설정**이라 한 장이 맞고, 각각으로는 카드 한 장을 채우지 못했다.
+    private var appReceipt: some View {
+        ReceiptCard(title: "App") {
             SettingsRow(label: "App language",
                         value: AppLanguage.resolve(stored: languageRaw).displayName(in: currentDisplayLocale)) {
                 languagePickerOpen.toggle()
@@ -387,24 +390,8 @@ struct ProfileView: View {
                 // 같은 카드 안 행(`SettingsRow`)과 **같은 세로 리듬**이다. s3으로 좁혀 두면 절취선 하나를
                 // 사이에 두고 위 행은 16, 아래 안내문은 12가 되어 카드가 아래쪽만 눌린 것처럼 읽힌다.
                 .padding(.vertical, ReffiSpace.s4)
-        }
-    }
 
-    /// 언어 선택 커밋 — `PaperDropdown`이 고르자마자 스스로 닫으므로(`paperDropdownOverlay`) 여기선
-    /// 값만 반영한다. 순서가 중요하다: AppStorage를 먼저 써야 `.environment(\.locale)`이 같은 프레임에
-    /// 새 값으로 다시 걸린다.
-    private func applyLanguage(_ language: AppLanguage) {
-        languageRaw = language.rawValue
-        language.applyAppleLanguagesOverride()
-    }
-
-    // MARK: - 데이터 관리 영수증 (샘플 불러오기·전체 초기화)
-    /// "Load the sample fridge"는 **게스트에서만** 보인다(2026-08, 36차 owner decision) — 로그인 계정은
-    /// 실 데이터를 다루므로 샘플로 갈아엎는 진입점 자체를 주지 않는다. 로그인 상태의 유일한 소스는
-    /// `accountReceipt`가 이미 읽는 `auth.isGuest`와 같다(§Account 영수증). 행과 그 아래 절취선을
-    /// **함께** 조건문에 묶어, 숨을 때 짝 잃은 `ReceiptRule`이 남지 않게 한다.
-    private var dataReceipt: some View {
-        ReceiptCard(title: "Data") {
+            ReceiptRule()
             if Self.showsSampleLoad(isGuest: auth.isGuest) {
                 QuietButton(title: "Load the sample fridge", icon: ReffiIcon.fridge, tint: ReffiColor.blueDark) {
                     if store.isPristine {
@@ -417,8 +404,7 @@ struct ProfileView: View {
                 }
                 // s4인 것이 계산이다: `QuietButton`이 자기 안에 s2(8)를 이미 갖고 있어 16 + 8 = 24 =
                 // 카드 거터(s5)가 된다. s3이던 동안 이 버튼들의 잉크만 다른 모든 줄(이름표·행 라벨)보다
-                // 4pt 왼쪽에서 시작해, 영수증 한 장 안에 왼쪽 정렬선이 둘 있었다 — "규칙 없이 섞였다"는
-                // 인상은 글자 위계만의 문제가 아니라 이렇게 어긋난 정렬선이 함께 만든다.
+                // 4pt 왼쪽에서 시작해, 영수증 한 장 안에 왼쪽 정렬선이 둘 있었다.
                 .padding(.horizontal, ReffiSpace.s4)
                 .padding(.vertical, ReffiSpace.s1)
                 ReceiptRule()
@@ -431,6 +417,18 @@ struct ProfileView: View {
         }
     }
 
+    /// 언어 선택 커밋 — `PaperDropdown`이 고르자마자 스스로 닫으므로(`paperDropdownOverlay`) 여기선
+    /// 값만 반영한다. 순서가 중요하다: AppStorage를 먼저 써야 `.environment(\.locale)`이 같은 프레임에
+    /// 새 값으로 다시 걸린다.
+    private func applyLanguage(_ language: AppLanguage) {
+        languageRaw = language.rawValue
+        language.applyAppleLanguagesOverride()
+    }
+
+    /// "Load the sample fridge"는 **게스트에서만** 보인다(2026-08, 36차 owner decision) — 로그인 계정은
+    /// 실 데이터를 다루므로 샘플로 갈아엎는 진입점 자체를 주지 않는다. 로그인 상태의 유일한 소스는
+    /// `accountReceipt`가 이미 읽는 `auth.isGuest`와 같다(§Account 영수증). 행과 그 아래 절취선을
+    /// **함께** 조건문에 묶어, 숨을 때 짝 잃은 `ReceiptRule`이 남지 않게 한다.
     /// 순수 규칙(뷰 밖에서 유닛 테스트로 고정 — `FridgeTab.initial(from:)`과 같은 문법):
     /// 샘플 로드 행은 게스트에게만 보인다.
     static func showsSampleLoad(isGuest: Bool) -> Bool { isGuest }
@@ -586,6 +584,12 @@ struct ReceiptRule: View {
 /// 그대로 유지된다. `seed`는 호출부가 인스턴스마다 다르게 줘 나란히 선 토글끼리 종이 결이 겹치지 않게 한다.
 struct SettingsToggle: View {
     let title: LocalizedStringKey
+    /// **값형 캡션이다 — 문장이 아니라 값**(49차). 3~5어로 "언제/무엇에" 하나만 답하고 줄바꿈하지
+    /// 않는다. 완결 문장을 넣던 동안 세 토글이 전부 402pt 폭에서 두 줄로 접혀 행 높이가 들쭉날쭉했고,
+    /// 캡션이 `ink2`라 라벨(`ink`)과 무게가 붙어 "라벨 > 값" 방향이 서지 않았다.
+    /// `SettingsRow`가 라벨(body/ink) > 값(metaText/ink2)으로 이미 세운 그 방향에 맞춘다 —
+    /// 여기 캡션은 role은 `caption`으로 두되 잉크를 `muted`로 한 단 내린다.
+    /// 한 문장이 꼭 필요하면 행이 아니라 **카드 마지막 각주**로 내린다(Language 영수증 선례).
     let caption: LocalizedStringKey
     @Binding var isOn: Bool
     var seed: Int = 0
@@ -594,7 +598,8 @@ struct SettingsToggle: View {
         Toggle(isOn: $isOn) {
             VStack(alignment: .leading, spacing: ReffiSpace.s0) {
                 Text(title).reffiType(.body).foregroundStyle(ReffiColor.ink)
-                Text(caption).reffiType(.caption).foregroundStyle(ReffiColor.ink2)
+                Text(caption).reffiType(.caption).foregroundStyle(ReffiColor.muted)
+                    .lineLimit(1)
             }
         }
         .toggleStyle(PaperToggleStyle(seed: seed))

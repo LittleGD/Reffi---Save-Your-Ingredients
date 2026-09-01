@@ -82,13 +82,20 @@ final class ReffiFlowUITests: XCTestCase {
         XCTAssertTrue(letsStart.waitForExistence(timeout: 4), "인트로 마지막 장에서 Let's start 등장")
         letsStart.tap()
 
-        // 셋업 시트(풀스크린) — Step 1(가구)·Step 2(취향)는 "Next"로 진행, 단계는 상단 라벨로 확인.
+        // 셋업 시트(풀스크린) — Step 1(가구)·Step 2(취향)는 "Next"로 진행, 단계는 **진행 게이지**의
+        // 낭독 라벨로 확인한다(49차). 옛 계약은 상단 "Step N of 3" 디스플레이 텍스트였는데, 그 줄과
+        // 하단 점이 같은 사실을 두 번 말해 둘을 절취 게이지 하나로 합쳤다 — 라벨은 인트로 점과 같은
+        // 문법("Intro N of 3" ↔ "Setup N of 3")으로 정렬됐고, 게이지는 `accessibilityElement()`라
+        // staticText가 아니므로 인트로 단언과 같은 `descendants(matching: .any)`로 잡는다.
         let next = app.buttons["Next"]
-        XCTAssertTrue(app.staticTexts["Step 1 of 3"].waitForExistence(timeout: 4), "셋업 시트 Step 1 진입")
+        XCTAssertTrue(app.descendants(matching: .any)["Setup 1 of 3"].waitForExistence(timeout: 4),
+                      "셋업 시트 Step 1 진입")
         next.tap()   // Step 1 → 2
-        XCTAssertTrue(app.staticTexts["Step 2 of 3"].waitForExistence(timeout: 4), "Next → Step 2")
+        XCTAssertTrue(app.descendants(matching: .any)["Setup 2 of 3"].waitForExistence(timeout: 4),
+                      "Next → Step 2")
         next.tap()   // Step 2 → 3(알림 프라이밍)
-        XCTAssertTrue(app.staticTexts["Step 3 of 3"].waitForExistence(timeout: 4), "Next → Step 3(알림)")
+        XCTAssertTrue(app.descendants(matching: .any)["Setup 3 of 3"].waitForExistence(timeout: 4),
+                      "Next → Step 3(알림)")
 
         // Step 3(알림 프라이밍) — 실제 권한 프롬프트를 띄우지 않는 "Maybe later" 경로.
         let later = app.buttons["Maybe later"]

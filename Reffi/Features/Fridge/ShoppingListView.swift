@@ -587,11 +587,34 @@ struct ShoppingListContent: View {
     /// **이력 제안의 언어**였다 — 앱이 소비 이력을 보고 "떨어진 게 없다"고 단언하는 말인데, 그 계산
     /// 결과를 더 이상 이 화면에 세우지 않으므로 그대로 두면 거짓말이 된다. 지금 참인 사실은 하나다:
     /// 아직 아무것도 안 적었다. 그래서 다음 행동(하단 "Add item")을 가리킨다.
+    /// 빈 카드 — **그림 · 문장 · 행동** 셋을 갖춘다(49차). 옛 형태는 텍스트 두 줄이 전부라
+    /// 화면에서 가장 조용한 자리가 정작 첫 사용자가 가장 오래 머무는 자리였고, 본문은 하단
+    /// 도킹 CTA를 **가리키기만** 했다(빈 상태의 행동은 스택 안에 있어야 한다 — 레퍼런스 감사).
+    /// 새 컴포넌트를 만들지 않는다: 글리프는 `FoodMotif`, 추가 행은 검색 시트의 `noMatchCard`가
+    /// 이미 쓰는 "＋ 글리프 + body 라벨 + 전폭 44pt" 문법 그대로다.
+    /// §9.4가 "카드형 빈 상태는 좌측"이라고 못 박은 갈래를 지킨다 — 중앙으로 돌리지 않는다.
     private var emptyCard: some View {
-        VStack(alignment: .leading, spacing: ReffiSpace.s2) {
-            Text("Nothing on the list").reffiType(.subhead).foregroundStyle(ReffiColor.ink)
-            Text("Tap Add item to jot down what you need.")
-                .reffiType(.body).foregroundStyle(ReffiColor.ink2)
+        VStack(alignment: .leading, spacing: ReffiSpace.s3) {
+            HStack(spacing: ReffiSpace.s3) {
+                FoodMotif(glyph: .root)
+                    .frame(width: ReffiFoodIcon.row, height: ReffiFoodIcon.row)
+                VStack(alignment: .leading, spacing: ReffiSpace.s0) {
+                    Text("Nothing on the list").reffiType(.subhead).foregroundStyle(ReffiColor.ink)
+                    Text("Jot down what you need before the next trip.")
+                        .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
+                }
+            }
+            ReffiRule(.receipt)
+            Button { showSearch = true } label: {
+                HStack(spacing: ReffiSpace.s3) {
+                    ReffiIcon.add.reffi(16, .bold).foregroundStyle(ReffiColor.blueDark)
+                    Text("Add an ingredient").reffiType(.body).foregroundStyle(ReffiColor.ink)
+                    Spacer(minLength: 0)
+                }
+                .frame(maxWidth: .infinity, minHeight: ReffiChrome.tapMin, alignment: .leading)   // §7.3
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.reffiPress)
         }
         .receiptSurface(elevated: .flat)
     }

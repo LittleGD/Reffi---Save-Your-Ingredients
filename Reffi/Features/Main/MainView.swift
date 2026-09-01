@@ -214,7 +214,15 @@ struct MainView: View {
 
             badgeRow(counter)
 
-            PaperButton(title: "Start cooking") { cook() }
+            // 보조 줄(49차) — 동사만 있는 CTA는 결과를 눌러 봐야 알 수 있었다. 임박 재료가 있을 때만
+            // 그 개수를 인쇄해 헤더의 "N at risk today"와 화면 아래 결정 지점을 잇는다.
+            // 임박이 0이면 줄을 세우지 않는다(빈 문자열로 자리를 남기지 않는다) — 곧 먹을 것만 있을 땐
+            // 미션 줄이 이미 말했으므로 CTA는 동사 하나로 돌아간다.
+            PaperButton(title: "Start cooking",
+                        // 문구는 **덱 티켓의 크라운과 같은 키**를 쓴다("Saves N expiring today") —
+                        // 같은 사실을 두 표면이 다른 말로 하면 그게 곧 §용어 분열이고, 여기선 누르기
+                        // 직전과 직후에 같은 문장이 이어져 결정이 확인된다(신규 문자열 0개).
+                        subtitle: counter.urgent > 0 ? "Saves \(counter.urgent) expiring today" : nil) { cook() }
                 .padding(.horizontal, margin)
                 .padding(.top, ReffiSpace.s3)
                 // 스크롤이 아니라 화면에 못 박힌 CTA라 **자리 예약** 쪽이다(§9.3) — 냉장고 펼침의
@@ -557,8 +565,18 @@ struct MainView: View {
     /// `wordmark`에 옮겨 헤더가 전체 폭을 먹고 leading에 고정되게 한다 — 타이틀→캡션 간격도 같은 김에
     /// Fridge `fridgeHeader`의 "제목-본문 간격" 문법(s3)으로 올린다(옛 값 s1은 이 정렬 버그와 무관하게
     /// 그냥 좁았다).
+    ///
+    /// **49차 — 위계 역전을 바로잡는다.** 화면에서 가장 큰 글자가 워드마크(34pt)였는데 그건 오늘에
+    /// 대해 아무것도 말하지 않고, 정작 이 화면의 유일한 판단 근거인 미션 문장은 `caption`(14)로
+    /// 네 번째 단에 앉아 있었다 — 정보 가치와 글자 크기가 정확히 반대였다(레퍼런스 감사: 홈 대시보드는
+    /// 예외 없이 **상태 문장**을 화면 최대 글자로 세우고 날짜를 그 위 작은 아이브로로 둔다).
+    /// 램프를 `metaText`(13 muted 날짜) → `display`(34 워드마크) → `heading`(24 미션)으로 다시 짜
+    /// 브랜드는 브랜드 자리에 남기고 **읽어야 할 문장이 가장 크게** 선다.
+    /// 계층 순증은 0이다 — `caption`이 빠지고 `heading`이 들어오며, 날짜의 `metaText`는 캡슐 네비가
+    /// 이미 쓰는 role이라 이 화면에 새 단을 만들지 않는다(§3.3 상한 7).
     private func header(_ counter: CounterDigest) -> some View {
-        VStack(alignment: .leading, spacing: ReffiSpace.s3) {
+        VStack(alignment: .leading, spacing: ReffiSpace.s2) {
+            todayLine
             wordmark
             // 미션 헤더(D) — 오늘의 상태를 한 문장으로. 누계(Ate/Tossed)는 MyPage가 맡는다.
             // **빈 작업대에서는 이 줄이 서지 않는다(43차, 오너 결정 — 같은 말 두 번 금지).**
@@ -568,10 +586,23 @@ struct MainView: View {
             // 지시는 빈 상태 블록 한 곳에 통합하고, 미션 줄은 셀 것이 있을 때만 선다.
             if let mission = missionText(counter) {
                 mission
-                    .reffiType(.caption)
-                    .foregroundStyle(counter.urgent > 0 ? ReffiColor.urgentDark : ReffiColor.ink2)
+                    // 캡션이 아니라 **헤드라인**이다(49차) — 그래서 색도 ink2가 아니라 ink다.
+                    .reffiType(.heading)
+                    .foregroundStyle(counter.urgent > 0 ? ReffiColor.urgentDark : ReffiColor.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, ReffiSpace.s1)   // 워드마크와 한 덩어리로 붙지 않게 한 단만
             }
         }
+    }
+
+    /// 오늘 날짜 아이브로(49차) — 워드마크 위 작은 시간 앵커. 데이터형 메타라 role은 `metaText`,
+    /// 잉크는 `muted`(§3.5 갈림길: 문장형은 caption, 데이터형은 metaText).
+    /// 날짜 자체는 **기기 로케일**을 따른다(§13.6 38차 정책 — 앱 언어 선택과 분리).
+    private var todayLine: some View {
+        Text(Date.now.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))
+            .reffiType(.metaText)
+            .foregroundStyle(ReffiColor.muted)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     /// 브랜드 워드마크 — 비번역 라틴(Story Script). `maxWidth: .infinity` + leading은 글자를 늘이는
@@ -1214,17 +1245,24 @@ private struct DecisionCover: View {
 
     private var card: some View {
         VStack(spacing: ReffiSpace.s5) {
-            VStack(spacing: ReffiSpace.s0) {
+            // 묻는 글자는 좌측선, 고르는 버튼 행은 가운데(49차, §9.4) — 카드 축을 하나로 두되
+            // 대칭 블롭 행만 스스로 중앙을 선언하는 형태다(조리 티켓의 그림/글자 분해와 같은 처방).
+            // 이름은 사용자 데이터라 길이가 가변이고 2줄까지 접히는데, 중앙이면 접히는 순간
+            // 시작점이 매번 달라져 같은 카드가 재료마다 다른 자리에서 시작하는 것처럼 읽혔다.
+            VStack(alignment: .leading, spacing: ReffiSpace.s0) {
                 // 바깥 s7 마진은 카드에 **제안**으로만 전해진다 — 제안을 무시하는 자식(고정 frame·끊기지
                 // 않는 긴 낱말)만이 종이를 마진 밖으로 밀어낼 수 있다. 블롭은 위 `blobSide`가 잡았고,
                 // 남은 하나가 이 이름이다(냉장고 카드·간편 행도 같은 이유로 이름을 한 줄로 묶는다).
                 Text(verbatim: ingredient.displayName).reffiType(.heading).foregroundStyle(ReffiColor.ink)
                     .lineLimit(2)
                     .minimumScaleFactor(ReffiShrink.chrome)
-                    .multilineTextAlignment(.center)
+                    .multilineTextAlignment(.leading)
                 Text("Did you eat it, or toss it?")
                     .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
             }
+            // 안쪽 블록이 제 내용 폭만 잡으면 바깥 center VStack이 그 좁은 덩어리를 도로 가운데로
+            // 민다 — 좌측선을 실제로 세우는 것은 이 전폭 프레임이다(§9.4 마지막 항).
+            .frame(maxWidth: .infinity, alignment: .leading)
             outcomeRow
             keepIt
         }

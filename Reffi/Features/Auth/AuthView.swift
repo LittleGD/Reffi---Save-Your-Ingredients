@@ -70,8 +70,13 @@ struct AuthView: View {
 
     // MARK: 워드마크
 
+    /// 좌측 정렬(49차, §9.4) — 같은 `display` role의 화면 타이틀이 앱의 나머지 전부에서 좌측이다
+    /// (홈 "Reffi" · 냉장고 "Fridge" · 온보딩 상단 워드마크). 이 화면만 중앙이었고, 바로 아래
+    /// 영수증 카드가 이미 좌측선을 갖고 있어 한 화면에 축이 둘이었다.
+    /// **`VStack(alignment:)`을 함께 바꿔야 한다** — 프레임만 바꾸면 블록만 왼쪽으로 가고 태그라인은
+    /// 워드마크 기준 가운데에 남아 "왼쪽으로 치우친 중앙"이 된다(§9.4 마지막 항).
     private var wordmark: some View {
-        VStack(spacing: ReffiSpace.s1) {
+        VStack(alignment: .leading, spacing: ReffiSpace.s1) {
             Text(verbatim: "Reffi")
                 .reffiType(.display)
                 .foregroundStyle(ReffiColor.blueDark)
@@ -79,7 +84,7 @@ struct AuthView: View {
                 .reffiType(.caption)
                 .foregroundStyle(ReffiColor.ink2)
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.bottom, ReffiSpace.s2)
         .accessibilityElement(children: .combine)
     }
@@ -197,7 +202,7 @@ struct AuthView: View {
             .foregroundStyle(ReffiColor.blueDark)
             .buttonStyle(.reffiPress)
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, alignment: .leading)   // 읽는 문장 + 링크라 카드 좌측선(§9.4)
         .frame(minHeight: ReffiChrome.tapMin)
     }
 
@@ -257,11 +262,13 @@ struct AuthView: View {
         .opacity(auth.busy && !isBusy ? ReffiOpacity.disabled : 1)
     }
 
+    /// 영수증 푸터 — 좌측(49차, §9.4). "가운데가 영수증답다"는 변론은 이 저장소에선 성립하지 않는다:
+    /// **완전히 같은 문자열·role·색**의 푸터가 공유 카드(`RecipeShareCard`)에 있고 그쪽이 좌측이다.
     private var footer: some View {
         Text(verbatim: "REFFI · KEEP IT FRESH")
             .reffiType(.monoEyebrow)
             .foregroundStyle(ReffiColor.muted)
-            .frame(maxWidth: .infinity)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.top, ReffiSpace.s1)
     }
 

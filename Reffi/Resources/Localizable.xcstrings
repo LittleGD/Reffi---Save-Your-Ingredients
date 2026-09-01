@@ -429,22 +429,12 @@
         }
       }
     },
-    "A heads-up before\nfood goes bad?": {
+    "A heads-up before food goes bad?": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "상하기 전에\n미리 알려드릴까요?"
-          }
-        }
-      }
-    },
-    "A morning reminder for what expires today and tomorrow": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "오늘·내일 소비기한인 재료를 아침에 알려드려요"
+            "value": "상하기 전에 미리 알려드릴까요?"
           }
         }
       }
@@ -533,6 +523,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "재료 몇 개만 넣어보세요. 상하기 전에\n뭘 요리할지 Reffi가 알려드려요."
+          }
+        }
+      }
+    },
+    "Add an ingredient": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "재료 추가"
           }
         }
       }
@@ -675,6 +676,17 @@
         }
       }
     },
+    "Alerts": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "알림"
+          }
+        }
+      }
+    },
     "All": {
       "localizations": {
         "ko": {
@@ -752,6 +764,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "개봉한 게 있나요?"
+          }
+        }
+      }
+    },
+    "App": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "앱"
           }
         }
       }
@@ -1030,6 +1053,17 @@
         }
       }
     },
+    "Cooking": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "요리"
+          }
+        }
+      }
+    },
     "Cooking now": {
       "localizations": {
         "ko": {
@@ -1097,16 +1131,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "유제품"
-          }
-        }
-      }
-    },
-    "Data": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "데이터"
           }
         }
       }
@@ -1421,6 +1445,17 @@
         }
       }
     },
+    "Every morning": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "매일 아침"
+          }
+        }
+      }
+    },
     "Everything is read on this device. Nothing is uploaded.": {
       "localizations": {
         "ko": {
@@ -1508,16 +1543,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "감각"
-          }
-        }
-      }
-    },
-    "Feel ingredients knock into each other on the counter": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "작업대에서 재료가 부딪히는 순간을 손끝으로 느껴요"
           }
         }
       }
@@ -1805,6 +1830,17 @@
         }
       }
     },
+    "Jot down what you need before the next trip.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "다음 장보기 전에 필요한 걸 적어 두세요."
+          }
+        }
+      }
+    },
     "Just me": {
       "localizations": {
         "ko": {
@@ -1871,16 +1907,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "한식"
-          }
-        }
-      }
-    },
-    "Language": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "언어"
           }
         }
       }
@@ -2288,16 +2314,6 @@
         }
       }
     },
-    "Notifications": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "알림"
-          }
-        }
-      }
-    },
     "Notifications are off": {
       "localizations": {
         "ko": {
@@ -2670,16 +2686,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "레시피 이름"
-          }
-        }
-      }
-    },
-    "Recipes": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "레시피"
           }
         }
       }
@@ -3239,26 +3245,6 @@
         }
       }
     },
-    "Tap Add item to jot down what you need.": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "아래 직접 담기를 눌러 살 것을 적어 보세요."
-          }
-        }
-      }
-    },
-    "Taste": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "취향"
-          }
-        }
-      }
-    },
     "Thai": {
       "localizations": {
         "ko": {
@@ -3325,16 +3311,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "기울임 중력"
-          }
-        }
-      }
-    },
-    "Tilt your phone and the ingredients roll that way": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "폰을 기울이면 재료가 그쪽으로 굴러가요"
           }
         }
       }
@@ -3782,6 +3758,28 @@
         }
       }
     },
+    "When ingredients bump": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "재료가 부딪힐 때"
+          }
+        }
+      }
+    },
+    "When you tilt the phone": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "폰을 기울일 때"
+          }
+        }
+      }
+    },
     "Where": {
       "localizations": {
         "ko": {
@@ -3858,6 +3856,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "부족한 재료 %lld개. 목록에 담기."
+          }
+        }
+      }
+    },
+    "^[Opens %lld tickets](inflect: true)": {
+      "comment": "To buy row meta; how many one-short tickets this item would unlock (48 E1)",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "티켓 %lld장이 열려요"
           }
         }
       }

@@ -555,8 +555,8 @@ h1, h2, h3 { text-wrap: balance; }
    ========================================================= */
 .stack { max-width: 380px; padding-top: var(--space-2); }
 .stack-card {
-  min-height: 98px;
-  margin-top: -54px;
+  min-height: 170px;      /* 코드 정본 — 49차 정정(옛 98은 초안값) */
+  margin-top: -60px;      /* 전진 110. 높이와 쌍으로 움직인다 */
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-stack);
   padding: var(--space-4) var(--space-5);
@@ -628,6 +628,10 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='90' height='90'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
   mix-blend-mode: overlay; opacity: 0.16; }
 .paper-btn--secondary { background: var(--color-sub); color: var(--color-ink); }
+/* 컴팩트 칩 폼(49차) — 같은 종이 표면을 한 단 줄인 변형. 보조 행동 여럿이 한 줄에 서는 자리 전용 */
+/* 13px SemiBold = §3.5 `pillLabel` — 쇼케이스에는 보조 스케일 9종의 CSS 토큰이 없어 값으로 적는다 */
+.paper-btn--compact { font: 600 13px/1.3 var(--font); padding: var(--space-2) var(--space-3); gap: var(--space-1); }
+.paper-btn--compact svg { width: 16px; height: 16px; }
 .paper-btn:active { transform: scale(0.96); }
 .paper-btn:focus-visible { outline: none; filter: drop-shadow(0 0 0 3px oklch(51.4% 0.134 249.8 / 0.45)); }
 
@@ -1558,8 +1562,14 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
                 <div class="stack-card__row"><span class="stack-card__name text">시금치</span><span class="stack-card__day num">D-1</span></div>
               </div>
               <div class="stack-card s-soon">
-                <div class="stack-card__cat">채소 · 박과</div>
-                <div class="stack-card__row"><span class="stack-card__name text">애호박</span><span class="stack-card__day num">D-2</span></div>
+                <div class="stack-card__row" style="justify-content:flex-end"><span class="stack-card__day num">D-2</span></div>
+                <div class="stack-card__row" style="margin-top:var(--space-2)">
+                  <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true" style="flex:none"><path d="M6 17 L11 8 L20 7 L25 15 L21 24 L11 25 Z" fill="var(--color-fresh)"/><path d="M11 8 L20 7 L25 15 L18 16 Z" fill="var(--color-fresh-dark)" opacity="0.35"/></svg>
+                  <span style="display:flex;flex-direction:column;gap:2px">
+                    <span class="stack-card__name text">애호박</span>
+                    <span class="stack-card__cat">채소 · 박과</span>
+                  </span>
+                </div>
               </div>
               <div class="stack-card s-fresh" style="background:oklch(82% 0.105 136)">
                 <div class="stack-card__cat">채소 · 뿌리</div>
@@ -1573,17 +1583,17 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
           </div>
 
           <div>
-            <p class="t-caption text" style="color:var(--color-ink-2);margin-bottom:var(--space-3)">애너토미 — 보이는 띠(상단 정렬)에 카테고리 + 이름 + D-N. 파스텔 면 위 글자는 ink, 카테고리는 neutral-700 솔리드, D-N은 tabular.</p>
+            <p class="t-caption text" style="color:var(--color-ink-2);margin-bottom:var(--space-3)">애너토미(49차) — 우상단 코너에 D-N 도장, 아래 행에 실루엣 + [이름 / 카테고리]. <strong>좌측 정렬선은 둘</strong>이다: 실루엣이 서는 선과 이름·카테고리가 서는 선. 옛 배치는 카테고리를 실루엣과 같은 선에 뒀는데 글리프가 상자를 안 채워 렌더 좌변이 카드마다 1.6~11.4pt씩 어긋났다. <strong>D-day 도장을 이름 행으로 내리지 않는다</strong> — 이름 가용폭이 최악 62pt로 무너진다.</p>
             <div class="anatomy">
               <div class="anatomy__card">
                 <div class="stack-card__cat">채소 · 박과</div>
                 <div class="stack-card__row"><span class="stack-card__name text">애호박</span><span class="stack-card__day num">D-2</span></div>
               </div>
               <div class="anatomy__note">
-                <p class="t-caption"><strong style="color:var(--color-ink)">카테고리</strong> — Caption/Label, neutral-700</p>
                 <p class="t-caption"><strong style="color:var(--color-ink)">이름</strong> — Subhead, ink</p>
-                <p class="t-caption"><strong style="color:var(--color-ink)">D-N</strong> — Subhead, <code class="inline">.num</code></p>
-                <p class="t-caption">곡률 radius-xl(24) · 높이 98–112 · 겹침 −54</p>
+                <p class="t-caption"><strong style="color:var(--color-ink)">카테고리</strong> — metaText, muted (이름의 종속 메타)</p>
+                <p class="t-caption"><strong style="color:var(--color-ink)">D-N</strong> — 도장, <code class="inline">.num</code></p>
+                <p class="t-caption">곡률 radius-xl(24) · 높이 <strong>170</strong> · 겹침 <strong>−60</strong> · 전진 110 (코드 정본, 49차 정정 — 두 값은 쌍이다)</p>
               </div>
             </div>
 
@@ -1638,6 +1648,19 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
         </table>
         <div class="note" style="margin-top:var(--space-3)"><strong><code class="inline">cardInset</code> 예산을 회전 없는 표면에 상속시키지 마라 — 예산은 상속되지만 근거는 상속되지 않는다.</strong> 스택에서 카드를 꺼내 평평하게 눕히는 표면(간편보기 행·펼친 상세)은 그 순간 34를 잃고 위 두 값 중 하나로 되돌아간다. 같은 24를 <code class="inline">margin + 8</code>(리터럴)로 적지도 않는다 — 표기가 갈리면 다음 튜닝에서 값이 갈린다(§4.1 <code class="inline">sN ± 리터럴</code> 금지와 같은 규율).</div>
         <div class="note" style="margin-top:var(--space-4)">지금 창 너비를 <strong>1200px 아래로</strong> 줄여보세요 — 타이포 크기, 사이드바, 카드 그리드가 모바일 시스템으로 함께 전환됩니다.</div>
+
+        <p class="subhead text" style="margin-top:var(--space-6)">9.4 정렬 (Alignment) <span class="t-caption" style="color:var(--color-muted)">— 49차</span></p>
+        <p class="t-caption text" style="color:var(--color-ink-2)">오너 지시로 <strong>읽는 텍스트는 전부 좌측</strong>이 됐다(옛 "커버=중앙 / 시트=좌측" 대비는 폐기 — §14.2). 이 절은 <strong>가로 정렬만</strong> 다룬다 — 세로 중심 맞춤은 무관하며 그대로 둔다.</p>
+        <div class="note">
+          <ul style="margin:0">
+            <li><strong>읽는 텍스트는 좌측이 기본이다.</strong> 제목·헤드라인·커버/시트 헤더·부제·본문·캡션·오류·안내가 전부 그 표면의 좌측 정렬선(페이지 마진 · 카드 안쪽 모서리 · 목록 행)에 앉는다. 줄이 길어질수록 중앙은 매 줄 시작점이 흔들려 읽는 속도를 깎는다.</li>
+            <li><strong>한 표면에 축은 하나다.</strong> 좌측선이 이미 선 카드 안에서 텍스트 한 줄만 중앙이면 위계가 아니라 <em>부유물</em>로 읽힌다 — 조리 티켓 소개문이 그 실패였다(49차 해소).</li>
+            <li><strong>중앙은 예외 셋뿐이다.</strong> ① 컨트롤 안의 라벨(버튼·칩·네비 항목) ② 모티프가 축을 세우고 주변에 정렬선이 없는 <strong>표지형</strong> 블록(온보딩 인트로·빈 작업대·빈 덱) ③ 글자가 아닌 요소(일러스트·도장·페이지 점).</li>
+            <li><strong>빈 상태는 두 갈래다.</strong> 목록 컬럼 안에 행처럼 앉는 <strong>카드형</strong>은 좌측, 영역 전체를 쓰는 <strong>표지형</strong>은 중앙 — 한쪽으로 통일하지 않는다.</li>
+            <li><strong>예외 블록은 자기가 중앙을 선언한다.</strong> 부모 스택을 중앙으로 돌리지 말고 그 요소에만 중앙 프레임을 건다 — 묶으면 형제 텍스트까지 끌려간다.</li>
+            <li><strong>정렬을 바꿀 땐 레이아웃도 같이.</strong> <code class="inline">text-align</code>만 바꾸면 문단 <em>내부</em>만 왼쪽이 되고 상자는 가운데 남는다. 네이티브에선 <code class="inline">frame(alignment:)</code>·<code class="inline">VStack(alignment:)</code>·중앙 대칭용 투명 균형자·중앙 2줄 균형용 하드 개행(en 키·ko 값 <strong>양쪽</strong>)을 같은 커밋에서 함께 걷는다.</li>
+          </ul>
+        </div>
       </section>
 
       <!-- 10. Checklist -->
@@ -1668,6 +1691,8 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">보더·이모지·순백배경·순흑텍스트·네온을 쓰지 않았는가 · 1200px 분기로 함께 전환되는가</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">(행동 표면) 종이컷 셰이프에 완벽한 원·사각·캡슐을 쓰지 않고(소형 칩·필도 <code class="inline">PaperCutRect</code> — <strong>캡슐 라우팅에 기대지 않고 이름으로 선언했는가</strong>), 종이 헤어라인을 분리 보더로 오용하지 않았는가 (§13)</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">통통 스프링을 행동 표면에만 쓰고 정보 표면(카드 스택)엔 남용하지 않았는가 · <strong>성격이 메뉴</strong>인 종이 면(드롭다운)에 <code class="inline">spring-pop</code>을 태우지 않았는가 · 추천 캐러셀에 네비 없이 닫기(X)가 있는가 (§7.1/§7.5/§13)</span></li>
+          <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">랭킹 보정을 만질 때 <strong>freshness 1차 축</strong>을 지켰는가 — IDF 클램프를 [0.85, 1.20] 밖으로 벌리지 않았고(상한/하한 비 &lt; 1.5는 제약이다), 이력 감점(패스·최근 조리)을 문턱·구제 판정에 넣지 않았는가 (MD §13.6 1-1)</span></li>
+          <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">추천 근거 숫자(해금 "티켓 N장" · 매치 분모 M/T)가 <strong>표시 시점 재계산</strong>인가 — 저장·캐시한 수치가 낡은 채 서 있지 않은가, 구제 고지가 <code class="inline">Result.rescued</code> 없는 티켓에 서지 않는가 (MD §13.5·§13.6 1-1)</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">뷰에 듀레이션·커브 리터럴을 적지 않고 토큰만 썼는가 — 없으면 콜사이트가 아니라 <strong>토큰을 새로 세웠는가</strong> (§7.1/§7.5)</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">트랜지션이 진입·이탈 <strong>비대칭</strong>인가(진입 <code class="inline">scale(0.95)</code>, 이탈만 뿅/더 빠르게) · 여럿 동시 진입에 30~80ms 스태거를 넣었는가 · 밀어 닫는 면이 미는 동안 손을 따라가는가 (§7.1)</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">종이 X 닫기가 <code class="inline">PaperCloseButton</code>인가 (시각 40 · 히트 44 · <code class="inline">paper</code> 단일 토큰, 인라인 재조립 금지 §14)</span></li>
@@ -1685,8 +1710,6 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">점선 구분을 손으로 그리지 않고 <code class="inline">ReffiRule(.receipt|.ticket)</code>을 썼는가 (§13.8)</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">성과 지표를 차트가 아니라 영수증 정산서로 세웠는가 — 한 축(건수)·도장 하나·모수 일치, 순서 없는 축에 신선도 색 재사용 금지 (§13.9/§2.4)</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">카드 그림자를 인라인 <code class="inline">.shadow(...)</code>가 아니라 <code class="inline">reffiShadowCard()</code>/<code class="inline">reffiShadowCardCompact()</code>로 얹었는가 — 토큰 밖에서 <code class="inline">.shadow</code>를 직접 부르거나 <strong>그림자 뒤에 <code class="inline">clipped()</code>를 걸지 않았는가</strong> · 스크롤 컨테이너·렌더 캔버스의 <strong>암묵 클립</strong>이 그림자와 종이 밖에 걸친 마크를 자르지 않는가(<code class="inline">scrollClipDisabled</code>/캔버스 여백) (§6.4)</span></li>
-          <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">랭킹 보정을 만질 때 <strong>freshness 1차 축</strong>을 지켰는가 — IDF 클램프를 [0.85, 1.20] 밖으로 벌리지 않았고(상한/하한 비 &lt; 1.5는 제약이다), 이력 감점(패스·최근 조리)을 문턱·구제 판정에 넣지 않았는가 (MD §13.6 1-1)</span></li>
-          <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">추천 근거 숫자(해금 "티켓 N장" · 매치 분모 M/T)가 <strong>표시 시점 재계산</strong>인가 — 저장·캐시한 수치가 낡은 채 서 있지 않은가, 구제 고지가 <code class="inline">Result.rescued</code> 없는 티켓에 서지 않는가 (MD §13.5·§13.6 1-1)</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">화면 바탕이 <code class="inline">PaperCanvasBackground</code>(= <code class="inline">canvas</code> 단색) 한 장인가 — 이 화면만 다른 틴트·프로스트를 깔지 않았는가, <code class="inline">dockedCTA(over:)</code>·하단 마스크에 넘긴 색이 실제 바탕색과 <strong>같은 토큰</strong>인가 (§13.2/§14.4)</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">확정 액션(1차 CTA)이 카드·목록 꼬리가 아니라 <strong>화면 하단 도킹</strong>(<code class="inline">dockedCTA</code>)에 있는가 (§14.4)</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">좌우 인셋이 §9.2 세 값(16 / 24 / 34) 중 하나이고, 34(<code class="inline">cardInset</code>)를 <strong>회전 없는 평평한 표면에 상속시키지 않았는가</strong></span></li>
@@ -1761,10 +1784,16 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
 
           <div class="demo-pane">
             <p class="subhead text">와이드 CTA · 종이 버튼 (8각형)</p>
-            <p class="lbl">모서리 잘린 길쭉한 8각형 + <strong>솔리드 색 + 종이 질감</strong>(그라데이션·아이콘 없음) + 통통 프레스(scale 0.96).</p>
+            <p class="lbl">모서리 잘린 길쭉한 8각형 + <strong>솔리드 색 + 종이 질감</strong>(그라데이션 없음) + 통통 프레스(scale 0.96). <strong>선행 아이콘은 선택</strong>(49차) — 아이콘 하나 때문에 콜사이트가 표면을 재조립하던 길을 막는다. 아이콘 색은 라벨과 같고, <code class="inline">.fill</code> 웨이트는 브랜드 마크에만.</p>
             <div class="demo-bar">
               <button class="paper-btn">요리 시작</button>
               <button class="paper-btn paper-btn--secondary">나중에</button>
+            </div>
+            <p class="lbl" style="margin-top:var(--space-4)"><strong>컴팩트 칩 폼</strong>(49차) — 같은 표면을 라벨 <code class="inline">pillLabel</code>(13)·아이콘 16·패딩 <code class="inline">s3/s2</code>로 줄인 변형. <strong>보조 행동 여럿이 한 줄에 서는 자리</strong> 전용이다: 선택적 유틸리티 셋을 전폭 버튼으로 쌓으면 카드 세로의 3분의 1을 먹고 도킹 1차 CTA와 무게가 겨룬다. 시각 34pt대 / 히트 <code class="inline">--tap-min</code>, 한 줄에 안 들어가면 전폭 스택으로 되내려간다.</p>
+            <div class="demo-bar">
+              <button class="paper-btn paper-btn--secondary paper-btn--compact">조리법</button>
+              <button class="paper-btn paper-btn--secondary paper-btn--compact">영상</button>
+              <button class="paper-btn paper-btn--secondary paper-btn--compact">공유</button>
             </div>
           </div>
 
@@ -1835,6 +1864,7 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
           <div class="demo-pane" style="grid-column: 1 / -1;">
             <p class="subhead text">종이 토글 · <code class="inline">PaperToggleStyle</code></p>
             <p class="lbl">스톡 <code class="inline">Toggle</code>의 캡슐 스위치를 손으로 자른 종이로 재질만 바꾼 <code class="inline">ToggleStyle</code>. 트랙은 <code class="inline">PaperRect(cornerRadius:.pill)</code>이 pill 스케일에서 스스로 라우팅하는 <strong>8각 필</strong>, 손잡이는 <code class="inline">PaperBlob(sides: 9)</code> 종이 조각. 스톡 iOS 스위치 실측(51 × 31 · 손잡이 27 · 인셋 2)에 히트 영역은 44pt(§7.3). <strong>눌러서 상태를 바꿔 보세요.</strong></p>
+            <p class="lbl"><strong>행의 캡션은 문장이 아니라 값이다</strong>(49차) — 3~5어로 "언제/무엇에"만 답하고 줄바꿈하지 않는다(Expiry alerts / <em>Every morning</em>). 완결 문장은 402pt 폭에서 두 줄로 접혀 행 높이를 들쭉날쭉하게 만들었고, <code class="inline">ink-2</code> 잉크가 라벨과 무게가 붙어 "라벨 &gt; 값" 방향을 지우고 있었다. role은 <code class="inline">caption</code>을 두되 잉크를 <code class="inline">muted</code>로 한 단 내린다. 한 문장이 꼭 필요하면 행이 아니라 <strong>카드 마지막 각주</strong>로.</p>
             <div class="demo-bar" style="gap:var(--space-5);flex-wrap:wrap">
               <div class="ptoggle-row" style="flex:1 1 260px">
                 <span class="t">Expiry alerts</span>
@@ -2069,7 +2099,7 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
         </div>
 
         <p class="subhead text">헤더 — 목적별 2종</p>
-        <p class="t-caption text" style="color:var(--color-ink-2);margin-bottom:var(--space-4)">헤더는 목적에 따라 <strong>2개 컴포넌트로 분리</strong>하고, 화면마다 인라인으로 복붙하지 않는다. 두 헤더의 성격 차이는 <strong>정렬</strong>로 표현한다 — 커버는 중앙, 시트는 좌측. 타이포는 <strong>둘 다 <code class="inline">.heading</code>으로 통일</strong>하며 <code class="inline">.subhead</code> 예외를 두지 않는다.</p>
+        <p class="t-caption text" style="color:var(--color-ink-2);margin-bottom:var(--space-4)">헤더는 목적에 따라 <strong>2개 컴포넌트로 분리</strong>하고, 화면마다 인라인으로 복붙하지 않는다. 두 헤더는 <strong>같은 좌측 정렬선</strong>을 쓴다(49차) — 성격 차이는 정렬이 아니라 닫기 신호(커버=X 상시 / 시트=핸들)와 타이틀 보호(2줄 접힘 / 한 줄 말줄임)로 낸다. 타이포는 <strong>둘 다 <code class="inline">.heading</code>으로 통일</strong>하며 <code class="inline">.subhead</code> 예외를 두지 않는다.</p>
         <div class="paper-demo">
           <div class="demo-pane">
             <p class="lbl"><code class="inline">SheetHeader</code> — 하단 시트. 좌측 타이틀(한 줄·말줄임) + (선택)X. dragIndicator(핸들)를 전제한다(<code class="inline">SheetShell</code>을 쓰면 셸이 보증). 인라인 헤더 예외는 0 — 동적 타이틀 truncation 보호는 컴포넌트가 흡수한다.</p>
@@ -2096,7 +2126,7 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
         <table class="tbl" style="margin-top:var(--space-4)">
           <thead><tr><th>컴포넌트</th><th>용도</th><th>타이틀 정렬</th><th>타이포</th><th>닫기</th></tr></thead>
           <tbody>
-            <tr><td><code class="inline">CoverHeader</code></td><td>풀스크린 커버</td><td>중앙</td><td><code class="inline">.heading</code></td><td><code class="inline">PaperCloseButton</code>(X)</td></tr>
+            <tr><td><code class="inline">CoverHeader</code></td><td>풀스크린 커버</td><td><strong>좌측</strong></td><td><code class="inline">.heading</code></td><td><code class="inline">PaperCloseButton</code>(X)</td></tr>
             <tr><td><code class="inline">SheetHeader</code></td><td>하단 시트</td><td>좌측</td><td><code class="inline">.heading</code></td><td>선택적 X, dragIndicator 전제</td></tr>
           </tbody>
         </table>
