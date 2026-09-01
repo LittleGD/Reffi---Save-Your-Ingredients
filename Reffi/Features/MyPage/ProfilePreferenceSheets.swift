@@ -300,19 +300,41 @@ struct NotifyTimeSheet: View {
     /// 다이얼 한 칸 — 더는 버튼이 아니다(선택은 탭이 아니라 다이얼 위치가 말한다). 중심에서의
     /// 연속 거리(`distance`)로 원근을 매겨 시스템 휠의 페이드를 종이 문법으로 옮긴다. `topInset`은
     /// 호출부(`GeometryReader`)가 재는 밴드 상단 여백 — `dialDistance`가 왜 필요한지는 그쪽 주석.
+    ///
+    /// **60차 — 선택(밴드 중앙) 행만 hero(32)로 확대한다(오너 판정, §3.4).** §3.4의 숫자 3단
+    /// 규율은 새 중간 크기 발명을 금지하지만, `hero`는 애초 "화면당 하나뿐인 주지표"를 위해 남겨
+    /// 둔 단이고 이 다이얼이 지금 보여주는 선택된 시각이 정확히 그 자리다 — 그래서 넷째 단을 여는
+    /// 대신 이미 있는 hero·body 두 단 사이에서 이 행의 소속만 거리로 정한다. `body`·`hero` 두
+    /// `Text`를 겹쳐 두고 `dialHeroBlend`로 불투명도만 크로스페이드하는 이유는 `Font`가 SwiftUI의
+    /// 보간 대상이 아니기 때문이다(opacity·scale과 달리 폰트 자체를 바꾸면 중간 프레임 없이 즉시
+    /// 팝된다). 두 레이어가 각자 제 role로 그려지므로(`hero`의 `.largeTitle` 램프, `body`의
+    /// `.subheadline` 램프) 크로스페이드 도중에도 접근성 글자 크기마다 그 role의 진짜 Dynamic
+    /// Type 곡선을 탄다 — body를 상수 배율로 스케일업하는 방식이었다면 hero의 실제 곡선과
+    /// 어긋났을 것이다. `rowHeight`·`topInset`·`snapIndex`는 전혀 건드리지 않는다 — hero는
+    /// 시각 크로스페이드일 뿐 스냅 기하와 무관해 56~58차가 잠근 앵커 테스트가 그대로 선다.
     private func dialRow(_ hour: Int, topInset: CGFloat) -> some View {
         let label = Self.hourLabel(hour)
         let index = Self.index(ofHour: hour) ?? 0
         let distance = Self.dialDistance(index: index, scrollOffsetY: scrollOffsetY,
                                           topInset: topInset, rowHeight: Self.rowHeight)
         let perspective = Self.dialPerspective(distance: distance)
-        return Text(verbatim: label)
-            .font(.reffiNum(.body, for: label))
-            .foregroundStyle(ReffiColor.ink)
-            .frame(maxWidth: .infinity)
-            .frame(height: Self.rowHeight)
-            .opacity(perspective.opacity)
-            .scaleEffect(reduceMotion ? 1 : perspective.scale)
+        let rawHeroBlend = Self.dialHeroBlend(distance: distance)
+        // 리듀스모션에선 크로스페이드 대신 즉시 전환(§7.4) — 0.5 문턱은 두 이웃 행이 정확히
+        // 절반씩 걸치는 대칭 핸드오프 지점과 같아, 끊어도 어색하지 않다.
+        let heroBlend = reduceMotion ? (rawHeroBlend >= 0.5 ? 1.0 : 0.0) : rawHeroBlend
+        return ZStack {
+            Text(verbatim: label)
+                .font(.reffiNum(.body, for: label))
+                .opacity(1 - heroBlend)
+            Text(verbatim: label)
+                .font(.reffiNum(.hero, for: label))
+                .opacity(heroBlend)
+        }
+        .foregroundStyle(ReffiColor.ink)
+        .frame(maxWidth: .infinity)
+        .frame(height: Self.rowHeight)
+        .opacity(perspective.opacity)
+        .scaleEffect(reduceMotion ? 1 : perspective.scale)
     }
 
     // MARK: - 순수 로직(뷰 렌더 없이 `NotifyTimeSheetTests`가 잠근다 — 56차)
@@ -370,6 +392,22 @@ struct NotifyTimeSheet: View {
         let opacity = 1 - clamped * ((1 - perspectiveOpacityFloor) / perspectiveRange)
         let scale = 1 - clamped * ((1 - perspectiveScaleFloor) / perspectiveRange)
         return (opacity, CGFloat(scale))
+    }
+
+    /// Hero 전이 폭(60차) — 이 폭 안에서 선택 행(hero)과 인접 행(body) 사이를 선형 크로스페이드
+    /// 한다. 1행 전체를 쓰는 이유는 대칭 핸드오프다: 인접 행이 정확히 밴드 중앙에 오는 순간
+    /// (거리 1)엔 이 행이 완전히 body로 넘어가 있어야, 두 행이 동시에 hero로 보이는 "이중
+    /// 히어로" 순간이 생기지 않는다. `perspectiveRange`(2.5, 옅음·작아짐의 감쇠 폭)와 다른
+    /// 축이라 별도 상수다 — 저건 "몇 행 떨어지면 바닥에 닿는가", 이건 "몇 행 안에서 딱 한
+    /// 행만 hero로 남는가"라 감쇠 곡선을 공유할 이유가 없다.
+    private static let heroBlendRange: Double = 1.0
+
+    /// 선택 행 hero 확대(60차, §3.4) — 이 행이 지금 "화면당 하나뿐인 주지표" 자리에 얼마나
+    /// 들어와 있는가(0=완전 body, 1=완전 hero). 중심(거리 0)에서 1, `heroBlendRange` 밖에서
+    /// 0 — 선형 보간. 순수 함수라 스크롤·뷰 없이 잠글 수 있다(`dialRow`가 실제 렌더에 쓴다).
+    static func dialHeroBlend(distance: Double) -> Double {
+        let clamped = min(abs(distance), heroBlendRange)
+        return 1 - clamped / heroBlendRange
     }
 
     /// 접근성 adjustable 스텝 — 위/아래 스와이프 한 번 = 한 시간 칸. 경계(06·21시)에서 랩어라운드

@@ -244,6 +244,35 @@ struct NotifyTimeSheetTests {
         #expect(NotifyTimeSheet.snapIndex(forOffset: 10_000, topInset: 76, rowHeight: 44, count: 16) == 15)
     }
 
+    // MARK: - 60차 다이얼 hero 전이(선택 행 확대, §3.4 — 오너 판정)
+
+    /// 중심(거리 0)은 완전 hero(1)다 — §3.4가 hero를 위해 남겨 둔 "화면당 하나"의 자리를
+    /// 선택된 시각이 차지한다는 판정의 순수 로직 절반.
+    @Test func heroBlendAtCenterIsFullyHero() {
+        #expect(NotifyTimeSheet.dialHeroBlend(distance: 0) == 1)
+    }
+
+    /// 인접 행이 밴드 중앙에 온 순간(거리 1)엔 이 행이 완전히 body로 넘어가 있다 — 두 행이
+    /// 동시에 hero로 보이는 "이중 히어로" 순간을 만들지 않는 대칭 핸드오프.
+    @Test func heroBlendReachesZeroAtAdjacentRow() {
+        #expect(NotifyTimeSheet.dialHeroBlend(distance: 1) == 0)
+        #expect(NotifyTimeSheet.dialHeroBlend(distance: -1) == 0)
+    }
+
+    /// 절반 지점(거리 0.5)에서 정확히 절반씩 섞인다 — 두 이웃 행이 대칭으로 크로스페이드하는지,
+    /// 스크롤 방향에 상관없이 같은 거리는 같은 세기인지(`dialPerspective`의 대칭 계약과 같은 결).
+    @Test func heroBlendIsLinearAndSymmetric() {
+        #expect(NotifyTimeSheet.dialHeroBlend(distance: 0.5) == 0.5)
+        #expect(NotifyTimeSheet.dialHeroBlend(distance: -0.5) == 0.5)
+    }
+
+    /// 감쇠 범위 밖(먼 행)에서는 음수로 뒤집히지 않고 0에서 멈춘다 — `dialPerspective`의 바닥
+    /// 가드와 짝을 맞춘다.
+    @Test func heroBlendFloorsBeyondRange() {
+        #expect(NotifyTimeSheet.dialHeroBlend(distance: 2.5) == 0)
+        #expect(NotifyTimeSheet.dialHeroBlend(distance: -50) == 0)
+    }
+
     /// 접근성 adjustable 스텝 — 위/아래 스와이프 한 번 = 한 시간 칸.
     @Test func adjustableStepMovesOneHour() {
         #expect(NotifyTimeSheet.steppedHour(from: 9, direction: .increment) == 10)
