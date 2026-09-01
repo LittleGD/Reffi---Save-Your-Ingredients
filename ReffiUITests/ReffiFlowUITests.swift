@@ -374,6 +374,38 @@ final class ReffiFlowUITests: XCTestCase {
                           "다른 패인의 판정이 History에 반영돼야 한다(분모가 최소 1 늘어난다)")
     }
 
+    // MARK: Fridge — 하단 더미 위로 크게 스와이프하면 커버가 닫히고 리스트로 복귀(57차-a)
+
+    /// 사용자 지시: "아래 티켓들을 위로 올리면 이전 리스트로 돌아가게". 펼친 상세 하단 더미(다음
+    /// 재료 덱) 위에서 시작한 크고 빠른 위쪽 스와이프는 X와 같은 경로(`deselect`)로 커버를 닫아야
+    /// 한다. 시작점을 Tossed 버튼 바로 아래(더미가 실제로 서는 자리)로 잡아 히트 영역이 더미로
+    /// 한정된다는 계약도 함께 고정한다 — 영수증·버튼 위에서 시작한 위쪽 스와이프는 여전히
+    /// "다음 재료로 넘기기"이지 닫기가 아니다(그 회귀는 `advanceDrag`의 기존 분기가 계속 지킨다).
+    func testFridge_SwipeUpOnBottomDeck_ClosesCoverAndReturnsToList() {
+        let app = XCUIApplication()
+        // -fridgeExpand: 첫 재료의 펼친 상세로 바로 착지 — 샘플 냉장고는 재료가 여럿이라 하단
+        // 더미가 실제로 선다(재료가 하나뿐이면 더미 대신 네비 예약 띠가 서서 이 제스처가 무의미해진다).
+        app.launchArguments = ["-skipAuth", "-onboarding.done", "YES",
+                               "-fridgeTab", "-uiTestSampleFridge", "-fridgeExpand"]
+        app.launch()
+
+        let toss = app.buttons["Tossed"]
+        XCTAssertTrue(toss.waitForExistence(timeout: 8), "펼친 상세의 Tossed 버튼")
+        attach(app, named: "swipe-dismiss-before")
+
+        // 더미는 판정 버튼 아래 s7(32) + 자기 몫의 톱니 여백을 두고 선다 — 버튼 바로 아래 지점에서
+        // 시작하면 더미의 히트 영역 안이다(위 상수 실측 여유 70pt). 느린 프레스(0.2s)로 눌러 속도
+        // 성분보다 실제 변위(220pt > `deckDismissDistance` 100pt)가 판정을 결정하게 한다.
+        let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0))
+            .withOffset(CGVector(dx: 0, dy: toss.frame.maxY + 70))
+        start.press(forDuration: 0.2, thenDragTo: start.withOffset(CGVector(dx: 0, dy: -220)))
+
+        waitForDisappearance(toss, "더미 위로 크게 스와이프하면 판정 버튼과 함께 커버가 닫혀야 한다")
+        XCTAssertTrue(stockCard(app, "Beef").waitForExistence(timeout: 4),
+                      "커버가 닫히면 In stock 리스트(재고 카드)가 다시 보여야 한다")
+        attach(app, named: "swipe-dismiss-after-list")
+    }
+
     // MARK: To buy — 사전 밖 이름 직접 입력 담기
 
     /// 검색 시트의 **직접 입력 담기**: 사전에 없는 이름을 친 그대로 메모에 담는다.

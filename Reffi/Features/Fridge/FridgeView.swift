@@ -55,6 +55,10 @@ struct FridgeView: View {
     /// 상세 좌표계(`DetailSpace`)에서 영수증 스크롤 뷰의 바닥선 — 넘김 제스처가 "여기부터는 내 몫"을
     /// 가르는 경계. 손을 대기 전 값만 받는다(측정 지점 주석).
     @State private var receiptBottomY: CGFloat = 0
+    /// 상세 좌표계에서 하단 더미(덱, 없으면 그 자리의 네비 예약 띠)의 윗선 — 큰 위쪽 스와이프가
+    /// "더미 위에서 시작했다"고 판정하는 경계(57차-a, `advanceDrag`의 닫기 분기). 기본값 `.infinity`는
+    /// 첫 레이아웃 전에는 어떤 시작점도 이 경계를 넘지 못하게 하는 안전값이다(측정 전 오발동 방지).
+    @State private var deckTopY: CGFloat = .infinity
     /// 직전 넘김의 방향 — 펼침 전환의 앵커만 정한다(아래 `AdvanceDirection`).
     @State private var advanceDir: AdvanceDirection = .tap
 
@@ -608,12 +612,22 @@ struct FridgeView: View {
             .padding(.bottom, ReffiSpace.s3)
             outcomeButtons(sel)
             Spacer(minLength: ReffiSpace.s7)   // 32 — 판정 버튼은 위(영수증)에 속한다는 구조적 선언
-            if !following.isEmpty {
-                bottomDeck(following, previous: previous)
-            } else {
-                // 마지막 재료 — 하단 덱이 없으면 그 몫의 네비 자리 예약도 사라져
-                // Ate/Tossed 버튼이 떠 있는 네비 밑에 깔린다. 덱 자리만큼 바닥을 비워둔다.
-                Color.clear.frame(height: ReffiChrome.navReserve)
+            Group {
+                if !following.isEmpty {
+                    bottomDeck(following, previous: previous)
+                } else {
+                    // 마지막 재료 — 하단 덱이 없으면 그 몫의 네비 자리 예약도 사라져
+                    // Ate/Tossed 버튼이 떠 있는 네비 밑에 깔린다. 덱 자리만큼 바닥을 비워둔다.
+                    Color.clear.frame(height: ReffiChrome.navReserve)
+                }
+            }
+            // 두 분기 중 어느 쪽이 서 있든 **같은 자리**에서 윗선을 잰다(57차-a) — 마지막 재료라
+            // 덱이 없어도 그 자리의 네비 예약 띠가 대신 경계를 낸다(스택된 값이 이전 재료의 덱
+            // 윗선으로 굳어 있는 채로 남는 사고를 막는다). 덱 카드 자체는 `.offset`으로만 움직이므로
+            // 드래그 중에도 이 프레임은 흔들리지 않는다(`receiptBottomY`처럼 `deckLift == 0` 가드가
+            // 필요 없다).
+            .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named(DetailSpace.name)).minY } action: { y in
+                deckTopY = y
             }
         }
         // 넘김 제스처의 면은 **화면 전체**다(아래 `advanceDrag`). `contentShape`로 빈 캔버스까지
@@ -668,6 +682,25 @@ struct FridgeView: View {
                 // 사람은 이미 "밀어 올렸다"고 느낀다. 던진 속도(`predictedEndTranslation`)를 함께
                 // 본다: 끝까지 끌었거나(변위), 짧아도 세게 튕겼으면(예측) 넘긴다.
                 let d = v.translation.height, p = v.predictedEndTranslation.height
+                // 하단 더미 위에서 시작한 **큰** 위쪽 스와이프 — 커버를 닫고 리스트로 복귀한다(57차-a,
+                // "아래 티켓들을 위로 올리면 이전 리스트로 돌아가게"). 아래 "다음 카드로 한 장 넘기기"
+                // 분기보다 **먼저** 검사해야 한다 — 같은 제스처 하나(`DragGesture` 인스턴스 하나)를
+                // 재사용하므로 새 인식기를 얹어 생기는 이중 발화가 구조적으로 없다: 더미 위에서
+                // 시작했고(`deckTopY` 밖에서는 절대 참이 되지 않는다) 이 값을 넘겨야만 닫히고,
+                // 못 넘기면 그대로 아래 분기로 떨어져 **종전처럼** 다음 카드로 넘긴다 — 히트 영역이
+                // 더미로 한정되면서도 "살짝 밀면 한 장, 세게 치우면 전부"라는 자연스러운 힘의 위계가 된다.
+                // 닫기는 X와 **같은 경로**(`deselect`)를 그대로 불러 상태 정리 로직을 중복하지 않는다.
+                // 햅틱은 새로 추가하지 않는다 — `PaperCloseButton`(X)도 의미 햅틱이 없어(§7.6 표는
+                // 판정·성공·파괴만 다루고 닫기는 순수 정보성 전환이다), "기존 닫기와 같은 결"은 여기서
+                // 무음이 곧 그 결이다. 모션은 `deselect()`가 이미 쓰는 `motion`(reduceMotion이면 nil)이
+                // 그대로 처리하고, 더미가 손을 따라 오르는 페이퍼 모션·미달 시 원위치 스프링도 위
+                // `.updating`의 `deckLift`(reduceMotion 게이트 포함)와 `@GestureState`의 자동 리셋
+                // 스프링(`.settle`)을 그대로 물려받는다 — 새 모션 코드가 필요 없다.
+                if v.startLocation.y >= deckTopY,
+                   d < -Self.deckDismissDistance || p < -Self.deckDismissPredicted {
+                    deselect()
+                    return
+                }
                 if d < -Self.deckAdvanceDistance || p < -Self.deckAdvancePredicted {
                     if let next { markAdvanced(); select(next, direction: .forward) }
                 } else if d > Self.deckAdvanceDistance || p > Self.deckAdvancePredicted {
@@ -853,13 +886,28 @@ struct FridgeView: View {
         // 46차엔 이 자리에만 붙어 있었고(옛 "위로 밀어 닫기"의 자리를 그대로 물려받았다) 그 결과
         // 유효 면적이 화면의 9.5%였다. 덱에 하나 더 붙이면 덱 위에서 두 번 발화하므로 **다시 붙이지 마라.**
         //
-        // 닫는 길은 그대로 둘이다: ① 오른쪽 위 종이 X(`doneBar`) ② 영수증 본문 탭
+        // 닫는 길은 원래 둘이었다: ① 오른쪽 위 종이 X(`doneBar`) ② 영수증 본문 탭
         // (`onTapGesture { deselect() }`). 아래로 미는 손이 "이전 재료"인 이유가 이것이다 —
-        // 닫기 경로가 이미 둘인데 세 번째를 만드는 것보다, 넘김을 양방향으로 완성하는 편이 낫다.
+        // 46차 시점엔 닫기 경로가 이미 둘인데 세 번째를 만드는 것보다, 넘김을 양방향으로
+        // 완성하는 편이 나았다(그래서 아래로 밀어 닫는 세 번째 경로는 만들지 않았다).
+        //
+        // **57차-a가 세 번째 닫기 경로를 더한다** — 단 방향도 자리도 다르다: 이 더미 **위에서
+        // 시작한, 위로 미는, 세게 던진** 스와이프만 닫는다(위 `advanceDrag`의 `deckDismissDistance`
+        // 분기). 아래로 미는 손은 여전히 "이전 재료"고, 위 46차 결론(도달 범위가 넓은 제스처 면
+        // 전체에 세 번째 닫기를 얹지 않는다)도 그대로다 — 새 경로는 히트 영역을 이 더미로,
+        // 힘의 크기를 "카드 한 장 넘기기"보다 뚜렷이 크게 좁혀서, 아래로 미는 손과도 넘기려는
+        // 손과도 부딪히지 않는 오너 요청의 새 지점이다.
         //
         // 미는 제스처는 보조기술에 없다 — 넘김을 **양방향 액션**으로 낸다. 제스처가 두 방향이 된
         // 순간 액션이 한 방향뿐이면 보조기술 사용자만 도달하지 못하는 재료가 생긴다.
         // 라벨이 덱 위에서 읽히므로 무엇의 다음/이전인지는 문맥이 말한다.
+        //
+        // **닫기는 여기에 같은 방식(전용 액션)을 얹지 않는다(57차-a 판단).** 위 Next/Previous가
+        // 액션으로 존재하는 이유는 "제스처 말고는 도달할 방법이 아예 없어서"다 — 덱엔 이전 재료로
+        // 가는 버튼이 없다. 닫기는 다르다: `PaperCloseButton`(X)이 이미 상시 노출된, 전량 접근
+        // 가능한 경로라 보조기술 사용자가 못 닿는 상태 자체가 없다. 이 저장소 전체에
+        // `accessibilityAction(.escape)` 선례도 없다(그렙 확인) — 없는 관례를 이 화면 하나에
+        // 처음 만드는 근거가 없고, 만들어도 X와 완전히 같은 동작을 한 번 더 노출할 뿐이다.
         .accessibilityAction(named: Text("Next")) {
             if let next { select(next, direction: .forward) }
         }
@@ -894,6 +942,15 @@ struct FridgeView: View {
     private static let deckAdvanceDistance: CGFloat = 36
     /// 튕겨 넘기는 예측 변위 — 감속까지 더한 예측이라 실제 변위보다 크게 잡는다.
     private static let deckAdvancePredicted: CGFloat = 120
+
+    /// 하단 더미를 밀어 커버를 닫는 변위(57차-a) — `deckAdvanceDistance`(36)를 그대로 쓰면 "다음
+    /// 카드를 보려던" 손이 커버 전체를 닫아 버린다. 덱 한 장의 히트 영역(74, `FridgeCardHead` 주석)을
+    /// 웃도는 값으로 잡아 "카드 한 장을 넘긴다"가 아니라 "더미 전체를 밀어 치운다"는 힘이 실렸을
+    /// 때만 반응한다.
+    private static let deckDismissDistance: CGFloat = 100
+    /// 닫기의 예측 변위 — `deckAdvancePredicted`가 `deckAdvanceDistance`의 ≈3.3배였던 기존 비율을
+    /// 그대로 유지해, 짧고 강한 플릭도 "다음 카드"보다 세게 던져야 닫기로 커밋되게 한다.
+    private static let deckDismissPredicted: CGFloat = 330
 
     // MARK: 헤더 — "여기가 어디인가(Fridge · N) → 무엇을 보는가(탭) → 목록 조작(컨트롤 한 줄)"의 순서.
 
