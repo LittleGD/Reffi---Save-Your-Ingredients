@@ -290,6 +290,17 @@ final class ReffiFlowUITests: XCTestCase {
         app.buttons["Sort: Recently added"].tap()
         app.buttons["Expiring first"].tap()
         XCTAssertTrue(app.buttons["Sort: Expiring first"].waitForExistence(timeout: 4), "기본 정렬 복귀")
+
+        // 목록 스크롤 — 59차: 컨트롤 행(필터·정렬)이 탭 행과 같은 스크롤 밖 고정 크롬으로
+        // 승격됐다. 옛 버그는 목록을 스크롤하면 이 줄이 함께 밀려 올라가 사라지는 것이었다.
+        attach(app, named: "fridge-in-stock-before-scroll")
+        for _ in 0..<4 where stockCard(app, "Beef").isHittable { app.swipeUp() }
+        XCTAssertFalse(stockCard(app, "Beef").isHittable, "스크롤 전제 확인 — 맨 위 카드는 화면 밖으로 밀려야 한다")
+        XCTAssertTrue(app.buttons["Filter: All"].isHittable,
+                      "카테고리 필터는 스크롤 밖 고정 크롬이라 목록을 스크롤해도 남아 있어야 한다")
+        XCTAssertTrue(app.buttons["Sort: Expiring first"].isHittable,
+                      "정렬 칩은 스크롤 밖 고정 크롬이라 목록을 스크롤해도 남아 있어야 한다")
+        attach(app, named: "fridge-in-stock-after-scroll")
     }
 
     // MARK: History 히어로 — 오늘의 판정이 곧 값 덩이와 오늘 칩의 값

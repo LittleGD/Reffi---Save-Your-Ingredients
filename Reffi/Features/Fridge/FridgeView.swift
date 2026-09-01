@@ -204,7 +204,7 @@ struct FridgeView: View {
                     expanded(sel, in: list)
                 } else {
                     VStack(spacing: 0) {
-                        fridgeHeader
+                        fridgeHeader(list)
                         pane(list)
                     }
                 }
@@ -378,16 +378,40 @@ struct FridgeView: View {
 
     @State private var dayTick = 0   // 자정 리렌더 트리거
 
-    // MARK: 고정 헤더 — 타이틀 + 탭 행. 스크롤 밖이다: 세 패인을 오가는 조작이라 항상 같은 자리에
-    // 있어야 하고, 스크롤과 함께 사라지면 "지금 어느 탭인가"라는 유일한 표시를 잃는다.
-    private var fridgeHeader: some View {
-        VStack(alignment: .leading, spacing: ReffiSpace.s3) {   // s3 = 제목-본문 간격
-            titleRow
-            FridgeTabBar(selection: $tab)
+    // MARK: 고정 헤더 — 타이틀 + 탭 행 + (In stock일 때) 컨트롤 한 줄. 스크롤 밖이다: 세 패인을
+    // 오가는 조작이라 항상 같은 자리에 있어야 하고, 스크롤과 함께 사라지면 "지금 어느 탭인가"라는
+    // 유일한 표시를 잃는다.
+    //
+    // 컨트롤 행(필터·정렬·보기 토글)은 59차에 여기로 승격됐다 — 옛 위치(`stockPane` 스크롤 콘텐츠의
+    // 첫 줄)에서는 목록을 스크롤하면 탭 행 밑으로 함께 밀려 올라가 사라졌다. 아래 `controlRow` 앞
+    // MARK 주석("여기가 어디인가 → 무엇을 보는가 → 목록 조작"의 순서)이 애초에 셋을 한 헤더로
+    // 서술하고 있었는데 구현만 갈라져 있었다 — 서술을 코드가 뒤늦게 따라잡은 것이다.
+    // `pinnedScrollableViews` 스티키 헤더 대신 **완전히 스크롤 밖**에 두는 쪽을 골랐다: 스티키는
+    // 여전히 스크롤 콘텐츠의 일부라 카드가 그 뒤로 지나가지 않게 불투명 배경을 별도로 덧대야 하고,
+    // "세 패인을 오가는 조작이라 항상 같은 자리"라는 위 철학 자체가 스크롤 영역 안에서 들러붙는
+    // 것이 아니라 스크롤 영역 밖에 서는 것을 말한다 — 탭 행이 이미 그 방식으로 서 있다.
+    private func fridgeHeader(_ list: ListDigest) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: ReffiSpace.s3) {   // s3 = 제목-본문 간격
+                titleRow
+                FridgeTabBar(selection: $tab)
+            }
+            // 필터·정렬·보기 토글은 스택 목록 전용 파라미터라 To buy·History에는 의미가 없다 —
+            // 그 두 패인은 옛 동작 그대로 컨트롤 없이 탭 행 바로 아래에서 시작한다.
+            if tab == .stock {
+                controlRow(list)
+                    // 탭 ↔ 컨트롤 간격 — 옛 "탭 ↔ 패인" 경계값(s5)을 그대로 승계해 이음매의
+                    // 체감 간격이 달라지지 않게 한다.
+                    .padding(.top, ReffiSpace.s5)
+                    // AX 크기에서 텍스트가 무한정 자라면 고정 헤더가 화면을 과점한다 — 바로 위
+                    // 탭 행과 같은 상한(accessibility1)을 걸어 헤더 높이를 예측 가능하게 묶는다
+                    // (`FridgeTabBar`의 같은 캡과 같은 이유: 크롬은 콘텐츠가 아니다).
+                    .dynamicTypeSize(...DynamicTypeSize.accessibility1)
+            }
         }
         .padding(.horizontal, ReffiGrid.margin)
         .padding(.top, ReffiSpace.s5)
-        // **탭 행 ↔ 패인의 유일한 경계**다 — 세 패인 모두 자체 상단 패딩이 없으므로(실측 확인)
+        // **헤더 ↔ 패인의 유일한 경계**다 — 세 패인 모두 자체 상단 패딩이 없으므로(실측 확인)
         // 이 한 값이 셋에 그대로 간다. s4(16)에서 s5(24)로 넓혀 탭이 콘텐츠에서 숨을 쉬게 한다:
         // 탭은 화면의 IA라 아래 목록에 붙어 있으면 목록의 머리처럼 읽힌다.
         .padding(.bottom, ReffiSpace.s5)
@@ -408,10 +432,9 @@ struct FridgeView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: ReffiSpace.s5) {
                 let _ = dayTick   // 자정 틱 의존 — 날이 바뀌면 이 서브트리를 재계산
-                // 목록 조작 컨트롤은 **한 줄**이다(2026-08 declutter): 재고 수는 타이틀 옆 캡션으로 올라갔고
-                // 카테고리 칩 행은 이 줄 왼쪽의 드롭다운 하나로 접혔다. 남은 s5는 "컨트롤 블록 ↔ 콘텐츠"
-                // 경계 값 그대로다 — 블록이 두 줄에서 한 줄로 준 것이지 경계의 성격이 바뀐 건 아니다.
-                controlRow(list)
+                // 컨트롤 행(카테고리·정렬·보기 토글)은 59차에 `fridgeHeader`로 옮겨 스크롤 밖
+                // 고정 크롬이 됐다(그쪽 주석 참고) — 여기 남는 것은 스크롤 콘텐츠 하나뿐이라
+                // 위 spacing은 지금은 나눌 형제가 없다(향후 형제가 늘면 다시 의미를 갖는다).
                 if list.items.isEmpty {
                     emptyState
                 } else if showsCompactList {
