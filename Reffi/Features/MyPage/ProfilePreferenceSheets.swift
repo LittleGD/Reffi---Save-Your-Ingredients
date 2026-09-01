@@ -236,16 +236,21 @@ struct NotifyTimeSheet: View {
                         // (§ safeAreaPadding 트릭 — `.viewAligned`가 재는 "정렬 경계"가 이 여백의
                         // 안쪽 가장자리라, 그 좌표계에서는 오프셋 0 = 0번 행이 밴드 중앙이다.
                         // **58차** — `onScrollGeometryChange`가 보고하는 원시 `contentOffset.y`는
-                        // 이 여백(`topInset`)만큼 밀려 있어 같은 불변식이 아니다. 원근 계산
-                        // (`dialDistance`)이 `topInset`을 되더해 보정한다 — 안 더하면 밴드 밖 위쪽
-                        // 행이 선택 행보다 진하게 보인다, 아래 `dialDistance` 주석 참고).
+                        // 이 여백(`topInset`)만큼 밀려 있어 같은 불변식이 아니다. 이 오프셋을 쓰는
+                        // 두 소비자가 **함께** `topInset`을 되더해 보정한다 — 원근 계산
+                        // (`dialDistance`)과 커밋 판정(`snapIndex`)이다. 원근에서 빠뜨리면 밴드 밖
+                        // 위쪽 행이 선택 행보다 진하게 보이고(58차), 커밋에서 빠뜨리면 저장값이
+                        // 2행 아래로 어긋난다(58차-b) — 각각 아래 두 주석 참고. transform이 원시
+                        // 오프셋을 보고한다는 컨벤션 자체는 58차가 잠근 계약이라 그대로 둔다:
+                        // 보정은 소비자 쪽에서 한다.
                         .safeAreaPadding(.vertical, topInset)
                         .scrollTargetBehavior(.viewAligned)
                         .scrollBounceBehavior(.basedOnSize)
                         .onScrollGeometryChange(for: CGFloat.self) { $0.contentOffset.y } action: { _, newOffset in
                             scrollOffsetY = newOffset
                             guard isInteractive else { return }
-                            let newIndex = Self.snapIndex(forOffset: newOffset, rowHeight: Self.rowHeight,
+                            let newIndex = Self.snapIndex(forOffset: newOffset, topInset: topInset,
+                                                          rowHeight: Self.rowHeight,
                                                           count: Self.hours.count)
                             guard newIndex != committedIndex else { return }
                             committedIndex = newIndex
@@ -319,9 +324,18 @@ struct NotifyTimeSheet: View {
     /// 연속 스크롤 오프셋 → 가장 가까운 행 인덱스(0-based, `hours` 범위로 clamp). 실제 스냅 물리는
     /// `.scrollTargetBehavior(.viewAligned)`가 지지만, 몇 번째 행이 지금 중심에 왔는지는 이 순수
     /// 계산이 판정한다 — `alertHour` 갱신·선택 햅틱이 이 값의 변화를 트리거로 쓴다.
-    static func snapIndex(forOffset offset: CGFloat, rowHeight: CGFloat, count: Int) -> Int {
+    ///
+    /// **58차-b 회귀**: `topInset` 되더하기는 `dialDistance`와 같은 이유로 필요하다 — 원시
+    /// `contentOffset.y`는 `safeAreaPadding` 여백만큼 밀려 있어, 되더해야 비로소 행 인덱스
+    /// 좌표계다. 58차는 이 보정을 렌더 소비자(`dialDistance`)에만 넣고 커밋 소비자인 여기를
+    /// 빠뜨렸다. 보정 전에는 시간 9(인덱스 3)가 밴드 중앙에 정착한 오프셋 56이
+    /// `round(56/44)`=1(=7시)로 계산돼, **열기만 해도** 그리고 다이얼을 굴릴 때마다 저장값이
+    /// 2행 아래로 어긋났다(`i*44 - 76`을 무보정으로 나누면 언제나 `round(i - 1.727)` = `i - 2`).
+    /// 직전 세션 콘솔에서 실측된 9→6은 그중 프리젠테이션 도중 상단 근처(-76) 콜백이 끼어
+    /// `round(-1.727)`=-2가 0으로 clamp된 경우다.
+    static func snapIndex(forOffset offset: CGFloat, topInset: CGFloat, rowHeight: CGFloat, count: Int) -> Int {
         guard count > 0, rowHeight > 0 else { return 0 }
-        let raw = Int((offset / rowHeight).rounded())
+        let raw = Int(((offset + topInset) / rowHeight).rounded())
         return min(max(raw, 0), count - 1)
     }
 
