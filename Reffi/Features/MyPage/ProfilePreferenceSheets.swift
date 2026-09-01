@@ -221,20 +221,25 @@ struct NotifyTimeSheet: View {
             ScrollViewReader { proxy in
                 GeometryReader { geo in
                     let bandHeight = geo.size.height
+                    let topInset = max(0, (bandHeight - Self.rowHeight) / 2)
                     ZStack {
                         selectionBand
                         ScrollView(.vertical, showsIndicators: false) {
                             LazyVStack(spacing: 0) {
                                 ForEach(Self.hours, id: \.self) { hour in
-                                    dialRow(hour).id(hour)
+                                    dialRow(hour, topInset: topInset).id(hour)
                                 }
                             }
                             .scrollTargetLayout()
                         }
                         // 첫·마지막 행도 밴드 중앙까지 올 수 있게 위아래를 행 반 폭만큼 비운다
                         // (§ safeAreaPadding 트릭 — `.viewAligned`가 재는 "정렬 경계"가 이 여백의
-                        // 안쪽 가장자리라, 콘텐츠 오프셋 0 = 0번 행이 밴드 중앙에 오는 자리가 된다).
-                        .safeAreaPadding(.vertical, max(0, (bandHeight - Self.rowHeight) / 2))
+                        // 안쪽 가장자리라, 그 좌표계에서는 오프셋 0 = 0번 행이 밴드 중앙이다.
+                        // **58차** — `onScrollGeometryChange`가 보고하는 원시 `contentOffset.y`는
+                        // 이 여백(`topInset`)만큼 밀려 있어 같은 불변식이 아니다. 원근 계산
+                        // (`dialDistance`)이 `topInset`을 되더해 보정한다 — 안 더하면 밴드 밖 위쪽
+                        // 행이 선택 행보다 진하게 보인다, 아래 `dialDistance` 주석 참고).
+                        .safeAreaPadding(.vertical, topInset)
                         .scrollTargetBehavior(.viewAligned)
                         .scrollBounceBehavior(.basedOnSize)
                         .onScrollGeometryChange(for: CGFloat.self) { $0.contentOffset.y } action: { _, newOffset in
@@ -288,11 +293,13 @@ struct NotifyTimeSheet: View {
     }
 
     /// 다이얼 한 칸 — 더는 버튼이 아니다(선택은 탭이 아니라 다이얼 위치가 말한다). 중심에서의
-    /// 연속 거리(`distance`)로 원근을 매겨 시스템 휠의 페이드를 종이 문법으로 옮긴다.
-    private func dialRow(_ hour: Int) -> some View {
+    /// 연속 거리(`distance`)로 원근을 매겨 시스템 휠의 페이드를 종이 문법으로 옮긴다. `topInset`은
+    /// 호출부(`GeometryReader`)가 재는 밴드 상단 여백 — `dialDistance`가 왜 필요한지는 그쪽 주석.
+    private func dialRow(_ hour: Int, topInset: CGFloat) -> some View {
         let label = Self.hourLabel(hour)
         let index = Self.index(ofHour: hour) ?? 0
-        let distance = Double(index) - Double(scrollOffsetY / Self.rowHeight)
+        let distance = Self.dialDistance(index: index, scrollOffsetY: scrollOffsetY,
+                                          topInset: topInset, rowHeight: Self.rowHeight)
         let perspective = Self.dialPerspective(distance: distance)
         return Text(verbatim: label)
             .font(.reffiNum(.body, for: label))
@@ -316,6 +323,21 @@ struct NotifyTimeSheet: View {
         guard count > 0, rowHeight > 0 else { return 0 }
         let raw = Int((offset / rowHeight).rounded())
         return min(max(raw, 0), count - 1)
+    }
+
+    /// 다이얼 원근 거리 — 이 행이 지금 밴드 중앙에서 몇 칸 떨어져 있는가. `scrollOffsetY`(스크롤뷰가
+    /// `onScrollGeometryChange`로 보고하는 원시 `contentOffset.y`)는 위 `safeAreaPadding` 트릭이
+    /// 만든 상단 여백(`topInset`)만큼 밴드 중앙 기준에서 밀려 있다 — `.viewAligned`의 정렬 좌표계는
+    /// "오프셋 0 = 0번 행이 중앙"이지만, 원시 `contentOffset.y`는 그 좌표계와 `topInset`만큼 어긋난다.
+    ///
+    /// **58차 회귀**: 이 되더하기가 빠진 채 `scrollOffsetY`를 그대로 `rowHeight`로 나눠 쓰면, 원근의
+    /// 정점(거리 0)이 실제 밴드 중앙보다 `topInset/rowHeight`행 위에 잡힌다(이 다이얼 실측값
+    /// `topInset`≈76·`rowHeight`=44 → 약 1.7행 — 정수 행에 안 맞아떨어져 애매하게 걸치는 게 아니라
+    /// 뚜렷하게 위쪽 행 쪽으로 쏠린다). 그 결과 밴드 안의 선택 행(예: 9시)이 바로 위 미선택 행(예: 8시)
+    /// 보다 옅게 보였다 — 페이드 정점이 밴드를 등지고 위쪽으로 새어 있었던 것. 순수 함수라 스크롤·뷰 없이 잠글 수 있다.
+    static func dialDistance(index: Int, scrollOffsetY: CGFloat, topInset: CGFloat, rowHeight: CGFloat) -> Double {
+        guard rowHeight > 0 else { return 0 }
+        return Double(index) - Double((scrollOffsetY + topInset) / rowHeight)
     }
 
     /// 원근 감쇠 상수 — 몇 행 떨어지면 바닥에 닿는지(range)와 그 바닥값. §3.4류 타이포 스케일이

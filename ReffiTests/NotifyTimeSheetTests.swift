@@ -128,6 +128,43 @@ struct NotifyTimeSheetTests {
         #expect(beyond.scale > 0)
     }
 
+    // MARK: - 58차 원근 거리 앵커(밴드 중앙 보정)
+
+    /// `dialDistance`가 잠그는 계약 — `topInset`(밴드 상단 여백)을 되더한 뒤에야 `scrollOffsetY`가
+    /// 행 인덱스 좌표계로 돌아온다. 58차 회귀 실측값(이 다이얼의 300pt 시트 → `topInset`=76·
+    /// `rowHeight`=44)을 그대로 고정한다: 그 여백에서 0번 행이 중앙이려면 오프셋이 -76이어야 하고,
+    /// 1번 행이 중앙이려면 -32여야 한다 — 스크린샷(round56-notifytimesheet.png)의 실제 미스매치를
+    /// 낳은 값들이다.
+    @Test func dialDistanceIsZeroAtTrueBandCenter() {
+        #expect(NotifyTimeSheet.dialDistance(index: 0, scrollOffsetY: -76, topInset: 76, rowHeight: 44) == 0)
+        #expect(NotifyTimeSheet.dialDistance(index: 1, scrollOffsetY: -32, topInset: 76, rowHeight: 44) == 0)
+    }
+
+    /// 보정 전 회귀 재현 — `topInset`을 되더하지 않은 옛 계산(`index - scrollOffsetY/rowHeight`)은
+    /// 같은 입력에서 0이 아닌 값을 낸다. 이 차이 자체가 58차 버그였다: 밴드 중앙(거리 0이어야 함)이
+    /// 옛 계산으로는 위쪽 행 쪽으로 `topInset/rowHeight`만큼(≈1.7행) 쏠려 있었다.
+    @Test func dialDistanceDiffersFromUncorrectedFormulaWhenTopInsetNonZero() {
+        let scrollOffsetY: CGFloat = -76, topInset: CGFloat = 76, rowHeight: CGFloat = 44
+        let corrected = NotifyTimeSheet.dialDistance(index: 0, scrollOffsetY: scrollOffsetY,
+                                                       topInset: topInset, rowHeight: rowHeight)
+        let uncorrected = Double(0) - Double(scrollOffsetY / rowHeight)
+        #expect(corrected == 0)
+        #expect(uncorrected != 0)
+    }
+
+    /// `topInset`이 0이면(여백이 필요 없을 만큼 큰 밴드) 되더하기가 항등 연산이 되어, 이 보정이
+    /// 기존 "오프셋을 행 폭으로 나눈다"는 단순 관계를 깨지 않는다.
+    @Test func dialDistanceMatchesPlainOffsetWhenTopInsetIsZero() {
+        #expect(NotifyTimeSheet.dialDistance(index: 3, scrollOffsetY: 132, topInset: 0, rowHeight: 44) == 0)
+        #expect(NotifyTimeSheet.dialDistance(index: 0, scrollOffsetY: 132, topInset: 0, rowHeight: 44) == -3)
+    }
+
+    /// 방어적 가드 — `rowHeight`가 0 이하면(있을 수 없는 지오메트리) 0으로 나누지 않고 0을 낸다,
+    /// `snapIndex`의 같은 가드와 짝을 맞춘다.
+    @Test func dialDistanceGuardsNonPositiveRowHeight() {
+        #expect(NotifyTimeSheet.dialDistance(index: 3, scrollOffsetY: 10, topInset: 5, rowHeight: 0) == 0)
+    }
+
     /// 접근성 adjustable 스텝 — 위/아래 스와이프 한 번 = 한 시간 칸.
     @Test func adjustableStepMovesOneHour() {
         #expect(NotifyTimeSheet.steppedHour(from: 9, direction: .increment) == 10)
