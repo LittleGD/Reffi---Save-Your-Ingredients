@@ -5,9 +5,18 @@ import UserNotifications
 /// 구성은 앱 공통 종이 캔버스 위에 Fridge의 "흰 영수증 더미" 문법(톱니+점선)을 얹은 것이다 —
 /// 설정 화면이라 틸트·슬립 없이 정돈된 정렬만 쓴다.
 ///
-/// **글자 위계는 카드마다 세 단이다**: 이름표(`groupLabel` 12/muted) → 행 라벨(`body` 16/ink)
-/// → 행 값(`metaText` 13/ink2). 이름표가 가장 작고 옅은 것이 이 화면의 규칙이다 — 아래를
-/// 가리키는 라벨이지 스스로 읽히는 제목이 아니다(자세한 근거는 `ReceiptCard` 본문 주석).
+/// **글자 위계는 카드마다 세 단이다**: 이름표(`groupLabel` 12/Medium/muted) → 행 라벨
+/// (`checklistItem` 16/SemiBold/ink) → 행 값(`metaText` 13/Medium/ink2 · muted).
+///
+/// 세 단은 **크기·굵기·잉크가 같은 방향**을 가리켜야 한다. 렌더 스템 두께(Pretendard OTF에서
+/// 잰 weight별 스템폭 × 크기)로 1.254 → 2.000 → 1.359pt다. 행 라벨이 `body`(16/Regular)이던
+/// 동안은 라벨 1.344 vs 값 1.359로 **값이 오히려 굵어**, 크기·잉크가 세운 계단을 획 무게가
+/// 정면으로 부정했다 — 사람 눈이 위계로 먼저 읽는 신호는 크기가 아니라 획이라, 두 줄의 획이
+/// 같으면 크기 차이는 위계가 아니라 "크기를 잘못 지정했다"로 읽힌다. 굵기 차는 Dynamic Type
+/// 전 구간에서 불변이므로 **굵기로 만든 계단만 접근성 크기에서 살아남는다**(크기비는 AX5에서
+/// 1.23 → 1.05로 사실상 사라진다).
+/// 이름표가 가장 작고 옅고 얇은 것도 같은 규칙이다 — 아래를 가리키는 라벨이지 스스로 읽히는
+/// 제목이 아니다(자세한 근거는 `ReceiptCard` 본문 주석).
 struct ProfileView: View {
     /// 현재 탭으로 표시 중인지 — 아니면 본문을 세우지 않는다(`MainView(isActive:)`·`FridgeView` 선례).
     /// 루트가 세 패인을 모두 살려 두는 대가로, 가려진 이 화면도 store 변이마다 body가 다시 돌아
@@ -273,16 +282,22 @@ struct ProfileView: View {
     /// `householdReceipt`의 칩 행으로 바꾸면 되고, 그때는 카드가 여섯 장이 된다.
     private var cookingReceipt: some View {
         ReceiptCard(title: "Cooking") {
+            // 값 잉크는 **상태 하나로만** 갈린다(50차 · `SettingsRow.ValueState`). 빔은 `.unset`,
+            // 고른 값은 `.set`이다 — 예전엔 Cuisines·My recipes만 빔을 muted로 넘기고 나머지 셋은
+            // 아무것도 안 넘겨 기본 ink2로 떨어져, 같은 "None yet"이 한 카드 안에서 두 잉크로 섰다.
             SettingsRow(label: "Cuisines", value: profile.cuisines.summaryText,
-                        valueColor: profile.cuisines.isEmpty ? ReffiColor.muted : ReffiColor.blueDark) {
+                        valueState: profile.cuisines.isEmpty ? .unset : .set) {
                 sheet = .cuisines
             }
             ReceiptRule()
-            SettingsRow(label: "Favorites", value: tagSummary(profile.favorites)) { sheet = .favorites }
+            SettingsRow(label: "Favorites", value: tagSummary(profile.favorites),
+                        valueState: profile.favorites.isEmpty ? .unset : .set) { sheet = .favorites }
             ReceiptRule()
-            SettingsRow(label: "Disliked", value: tagSummary(profile.disliked)) { sheet = .disliked }
+            SettingsRow(label: "Disliked", value: tagSummary(profile.disliked),
+                        valueState: profile.disliked.isEmpty ? .unset : .set) { sheet = .disliked }
             ReceiptRule()
-            SettingsRow(label: "Allergies", value: tagSummary(profile.allergies)) { sheet = .allergies }
+            SettingsRow(label: "Allergies", value: tagSummary(profile.allergies),
+                        valueState: profile.allergies.isEmpty ? .unset : .set) { sheet = .allergies }
             ReceiptRule()
             SettingsRow(label: "Household", value: profile.household.label) {
                 householdPickerOpen.toggle()
@@ -293,8 +308,7 @@ struct ProfileView: View {
             ReceiptRule()
             SettingsRow(label: "My recipes",
                         value: store.userRecipes.isEmpty ? AppLanguage.localizedNow("None yet") : "\(store.userRecipes.count)",
-                        valueColor: store.userRecipes.isEmpty ? ReffiColor.muted : ReffiColor.blueDark,
-                        numeric: !store.userRecipes.isEmpty) {
+                        valueState: store.userRecipes.isEmpty ? .unset : .set) {
                 showMyRecipes = true
             }
         }
@@ -332,7 +346,7 @@ struct ProfileView: View {
 
             if alertsEnabled {
                 ReceiptRule()
-                SettingsRow(label: "Time", value: alertHourText, numeric: true) { sheet = .time }
+                SettingsRow(label: "Time", value: alertHourText) { sheet = .time }
             }
             // 후속: ExpiryNotifier는 D-0/D-1(오늘·내일 만료)만 발화한다 — 리드데이(D-N) 선택은
             // 스케줄러가 아직 지원하지 않아 UI에서 뺐다. 리드데이 지원을 넣을 때 칩 UI를 되살린다.
@@ -447,7 +461,7 @@ struct ProfileView: View {
                     showAuth = true   // 익명 세션을 유지한 채 시트에서 전환/로그인(승계 보장).
                 }
             } else {
-                // 로그인 상태도 **게스트와 같은 행 문법**으로 읽힌다(라벨=body/ink · 값=metaText/ink2).
+                // 로그인 상태도 **게스트와 같은 행 문법**이다(라벨=checklistItem/ink · 값=metaText/ink2).
                 // 예전엔 이 자리만 손으로 조립한 HStack이었고 라벨·값을 둘 다 caption으로 적어, 같은
                 // "계정 상태" 한 칸이 로그인 사용자에겐 14/Medium 두 조각으로, 게스트에겐 16/Regular
                 // 라벨 + 값으로 보였다 — 한 파일 여섯 줄 간격에서 같은 의미 계층이 두 위계로 갈렸고,
@@ -512,11 +526,12 @@ struct ReceiptCard<Content: View>: View {
                 // 자간 1.4만 남는다. 번역되는 라벨의 자리는 `groupLabel`이다.
                 //
                 // **이 줄은 제목이 아니라 이름표다.** 자기가 읽히려고 있는 게 아니라 아래 행 묶음을
-                // 여는 라벨이라, 아래 행 라벨(`body` 16/ink)보다 작고(12) 옅다(`muted`). 예전엔
-                // `caption`(14/Medium/ink2)이었는데 그러면 행 라벨과 비가 16/14 = 1.14라 계단이 서지
-                // 않는 데다, 더 작은 이 줄이 더 굵어(Medium 500 vs Regular 400) 크기·색이 만든 신호를
-                // 굵기가 정면으로 상쇄했다 — 위계가 약해지는 게 아니라 **없는 것으로** 읽힌다.
-                // 16/12 = 1.333이면 한 단이 확실히 선다.
+                // 여는 라벨이라, 아래 행 라벨(`checklistItem` 16/SemiBold/ink)보다 작고(12) 옅고
+                // (`muted`) 얇다(Medium). 예전엔 `caption`(14/Medium/ink2)이었는데 그러면 행 라벨과
+                // 비가 16/14 = 1.14라 계단이 서지 않는 데다, 더 작은 이 줄이 더 굵어 크기·색이 만든
+                // 신호를 굵기가 정면으로 상쇄했다 — 위계가 약해지는 게 아니라 **없는 것으로** 읽힌다.
+                // 지금은 크기 16/12 = 1.333, 스템 2.000/1.254 = 1.60배로 두 신호가 같은 방향이다
+                // (행 라벨을 SemiBold로 올린 50차 이후 격차가 더 벌어졌다).
                 //
                 // **다시 키우지 말 것.** 카드 안 안내문(`caption` 14/ink2 — 가구 인원·언어·토글 설명)이
                 // 이 줄보다 크고 진한 것은 결함이 아니라 이 줄이 아이브로우라는 뜻이다. 저 안내문들은
@@ -587,7 +602,7 @@ struct SettingsToggle: View {
     /// **값형 캡션이다 — 문장이 아니라 값**(49차). 3~5어로 "언제/무엇에" 하나만 답하고 줄바꿈하지
     /// 않는다. 완결 문장을 넣던 동안 세 토글이 전부 402pt 폭에서 두 줄로 접혀 행 높이가 들쭉날쭉했고,
     /// 캡션이 `ink2`라 라벨(`ink`)과 무게가 붙어 "라벨 > 값" 방향이 서지 않았다.
-    /// `SettingsRow`가 라벨(body/ink) > 값(metaText/ink2)으로 이미 세운 그 방향에 맞춘다 —
+    /// `SettingsRow`가 라벨(checklistItem/ink) > 값(metaText/ink2)으로 이미 세운 그 방향에 맞춘다 —
     /// 여기 캡션은 role은 `caption`으로 두되 잉크를 `muted`로 한 단 내린다.
     /// 한 문장이 꼭 필요하면 행이 아니라 **카드 마지막 각주**로 내린다(Language 영수증 선례).
     let caption: LocalizedStringKey
@@ -597,7 +612,10 @@ struct SettingsToggle: View {
     var body: some View {
         Toggle(isOn: $isOn) {
             VStack(alignment: .leading, spacing: ReffiSpace.s0) {
-                Text(title).reffiType(.body).foregroundStyle(ReffiColor.ink)
+                // 라벨은 `SettingsRow`와 **같은 role**이어야 한다 — 한 영수증 안에 토글 행과 값 행이
+                // 섞여 서므로, 여기만 `body`(Regular)로 남으면 같은 카드에서 라벨 열의 획이 행마다
+                // 갈린다(자세한 근거는 `SettingsRow` 독 코멘트의 스템 두께 계산).
+                Text(title).reffiType(.checklistItem).foregroundStyle(ReffiColor.ink)
                 Text(caption).reffiType(.caption).foregroundStyle(ReffiColor.muted)
                     .lineLimit(1)
             }
@@ -613,22 +631,58 @@ struct SettingsToggle: View {
 
 /// 설정 행 — 라벨 + 값(+ 셰브런). 탭하면 편집 시트로.
 ///
-/// **행 안의 위계는 한 방향으로만 준다.** 라벨은 `body`(16/Regular/ink), 값은
-/// `metaText`(13/Medium/ink2)다. 값이 `caption`(14/Medium)이던 동안 이 행은 **더 작은 쪽이 더 굵은**
-/// 상태였고 자간 부호까지 갈려 있어(값 +1% ↔ 라벨 −1%), 크기·색이 만든 "값은 보조다"라는 신호를
-/// 굵기가 상쇄했다. `metaText`는 §3.5가 애초에 "라벨=값 행의 값"에 배정해 둔 role이고,
-/// 냉장고 상세의 명세 행(`FridgeView.row(_:_:)`)이 이미 같은 분기(`numeric ? reffiNum(.body) :
-/// metaText`)를 쓴다 — 발명이 아니라 그쪽으로의 수렴이다. 값을 다시 키우려거든 라벨부터 볼 것.
+/// **행 안의 위계는 세 신호(크기·굵기·잉크)가 같은 방향을 가리킬 때만 선다.** 라벨은
+/// `checklistItem`(16/SemiBold/ink), 값은 `metaText`(13/Medium/ink2 또는 muted)다.
+///
+/// 라벨이 `body`(16/**Regular**)이던 동안 렌더 스템 두께는 라벨 16 × 0.0840 = **1.344pt** ·
+/// 값 13 × 0.1045 = **1.359pt**로 값이 오히려 굵었다(Pretendard OTF에서 잰 weight별 스템폭).
+/// 46차가 값을 `caption` 14에서 `metaText` 13으로 내린 것은 그 역전을 +8.9%에서 +1.1%로 줄였을
+/// 뿐 **부호를 못 바꿨다** — x-height는 값이 19% 작은데 획은 같은 두께라, 두 줄은 위계가 아니라
+/// "폰트 크기를 잘못 지정했다"로 읽혔다. `checklistItem`은 16 × 0.1250 = **2.000pt**로 라벨이
+/// 값보다 47% 굵다. 크기 1.231배·잉크 15.33 vs 7.77과 이제 셋이 같은 방향이다.
+///
+/// **굵기로 만든 계단만 Dynamic Type 전 구간에서 산다.** 크기로만 만든 계단은 AX5에서
+/// 1.231 → 1.046으로 사라지지만(`.body` 17→53 vs `.caption` 12→43 곡선), weight 차는 어느
+/// 콘텐츠 크기에서도 불변이다. `relativeTo`는 `body`와 같은 `.body`라 AX 곡선 자체는 안 변한다.
+/// 라벨을 Regular로 되돌리거나 값을 키우려거든 이 계산부터 다시 할 것.
+///
+/// **값 열은 한 벌이다 — 폰트도 크기도 갈리지 않는다.** 값을 훑는 열이 행마다 변주하면 사용자가
+/// 규칙을 유도할 수 없다(자세한 근거는 아래 `face`의 값 렌더 주석).
 ///
 /// **`action`이 nil이면 이 행은 버튼이 아니고 셰브런도 그리지 않는다.** 셰브런은 "누르면 다음이
 /// 있다"는 약속이라 갈 곳 없는 행에 그리면 그 자리에서 위약 UI가 된다. 그래서 셰브런 유무를
 /// 별도 플래그로 두지 않고 `action`에서 파생한다 — 플래그로 두면 둘을 어긋나게 넘긴 조합이
 /// 컴파일을 통과하고, 그 조합은 언젠가 반드시 넘어온다.
 struct SettingsRow: View {
+    /// 값 열의 잉크를 정하는 **상태**. 색을 직접 받던 `valueColor: Color`를 대체한다(50차).
+    ///
+    /// 자유 파라미터이던 동안 같은 카드 안에서 같은 "비어 있음"이 두 잉크로 렌더됐다: Cuisines·
+    /// My recipes만 빔을 `muted`로 넘겼고 Favorites·Disliked·Allergies는 아무것도 안 넘겨 기본값
+    /// `ink2`로 떨어져, 같은 "None yet"이 어떤 행에선 사용자가 고른 값처럼 읽혔다. 색을 받는 한
+    /// 그 어긋난 조합은 언제나 컴파일을 통과한다 — 셰브런을 별도 플래그가 아니라 `action`에서
+    /// 파생시킨 것과 같은 이유로, 여기도 색이 아니라 상태를 받는다.
+    ///
+    /// 값이 `blueDark`이던 두 행은 이 전환에서 **버렸다**: 7행 중 2행에만 붙어 "파랑 = 내가 고른 값"
+    /// 이라는 규칙이 읽히지 않았고, 파랑은 이 앱에서 "누를 수 있다"를 지는 색이라(§2.6 · 같은 카드의
+    /// `QuietButton`) 값이 그 색을 쓰면 정작 링크의 신호가 희석된다.
+    enum ValueState {
+        case set      // 사용자가 고른 값 · 시스템이 아는 사실(이메일·시각·인원)
+        case unset    // 아직 안 고른 자리 — 값 문자열은 "None yet" 계열 안내다
+
+        /// `muted`는 다크 영수증 위 4.66:1로 §2.6 본문 하한(4.5)에 여유가 0.16뿐이다.
+        /// **아직 값이 아닌 자리에만** 쓰는 것이 그 여유를 정당화하는 근거다 — muted는 역할로
+        /// 낮추는 자리이지 대비로 낮추는 자리가 아니다.
+        var ink: Color { self == .set ? ReffiColor.ink2 : ReffiColor.muted }
+    }
+
+    /// 셰브런 글리프 한 변 — 셰브런과 그 자리 비움 스페이서가 **같은 상수**를 봐야 값 열 우측 축이
+    /// 어긋나지 않는다(아래 `face` 참고).
+    private static let chevronSide: CGFloat = 13
+
     let label: LocalizedStringKey
     var value: String? = nil
-    var valueColor: Color = ReffiColor.ink2
-    var numeric: Bool = false   // 시간·수량 등 데이터성 숫자 값 → reffiNum 의무(§3.4)
+    /// 값의 잉크는 색이 아니라 **상태**로 받는다(위 `ValueState`). 기본은 "고른 값".
+    var valueState: ValueState = .set
     /// 값이 길어 접힐 때 **어디를** 접는가. 기본은 tail이고, 꼬리가 곧 신원인 값(이메일)만 middle로
     /// 넘긴다 — tail로 접으면 "verylongname@ex…"가 되어 어느 계정인지가 통째로 사라진다.
     var valueTruncation: Text.TruncationMode = .tail
@@ -648,18 +702,32 @@ struct SettingsRow: View {
 
     private var face: some View {
         HStack(spacing: ReffiSpace.s3) {
-            Text(label).reffiType(.body).foregroundStyle(ReffiColor.ink)
+            Text(label).reffiType(.checklistItem).foregroundStyle(ReffiColor.ink)
             Spacer(minLength: ReffiSpace.s4)
             if let value {
                 Text(value)
-                    // 자간은 두 갈래 다 0이라(§3.5 metaText · §3.4 reffiNum) 따로 걸지 않는다.
-                    .font(numeric ? .reffiNum(.body, for: value) : ReffiActionRole.metaText.font)
-                    .foregroundStyle(valueColor)
+                    // **값 열은 한 벌이다**(50차). 예전엔 `numeric` 플래그가 데이터성 숫자를
+                    // `reffiNum(.body)`(GSF-Regular 15 / ko Pretendard-Regular 15)로 갈라, 한 카드 여섯
+                    // 행의 값 열에서 패밀리·크기·굵기가 동시에 갈렸다 — 조용해야 할 열이 변주하고
+                    // 훑어야 할 라벨 열이 균일한, 정확히 반대의 상태였다.
+                    // §3.4가 tabular를 의무로 거는 근거는 "자릿수가 바뀔 때 폭이 흔들리지 않게"인데
+                    // 이 값들("3" · "9:00 AM")은 **세로로 정렬되는 숫자 열이 아니라** 행마다 오른쪽 끝에
+                    // 홀로 서는 값이라 그 근거가 성립하지 않는다. 세로 숫자 열이 생기면 그때 되살릴 것.
+                    // 자간은 metaText가 0이라 `reffiType`이 그대로 0을 건다.
+                    .reffiType(.metaText)
+                    .foregroundStyle(valueState.ink)
                     .lineLimit(1)
                     .truncationMode(valueTruncation)
             }
             if action != nil {
-                ReffiIcon.chevron.reffi(13, .bold).foregroundStyle(ReffiColor.muted)
+                ReffiIcon.chevron.reffi(Self.chevronSide, .bold).foregroundStyle(ReffiColor.muted)
+            } else {
+                // **그리지 않는 것과 자리를 비우는 것은 다르다.** 위 계약대로 갈 곳 없는 행엔 셰브런을
+                // 그리지 않지만, 그리지 않은 만큼 값이 오른쪽으로 밀려 그 행만 값 열 우측 축이
+                // 25pt(셰브런 13 + HStack spacing s3=12) 밖으로 나갔다(로그인 상태의 "Logged in" 한 곳).
+                // 투명 스페이서는 "누르면 다음이 있다"를 약속하지 않으므로 위약 UI가 아니다 —
+                // 약속은 그대로 없고 축만 유지한다.
+                Color.clear.frame(width: Self.chevronSide, height: Self.chevronSide)
             }
         }
         .padding(.horizontal, ReffiSpace.s5)

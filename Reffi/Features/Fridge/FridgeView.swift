@@ -49,7 +49,14 @@ struct FridgeView: View {
     /// 글자 크기·재료가 바뀌면 다시 측정된다.
     @State private var receiptHeight: CGFloat = 0
     /// 펼친 영수증이 실제로 스크롤되는가 — 넘칠 때만 하단을 흐린다(잘림 ↔ 이어짐 구분).
+    /// 넘김 제스처의 양보 판정(`claimedByReceiptScroll`)도 **이 한 값**을 본다 — 같은 사실에 두 번째
+    /// 측정 상태를 만들면 둘이 어긋나는 프레임이 생긴다.
     @State private var receiptScrolls = false
+    /// 상세 좌표계(`DetailSpace`)에서 영수증 스크롤 뷰의 바닥선 — 넘김 제스처가 "여기부터는 내 몫"을
+    /// 가르는 경계. 손을 대기 전 값만 받는다(측정 지점 주석).
+    @State private var receiptBottomY: CGFloat = 0
+    /// 직전 넘김의 방향 — 펼침 전환의 앵커만 정한다(아래 `AdvanceDirection`).
+    @State private var advanceDir: AdvanceDirection = .tap
 
     /// 정렬·보기 선택 — 세션을 넘어 유지(리서치: 정렬 선택은 기억되어야 재방문 비용이 준다).
     @AppStorage("fridge.sort") private var sortRaw: String = FridgeSort.expiry.rawValue
@@ -60,14 +67,16 @@ struct FridgeView: View {
     /// 직전에 본 전체 재고 id — 이번 변화에서 **새로 나타난** 재료를 가려내는 기준(필터 자동 해제).
     @State private var knownIDs: Set<Ingredient.ID> = []
 
-    /// 하단 덱을 위로 미는 동안의 실시간 변위 — 손을 따라가는 **직접 조작**이라 상태가 아니라
-    /// 제스처에 매달아 둔다. `@State`로 두면 스크롤이 제스처를 가로채 `onEnded`가 오지 않는 경로에서
-    /// 값이 그대로 굳는다(이 덱은 `simultaneousGesture`라 그 경로가 실제로 있다) — `@GestureState`는
+    /// 상세를 위아래로 미는 동안의 실시간 변위(음수 = 위) — 손을 따라가는 **직접 조작**이라 상태가
+    /// 아니라 제스처에 매달아 둔다. 영수증과 덱 앞장이 이 한 값을 서로 다른 비율로 나눠 쓴다.
+    /// `@State`로 두면 스크롤이 제스처를 가로채 `onEnded`가 오지 않는 경로에서
+    /// 값이 그대로 굳는다(`simultaneousGesture`라 그 경로가 실제로 있다) — `@GestureState`는
     /// 손을 떼든 취소되든 스스로 0으로 돌아온다. 되돌아가는 길만 안착 스프링을 태운다(§7.5 settle).
     @GestureState(resetTransaction: Transaction(animation: ReffiMotion.settle))
     private var deckLift: CGFloat = 0
-    /// 위로 밀어 다음 재료로 넘긴 시각 — 같은 터치가 이어서 던지는 버튼 탭을 한 번 삼키는 데 쓴다(아래 `bottomDeck`).
-    @State private var deckAdvancedAt: Date?
+    /// 밀어 다음/이전 재료로 넘긴 시각 — 같은 터치가 이어서 던지는 버튼 탭을 한 번 삼키는 데 쓴다
+    /// (아래 `consumeAdvanceTap` — 덱 머리와 판정 버튼 둘 다 소비한다).
+    @State private var advancedAt: Date?
 
     private let cardHeight: CGFloat = 170   // 길게 늘려 슬립·틸트로 생기는 측면 빈틈을 덮음
     private let overlap: CGFloat = -60   // advance(=높이+겹침)=110 — 이름 안전 구간은 기본~xxxLarge 한정(AX는 `showsCompactList`)
@@ -486,50 +495,84 @@ struct FridgeView: View {
     // MARK: 펼친(Wallet) 레이아웃
     private func expanded(_ sel: Ingredient, in list: ListDigest) -> some View {
         let following = Self.following(sel, in: list.items)
+        let previous = Self.preceding(sel, in: list.items)
         return VStack(spacing: 0) {
             doneBar
             // 영수증만 스크롤하고 판정 버튼(Ate/Tossed)은 스크롤 **밖**에 둔다 — 이 화면의 유일한 1차 액션이라
             // 어떤 글자 크기·재고 수에서도 잘리면 안 된다(§7.3). 버튼을 스크롤 콘텐츠 안에 넣으면 하단 덱(≈90)과
             // 네비 자리 예약(`ReffiChrome.navReserve`)이 먹은 만큼 뷰포트가 좁아져 기본 글자 크기에서도 라벨이 잘렸다.
             //
-            // "영수증 끝에서 20 아래 부착"이라는 의도는 그대로 유지한다:
-            //   ① 스크롤 밖 하단 s3(12) + ② 버튼 상단 s2(8) = 20 — 간격을 스크롤 밖에 둬서
-            //      영수증이 넘쳐 스크롤돼도 시각 간격 20이 변하지 않는다.
-            //   ③ 스크롤 높이를 콘텐츠 높이(receiptHeight)로 묶어, 영수증이 뷰포트보다 짧아도
+            // **판정 버튼은 위(영수증)에 속한다** — 그 소속을 레이아웃으로 선언한다(오너 5-a: "Tossed,
+            // Ate은 윗쪽과 그룹핑되는 게 UI적으로 옳아"):
+            //   ① 영수증 아래 s3(12)만 남기고 버튼 자체의 상단 패딩(옛 s2)은 걷는다. 간격은 여전히
+            //      스크롤 **밖**이라 영수증이 넘쳐 스크롤돼도 시각 간격이 변하지 않는다(46차 계약 유지).
+            //   ② 아래 Spacer에 **바닥**(s7 = 32)을 준다. 옛 minLength는 8이라 아래 간격이 "값"이 아니라
+            //      VStack에 남은 잔여였고, 그 잔여는 기기 높이·재료·언어·글자 크기마다 달라져 어떤
+            //      화면에서는 위 20 : 아래 11로 **그룹이 뒤집혔다**(버튼이 덱에 붙어 보인다). 12 : ≥32면
+            //      소속이 화면마다 흔들리지 않는다.
+            //   ③ 대가를 알고 치른다: 예약 높이가 28(20+8) → 44(12+32)로 16pt 늘어 영수증 뷰포트가
+            //      그만큼 줄고, 기본 글자 크기 대형 아이폰 기준 이름이 **두 줄이 되는 재료부터** 하단
+            //      페이드 마스크가 켜진다(설계된 동작). 잘림을 페이드가 말해 주는 쪽이, 1차 액션의
+            //      소속이 매 화면 달라지는 쪽보다 싸다.
+            //   ④ 스크롤 높이를 콘텐츠 높이(receiptHeight)로 묶어, 영수증이 뷰포트보다 짧아도
             //      스크롤 뷰가 남는 높이를 먹고 늘어나지 않게 한다(= 영수증과 버튼 사이가 벌어지지 않음).
             ScrollView {
-                ExpandedFridgeCard(ingredient: sel, onEdit: { editing = sel })
-                    // **크기는 매칭하지 않는다 — 위치만 잇는다.**
-                    //
-                    // 나가는 접힌 카드와 들어오는 이 카드가 둘 다 소스인 것은 애플이 문서화한 히어로
-                    // 전환 문법이라 그대로 둔다(런타임 경고가 뜨는 "삽입 소스 둘"이 아니다). 문제는
-                    // 기본값 `.frame` 매칭이 **전환 프레임마다 이 카드에 남의 크기를 제안한다**는 것이다:
-                    // 상세 본문이 접힌 카드의 325×170 상자에 한 번 배치됐다가 자기 상자에 다시 배치되고,
-                    // 그 중간 프레임에서 24pt 이름이 잘렸다 풀리고(오너: "mushro…로 떴다가 돌아온다")
-                    // 아래 절취 톱니가 잘렸다 복원된다. `.position`이면 종이가 접힌 카드가 있던 자리에서
-                    // 열리는 인상은 그대로고, 측정은 **자기 크기로 단 한 번**만 일어난다.
-                    //
-                    // 반대 방향(이 카드에 `isSource: false`)으로 고치지 마라 — 하단 덱은 지금 보는
-                    // 재료를 애초에 담지 않으므로(아래 `following`) 정착 상태에서 이 그룹의 소스가
-                    // 0개가 되고, 소스가 있는 전환 구간에는 이 상세가 접힌 카드의 170pt로 눌린다.
-                    //
-                    // 짝인 덱 머리(`bottomDeck`)도 같은 규약을 쓴다 — 펼친 상세가 관여하는 전환에서는
-                    // **어느 쪽도 상대의 크기를 받지 않는다**. 목록 안에서만 도는 짝(스택 카드 ↔ 간편
-                    // 행)은 종전대로 크기까지 매칭한다: 그쪽은 같은 성격의 행끼리라 서로의 상자에
-                    // 배치돼도 잘릴 것이 없고, 보기 토글의 밀도 변화가 그 모핑으로 읽힌다.
-                    .matchedGeometryEffect(id: sel.id, in: ns, properties: .position, anchor: .top)
-                    .contentShape(Rectangle())
-                    .onTapGesture { deselect() }
-                    .padding(.top, ReffiSpace.s2)
-                    .padding(.horizontal, ReffiGrid.margin + ReffiSpace.s2)   // 24 — 위 `cardInset` 주석의 둘째 값
-                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { h in
-                        // 측정값은 **애니메이션 없이** 반영한다. 이 캡이 바깥 트랜잭션(settle =
-                        // damping 0.74 언더댐프드)을 물려받으면 오버슈트 구간에서 스크롤 뷰가 콘텐츠보다
-                        // 잠깐 짧아지고, 그때 영수증 하단 톱니가 잘렸다 복원된다.
-                        var t = Transaction()
-                        t.disablesAnimations = true
-                        withTransaction(t) { receiptHeight = h }
-                    }
+                // 전환 중 두 종이를 **겹쳐** 세운다. 세로로 쌓이면 컨테이너 높이가 잠깐 두 배가 되어
+                // `receiptScrolls`가 잘못 켜지고 하단 마스크가 번쩍인다.
+                ZStack(alignment: .top) {
+                    ExpandedFridgeCard(ingredient: sel, onEdit: { editing = sel })
+                        // **이 한 줄이 전환의 전제다.** 없으면 재료를 넘겨도 뷰 구조가 동일해
+                        // (`ExpandedFridgeCard` 인스턴스는 그대로고 `ingredient` 프로퍼티만 갈린다)
+                        // SwiftUI가 삽입/제거로 보지 않는다 = 전환이 **애초에 발생하지 않는다**.
+                        // 오너의 "그냥 안쪽 내용만 바뀌어서 어색하다"는 은유가 아니라 코드의 문자적 서술이었다.
+                        .id(sel.id)
+                        // **크기는 매칭하지 않는다 — 위치만 잇는다.**
+                        //
+                        // 나가는 접힌 카드와 들어오는 이 카드가 둘 다 소스인 것은 애플이 문서화한 히어로
+                        // 전환 문법이라 그대로 둔다(런타임 경고가 뜨는 "삽입 소스 둘"이 아니다). 문제는
+                        // 기본값 `.frame` 매칭이 **전환 프레임마다 이 카드에 남의 크기를 제안한다**는 것이다:
+                        // 상세 본문이 접힌 카드의 325×170 상자에 한 번 배치됐다가 자기 상자에 다시 배치되고,
+                        // 그 중간 프레임에서 24pt 이름이 잘렸다 풀리고(오너: "mushro…로 떴다가 돌아온다")
+                        // 아래 절취 톱니가 잘렸다 복원된다. `.position`이면 종이가 접힌 카드가 있던 자리에서
+                        // 열리는 인상은 그대로고, 측정은 **자기 크기로 단 한 번**만 일어난다.
+                        //
+                        // 반대 방향(이 카드에 `isSource: false`)으로 고치지 마라 — 하단 덱은 지금 보는
+                        // 재료를 애초에 담지 않으므로(아래 `following`) 정착 상태에서 이 그룹의 소스가
+                        // 0개가 되고, 소스가 있는 전환 구간에는 이 상세가 접힌 카드의 170pt로 눌린다.
+                        //
+                        // 짝인 덱 머리(`bottomDeck`)도 같은 규약을 쓴다 — 펼친 상세가 관여하는 전환에서는
+                        // **어느 쪽도 상대의 크기를 받지 않는다**. 목록 안에서만 도는 짝(스택 카드 ↔ 간편
+                        // 행)은 종전대로 크기까지 매칭한다: 그쪽은 같은 성격의 행끼리라 서로의 상자에
+                        // 배치돼도 잘릴 것이 없고, 보기 토글의 밀도 변화가 그 모핑으로 읽힌다.
+                        .matchedGeometryEffect(id: sel.id, in: ns, properties: .position, anchor: .top)
+                        // 펼침은 **레이아웃이 아니라 렌더 변환**으로 낸다(아래 `unfold`) — 그래서 위
+                        // `.position` 계약을 한 글자도 건드리지 않고도 "종이가 펴지며 올라온다"가 된다.
+                        //
+                        // 나가는 종이는 방향과 무관하게 자기 윗변으로 말려 사라진다(`removal` 고정):
+                        // 제거 전환은 **직전 렌더에 붙어 있던 것**이 쓰이므로, 방향 상태를 읽게 두면
+                        // 스택에서 막 들어온 카드가 넘김 방향을 모른 채 제거되는 창이 생긴다. 삽입만
+                        // 방향을 읽으면 그 값은 항상 이번 넘김의 것이다.
+                        //
+                        // 이 전환은 **덱 넘김에서만** 발화한다 — 목록에서 상세로 들어올 때는 `expanded`
+                        // 서브트리가 통째로 삽입되고, 삽입되는 서브트리 **안쪽**의 전환은 따로 돌지 않는다.
+                        .transition(.asymmetric(insertion: Self.unfold(anchor: advanceDir.anchor),
+                                                removal: Self.unfold(anchor: .top)))
+                        .contentShape(Rectangle())
+                        .onTapGesture { deselect() }
+                }
+                .padding(.top, ReffiSpace.s2)
+                .padding(.horizontal, ReffiGrid.margin + ReffiSpace.s2)   // 24 — 위 `cardInset` 주석의 둘째 값
+                // 측정은 **카드가 아니라 컨테이너**에서 받는다: 전환 중에는 max(나가는 것, 들어오는 것)이,
+                // 정착하면 새 재료의 참 높이가 보고된다. 그래서 `select()`가 캡을 0으로 떨궈 한 프레임
+                // 무제한으로 만들 필요가 없어졌다(그 대입은 삭제됐다 — 아래 `select` 주석).
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { h in
+                    // 측정값은 **애니메이션 없이** 반영한다. 이 캡이 바깥 트랜잭션(settle =
+                    // damping 0.74 언더댐프드)을 물려받으면 오버슈트 구간에서 스크롤 뷰가 콘텐츠보다
+                    // 잠깐 짧아지고, 그때 영수증 하단 톱니가 잘렸다 복원된다.
+                    var t = Transaction()
+                    t.disablesAnimations = true
+                    withTransaction(t) { receiptHeight = h }
+                }
             }
             .scrollBounceBehavior(.basedOnSize)   // 콘텐츠가 다 들어가면 바운스 없음(영수증이 버튼 위로 튀지 않게)
             .frame(maxHeight: receiptHeight > 0 ? receiptHeight : CGFloat.infinity)
@@ -552,17 +595,134 @@ struct FridgeView: View {
                 receiptScrolls = scrolls
             }
             .layoutPriority(1)   // 남는 높이를 아래 Spacer와 반씩 나눠 갖지 않게 — 캡 안에서 먼저 배분
+            // 넘김 제스처의 양보 경계선(아래 `claimedByReceiptScroll`). **손을 대기 전의** 바닥선을
+            // 봐야 한다 — 바로 아래 추종 오프셋이 걸린 동안의 값을 받아들이면 기준선이 손을 따라
+            // 움직여, 같은 자리에서 시작한 다음 드래그의 판정이 달라진다.
+            .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named(DetailSpace.name)).maxY } action: { y in
+                if deckLift == 0 { receiptBottomY = y }
+            }
+            // 손을 따라 화면이 **실제로 움직인다** — 이것이 "이 화면은 넘길 수 있다"를 말하는 유일한
+            // 정직한 신호다(위약 힌트 배지를 만들지 않는다). 46차엔 덱 앞장 하나만 따라와서, 화면의
+            // 90%에서 미는 손은 아무 반응도 받지 못했다. 덱보다 반만 움직여 앞뒤 관계를 남긴다.
+            .offset(y: reduceMotion ? 0 : deckLift * Self.receiptFollow)
             .padding(.bottom, ReffiSpace.s3)
             outcomeButtons(sel)
-                .padding(.top, ReffiSpace.s2)
-            Spacer(minLength: ReffiSpace.s2)
+            Spacer(minLength: ReffiSpace.s7)   // 32 — 판정 버튼은 위(영수증)에 속한다는 구조적 선언
             if !following.isEmpty {
-                bottomDeck(following)
+                bottomDeck(following, previous: previous)
             } else {
                 // 마지막 재료 — 하단 덱이 없으면 그 몫의 네비 자리 예약도 사라져
                 // Ate/Tossed 버튼이 떠 있는 네비 밑에 깔린다. 덱 자리만큼 바닥을 비워둔다.
                 Color.clear.frame(height: ReffiChrome.navReserve)
             }
+        }
+        // 넘김 제스처의 면은 **화면 전체**다(아래 `advanceDrag`). `contentShape`로 빈 캔버스까지
+        // 히트 영역에 넣어야 영수증 옆·버튼 아래 여백에서 시작한 손도 잡힌다.
+        .contentShape(Rectangle())
+        .simultaneousGesture(advanceDrag(next: following.first, previous: previous))
+        // 좌표계는 **가장 바깥**에 선언한다 — 제스처와 위 측정이 둘 다 이 공간을 조상에서 찾는다.
+        .coordinateSpace(.named(DetailSpace.name))
+    }
+
+    /// 펼친 상세의 좌표계 이름 — 제스처 시작점과 영수증 바닥선을 **같은 자에 대고 잰다**.
+    /// 둘 중 하나라도 지역(local) 좌표를 쓰면 비교가 성립하지 않는다.
+    private enum DetailSpace { static let name = "fridge.detail" }
+
+    /// 이번 넘김이 어느 쪽이었는가 — 펼침 전환의 앵커만 정한다(레이아웃에는 관여하지 않는다).
+    private enum AdvanceDirection {
+        /// 목록·덱에서 직접 골라 들어온 길. 펼침 전환이 발화하지 않는 경로라 값은 기본 앵커로만 쓰인다.
+        case tap
+        /// 위로 밀어 다음 재료 — 새 종이가 덱(아래)에서 올라오며 윗변 기준으로 아래로 펴진다.
+        case forward
+        /// 아래로 밀어 이전 재료 — 위에서 내려오는 인상이라 아랫변 기준으로 위로 펴진다.
+        case back
+
+        var anchor: UnitPoint { self == .back ? .bottom : .top }
+    }
+
+    /// 상세 화면 전체를 덮는 세로 넘김 — 위 = 다음 재료, 아래 = 이전 재료.
+    ///
+    /// **면적이 곧 어포던스다.** 46차엔 이 제스처가 하단 덱 띠 하나(폭 화면−48 × 높이 74 = 화면의
+    /// 9.5%)에만 붙어 있었다. 오너는 화면 대부분을 차지하는 영수증 위에서 밀었고 아무 일도 일어나지
+    /// 않아 "탭해야만 바뀐다"고 읽었다(50차 시뮬 실측: 카드 위 드래그 무반응 100% 재현, 덱 띠 위에서만 동작).
+    ///
+    /// 제스처는 **하나만** 둔다 — 덱에 따로 또 붙이면 덱 위에서 두 번 발화한다. 대신 영수증이
+    /// **실제로 넘칠 때만** 그 구역을 스크롤 뷰에 넘긴다(`claimedByReceiptScroll`): 넘치지 않으면
+    /// 스크롤할 것이 없으니 영수증 위에서도 넘김이 먹는 것이 옳다.
+    ///
+    /// 축 잠금 배율 1.4는 `RecipeMemoCarousel.frontDrag`와 **같은 값**이다 — 같은 문법(플릭으로
+    /// 목록을 넘긴다)에 두 값을 두지 않는다. 커밋 거리(36/120 vs 저쪽 160)는 갈라 둔다: 저쪽은
+    /// 카드를 날려 보내는 커밋이고 이쪽은 목록 넘김이다.
+    private func advanceDrag(next: Ingredient?, previous: Ingredient?) -> some Gesture {
+        DragGesture(minimumDistance: 12, coordinateSpace: .named(DetailSpace.name))
+            .updating($deckLift) { v, lift, _ in
+                guard Self.claimsAdvance(v.translation), !claimedByReceiptScroll(v.startLocation) else { return }
+                // **양방향 추종.** 옛 `min(0,…)` 클램프는 아래로 미는 손에게 변위 0을 돌려줬고,
+                // 화면이 손을 전혀 따라오지 않으면 사용자는 "이쪽은 반대 의미"가 아니라
+                // "이 화면엔 제스처가 없다"로 읽는다.
+                lift = v.translation.height * Self.deckLiftDamping
+            }
+            .onEnded { v in
+                guard Self.claimsAdvance(v.translation), !claimedByReceiptScroll(v.startLocation) else { return }
+                // 변위 단독 판정은 **짧고 빠른 튕김**을 놓친다 — 손가락이 36pt를 긋기 전에 떠도
+                // 사람은 이미 "밀어 올렸다"고 느낀다. 던진 속도(`predictedEndTranslation`)를 함께
+                // 본다: 끝까지 끌었거나(변위), 짧아도 세게 튕겼으면(예측) 넘긴다.
+                let d = v.translation.height, p = v.predictedEndTranslation.height
+                if d < -Self.deckAdvanceDistance || p < -Self.deckAdvancePredicted {
+                    if let next { markAdvanced(); select(next, direction: .forward) }
+                } else if d > Self.deckAdvanceDistance || p > Self.deckAdvancePredicted {
+                    if let previous { markAdvanced(); select(previous, direction: .back) }
+                }
+            }
+    }
+
+    /// 세로 넘김으로 볼 것인가 — 한 제스처에서 우세 축이 갈렸을 때만 참.
+    /// 애매한 구간(대략 35.5°~54.5°)은 끝까지 거짓이라 **아무 것도 커밋하지 않는다**.
+    private static func claimsAdvance(_ t: CGSize) -> Bool {
+        abs(t.height) > abs(t.width) * 1.4
+    }
+
+    /// 이 시작점은 영수증 스크롤 몫인가 — **넘칠 때만** 참이다.
+    /// `receiptScrolls`는 이미 "콘텐츠가 뷰포트를 넘는가"를 실측해 들고 있다(새 상태를 만들지 않는다).
+    /// 넘치지 않는 대다수 화면에서는 영수증 위에서도 넘김 제스처가 그대로 먹는다.
+    private func claimedByReceiptScroll(_ p: CGPoint) -> Bool {
+        receiptScrolls && p.y < receiptBottomY
+    }
+
+    /// 펼친 상세가 손을 따라오는 비율 — 덱 앞장(`deckLiftDamping`)의 절반.
+    /// 같이 움직이되 덱보다 덜 움직여야 "덱이 따라 올라온다"는 앞뒤 관계가 남는다.
+    private static let receiptFollow: CGFloat = 0.5
+
+    /// 종이 펼침 — 접힌 종이가 세로로 펴진다.
+    ///
+    /// `scaleEffect`는 **렌더 변환**이라 레이아웃에 크기를 제안하지 않는다. 46차가 측정으로 세운
+    /// 결함("전환 프레임마다 남의 상자에 배치돼 이름이 `mushro…`로 잘렸다 돌아온다")은 이 축에
+    /// **구조적으로 존재할 수 없다** — 텍스트가 다시 배치되지 않기 때문이다. 그래서 크기 표현을
+    /// 여기서 내고 `matchedGeometryEffect`는 46차 계약(`.position`, `anchor: .top`) 그대로 둔다.
+    ///
+    /// **어떤 형태의 클립도 쓰지 마라.** 사각 클립(`clipShape`/`frame(height:)`)으로 접으면
+    /// `ReceiptShape`의 위·아래 절취 톱니가 전환 중에 잘려 46차·`FridgeCardHead`가 금지한
+    /// "가위로 직선 절단된 그림"이 그대로 재현된다. 스케일은 톱니를 살린 채로 눌렀다 편다.
+    private static func unfold(anchor: UnitPoint) -> AnyTransition {
+        .modifier(active: UnfoldModifier(scaleY: unfoldFrom, opacity: 0, anchor: anchor),
+                  identity: UnfoldModifier(scaleY: 1, opacity: 1, anchor: anchor))
+    }
+
+    /// 접힌 상태의 세로 비율 — 덱 머리 74 ÷ 전형적 상세 높이(≈354, 기본 크기·이름 1줄).
+    /// 매 전환마다 정확한 비율을 계산하지 않는 이유: 전환이 시작되는 시점의 `receiptHeight`는 아직
+    /// 새 재료의 것이 아니고, 0.2~0.3 구간은 어차피 "접힌 종이"로 읽힌다.
+    private static let unfoldFrom: CGFloat = 0.21
+
+    /// 펼침 전환의 한 프레임. `opacity`를 함께 태우는 이유는 미감이 아니다 — 전환 중 두 종이가
+    /// 같은 ZStack에 겹쳐 서므로, 페이드가 없으면 두 장의 잉크가 포개져 글자가 뭉개진다.
+    private struct UnfoldModifier: ViewModifier {
+        let scaleY: CGFloat
+        let opacity: Double
+        let anchor: UnitPoint
+        func body(content: Content) -> some View {
+            content
+                .scaleEffect(x: 1, y: scaleY, anchor: anchor)
+                .opacity(opacity)
         }
     }
 
@@ -581,10 +741,22 @@ struct FridgeView: View {
         return Array(items[(i + 1)...]) + Array(items[..<i])
     }
 
+    /// 펼친 재료의 **직전** 한 장 — 아래로 미는 손이 도착하는 곳. 위 `following`의 거울이라
+    /// 같은 규율을 그대로 잇는다(별도 상태를 두지 않고 표시 목록에서 매번 파생한다).
+    ///
+    /// **끝에서 순환한다** — `following`이 이미 순환이기 때문이다. 한쪽만 끊으면 위로 다섯 번 밀면
+    /// 처음으로 돌아오는데 아래로는 못 돌아오는 비대칭이 생기고, 덱의 "+N more" 낭독도 두 방향에
+    /// 대해 서로 다른 뜻이 된다. 대가는 "끝이 없다"는 감각이고, 전량 탐색의 정식 경로는 닫기(X)
+    /// 뒤의 목록이다(46차 오너 판정).
+    private static func preceding(_ sel: Ingredient, in items: [Ingredient]) -> Ingredient? {
+        guard items.count > 1, let i = items.firstIndex(where: { $0.id == sel.id }) else { return nil }
+        return items[(i - 1 + items.count) % items.count]
+    }
+
     private var doneBar: some View {
         HStack {
             Spacer()
-            PaperCloseButton(action: deselect)   // 룰① — 종이 X의 단일 공급원(시각40/히트44/paper)
+            PaperCloseButton(action: deselect)   // 룰① — 닫기 X의 단일 공급원(글리프 18/ink2/히트 44, 면 없음 — 50차)
         }
         .padding(.horizontal, ReffiGrid.margin)
         .padding(.top, ReffiSpace.s3)
@@ -594,12 +766,17 @@ struct FridgeView: View {
     /// 스크롤 밖에 도킹되는 1차 액션 — 높이를 고정하지 마라(큰 글자에서 라벨이 잘린다). 블롭 88 ≥ 44(§7.3).
     private func outcomeButtons(_ sel: Ingredient) -> some View {
         // Main의 결정 오버레이와 동일한 종이컷 아이콘 버튼(기본 88 + s6 간격).
+        //
+        // **넘김 표를 여기서도 삼킨다.** 제스처 면이 화면 전체가 된 뒤로는 이 88pt 블롭 위에서 시작한
+        // 스와이프가 같은 터치로 버튼 탭까지 던진다 — SwiftUI 버튼은 이동 거리가 아니라 프레임
+        // 이탈로 탭을 취소하는데, 88pt 블롭 안에서 36pt는 이탈이 아니다. 삼키지 않으면 재료를 넘기려던
+        // 손이 그 재료를 **먹거나 버린다**(되돌리기가 있어도 파괴적 오발동이다).
         HStack(spacing: ReffiSpace.s6) {
             PaperIconButton(icon: ReffiIcon.toss, label: "Tossed", intent: .soft, seed: 0) {
-                remove(sel, ate: false)
+                if !consumeAdvanceTap() { remove(sel, ate: false) }
             }
             PaperIconButton(icon: ReffiIcon.ate, label: "Ate", intent: .primary, seed: 1) {
-                remove(sel, ate: true)
+                if !consumeAdvanceTap() { remove(sel, ate: true) }
             }
         }
         .frame(maxWidth: .infinity)
@@ -616,23 +793,29 @@ struct FridgeView: View {
     private static let deckPeek: CGFloat = 8
 
     /// 하단 덱 — **다음 재료 한 장이 온전한 종이로 서고**, 뒤는 글자 없는 노출 띠 둘이다.
-    /// 위로 밀면 이 장이 상세 자리로 올라오고 보던 재료가 더미로 들어간다(§13.6 티켓 덱과 같은 문법).
+    /// 위로 밀면 이 장이 상세 자리로 올라온다(§13.6 티켓 덱과 같은 문법).
+    ///
+    /// **보던 재료는 이 더미로 들어가지 않는다.** 46차 주석은 그렇게 적혀 있었지만 참인 적이 없다 —
+    /// `following`은 보던 재료를 배열 **끝**으로 보내므로 재고가 4개 이상이면 그 카드는 `deckDepth`
+    /// 밖이다. 나가는 종이는 제자리에서 접혀 사라진다(위 `unfold`의 removal). 넣으려면 덱을
+    /// `[다음, 다음+1, 직전]`으로 바꿔야 하는데, 그러면 뒤 머리 둘의 뜻이 "앞으로 올 것"에서
+    /// "앞뒤 혼합"으로 갈려 46차가 정한 "다음 한 장 + 뒤 머리 둘" 문법 자체가 깨진다(50차 오너 확정).
     ///
     /// **사각 클립으로 카드를 잘라 만들지 않는다.** `ReceiptShape`는 주어진 rect의 위·아래 **양변**에
     /// 절취선을 그리므로, 170pt 카드를 112pt 상자로 오려 내면 아래 톱니가 통째로 사라져 종이가
     /// "뜯긴" 게 아니라 "가위로 직선 절단된 그림"이 된다(오너: "아랫부분이 어색하게 잘려 있다").
     /// 짧게 **그린** 종이(`FridgeCardHead`)는 위·아래 절취선을 다 갖는다.
-    private func bottomDeck(_ following: [Ingredient]) -> some View {
+    private func bottomDeck(_ following: [Ingredient], previous: Ingredient?) -> some View {
         let deck = Array(following.prefix(Self.deckDepth))
         let next = deck.first
         return ZStack(alignment: .top) {
             ForEach(Array(deck.enumerated()), id: \.element.id) { depth, ing in
                 let isFront = depth == 0
-                // 위로 민 손은 카드를 고르려는 손이 아니다. 같은 터치가 **버튼 탭으로도** 도착한다 —
+                // 민 손은 카드를 고르려는 손이 아니다. 같은 터치가 **버튼 탭으로도** 도착한다 —
                 // SwiftUI 버튼은 이동 거리가 아니라 프레임 이탈로 탭을 취소하는데, 밀어 올린 손끝은
                 // 여전히 같은 버튼 안이다. 그대로 두면 넘김 직후 그 버튼이 한 번 더 발동해 두 칸이
                 // 건너뛰어진다. 넘긴 제스처가 남긴 표를 여기서 한 번 삼킨다.
-                Button { if !consumeDeckAdvance() { select(ing) } } label: {
+                Button { if !consumeAdvanceTap() { select(ing) } } label: {
                     // 펼친 상세와 **같은 규약**으로 위치만 잇는다(그쪽 주석). 이 둘은 서로의 짝이라
                     // 한쪽만 크기를 매칭하면 나머지 한쪽이 상대의 상자로 눌린다 — 기본값이면 이 74pt
                     // 머리 카드가 상세가 빠지는 프레임마다 430pt로 늘어났다 줄어든다.
@@ -662,65 +845,50 @@ struct FridgeView: View {
                 .accessibilityHidden(!isFront)
             }
         }
-        // 미는 손은 카드 위에서 시작한다 — 덱 블록 전체를 제스처 면으로 잡되, 아래 네비 자리
-        // 예약(`navReserve`)까지 끌고 가지 않도록 **패딩 앞**에 건다.
-        .contentShape(Rectangle())
         .padding(.top, CGFloat(max(0, deck.count - 1)) * Self.deckPeek)   // 뒤 머리 몫을 위에 비운다
         .padding(.horizontal, ReffiGrid.margin + ReffiSpace.s2)   // 24 — 위 영수증과 **같은 좌측선**
         .padding(.bottom, ReffiChrome.navReserve)
-        // **위로 밀기의 뜻이 바뀌었다: 닫기 → 다음 재료로 넘김.**
+        // **넘김 제스처는 여기 없다 — 상세 화면 전체가 받는다**(위 `advanceDrag`).
         //
-        // 오너가 요구한 연출("스크롤하면 다음 재료가 올라오고 기존 재료가 들어간다")은 이 제스처
-        // 자리에서만 성립한다 — 더미를 통째로 끌어올려 화면을 닫던 옛 동작과 자리가 같다.
-        // 손에 익은 제스처를 바꾸는 것이라 닫는 길이 사라지지 않았는지 확인해 뒀다:
-        // ① 오른쪽 위 종이 X(`doneBar`, 시각 40 / 히트 44 — 화면에서 유일하게 떠 있는 크롬이라
-        //    시선이 먼저 닿는다) ② 영수증 본문 탭(`onTapGesture { deselect() }`). 둘 다 그대로다.
+        // 46차엔 이 자리에만 붙어 있었고(옛 "위로 밀어 닫기"의 자리를 그대로 물려받았다) 그 결과
+        // 유효 면적이 화면의 9.5%였다. 덱에 하나 더 붙이면 덱 위에서 두 번 발화하므로 **다시 붙이지 마라.**
         //
-        // `simultaneousGesture`인 이유는 To buy 행과 같다 — 안쪽이 버튼이 되면 `gesture`는 안쪽
-        // 제스처에 밀려 한 번도 잡히지 않는다. 동시로 두면 탭은 버튼이, 미는 손은 이쪽이 가져간다.
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 16)
-                .updating($deckLift) { v, lift, _ in
-                    // 위(음수)로만 끌린다 — 아래로 미는 손엔 여기서 할 일이 없다(스크롤 몫).
-                    lift = min(0, v.translation.height) * Self.deckLiftDamping
-                }
-                .onEnded { v in
-                    guard let next else { return }
-                    // 변위 단독 판정은 **짧고 빠른 튕김**을 놓친다 — 손가락이 36pt를 긋기 전에 떠도
-                    // 사람은 이미 "밀어 올렸다"고 느낀다. 던진 속도(`predictedEndTranslation`)를 함께
-                    // 본다: 끝까지 끌었거나(변위), 짧아도 세게 튕겼으면(예측) 넘긴다.
-                    if v.translation.height < -Self.deckAdvanceDistance
-                        || v.predictedEndTranslation.height < -Self.deckAdvancePredicted {
-                        markDeckAdvanced()
-                        select(next)
-                    }
-                }
-        )
-        // 미는 제스처는 보조기술에 없다 — 넘김을 액션으로도 낸다. 라벨은 카탈로그에 이미 en/ko가
-        // 등록된 "Next"를 쓴다(덱 요소 위에서 읽히므로 무엇의 다음인지는 문맥이 말한다).
+        // 닫는 길은 그대로 둘이다: ① 오른쪽 위 종이 X(`doneBar`) ② 영수증 본문 탭
+        // (`onTapGesture { deselect() }`). 아래로 미는 손이 "이전 재료"인 이유가 이것이다 —
+        // 닫기 경로가 이미 둘인데 세 번째를 만드는 것보다, 넘김을 양방향으로 완성하는 편이 낫다.
+        //
+        // 미는 제스처는 보조기술에 없다 — 넘김을 **양방향 액션**으로 낸다. 제스처가 두 방향이 된
+        // 순간 액션이 한 방향뿐이면 보조기술 사용자만 도달하지 못하는 재료가 생긴다.
+        // 라벨이 덱 위에서 읽히므로 무엇의 다음/이전인지는 문맥이 말한다.
         .accessibilityAction(named: Text("Next")) {
-            if let next { select(next) }
+            if let next { select(next, direction: .forward) }
+        }
+        .accessibilityAction(named: Text("Previous")) {
+            if let previous { select(previous, direction: .back) }
         }
     }
 
-    /// 방금 위로 밀어 넘겼다는 표. 같은 터치의 버튼 탭이 **바로 다음 런루프**에 도착하므로
+    /// 방금 밀어 넘겼다는 표. 같은 터치의 버튼 탭이 **바로 다음 런루프**에 도착하므로
     /// 창을 아주 짧게 잡고 스스로 지운다 — 버튼이 어떤 이유로든 오지 않아도 다음 진짜 탭을
     /// 삼키지 않는다(표를 무기한 들고 있으면 그 다음 카드가 안 열리는 유령 버그가 된다).
-    private func markDeckAdvanced() {
-        deckAdvancedAt = Date()
+    ///
+    /// **덱 전용이 아니다.** 제스처 면이 화면 전체가 된 뒤로는 판정 버튼(Ate/Tossed)도 같은 표를
+    /// 소비한다 — 그쪽은 오발동의 대가가 재료 소비/폐기라 훨씬 비싸다.
+    private func markAdvanced() {
+        advancedAt = Date()
     }
 
-    private func consumeDeckAdvance() -> Bool {
-        guard let at = deckAdvancedAt,
-              Date().timeIntervalSince(at) < Self.deckAdvanceSwallow else { return false }
-        deckAdvancedAt = nil
+    private func consumeAdvanceTap() -> Bool {
+        guard let at = advancedAt,
+              Date().timeIntervalSince(at) < Self.advanceSwallow else { return false }
+        advancedAt = nil
         return true
     }
 
     /// 넘김 제스처가 버튼 탭을 삼키는 창(초).
-    private static let deckAdvanceSwallow: TimeInterval = 0.2
+    private static let advanceSwallow: TimeInterval = 0.2
 
-    /// 손을 따라 올라오는 비율 — 1이면 종이가 손에 붙어 날아가고, 낮으면 무겁다.
+    /// 손을 따라 움직이는 비율 — 1이면 종이가 손에 붙어 날아가고, 낮으면 무겁다.
     private static let deckLiftDamping: CGFloat = 0.6
     /// 끝까지 끌어 넘기는 변위 — 옛 닫기 판정값 그대로다(이미 손에 익은 거리).
     private static let deckAdvanceDistance: CGFloat = 36
@@ -928,13 +1096,18 @@ struct FridgeView: View {
 
     // MARK: 액션
 
-    /// 상세 열기 — 덱에서 다음 재료로 넘어오는 길도 여기다.
+    /// 상세 열기 — 목록에서 들어오는 길도, 밀어 다음/이전으로 넘어오는 길도 여기다.
     ///
-    /// 캡은 **재료마다 다시 잰다**. `receiptHeight`를 남겨 두면 갈아탄 첫 프레임이 직전 재료의
-    /// 높이로 잘린다(이름이 두 줄이 되거나 값이 줄바꿈되면 두 재료의 영수증 높이가 실제로 갈린다).
-    /// 0은 "미측정 = 캡 없음"이라 다음 측정이 도착할 때까지 잘리는 구간이 없다.
-    private func select(_ ing: Ingredient) {
-        receiptHeight = 0
+    /// **캡(`receiptHeight`)은 여기서 건드리지 않는다.** 재료마다 다시 재야 하는 것은 맞지만
+    /// (이름이 두 줄이 되거나 값이 줄바꿈되면 두 재료의 영수증 높이가 실제로 갈린다), 그 일은 이제
+    /// 컨테이너 측정이 한다 — 겹쳐 세운 ZStack이 전환 중에는 max(나가는 것, 들어오는 것)을,
+    /// 정착하면 새 재료의 참 높이를 보고한다. 옛 `receiptHeight = 0` 대입은 그 한 프레임 동안 캡을
+    /// `.infinity`로 열어, `layoutPriority(1)` 스크롤 뷰가 남는 높이를 다 먹고 **판정 버튼과 덱이
+    /// 한 프레임 아래로 튀었다가 돌아오게** 만들었다. 전환이 보이기 시작한 지금은 그 튐도 보인다.
+    ///
+    /// `direction`은 펼침 전환의 앵커만 정한다 — 레이아웃에는 아무 영향이 없다.
+    private func select(_ ing: Ingredient, direction: AdvanceDirection = .tap) {
+        advanceDir = direction
         withAnimation(motion) { selectedID = ing.id }
     }
     private func deselect() { withAnimation(motion) { selectedID = nil } }

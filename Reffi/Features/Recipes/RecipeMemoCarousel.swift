@@ -184,9 +184,61 @@ struct RecipeMemoCarousel: View {
     /// 재질이 다른 1차 CTA였다 — `ReceiptScanView`가 감사 R4-2로 이미 한 번 고친 실수다.
     ///
     /// `seed`는 **고정값**이다. 앞 티켓 번호를 넘기면 덱을 넘길 때마다 바 종이가 다시 오려져 깜빡인다.
+    ///
+    /// 점 인디케이터는 **바 안, CTA 위**다(50차). 바 밖에 두면 두 가지를 잃는다: ① `dockedCTA`의
+    /// `.padding(.top, s6)`은 페이드 띠와 같은 높이라 바 내용은 항상 불투명 면 위에서 시작하는데,
+    /// 밖에 두면 점이 그 그라데이션에 반쯤 잠긴다. ② "빈 덱엔 바를 걸지 않는다"(위 `cover` 주석)는
+    /// 46차 규율을 손으로 한 번 더 지켜야 한다 — 바 안에 두면 그 분기를 그대로 상속한다.
     private var deckCTA: some View {
-        PaperButton(title: "Cook this", seed: 8) { fireTrigger += 1 }
-            .disabled(fired)   // 디밍은 PaperButton이 §7.2로 — 발주 후 덱 잠금과 같은 신호
+        VStack(spacing: ReffiSpace.s3) {
+            if deck.count > 1 { deckDots }
+            PaperButton(title: "Cook this", seed: 8) { fireTrigger += 1 }
+                .disabled(fired)   // 디밍은 PaperButton이 §7.2로 — 발주 후 덱 잠금과 같은 신호
+        }
+    }
+
+    /// 덱 위치 표시자 — **완전한 원이다. 종이컷으로 "고치지" 마라.** §13.1의 종이 셰이프 규칙은
+    /// 손이 닿는 **면·컨트롤**의 규약이지 3~7pt 표시자의 규약이 아니고(온보딩 `introDots`가 같은
+    /// 판정으로 이미 `Circle()`을 쓴다), 7pt에서는 종이 문법이 물리적으로 표현되지도 않는다 —
+    /// `PaperCutRect` 7×7이면 잘림 1.4에 지터 1.2라 8각이 아니라 그냥 노이즈가 되고, `PaperBlob`
+    /// 7×7은 반지름 편차가 0.24pt(3x에서 0.72px)라 육안으로 원과 구분되지 않는다.
+    ///
+    /// 크기(7)·간격(6)·잉크(`ink2`)·비활성 알파(`inactive`)는 `introDots`에서 그대로 읽어 온 값이다.
+    /// 값을 새로 발명하지 않는 이유는 앱에 인디케이터 어휘가 둘로 갈리지 않게 하려는 것. 다만 이걸로
+    /// **손조립 인디케이터가 셋째**가 됐다(`introDots`·`setupGauge`·여기) — 다음 라운드에
+    /// `Components/PageDots.swift`로 뽑아 셋을 이관할 것. 이 저장소에서 손조립 중복은 예외 없이
+    /// 드리프트했다(`SheetHeader`·`PaperCloseButton`·`dockedCTA`가 전부 그래서 생겼다).
+    ///
+    /// **현재 위치는 `deck.first`다.** `order`는 `onAppear`의 초기화(`Array(results.indices)` =
+    /// 0부터 오름차순)와 `advance()`의 회전(`append(removeFirst())`) 외에는 쓰이지 않는 **순수 회전**이라,
+    /// k회 패스 후 `deck.first == k % count`가 곧 0-based 위치다. 커서 상태를 따로 만들지 마라
+    /// (`HistoryView`가 같은 이유로 두지 않는다 — 커서 쪽만 스테일이 된다). 반대로 누군가 `order`를
+    /// 회전이 아닌 재정렬로 바꾸면 이 등식이 깨져 점이 엉뚱한 칸에서 튄다.
+    ///
+    /// 탭을 받지 않는다 — 같은 동작(패스)의 3번째 입력 경로가 된다(`flickZones` 주석과 같은 논리).
+    ///
+    /// **낭독은 점 자신이 한다.** 첫 구현은 덱 컨테이너에 `accessibilityElement(children: .contain)`
+    /// + 라벨을 씌워 위치를 말하게 했는데, 그 승격이 덱의 접근성 트리를 통째로 바꿔 **플릭 UI 테스트
+    /// 3건이 깨졌다**(요소 조회가 컨테이너 밑으로 들어가 앞 티켓 판정이 무너졌다 — 실측). 위치
+    /// 표시자는 그 자체가 접근성 요소인 것이 표준 모델이고(UIPageControl), 그러면 카드 트리를
+    /// 건드리지 않고도 정보가 들린다. **컨테이너를 승격시키는 방식으로 되돌리지 마라.**
+    private var deckDots: some View {
+        let current = deck.first ?? 0
+        return HStack(spacing: 6) {                      // introDots와 같은 값
+            ForEach(0..<deck.count, id: \.self) { i in
+                Circle()
+                    .fill(i == current ? ReffiColor.ink2
+                                       : ReffiColor.muted.opacity(ReffiOpacity.inactive))
+                    .frame(width: 7, height: 7)
+            }
+        }
+        // 점을 움직이는 원인이 덱 회전이므로 시계도 그쪽을 따른다 — `advance()`가 `order`를 감싸는
+        // 그 `settle`이다. 온보딩 introDots의 `enter`는 페이지 **면 전환**의 시계라 여기선 어긋난다.
+        .animation(ReffiMotion.gated(ReffiMotion.settle, reduce: reduceMotion), value: current)
+        // 발주 후(`fired`)에도 디밍하지 않는다: `disabled`(.45)는 "누를 수 없다"는 **컨트롤** 축이고
+        // 점은 컨트롤이 아니다(§7.2 inactive 주석). 잠긴 것은 CTA지 위치 표시가 아니다.
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Ticket \(current + 1) of \(deck.count)")
     }
 
     // MARK: - 담기 3단 팝업
@@ -278,6 +330,13 @@ struct RecipeMemoCarousel: View {
         .accessibilityAction(named: Text("Next ticket")) { advance() }
         // advance()가 앞 티켓을 hidden으로 내리면 커서가 화면 처음으로 튕긴다 — 새 앞 티켓으로
         // 옮긴다(42차·F58, `HistoryView.chipRowFocused`가 확립한 패턴).
+        //
+        // "몇 장 중 몇 번째"는 **덱 자신이** 말한다(50차). 점(`deckDots`)은 장식으로 숨겼으므로,
+        // 그 정보가 색·모양에만 실리지 않으려면 여기 문장이 있어야 한다. 순서가 계약이다 —
+        // 커스텀 액션은 **이 모디파이어보다 안쪽**에 남는다: 액션은 컨테이너 승격 전에 걸려야
+        // 카드 요소들로 전파돼 VoiceOver가 앞 티켓 위에서 "Next ticket"을 계속 꺼낼 수 있고,
+        // 라벨은 승격 **뒤**에 걸려야 컨테이너에 붙는다(앞에 걸면 자식으로 전파돼 앞 티켓의
+        // 라벨을 통째로 덮어쓴다). 둘을 한 모디파이어로 묶어 순서를 못 박는다.
     }
 
     @ViewBuilder private func ticketCard(idx: Int, depth: Int) -> some View {

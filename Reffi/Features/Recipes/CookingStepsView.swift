@@ -31,11 +31,6 @@ struct CookingStepsView: View {
     @State private var showKitchenCopy = false
     @State private var leftovers: Set<UUID> = []   // '조금 남았어요'로 표시한 재료
     @State private var shareImage: Image?   // 공유 카드 오프스크린 렌더 결과 — 아래 ShareCardKey가 바뀔 때만 갱신
-    /// 커버 헤더의 실측 높이 — 티켓 상단 여백이 여기서 파생된다(형제 `RecipeMemoCarousel`과 같은 규칙).
-    /// 기본 글자 크기의 `CoverHeader`는 s4(16) + 44 + s1(6) + 경과 시간 한 줄(≈16) + s3(12) ≈ 94이라
-    /// 초기값도 94지만, 큰 글씨에서 타이틀이 두 줄로 접히면 그만큼 자란다 — 고정값으로 두면 헤더가
-    /// 티켓의 크라운·메뉴명을 덮고, 그 둘은 티켓 최상단이라 스크롤로도 되돌릴 수 없다.
-    @State private var headerHeight: CGFloat = 94
 
     /// 예약된 재료(아직 냉장고에 있는 것) — 완료 확인 시트의 목록.
     private var reservedIngredients: [Ingredient] {
@@ -129,8 +124,10 @@ struct CookingStepsView: View {
                     ScrollView {
                         ticket(cook, ticketWidth: max(0, geo.size.width - ticketInset * 2))
                             .padding(.horizontal, ticketInset)
-                            // 헤더 아래 s5 — 냉장고 화면의 "헤더 ↔ 콘텐츠" 경계와 같은 값(고정값 금지).
-                            .padding(.top, headerHeight + ReffiSpace.s5)
+                            // 상단 여백은 **여기서 주지 않는다.** 헤더가 `safeAreaInset`으로 제 높이를
+                            // 가져가고 그 아래 s6 페이드 띠까지 스스로 붙이므로, 티켓은 페이드가 끝나는
+                            // 지점에서 시작한다(헤더 하단 s3 + 페이드 s6 = 40 — 덱의 `deckGap` 계산과
+                            // 같은 값으로 수렴한다). 여기에 값을 더하면 그 40에 이중으로 얹힌다.
                             .padding(.bottom, ReffiSpace.s6)
                     }
                     // 공유 카드에 인쇄되는 값(메뉴명·예약 재료 이름·시간·개수)이 바뀔 때만 다시 렌더한다.
@@ -147,9 +144,19 @@ struct CookingStepsView: View {
                         shareImage = renderShareImage(for: cook, icon: heroIcon(for: cook))
                     }
                 }
-                topBar
             }
         }
+        // **상단도 하단과 같은 규칙으로 도킹한다(50차 오너).** 헤더는 `safeAreaInset`으로 제 높이를
+        // 스스로 가져가고, 그 뒤에는 `topBar`가 붙인 불투명 면 + 페이드 띠가 깔린다.
+        //
+        // 옛 배치는 헤더를 ZStack 맨 위에 겹쳐 놓고 실측 높이를 아래 콘텐츠의 상단 패딩으로 되먹였다.
+        // 두 가지가 동시에 깨져 있었다: ① 헤더에 면이 없어(=투명한 글자 덩어리) 화면 전체를 차지한
+        // ScrollView의 티켓이 "Cooking now" 위를 그대로 통과했다 — 패딩은 **정지 위치**만 정할 뿐
+        // 스크롤 이동을 막지 못한다 ② 실측이 도착하기 전 첫 프레임이 근사 초기값으로 그려져 큰 글씨에서
+        // 티켓이 한 번 내려앉았다. 인셋으로 옮기면 ②가 구조적으로 사라지고, ①은 아래 `topBar`의
+        // 불투명 면이 맡는다 — 둘은 세트다(`safeAreaInset`은 콘텐츠를 인셋 뷰 **밑으로 흘리는** 것이
+        // 본래 동작이고, `dockedCTA`가 그 위에 면을 까는 이유가 정확히 그것이다).
+        .safeAreaInset(edge: .top, spacing: 0) { topBar }
         // 확정 액션은 티켓 안이 아니라 화면 하단에 도킹한다(§13.6) — 티켓이 짧아도 CTA가 화면 중턱에
         // 뜨지 않고, 메인·시트의 하단 CTA 관례와 같은 자리에서 엄지로 닿는다. 본문(티켓)만 스크롤한다.
         .dockedCTA(over: ReffiColor.paperPass) { bottomBar }
@@ -298,8 +305,19 @@ struct CookingStepsView: View {
         .accessibilityHint(Text("Toggles whether some is left over"))
     }
 
-    /// 커버 헤더 — 단일 공급원 `CoverHeader`(§14.2: 풀스크린 커버 = 중앙 타이틀 + 종이 X).
+    /// 커버 헤더 — 단일 공급원 `CoverHeader`(§14.2) + **상단 도킹 면**.
     /// 경과 시간은 accessory 슬롯에 둔다 — `style: .relative`라 시스템이 알아서 라이브 갱신한다.
+    ///
+    /// 배경은 `PaperButton.dockedCTA`를 **위아래 뒤집은 것**이다: 불투명 면이 노치까지 이어지고,
+    /// 아래쪽 `s6` 띠만 화면 바탕색으로 페이드한다. 스크롤한 티켓이 헤더 글자 밑에서 사라지되
+    /// 직선에서 뚝 끊기지 않는다(끊기면 그 자리가 다시 '층'으로 읽힌다 — 46차 히어로 밴드 판정).
+    /// 46차의 "배경은 단색"은 *화면 바탕*에 대한 규칙이고, 이 띠는 §13.6이 하단 도킹 바에 이미
+    /// 명문화한 같은 장치라 충돌하지 않는다.
+    ///
+    /// 이 조립이 `dockedCTA` 옆의 `dockedHeader`가 아니라 여기 있는 이유: 50차 시점에 상단을 도킹하는
+    /// 커버가 이 화면 하나뿐이다(덱은 `ScrollView`가 아니라 면이 필요 없다). **두 번째 호출부가
+    /// 생기면 그때 `PaperButton`의 `dockedCTA` 옆으로 올릴 것** — 손으로 두 벌을 유지하면 페이드
+    /// 높이가 화면별로 갈린다.
     private var topBar: some View {
         CoverHeader(title: "Cooking now",
                     closeHint: "Keeps cooking in progress",   // 닫아도 세션은 남는다는 결과 예고
@@ -317,8 +335,17 @@ struct CookingStepsView: View {
                 .reffiType(.metaText).foregroundStyle(ReffiColor.ink2)
             }
         }
-        // 헤더가 실제로 차지한 높이를 티켓 상단 여백으로 되돌린다(`headerHeight` 주석 참고).
-        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { headerHeight = $0 }
+        .padding(.bottom, ReffiSpace.s6)   // 페이드 띠 높이와 같다 — 티켓은 띠가 끝나는 지점에서 시작한다
+        .background {
+            VStack(spacing: 0) {
+                ReffiColor.paperPass       // 불투명 — 노치·상태바까지 이어진다
+                LinearGradient(colors: [ReffiColor.paperPass, ReffiColor.paperPass.opacity(0)],
+                               startPoint: .top, endPoint: .bottom)
+                    .frame(height: ReffiSpace.s6)
+            }
+            .ignoresSafeArea(edges: .top)
+            .allowsHitTesting(false)       // 면은 그림일 뿐 — X 버튼 밖의 탭을 삼키지 않는다
+        }
     }
 
     // MARK: - 조리 티켓

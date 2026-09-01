@@ -268,7 +268,7 @@ struct HistoryContent: View {
     /// a day. Green is what you ate.") — 칩 문법(면색=먹었는가·배지=버림 개수)을 한 번 읽고 나면
     /// 다시 볼 필요가 없다는 것이 owner 판단이다. **알림(alert)이 아니라 힌트**라 시각은 조용하게
     /// 유지한다 — 캡션과 같은 톤(`ink2`)의 작은 X 하나, 카드 면·그림자 없음. `PaperCloseButton`은
-    /// 시트·커버를 닫는 더 무거운 문법이라 여기 쓰지 않는다 — 검색 필드의 "Clear search" X와 같은 결.
+    /// **화면 단위**(시트·커버)를 닫는 자리라 여기 쓰지 않는다 — 50차에 둘 다 무면·`ink2`가 되어 남은 차이는 글리프 크기뿐이다(화면 닫기 18 / 요소 힌트 닫기 14). 검색 필드의 "Clear search" X와 같은 결.
     private var chipHintNotice: some View {
         HStack(spacing: ReffiSpace.s2) {
             Text("A chip a day. Green is what you ate.")
@@ -631,36 +631,70 @@ struct HistoryContent: View {
                     .reffiType(.subhead)
                     .foregroundStyle(ReffiColor.ink)
                     .accessibilityAddTraits(.isHeader)   // 정산 카드 제목과 같은 층, 같은 트레잇
-                LazyVStack(alignment: .leading, spacing: ReffiSpace.s3) {
-                    ForEach(logs.prefix(shown)) { log in timelineRow(log) }
+                // 제목 아래 절취선 — 옆 정산서가 제목 바로 아래에 긋는 그 선이다. 행 사이에 선이
+                // 서는 순간, 제목 아래에만 선이 없으면 그 비대칭이 눈에 남는다(그때는 카드 톱니가
+                // 아니라 제목이 첫 행의 위 경계이므로 To buy의 "첫 행 위엔 안 긋는다"가 이식되지
+                // 않는다 — 거기서 그 규칙이 가리킨 것은 톱니 가장자리였다).
+                ReffiRule(.receipt)
+                // 행 사이 절취선(50차 오너: "각 재료 사이에 옅은 점선") — **`.receipt`(16%)이지
+                // To buy의 `.ticket`(22%)이 아니다.** 갈림의 기준은 굵기 취향이 아니라 행이 하는
+                // 일이다: To buy·`PaperDropdown`의 `.ticket` 행은 44pt **조작 행**이고, 타임라인은
+                // 읽기만 하는 **명세 행**이라 같은 카드의 정산 명세(전부 `.receipt`)와 한 잉크여야
+                // 한다. 반대로 갔다면 아래 "더 보기"의 구역 마감선(`.receipt`)이 행 구분선보다
+                // 옅어져, 구조상 더 센 경계가 더 약한 잉크를 갖는 역전이 남는다.
+                //
+                // **여백 재유도**: 선이 가르는 일을 대신하므로 행 간격 s3(12) → s2(8), 선은 그
+                // 한가운데다 — 행 얼굴 사이 8 + 1 + 8 = 17pt(To buy가 세운 리듬 그대로).
+                // 카드 골격의 선(제목 아래·구역 마감)은 바깥 VStack의 s3을 그대로 쓴다: 골격이
+                // 행보다 넓게 숨 쉬어야 두 층이 같은 선으로 뭉개지지 않는다.
+                //
+                // 식별자는 인덱스가 아니라 `\.element.id`다 — 되돌리기·"더 보기"로 목록이 움직일 때
+                // 행이 자리로 식별되면 사라지는 줄과 올라오는 줄이 뒤바뀐다(To buy와 같은 근거).
+                LazyVStack(alignment: .leading, spacing: ReffiSpace.s2) {
+                    ForEach(Array(logs.prefix(shown).enumerated()), id: \.element.id) { pair in
+                        if pair.offset > 0 { ReffiRule(.receipt) }
+                        timelineRow(pair.element)
+                    }
                 }
                 if remaining > 0 { moreButton(remaining) }
             }
         }
     }
 
+    /// 이력 한 행 — 실루엣 + 이름(+귀속) + 판정 + 날짜.
+    ///
+    /// **행의 글자 층은 셋이다: 이름 → 부속 → 값.** 이름 = `checklistItem`(16/SemiBold),
+    /// 귀속·판정 = `metaText`(13), 날짜 = `reffiNum(.meta)`(12). 이름에 `body`(Regular 16)를 쓰면
+    /// 안 된다 — 그건 설정·폼 라벨의 자리이고, 같은 재료 이름이 냉장고 카드에서는 SemiBold,
+    /// 여기서는 Regular로 갈린다.
+    ///
+    /// **50차 재판정 — 귀속 줄을 `caption`/`ink2`에서 `metaText`/`muted`로 내렸다(오너: "재료명 아래
+    /// Cooked~ 부분이 너무 튄다").** 46차는 이 줄을 "실제 caption(문장으로 읽는 메타)"이라 보고
+    /// 남겨 두었고, 옆 판정 키커만 `metaText`로 내렸다. 그 판정을 뒤집는 근거 둘:
+    /// ① `Cooked · 잡채`는 문장이 아니라 **중점으로 이은 라벨=값 쌍**이고, 그 형태의 정본은 이 앱에서
+    ///    전부 `metaText`다(`ORDER · FIRED` · `Tally · past 30 days`) — §3.5 배정표대로면 처음부터
+    ///    caption이 아니었다.
+    /// ② 16 → 14는 비 1.143이라 이 저장소 자신이 "계단이 서지 않는다"고 못 박은 값이다
+    ///    (`ReffiTypography` 주석). 16 → 13이면 1.231로 한 단이 선다. 색도 `ink2`는 잉크 램프의
+    ///    **가운데** 단이라 다크에서 9.75 → 6.64로 32%밖에 안 내려갔다 — 조용한 단은 `muted`다
+    ///    (receipt 위 5.51/4.66, §2.6 본문 하한 4.5 통과).
+    ///
+    /// 46차가 걱정한 "판정 키커와 같은 role이면 행 구조가 사라진다"는 성립하지 않는다: 두 조각은
+    /// **축과 색**으로 갈린다(귀속 = 이름 아래·무채색 `muted` / 키커 = 우측 정렬·신선도색).
     private func timelineRow(_ log: RemovalLog) -> some View {
         HStack(spacing: ReffiSpace.s3) {
             miniGlyph(log.glyph)
             VStack(alignment: .leading, spacing: ReffiSpace.s0) {
-                // 한 행에 네 조각이 서므로 **역할이 넷 다 갈려야** 목록이 규칙 없이 섞여 보이지
-                // 않는다(§3.5): 이름 = 콘텐츠(`checklistItem` 16) · 귀속 문장 = `caption`(14) ·
-                // 판정과 날짜 = 훑는 값(`metaText` 13 · `reffiNum(.meta)` 12). 이름이 가장 무겁고
-                // 오른쪽으로 갈수록 가벼워지는 한 방향이라, 훑는 눈이 먼저 재료를 잡는다.
-                // 이름에 `body`(Regular 16)를 쓰면 안 된다 — 그건 설정·폼 라벨의 자리이고, 같은
-                // 재료 이름이 냉장고 카드에서는 SemiBold, 여기서는 Regular로 갈린다.
                 Text(verbatim: log.displayName).reffiType(.checklistItem).foregroundStyle(ReffiColor.ink)
                 // 발주로 소비된 재료는 "한 요리"로 귀속(조리 payoff의 기록면).
                 if let via = log.via {
                     Text("Cooked · \(via)")
-                        .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
+                        .reffiType(.metaText).foregroundStyle(ReffiColor.muted)
                 }
             }
             Spacer()
-            // 판정 키커는 `metaText`다(옛 `caption` 아님) — §3.5가 `caption`에 준 일은 **문장으로
-            // 읽는 메타**이고, 이 한 단어는 읽는 게 아니라 훑는 값이다. 바로 왼쪽의 "Cooked · …"이
-            // 실제 caption이라, 둘이 같은 role이면 문장과 값이 같은 글자로 서서 행의 구조가 사라진다.
-            // 크기가 14 → 13으로 내려가도 대비 요건은 그대로 4.5:1이다(둘 다 §2.6의 '큰 글자'가 아니다).
+            // 판정 키커는 `metaText`다(옛 `caption` 아님) — 이 한 단어는 읽는 게 아니라 훑는 값이다.
+            // 크기가 14 → 13으로 내려가도 대비 요건은 그대로 4.5:1이다(§2.6의 '큰 글자'가 아니다).
             Text(log.wasted ? "Tossed" : "Ate")
                 .reffiType(.metaText)
                 .foregroundStyle(log.wasted ? ReffiColor.urgentDark : ReffiColor.freshDark)
@@ -668,6 +702,9 @@ struct HistoryContent: View {
                 .font(.reffiNum(.meta, for: log.dateText))   // ko 날짜 표기 폴백(§3.4·42차)
                 .foregroundStyle(ReffiColor.muted)
         }
+        // 같은 카드의 정산 행·낭비율 행·`Most tossed` 행이 전부 combine이다 — 타임라인만 빠져 있어
+        // VoiceOver에서 한 행이 네 정거장(이름/귀속/판정/날짜)으로 흩어졌다. 한 문장으로 낭독된다.
+        .accessibilityElement(children: .combine)
     }
 
     /// 더 보기 — **다음에 몇 줄이 오는지**를 문구가 말한다. 남은 게 한 페이지보다 적으면 그 수 그대로라,

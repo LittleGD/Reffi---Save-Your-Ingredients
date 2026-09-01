@@ -153,9 +153,11 @@ struct MainView: View {
         let counter = CounterDigest(store.counterIngredients)
         return VStack(spacing: 0) {
             if typeSize.isAccessibilitySize {
-                // **큰 글자에선 상단 블록이 스크롤한다.** 헤더(워드마크+날짜+미션)와 상태 카드만으로
-                // 뷰포트를 넘겨서, 아래 필드가 자리를 0까지 내주고도 날짜·미션·배너가 한 줄씩으로
-                // 깎였다(AX5 실측). 그 크기에서 필드를 물리는 것은 손해가 아니다: SpriteKit 노드라
+                // **큰 글자에선 상단 블록이 스크롤한다.** 헤더(워드마크)와 상태 카드만으로도
+                // 뷰포트를 넘겨서, 아래 필드가 자리를 0까지 내주고도 배너가 한 줄씩으로
+                // 깎였다(AX5 실측 — 헤더가 날짜·워드마크·미션 3단이던 49차엔 그 셋이 함께 깎였고,
+                // 50차에 위 두 줄이 사라져 여유가 늘었을 뿐 배너의 넘침은 그대로다).
+                // 그 크기에서 필드를 물리는 것은 손해가 아니다: SpriteKit 노드라
                 // 접근성 트리에 없는 표면이고, 거기서만 되는 일(끌어서 판정)도 바로 아래 뱃지 탭이
                 // 그대로 연다 — 큰 글자를 켠 사람에게 잘린 글자 대신 온전한 글자를 준다.
                 // 필드가 있던 자리를 그대로 물려받으므로(같은 위치·같은 흡수 역할) 뱃지 행과 CTA는
@@ -214,15 +216,10 @@ struct MainView: View {
 
             badgeRow(counter)
 
-            // 보조 줄(49차) — 동사만 있는 CTA는 결과를 눌러 봐야 알 수 있었다. 임박 재료가 있을 때만
-            // 그 개수를 인쇄해 헤더의 "N at risk today"와 화면 아래 결정 지점을 잇는다.
-            // 임박이 0이면 줄을 세우지 않는다(빈 문자열로 자리를 남기지 않는다) — 곧 먹을 것만 있을 땐
-            // 미션 줄이 이미 말했으므로 CTA는 동사 하나로 돌아간다.
+            // 보조 줄(49차 신설, 50차에 3분기로 확장) — 동사만 있는 CTA는 결과를 눌러 봐야 알 수
+            // 있었다. 이 줄이 **화면에서 오늘의 상태를 말하는 유일한 문장**이다(아래 `ctaSubtitle`).
             PaperButton(title: "Start cooking",
-                        // 문구는 **덱 티켓의 크라운과 같은 키**를 쓴다("Saves N expiring today") —
-                        // 같은 사실을 두 표면이 다른 말로 하면 그게 곧 §용어 분열이고, 여기선 누르기
-                        // 직전과 직후에 같은 문장이 이어져 결정이 확인된다(신규 문자열 0개).
-                        subtitle: counter.urgent > 0 ? "Saves \(counter.urgent) expiring today" : nil) { cook() }
+                        subtitle: ctaSubtitle(counter)) { cook() }
                 .padding(.horizontal, margin)
                 .padding(.top, ReffiSpace.s3)
                 // 스크롤이 아니라 화면에 못 박힌 CTA라 **자리 예약** 쪽이다(§9.3) — 냉장고 펼침의
@@ -512,8 +509,10 @@ struct MainView: View {
     /// 남겨 보고 오너가 실기에서 판정했다: **그것도 걷는다.** 근거는 두 가지다.
     /// ① 블롭이 사라진 평탄한 크림 위에서 시노는 "은은한 강조"가 아니라 화면 절반을 덮은
     ///    그라데이션으로 읽혔다 — 걷어낸 층과 시각적으로 같은 종류다.
-    /// ② 그 사실은 이미 세 번 말해진다: 헤드라인("N at risk today"), 뱃지의 신선도 인디케이터,
-    ///    D-day 잉크. 배경은 네 번째 사본이었고, 사본은 위계를 만들지 못하고 바탕만 흐린다.
+    /// ② 그 사실은 이미 세 번 말해진다: CTA 보조 줄("Saves N expiring today"), 뱃지의 신선도
+    ///    인디케이터, D-day 잉크. 배경은 네 번째 사본이었고, 사본은 위계를 만들지 못하고 바탕만 흐린다.
+    ///    (46차엔 첫 다리가 헤드라인이었다 — 50차에 그 줄을 걷으면서 같은 사실을 말하는 자리가
+    ///    CTA 보조 줄로 내려왔을 뿐, 다리 수는 셋 그대로다.)
     ///
     /// **이 자리에 색을 다시 들이지 마라** — 신선도 3색이든 긴급도 한 겹이든. 배경이 상수라야
     /// 애니메이션 없는 `RootTabView.pane` 전환에서 바탕이 튀지 않고, 루트·시트·도킹 CTA·하단
@@ -521,10 +520,11 @@ struct MainView: View {
 
     // MARK: - 상단 블록 · 뱃지 행 (두 배치가 함께 쓰는 조각)
 
-    /// 헤더 + 상태 카드 — 못 박힌 배치(기본 크기)와 스크롤 배치(큰 글자)가 **같은 한 장**을 본다.
-    /// 손으로 두 번 쓰면 한쪽만 조용히 어긋난다(판정 커버 `outcomeButtons`와 같은 이유).
+    /// 헤더(= 워드마크 한 줄) + 상태 카드 — 못 박힌 배치(기본 크기)와 스크롤 배치(큰 글자)가
+    /// **같은 한 장**을 본다. 손으로 두 번 쓰면 한쪽만 조용히 어긋난다(판정 커버 `outcomeButtons`와
+    /// 같은 이유). 헤더가 `counter`를 안 받는 것은 50차 이후의 계약이다 — 아래 `wordmark` 독스트링.
     @ViewBuilder private func statusBlock(_ counter: CounterDigest) -> some View {
-        header(counter)
+        wordmark
             .padding(.horizontal, margin)
             // **세 루트 페이지의 제목이 같은 높이에서 시작한다**(23차). 냉장고·프로필이 둘 다
             // `s5`인데 홈만 `s2`라 탭을 오갈 때 제목이 16pt 튀었다(실측: 홈 78.3pt vs 나머지 94.5pt).
@@ -557,69 +557,60 @@ struct MainView: View {
 
     // MARK: - Header
 
-    /// `statusBlock`의 `margin`·`s5`는 이미 세 루트 페이지의 상단 오프셋을 맞춘 값이다(23차 주석) —
-    /// 하지만 그 값은 바깥 패딩일 뿐, 이 VStack 자체가 내용 폭(워드마크 글자 폭)만큼만 좁게 잡히면
-    /// `body`의 바깥 VStack(정렬 지정 없음 = 기본 `.center`)이 이 좁은 블록을 통째로 화면 가운데로
-    /// 밀어 버린다 — 실측(43차, 스크린샷 대조): 워드마크가 margin(16)이 아니라 사실상 센터 정렬로
-    /// 떴다. Fridge `titleRow`가 쓰는 `.frame(maxWidth: .infinity, alignment: .leading)`를 그대로
-    /// `wordmark`에 옮겨 헤더가 전체 폭을 먹고 leading에 고정되게 한다 — 타이틀→캡션 간격도 같은 김에
-    /// Fridge `fridgeHeader`의 "제목-본문 간격" 문법(s3)으로 올린다(옛 값 s1은 이 정렬 버그와 무관하게
-    /// 그냥 좁았다).
+    /// 헤더는 **워드마크 한 줄**이다(50차). 여기엔 날짜 아이브로(`metaText` 13 muted)와 미션
+    /// 헤드라인(`heading` 24)이 함께 서서 `s2` VStack으로 묶인 3단이었는데, 50차에 위아래 두 줄을
+    /// 걷었다. 묶을 것이 하나뿐이라 VStack 자체도 함께 걷었다 — 자식 하나짜리 스택은 정렬 규칙을
+    /// 두 곳(스택 alignment · 자식 frame)에 두어 다음 사람이 어느 쪽이 진짜인지 물어야 한다.
     ///
-    /// **49차 — 위계 역전을 바로잡는다.** 화면에서 가장 큰 글자가 워드마크(34pt)였는데 그건 오늘에
-    /// 대해 아무것도 말하지 않고, 정작 이 화면의 유일한 판단 근거인 미션 문장은 `caption`(14)로
-    /// 네 번째 단에 앉아 있었다 — 정보 가치와 글자 크기가 정확히 반대였다(레퍼런스 감사: 홈 대시보드는
-    /// 예외 없이 **상태 문장**을 화면 최대 글자로 세우고 날짜를 그 위 작은 아이브로로 둔다).
-    /// 램프를 `metaText`(13 muted 날짜) → `display`(34 워드마크) → `heading`(24 미션)으로 다시 짜
-    /// 브랜드는 브랜드 자리에 남기고 **읽어야 할 문장이 가장 크게** 선다.
-    /// 계층 순증은 0이다 — `caption`이 빠지고 `heading`이 들어오며, 날짜의 `metaText`는 캡슐 네비가
-    /// 이미 쓰는 role이라 이 화면에 새 단을 만들지 않는다(§3.3 상한 7).
-    private func header(_ counter: CounterDigest) -> some View {
-        VStack(alignment: .leading, spacing: ReffiSpace.s2) {
-            todayLine
-            wordmark
-            // 미션 헤더(D) — 오늘의 상태를 한 문장으로. 누계(Ate/Tossed)는 MyPage가 맡는다.
-            // **빈 작업대에서는 이 줄이 서지 않는다(43차, 오너 결정 — 같은 말 두 번 금지).**
-            // 빈 상태 블록(emptyField)이 같은 화면에서 "무엇을 하라"를 이미 가르치는데 캡션까지
-            // "채우라"고 말하면 한 화면에 같은 지시가 네 겹이었고, 냉동·예약만 남은 분기에선
-            // 빈 상태("냉장고 탭 확인")와 캡션("채우라")의 지시가 서로 갈리기까지 했다.
-            // 지시는 빈 상태 블록 한 곳에 통합하고, 미션 줄은 셀 것이 있을 때만 선다.
-            if let mission = missionText(counter) {
-                mission
-                    // 캡션이 아니라 **헤드라인**이다(49차) — 그래서 색도 ink2가 아니라 ink다.
-                    .reffiType(.heading)
-                    .foregroundStyle(counter.urgent > 0 ? ReffiColor.urgentDark : ReffiColor.ink)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.top, ReffiSpace.s1)   // 워드마크와 한 덩어리로 붙지 않게 한 단만
-            }
-        }
-    }
-
-    /// 오늘 날짜 아이브로(49차) — 워드마크 위 작은 시간 앵커. 데이터형 메타라 role은 `metaText`,
-    /// 잉크는 `muted`(§3.5 갈림길: 문장형은 caption, 데이터형은 metaText).
-    /// 날짜 자체는 **기기 로케일**을 따른다(§13.6 38차 정책 — 앱 언어 선택과 분리).
-    private var todayLine: some View {
-        Text(Date.now.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))
-            .reffiType(.metaText)
-            .foregroundStyle(ReffiColor.muted)
-            .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    /// 브랜드 워드마크 — 비번역 라틴(Story Script). `maxWidth: .infinity` + leading은 글자를 늘이는
-    /// 게 아니라(텍스트는 여전히 제 폭만큼만 그려진다) 이 뷰의 **레이아웃 폭**을 전체로 넓혀 위 `header`
-    /// VStack이 화면 가운데로 밀리지 않게 고정하는 앵커다 — Fridge `titleRow`와 동일한 트릭.
+    /// **왜 걷었나.** ① 미션 줄과 CTA 보조 줄이 `counter.urgent`라는 **같은 값**을 화면 위(24pt Bold)와
+    /// 아래(13pt)에서 두 번 말했다("3 at risk today. Cook one?" ↔ "Saves 3 expiring today").
+    /// ② 날짜는 이 앱이 내리는 판단(소비기한까지 며칠) 어디에도 입력이 아닌 값이라, 화면 최상단
+    /// 한 단을 아무것도 결정하지 않는 글자가 먹고 있었다.
+    ///
+    /// **사라진 문장은 위가 아니라 아래로 갔다.** 미션 줄의 세 분기(임박 · 곧 상함 · 전부 신선) 중
+    /// CTA와 겹치는 것은 첫 분기뿐이라, 줄만 지우면 나머지 두 상태가 무언(無言)이 된다. 그래서
+    /// 판정을 **행동 옆으로 이관**했다 — `ctaSubtitle`이 같은 3분기를 CTA 보조 줄에서 인쇄한다.
+    ///
+    /// **이 자리에 상태 문장을 다시 세우지 마라.** 화면 위와 아래가 각자 오늘을 말하는 순간 겹침이
+    /// 구조적으로 재발한다(49→50차에 실제로 일어난 일이다). 오늘의 상태를 말하는 자리는 CTA 보조 줄
+    /// **한 곳**이고, 개별 재료의 신선도는 뱃지 인디케이터·D-day 잉크가 이미 말한다(§2.5).
+    ///
+    /// **워드마크 아래 여백은 의도된 것이다.** 두 줄이 빠지며 66~97pt가 풀렸고, 그 몫은 바닥 정렬된
+    /// 물리 더미 **위의 빈 띠**로 남긴다(오너 결정). 되찾겠다고 `fieldRestHeight` 캡을 올리면 더미가
+    /// 커지며 씬 좌표·`sealedCeiling` 계약이 함께 흔들리고(그 함수 독스트링), 뱃지 행·CTA를 위로
+    /// 올리면 `ReffiChrome.navReserve` 하단 도킹 계약과 충돌한다. `statusBlock`의 `s5`도 그대로
+    /// 둔다 — 세 루트 페이지 제목이 같은 높이에서 시작한다는 23차 계약이 그 값에 걸려 있다.
+    ///
+    /// `maxWidth: .infinity` + leading은 글자를 늘이는 게 아니라(텍스트는 여전히 제 폭만큼만 그려진다)
+    /// 이 뷰의 **레이아웃 폭**을 전체로 넓히는 앵커다. `body`의 바깥 VStack은 정렬 지정이 없어 기본
+    /// `.center`이므로, 이게 빠지면 내용 폭만큼 좁아진 워드마크가 margin(16)이 아니라 사실상 센터로
+    /// 뜬다(43차 실측, 스크린샷 대조). Fridge `titleRow`와 같은 트릭이고, 묶고 있던 VStack이 사라진
+    /// 지금은 이 한 줄이 정렬의 **유일한** 근거다 — 지우지 마라.
     private var wordmark: some View {
         Text(verbatim: "Reffi").reffiType(.display).foregroundStyle(ReffiColor.ink)
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func missionText(_ counter: CounterDigest) -> Text? {
-        if counter.items.isEmpty { return nil }   // 빈 상태 블록이 지시를 전담한다(위 주석)
-        if counter.urgent > 0 { return Text("\(counter.urgent) at risk today. Cook one?") }
-        if counter.soon > 0 { return Text("\(counter.soon) to eat soon. Plan tonight?") }
-        // 임박이 없을 때도 **다음 한 걸음**을 지목한다 — "미리 해치우라"는 재촉만 남기면
-        // 무엇부터인지가 없어 행동으로 이어지지 않는다(냉장고 정렬 기본값과 같은 순서를 말한다).
-        return Text("All fresh. Cook the oldest one first.")
+    // MARK: - CTA 보조 줄
+
+    /// `Start cooking`이 지금 무엇을 처리하는가 — 50차 이후 **화면에서 오늘의 상태를 말하는 유일한
+    /// 문장**이다(위 `wordmark` 독스트링).
+    ///
+    /// 세 문구는 전부 오더 메모 카드 판정문 키커(`OrderMemoCard.verdictKicker`)가 쓰는 **키 그대로**다
+    /// — 신규 문자열 0개. 같은 사실을 두 표면이 다른 말로 하면 그게 곧 용어 분열이고, 여기선 누르기
+    /// 직전(CTA)과 직후(덱 티켓 크라운)에 같은 문장이 이어져 결정이 확인된다. 분기 기준도 키커와
+    /// 같게 맞췄다: 임박이 있으면 임박, 없으면 곧 상할 것, 둘 다 없으면 신선. 문구를 손볼 일이
+    /// 생기면 **두 곳을 같은 커밋에서** 고쳐라 — 한쪽만 바꾸면 이 이음매가 조용히 끊긴다.
+    ///
+    /// **빈 작업대에선 줄이 서지 않는다(43차 오너 결정 — 같은 말 두 번 금지).** 빈 상태
+    /// 블록(`emptyField`)이 같은 화면에서 "무엇을 하라"를 이미 전담하는데 여기서도 말하면 한 화면에
+    /// 지시가 겹치고, 냉동·예약만 남은 분기에선 빈 상태("냉장고 탭 확인")와 지시가 갈리기까지 했다.
+    /// 게다가 그 상태의 CTA는 `disabled`다 — 못 누르는 버튼 아래 처리 예고를 인쇄할 수 없다.
+    private func ctaSubtitle(_ counter: CounterDigest) -> LocalizedStringKey? {
+        if counter.items.isEmpty { return nil }
+        if counter.urgent > 0 { return "Saves \(counter.urgent) expiring today" }
+        if counter.soon > 0 { return "Saves \(counter.soon) before they turn" }
+        return "Use these while fresh"
     }
 
     // MARK: - 알림 유도 배너 (프리퍼미션)

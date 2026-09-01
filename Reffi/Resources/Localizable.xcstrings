@@ -205,16 +205,6 @@
         }
       }
     },
-    "%lld at risk today. Cook one?": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "오늘 %lld개가 위험해요. 하나 구해볼까요?"
-          }
-        }
-      }
-    },
     "%lld days left": {
       "comment": "Spoken D-day label, e.g. 3 days left",
       "localizations": {
@@ -345,16 +335,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "%lld회"
-          }
-        }
-      }
-    },
-    "%lld to eat soon. Plan tonight?": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "곧 먹어야 할 %lld개. 오늘 저녁에 쓸까요?"
           }
         }
       }
@@ -693,16 +673,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "전체"
-          }
-        }
-      }
-    },
-    "All fresh. Cook the oldest one first.": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "전부 신선해요. 오래된 것부터 하나 요리해요."
           }
         }
       }
@@ -2589,6 +2559,17 @@
         }
       }
     },
+    "Previous": {
+      "comment": "Accessibility action: go back to the previous ingredient in the fridge detail deck",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이전"
+          }
+        }
+      }
+    },
     "Profile": {
       "localizations": {
         "ko": {
@@ -3301,6 +3282,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "아직 지원하지 않는 로그인 방식이에요."
+          }
+        }
+      }
+    },
+    "Ticket %lld of %lld": {
+      "comment": "Deck page indicator, spoken; 1st = current ticket, 2nd = total",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "티켓 %2$lld장 중 %1$lld장"
           }
         }
       }

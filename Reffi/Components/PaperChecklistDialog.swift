@@ -119,9 +119,17 @@ struct PaperChecklistDialog: View {
             Spacer(minLength: ReffiSpace.s2)
             // X는 카드 안 우상단이다(§14.3 커버 규칙의 자리) — 카드 밖에 두면 딤 위에 뜬 조각이 되어
             // 무엇을 닫는 X인지가 흐려진다. 제목과 같은 줄에 두어 시선의 시작·끝이 한 행에 모인다.
-            PaperCloseButton(seed: seed &+ 3, action: onClose)
-                .padding(.top, -ReffiSpace.s2)      // 40pt 면의 시각 중심을 제목 첫 줄에 맞춘다
-                .padding(.trailing, -ReffiSpace.s2)
+            PaperCloseButton(action: onClose)
+                // 44pt 히트 프레임의 시각 중심(22)을 제목 첫 줄의 중심(24pt heading 줄상자 28.64의
+                // 절반 ≈ 14.3)으로 끌어내린다 — 필요한 넛지 ≈ −7.7이라 −s2가 그 자리다. 행 정렬이
+                // `.top`인 이유는 제목이 두 줄로 접혀도 X가 **첫 줄** 옆에 남아야 하기 때문이고
+                // (`CoverHeader`는 제목 블록 중심이 맞는 자리라 정렬 축이 다르다), 그 대가로 이
+                // 넛지는 접근성 크기에서 드리프트한다 — 이 팝업이 `accessibility3`에서 크기를 멈추는
+                // 것이 그 드리프트의 상한이다.
+                .padding(.top, -ReffiSpace.s2)
+                // 여기 있던 `.padding(.trailing, -s2)` 손보정은 50차에 삭제했다 — 무면화로 시각이
+                // 40→18이 되면서 엣지 광학 보정을 `PaperCloseButton`이 직접 지고(−13), 남겨 두면
+                // −8과 겹쳐 21pt 되밀려 X가 카드 밖으로 나간다.
                 // UI 테스트 훅 — 덱 커버의 닫기 X와 **라벨이 같아**("Close") 조회로 가를 수 없다.
                 // 라벨은 그대로 두고 식별자만 붙인다(`ticket.menuName` 선례).
                 .accessibilityIdentifier("dialog.close")

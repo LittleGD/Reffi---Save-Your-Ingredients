@@ -1,29 +1,51 @@
 import SwiftUI
 
-/// 종이 X 닫기 버튼 — 커버 헤더·시트 헤더·doneBar 등 **모든 종이 X의 단일 공급원**(인터랙션 커먼 룰 ①).
-/// 이전엔 34/40/44 · `paper`/`.white.opacity(0.9)`/`oklch(0.99)` · seed 1/4로 4갈래 파편화돼 있었다.
+/// 닫기 X — 커버 헤더·시트 헤더·고르기 팝업·냉장고 상세가 함께 쓰는 **모든 닫기 X의 단일 공급원**(인터랙션 커먼 룰 ①).
 ///
-/// 확정 스펙(§F): **시각 40 / 히트 44 / 채움 `ReffiColor.paper` 단일 토큰**.
-/// 시각과 히트를 분리한다(§7.3) — `PaperRect` 면은 40×40, 탭 영역은 `.frame(minWidth:44,minHeight:44)`
-/// + `.contentShape(Rectangle())`로 44를 확보한다. 아이콘은 공용 `ReffiIcon.close`(xmark).
+/// **면이 없는 것이 이 컴포넌트의 내용이다(50차).** 옛 스펙은 `PaperRect(.md)` 40×40 + `paper` 채움 +
+/// `paperEdge` 헤어라인 + `reffiShadow1()`(2겹)이었다. 그 결과 커버 헤더 행에서 **그림자를 가진 요소가
+/// X 하나뿐**이었다 — 제목은 평평한 잉크인데 닫기만 화면에서 가장 높은 층에 떠 있었다. 탈출구가
+/// 화면의 주인공보다 위에 서는 위계다. 면·단면·그림자 셋을 걷고 잉크를 한 단 내려(`ink` → `ink2`)
+/// 획 두께만 남긴다. 웨이트도 `.bold` → 기본(`.regular`)이다 — 면이 사라진 뒤 "강조"가 남는 자리는 획이다.
+///
+/// **박스가 사라지면 무엇이 X를 찾게 하는가 — 자리와 크기다.** 이 X는 예외 없이 **행의 우상단**에 선다
+/// (커버·시트·고르기 팝업·냉장고 상세 네 자리 전부). 그리고 18pt는 그 행에서 제목(heading 24) 다음으로
+/// 큰 글자이고 주변 메타(13)·본문(16)보다 크다. 찾게 하는 일을 엘리베이션에서 **위치 항상성과 크기**로
+/// 옮긴 것이지 어포던스를 지운 것이 아니다. **면을 되돌리지 마라** — 이름에 `Paper`가 남은 것은
+/// 4호출부와 DS 문서의 개명 비용 때문이지(50차 이연) "종이니까 면이 있어야 한다"는 뜻이 아니다.
+///
+/// - **시각 18 / 히트 44**(§7.3). 시각만 줄이고 히트는 그대로다 — `HistoryView` 힌트 X(시각 14)·
+///   `PaperButton` 컴팩트(시각 34대)가 이미 쓰는 분리다. 히트 44는 시각이 아니라 **계약**이라
+///   두 곳이 여기에 매여 있다: ① UI 스위트가 `app.buttons["Close"].tap()`으로 이 44를 실제로 누른다
+///   ② `CoverHeader` 행의 세로 골격이 이 44를 바닥으로 잡는다. 줄이면 둘 다 조용히 깨진다.
+/// - **엣지 광학 보정은 컴포넌트가 진다.** 시각 40일 때는 밀림이 (44−40)/2 = 2pt라 무보정이었지만,
+///   18로 내리면 13pt가 되어 제목은 마진 16에 붙는데 X만 29에 뜬다(우측 정렬선만 너덜너덜해지는
+///   §7.3·42차의 그 결함). 네 호출부가 전부 우측 엣지에 이 X를 세우므로 보정을 여기서 한 번 한다 —
+///   호출부가 각자 하면 다시 갈리고, `PaperChecklistDialog`처럼 손보정이 남아 있으면 이중으로 밀린다.
+///   **전제: 이 X는 우측 엣지에 선다.** 행 가운데에 세울 자리가 생기면 그건 이 컴포넌트가 아니다.
+/// - **잉크는 적응형 `ink2` 하나로 라이트·다크가 다 선다.** 면이 지던 "배경 무관 보장"이 사라진
+///   자리라 배경을 실측으로 못 박는다: 이 X가 앉는 배경은 전수 확인 결과 전부 종이 램프
+///   (`paper`·`receipt`·`sub`·`canvas`·`paperPass`)이고, 그 다섯 면 위 `ink2`는 **라이트 7.77~7.89 ·
+///   다크 6.64~6.77**(§2.6 대비표)이다 — 비텍스트 3:1(WCAG 1.4.11)의 2.2배, 본문 4.5:1도 통과한다.
+///   스킴 분기가 필요 없다. `muted`(5.51/4.66)로 더 내리지 않는 것은 수치가 아니라 역할이다:
+///   `muted`는 **필드 안쪽** 어포던스의 단이고(검색 클리어 X), 화면 단위 닫기는 `ink2`다(History 힌트 X).
+///   **불변식: 무면 X는 종이 램프 위에서만 선다.** 컬러 면(blue·urgent 등) 위에 닫기가 필요해지면
+///   대비를 다시 세워야 하므로 그건 이 컴포넌트가 아니라 새 컴포넌트다.
+/// - 프레스는 `reffiPress`(0.97)다 — 눌러 찌그러질 종이가 없어졌으므로 `paperPress`(0.96 종이 통통)가 아니다.
 struct PaperCloseButton: View {
-    var seed: Int = 4
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            ReffiIcon.close.reffi(18, .bold)
-                .foregroundStyle(ReffiColor.ink)
-                .frame(width: 40, height: 40)                 // 시각 40
-                .background {
-                    let s = PaperRect(cornerRadius: ReffiRadius.md, seed: seed)
-                    s.fill(ReffiColor.paper).paperEdge(s)
-                }
-                .reffiShadow1()
-                .frame(minWidth: ReffiChrome.tapMin, minHeight: ReffiChrome.tapMin)           // 히트 44 (§7.3)
+            ReffiIcon.close.reffi(18)
+                .foregroundStyle(ReffiColor.ink2)
+                .frame(minWidth: ReffiChrome.tapMin, minHeight: ReffiChrome.tapMin)   // 히트 44 (§7.3)
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.paperPress)
+        .buttonStyle(.reffiPress)
+        // `visual:`에 넘기는 것은 프레임이 아니라 **글리프 크기**다(History 힌트 X가 프레임 30이 아니라
+        // 글리프 14를 넘기는 그 선례) — 정렬선이 맞아야 하는 것은 사용자가 보는 잉크의 오른쪽 끝이다.
+        .edgeAligned(.trailing, visual: 18)
         .accessibilityLabel("Close")
     }
 }
