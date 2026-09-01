@@ -471,11 +471,16 @@ final class ReffiFlowUITests: XCTestCase {
     // MARK: To buy — 밀기 어포던스 힌트(28차)
 
     /// **첫 등장의 힌트**: 목록에 줄이 있는 채로 패인이 서면 맨 윗줄이 왼쪽으로 한 번 밀렸다 돌아온다.
-    /// 그리고 **플래그가 서 있으면 뜨지 않는다** — 설치당 한 번이라는 규약이 실제로 잠기는지 본다.
+    /// 그리고 **이미 본 상태로 시작한 실행에서는 뜨지 않는다** — 그 게이트가 실제로 잠기는지 본다.
     ///
-    /// 두 번 런치하는 이유: 이 힌트의 게이트 중 하나가 `@AppStorage`라 **프로세스 경계를 넘어야**
-    /// 관측된다. 첫 런치는 `-toBuy.swipeHint <초>`로 강제하고(유지 시간을 넓혀 프레임 조회가 닿게 한다),
-    /// 둘째 런치는 `-toBuy.swipeHintSeen YES`로 플래그만 주입한 뒤 **아무 일도 없음**을 단언한다.
+    /// 두 번 런치하는 이유: 강제(시각 확인)와 "이미 봤음" 부기는 서로 다른 축이라 한 런치로는 둘을
+    /// 함께 관측할 수 없다(강제는 부기를 아예 건드리지 않는다 — `swipeHintConfig` 참고). 첫 런치는
+    /// `-toBuy.swipeHint <초>`로 강제하고(유지 시간을 넓혀 프레임 조회가 닿게 한다), 둘째 런치는
+    /// `-toBuy.swipeHintSeen`으로 이 실행을 처음부터 이미 본 상태로 세운 뒤 **아무 일도 없음**을
+    /// 단언한다. **52차부터 이 "이미 봤음"은 프로세스 스코프다** — 옛 `@AppStorage`(설치 스코프)와
+    /// 달리 이 인자를 주지 않은 새 런치는(둘째 런치가 첫 런치 뒤에 떠도) 매번 다시 힌트를 볼 기회를
+    /// 얻는다. 그래서 아래 단언은 "설치당 한 번"이 아니라 "이 실행에서는 이미 본 상태로 시작했으니
+    /// 다시 뜨지 않는다"만 증명한다.
     func testToBuy_SwipeHint_PeeksWhenForcedAndStaysPutOnceSeen() {
         // ① 강제 — `-toBuy.sampleMemo`가 **두 줄**을 시드한다. 두 줄인 것이 요점이다: 움직이는 줄과
         //    움직이지 않는 줄을 같은 실행에서 대조해야 "맨 윗줄만"이라는 규약이 잠기고, 행 사이
@@ -521,11 +526,11 @@ final class ReffiFlowUITests: XCTestCase {
         // 21차가 세운 계약도 그대로다.
         XCTAssertTrue(app.buttons["Bought \(top)"].exists, "행의 1차 액션은 그대로 'Bought <이름>'")
 
-        // ② 플래그가 서 있으면 뜨지 않는다 — 강제 인자 없이, 같은 조건(줄 있음·새 등장)을 다시 만든다.
+        // ② 이미 본 상태로 시작하면 뜨지 않는다 — 강제 인자 없이, 같은 조건(줄 있음·새 등장)을 다시 만든다.
         let seen = XCUIApplication()
         seen.launchArguments = ["-skipAuth", "-onboarding.done", "YES", "-fridgeTab",
                                 "-uiTestSampleFridge", "-toBuy.sampleMemo", "-toBuy",
-                                "-toBuy.swipeHintSeen", "YES"]
+                                "-toBuy.swipeHintSeen"]
         seen.launch()
         XCTAssertTrue(seen.staticTexts["Grocery memo"].waitForExistence(timeout: 10), "To buy 패인")
 
@@ -537,7 +542,7 @@ final class ReffiFlowUITests: XCTestCase {
             return XCTFail("표본이 하나도 없다 — 행이 조회되지 않았다")
         }
         attach(seen, named: "to-buy-swipe-hint-suppressed")
-        XCTAssertLessThan(hi - lo, 3, "이미 본 뒤에는 행이 움직이지 않는다(설치당 한 번)")
+        XCTAssertLessThan(hi - lo, 3, "이미 본 상태로 시작한 실행에서는 행이 움직이지 않는다(런치당 한 번)")
     }
 
     /// 강제 재생의 유지 시간(초). 기본 0.4초는 **런치와 `waitForExistence`만으로 지나가** 프레임

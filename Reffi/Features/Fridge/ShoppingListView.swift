@@ -38,15 +38,40 @@ struct ShoppingListContent: View {
     @State private var dragKey: String?
     @State private var dragX: CGFloat = 0
 
-    // MARK: - 밀기 어포던스 힌트(28차)
+    // MARK: - 밀기 어포던스 힌트(28차, 52차에 설치 스코프 → 실행 스코프로 개편)
 
-    /// 첫 행이 한 번 밀렸다 돌아오는 힌트를 **이미 보여 줬는가**. 설치당 한 번이라 `@AppStorage`다
-    /// (`fridge.compact`·`fridge.sort`와 같은 점 구분 네임스페이스 규약).
+    /// 첫 행이 한 번 밀렸다 돌아오는 힌트를 **이 실행에서 이미 보여 줬는가**.
     ///
-    /// 값의 뜻은 "재생을 끝까지 마쳤다"이지 "재생을 시도했다"가 아니다 — 그래서 아래 `startSwipeHint`는
+    /// **52차 이전에는 `@AppStorage`(설치당 한 번)였다.** 그러나 조건 하나(모션 축소·시트에 덮임·손을
+    /// 댐)로 그 설치의 유일한 재생 기회가 어긋나면 앱을 지웠다 다시 깔기 전에는 되돌릴 방법이 없었고,
+    /// 실제로 한 사용자의 기기가 정확히 그 상태였다(52차, 사용자 리포트 — To buy 탭에 밀기 어포던스가
+    /// 전혀 안 보임). **매번 다시 보여 주는 것도 아니다** — 반복 노출은 피로만 남긴다는 것이 사용자
+    /// 지침이라 배제했다. 그 중간인 **실행(런치)당 한 번**을 택했다: 앱을 새로 켤 때마다 다시 볼
+    /// 기회가 있고, 같은 실행 안에서 탭을 오가며 여러 번 보게 되지는 않는다.
+    ///
+    /// **`@MainActor static var`이지 `@State`가 아니다** — 이유는 아래 `searchArgHandled`(28차 선례)와
+    /// 같다: 이 뷰(`ShoppingListContent`)는 `FridgeView`가 `switch tab`으로 그리는 한 갈래라, To buy
+    /// 탭을 떠나면 뷰째 해체되고 돌아오면 새로 선다. `@State`로 두면 탭을 오갈 때마다 초기화되어
+    /// "실행당 한 번"이 "탭 진입마다 한 번"이 되어 버린다 — 지금 걷어내는 `@AppStorage`의 "너무 오래
+    /// 감"과 정반대 방향으로 스코프가 또 틀리는 것이다. 타입 스코프 `static var`만 "탭 전환은 넘기되
+    /// 프로세스는 넘기지 않는다"는 딱 맞는 생존 범위를 준다.
+    ///
+    /// 값의 뜻은 여전히 "재생을 끝까지 마쳤다"이지 "재생을 시도했다"가 아니다 — 아래 `startSwipeHint`는
     /// 힌트가 **되돌아오는 순간**에만 이 값을 세운다. 시작 시점에 세우면 사용자가 손을 대 중간에 걷힌
-    /// 재생이나 시트에 덮인 재생이 유일한 기회를 조용히 소진한다.
-    @AppStorage("toBuy.swipeHintSeen") private var swipeHintSeen = false
+    /// 재생이나 시트에 덮인 재생이 이 실행의 유일한 기회를 조용히 소진한다.
+    ///
+    /// QA는 `-toBuy.swipeHintSeen`(값 불필요, 파싱은 `swipeHintSeenAtLaunch(in:)`)으로 이 실행을
+    /// 처음부터 이미 본 상태로 세운다.
+    ///
+    /// **마이그레이션**: 옛 `@AppStorage("toBuy.swipeHintSeen")`가 설치에 남긴 UserDefaults 값은
+    /// 이제 아무도 읽지 않는다 — 지우지 않아도 무해하다.
+    @MainActor private static var swipeHintSeen: Bool = {
+        #if DEBUG
+        return swipeHintSeenAtLaunch(in: ProcessInfo.processInfo.arguments)
+        #else
+        return false
+        #endif
+    }()
     /// 힌트가 첫 행에 얹는 가로 이동량 — **손끝의 이동량과 더해지지만 섞이지는 않는다**(`row` 참고).
     @State private var peekX: CGFloat = 0
     /// 예약된 힌트 단계(시작·복귀)를 무효화하는 세대 토큰 — `MainView.coverGeneration`과 같은 장치다.
@@ -115,10 +140,12 @@ struct ShoppingListContent: View {
     /// 너무 좁다(런치·`waitForExistence`만으로 그 창을 넘긴다). `-fireDismissDelay <초>`가 같은 이유로
     /// 같은 모양을 하고 있다.
     ///
-    /// 강제 경로는 **플래그를 쓰지 않는다** — QA가 한 번 돌릴 때마다 실사용자의 일회성 상태가
-    /// 소진되면 같은 인자를 두 번 쓸 수 없고, 그 설치는 되돌릴 방법이 없다(`-myRecipesPreview`가
-    /// 영속 저장으로 남긴 경고가 그 사례다). 반대로 "플래그가 서 있으면 안 뜬다"를 재현할 때는
-    /// UserDefaults 인자 `-toBuy.swipeHintSeen YES`를 쓴다(`-fridge.compact YES` 선례).
+    /// 강제 경로는 **플래그를 쓰지 않는다** — 시각 확인(스크린샷·QA)과 "이미 봤음" 부기는 다른 축이라
+    /// 하나가 다른 하나를 건드리면 안 된다는 원칙은 스코프가 프로세스로 좁아진 지금도 그대로다
+    /// (`-myRecipesPreview`가 영속 저장에 섞여 남긴 경고와 같은 결). 반대로 "이미 봤으면 안 뜬다"를
+    /// 재현할 때는 `-toBuy.swipeHintSeen`(값 불필요)을 쓴다 — 이 실행을 처음부터 이미 본 상태로
+    /// 세운다(파싱은 `swipeHintSeenAtLaunch(in:)`. 52차 전에는 `@AppStorage`를 덮는 UserDefaults
+    /// 인자라 값 "YES"가 필요했지만, 이제는 존재 자체가 신호인 `-toBuy.search`류 인자와 같은 모양이다).
     ///
     /// 뷰에서 분기를 늘리는 대신 **순수 함수**로 떼어 유닛 테스트가 고정한다. 값 파싱은 `arguments`
     /// 직접 순회다 — 다음 토큰이 숫자가 아니면(다른 플래그거나 없으면) 소비하지 않고 기본값으로 둔다.
@@ -134,6 +161,17 @@ struct ShoppingListContent: View {
 
     /// 프로세스당 한 번만 파싱 — 등장마다 `ProcessInfo.arguments`를 다시 훑지 않게(`tiltLabConfig` 선례).
     private static let swipeHint = swipeHintConfig(from: ProcessInfo.processInfo.arguments)
+
+    /// `-toBuy.swipeHintSeen` 파싱 — 가지고 있으면(값 불필요) 이 실행을 **이미 본 상태로** 시작한다.
+    /// `-toBuy.search`·`-history.chipHintForce`와 같은 존재-플래그 모양이다(둘 다 값이 없다). 52차
+    /// 이전에는 이 이름이 `@AppStorage`를 덮는 UserDefaults 인자였다(값 "YES" 필요) — 저장소가 설치
+    /// 스코프에서 프로세스 스코프로 옮겨가며 값 자체가 무의미해져 존재-플래그로 다시 그었다.
+    ///
+    /// 뷰에서 분기를 늘리는 대신 **순수 함수**로 떼어 유닛 테스트가 고정한다(`swipeHintConfig`·
+    /// `HistoryContent.chipHintForced(in:)` 선례).
+    static func swipeHintSeenAtLaunch(in arguments: [String]) -> Bool {
+        arguments.contains("-toBuy.swipeHintSeen")
+    }
     #endif
 
     /// 힌트 강제 여부 — 릴리스엔 이 경로가 없다.
@@ -499,7 +537,7 @@ struct ShoppingListContent: View {
     ///   힌트가 흉내 내는 물리와 진짜 물리가 같아야 배운 것이 손끝에서 맞는다.
     private func startSwipeHint() {
         let forced = peekForced
-        guard Self.shouldPeek(rowCount: items.count, seen: swipeHintSeen, reduceMotion: reduceMotion,
+        guard Self.shouldPeek(rowCount: items.count, seen: Self.swipeHintSeen, reduceMotion: reduceMotion,
                               userSwiped: userSwiped, sheetUp: showSearch, forced: forced) else { return }
         let hold = peekHold
         peekGeneration += 1
@@ -507,14 +545,15 @@ struct ShoppingListContent: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + Self.peekLeadIn) {
             // 유예 동안 판이 바뀌었을 수 있다(손이 닿았거나·목록이 비었거나·시트가 올라왔거나).
             guard gen == peekGeneration,
-                  Self.shouldPeek(rowCount: items.count, seen: swipeHintSeen,
+                  Self.shouldPeek(rowCount: items.count, seen: Self.swipeHintSeen,
                                   reduceMotion: reduceMotion, userSwiped: userSwiped,
                                   sheetUp: showSearch, forced: forced) else { return }
             withAnimation(ReffiMotion.enter) { peekX = -Self.peekDistance }
             DispatchQueue.main.asyncAfter(deadline: .now() + hold) {
                 guard gen == peekGeneration else { return }
-                // **끝까지 재생됐을 때만** 봤다고 기록한다. 강제(QA)는 남의 상태를 건드리지 않는다.
-                if !forced { swipeHintSeen = true }
+                // **끝까지 재생됐을 때만** 봤다고 기록한다 — 이 실행의 남은 동안 재생을 잠근다.
+                // 강제(QA)는 이 부기를 건드리지 않는다(시각 확인과 부기는 다른 축).
+                if !forced { Self.swipeHintSeen = true }
                 withAnimation(ReffiMotion.settle) { peekX = 0 }
             }
         }

@@ -41,8 +41,12 @@ struct HistoryContent: View {
     // MARK: - 칩 캡션 힌트 닫기(28차 칩 히어로의 캡션을 31차에 닫을 수 있게)
 
     /// 칩 문법(면색=먹었는가·배지=버림 개수) 설명 캡션을 사용자가 닫았는가 — 설치당 한 번이라
-    /// `@AppStorage`다(`toBuy.swipeHintSeen`과 같은 점 구분 네임스페이스 규약). 한 번 닫으면 다시
-    /// 뜨지 않는다 — 문법을 한 번 읽고 나면 또 볼 필요가 없다(owner 판단).
+    /// `@AppStorage`다(`fridge.compact`·`fridge.sort`와 같은 점 구분 네임스페이스 규약). 한 번 닫으면
+    /// 다시 뜨지 않는다 — 문법을 한 번 읽고 나면 또 볼 필요가 없다(owner 판단). **52차부터 To buy
+    /// 밀기 힌트(`ShoppingListContent.swipeHintSeen`)는 이 설치당-한-번 가족에서 갈라져 나갔다** —
+    /// 그쪽은 실사용 기기에서 유일한 재생 기회가 소진된 뒤 되돌릴 길이 없다는 사용자 리포트로 실행
+    /// 스코프가 됐다. 이 칩 힌트는 owner 판단이 다르므로(위 문장) 계속 설치당 한 번이다 — 같은
+    /// 점 구분 네임스페이스를 쓴다고 같은 생존 범위여야 하는 것은 아니다.
     @AppStorage("history.chipHintDismissed") private var chipHintDismissed = false
 
     #if DEBUG
@@ -57,8 +61,10 @@ struct HistoryContent: View {
 
     /// 힌트 강제 표시(QA, DEBUG 전용) — 이미 닫힌 뒤에도 플래그와 무관하게 다시 보이게 한다
     /// (`-toBuy.swipeHint` 강제 인자와 같은 결). 반대로 "닫힌 채로 재현"은 UserDefaults 인자
-    /// `-history.chipHintDismissed YES`를 쓴다 — `-toBuy.swipeHintSeen YES` 선례 그대로,
-    /// NSUserDefaults가 커맨드라인 인자를 자동으로 도메인에 얹어 주므로 이쪽은 커스텀 파싱이 필요 없다.
+    /// `-history.chipHintDismissed YES`를 쓴다 — `-fridge.compact YES` 선례 그대로,
+    /// NSUserDefaults가 커맨드라인 인자를 자동으로 도메인에 얹어 주므로 이쪽은 커스텀 파싱이 필요 없다
+    /// (52차부터 `-toBuy.swipeHintSeen`은 이 방식을 쓰지 않는다 — 프로세스 스코프로 바뀌며 값이 없는
+    /// 커스텀 파싱 플래그로 갈렸다, `ShoppingListContent.swipeHintSeenAtLaunch(in:)` 참고).
     /// 강제 표시 세션에서도 **이번 세션의 X는 이긴다** — `-toBuy.swipeHint`에서 사용자의 실제
     /// 스와이프가 재생을 취소하는 규약과 같다. 이게 없으면 강제 세션에선 X가 죽은 버튼이 된다.
     @State private var chipHintDismissedNow = false
