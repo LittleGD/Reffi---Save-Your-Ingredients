@@ -1491,23 +1491,32 @@ struct FridgeCardHead: View {
 
 /// 펼친 상세 — 흰 영수증 한 장에 큰 일러스트 + 구매 정보(영수증 명세). 색은 Due date에만.
 ///
-/// **컴포지션은 위에서 아래로 네 층이다: 크라운(카테고리·편집) / 히어로(실루엣 + 겹쳐 찍은 도장) /
+/// **컴포지션은 위에서 아래로 네 층이다: 크라운(카테고리·상태 도장·편집) / 히어로(실루엣만) /
 /// 이름 / 절취선 + 명세.** 옛 배치는 실루엣 오른쪽 한 칸에 그 넷을 다 욱여넣어, 이름과 D-day 도장이
 /// **같은 한 줄에서 폭을 다퉜다**. 그 줄의 가용폭은 197pt인데 'Overdue' 도장 한 개가 83pt를 먹고
 /// 24pt Bold 이름은 100pt대라, 한 단어짜리 재료명(mushroom)은 줄바꿈이 불가능해 tail로 잘렸다.
 /// **이름에 자기 줄을 통째로 주면 그 경합이 구조적으로 사라진다** — 폭을 다툴 상대가 없다.
-/// 도장을 다시 이름 옆으로 되돌리지 마라: 도장 폭은 라벨 길이(언어마다 다르다)를 따르고 이름 폭도
-/// 재료마다 다르므로, 둘을 한 줄에 두는 배치에는 "잘리지 않는" 폭이 존재하지 않는다.
+/// 도장을 다시 **이름** 옆으로 되돌리지 마라: 도장 폭은 라벨 길이(언어마다 다르다)를 따르고 이름
+/// 폭도 재료마다 다르므로, 둘을 한 줄에 두는 배치에는 "잘리지 않는" 폭이 존재하지 않는다.
+///
+/// **도장은 57차-b부터 히어로가 아니라 크라운에 산다.** 46차는 도장을 실루엣 오른쪽-위에 겹쳐
+/// 찍었는데("그림 위에 눌러 찍은 인상"), 'Overdue'처럼 폭이 넓은 라벨은 그 겹침이 실루엣의
+/// 밀도 높은 윗부분(잎 등 글리프 "머리")까지 먹어 "재료 아이콘과 스탬프가 겹쳐 이상하다"는
+/// 결함으로 돌아왔다(오너 지적, Spinach 실측). 도장을 크라운 행(카테고리 옆)으로 옮기면 라벨
+/// 폭과 무관하게 실루엣과는 아예 다른 세로 자리라 겹칠 여지가 구조적으로 없다 — 카테고리는
+/// "Veg"처럼 짧은 캐논 단어라(이름과 달리) 옆에 서도 폭을 다투지 않는다.
 struct ExpandedFridgeCard: View {
     let ingredient: Ingredient
     var onEdit: () -> Void = {}
     private let toothH: CGFloat = ReffiTooth.card
 
-    /// 히어로 실루엣 한 변 — 상태 도장을 **위에 겹쳐 찍는** 크기(`ReffiFoodIcon.detail`).
+    /// 히어로 실루엣 한 변(`ReffiFoodIcon.detail`).
     ///
-    /// 옛 `hero`(64)로는 안 된다: 도장 한 개의 폭이 'Overdue'에서 83pt라 실루엣보다 넓어 그림을
-    /// 덮어 버린다. 반대로 더 키우면 카드가 뷰포트를 넘겨 영수증이 잘린 채 선다(기본 글자 크기
-    /// iPhone 17에서 실측: 120이면 55pt 초과). 도장 폭과 카드 높이 예산 사이의 값이다.
+    /// 57차-b 이전엔 이 값이 "도장과 겹쳐도 그림을 다 덮지 않을 하한"까지 겸했다(옛 `hero` 64는
+    /// 'Overdue' 83pt 도장보다 좁아 그림을 덮었다) — 도장이 크라운으로 옮겨간 지금은 그 하한
+    /// 근거가 사라졌지만 값은 바꾸지 않는다: 위쪽 상한(카드가 뷰포트를 넘겨 영수증이 잘린 채
+    /// 서는 지점 — 기본 글자 크기 iPhone 17 실측, 120이면 55pt 초과)은 도장과 무관하게 여전히
+    /// 유효하고, 이 화면의 다른 실측도 전부 이 값을 전제로 잡혀 있다.
     private static let heroSide: CGFloat = ReffiFoodIcon.detail
 
     var body: some View {
@@ -1515,46 +1524,46 @@ struct ExpandedFridgeCard: View {
         let shape = ReceiptShape(tooth: toothH, seed: ingredient.receiptSeed)
 
         return VStack(alignment: .leading, spacing: 0) {
-            // ① 크라운 — 카테고리 한 줄. 편집은 **행의 자식이 아니라 카드 오버레이**다(아래 body 끝):
-            //    44pt 히트 타깃이 행 안에 있으면 그 행이 44pt로 자라 카드 높이를 그만큼 먹는데,
-            //    이 화면은 판정 버튼·덱이 스크롤 밖에 도킹돼 영수증 몫이 고정이라 그 24pt가 곧
-            //    마지막 명세 행의 자리다(실측: 편집을 행에서 빼야 Storage 행까지 들어온다).
-            //    히트 영역은 오버레이에서 그대로 44를 지킨다 — 줄이는 게 아니라 겹치는 것이다.
-            Text(LocalizedStringKey(ingredient.category))   // 카테고리는 영문 캐논 저장 — 표시만 로컬라이즈
-                .reffiType(.caption).foregroundStyle(ReffiColor.ink2).lineLimit(1)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.trailing, ReffiChrome.tapMin)   // 오버레이 편집 버튼이 앉을 자리를 비워 둔다
-                .padding(.horizontal, ReffiSpace.s5)
-                .padding(.top, ReffiSpace.s3 + toothH)
-            // 도장이 시각적으로 이름 위에 오면서 보조기술의 기본 순서가 뒤집힌다 — 종전 순서
-            // (카테고리·편집 → 이름 → 상태)를 명시적으로 고정한다. 큰 값이 먼저 읽힌다.
+            // ① 크라운 — 카테고리 + 상태 도장(FROZEN·D-day) 한 줄. 편집은 **행의 자식이 아니라
+            //    카드 오버레이**다(아래 body 끝): 44pt 히트 타깃이 행 안에 있으면 그 행이 44pt로
+            //    자라 카드 높이를 그만큼 먹는데, 이 화면은 판정 버튼·덱이 스크롤 밖에 도킹돼 영수증
+            //    몫이 고정이라 그 24pt가 곧 마지막 명세 행의 자리다(실측: 편집을 행에서 빼야
+            //    Storage 행까지 들어온다). 히트 영역은 오버레이에서 그대로 44를 지킨다 —
+            //    줄이는 게 아니라 겹치는 것이다.
+            //
+            // **도장이 여기 사는 이유(57차-b).** 옛 자리(히어로 오른쪽-위 겹침)는 'Overdue'처럼
+            // 넓은 라벨에서 실루엣의 밀도 높은 윗부분(잎 등 글리프 "머리")을 덮어 "재료 아이콘과
+            // 스탬프가 겹쳐 이상하다"는 결함으로 나왔다(오너 지적). 여기서는 카테고리와 **같은 행**에
+            // 서므로 실루엣과는 아예 다른 세로 자리라 라벨 폭이 얼마든 겹칠 수가 없다 — 오프셋을
+            // 조정해 겹침을 "줄이는" 대신, 겹칠 축 자체를 없앴다. 카테고리는 "Veg"처럼 짧은 캐논
+            // 단어라(이름과 달리, 위 struct 주석의 46차 결함) 옆에 서도 폭을 다투지 않는다.
+            HStack(alignment: .top, spacing: ReffiSpace.s3) {
+                Text(LocalizedStringKey(ingredient.category))   // 카테고리는 영문 캐논 저장 — 표시만 로컬라이즈
+                    .reffiType(.caption).foregroundStyle(ReffiColor.ink2).lineLimit(1)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                VStack(alignment: .trailing, spacing: ReffiSpace.s1) {
+                    if ingredient.isFrozen {
+                        DDayStamp(text: String(localized: "FROZEN"), color: ReffiColor.blueDark, size: 12)
+                    }
+                    DDayStamp(text: ingredient.dDayText, color: f.dark, size: 17,
+                              caps: false, accessibilityLabel: ingredient.dDayAccessibilityText)
+                }
+                // 카테고리 Text처럼 남는 폭을 눌려 받으면 ko "기한 지남"이 도장 안에서 줄바꿈된다
+                // (각인은 한 줄이어야 도장으로 읽힌다) — 옛 히어로 오버레이와 같은 이유로 고정폭.
+                .fixedSize()
+            }
+            .padding(.trailing, ReffiChrome.tapMin)   // 오버레이 편집 버튼이 앉을 자리를 비워 둔다
+            .padding(.horizontal, ReffiSpace.s5)
+            .padding(.top, ReffiSpace.s3 + toothH)
+            // 도장·카테고리가 시각적으로 이름보다 위에 오면서 보조기술의 기본 순서가 뒤집힐 수 있다 —
+            // 종전 순서(카테고리·상태·편집 → 이름 → 실루엣)를 명시적으로 고정한다. 큰 값이 먼저 읽힌다.
             .accessibilitySortPriority(3)
 
-            // ② 히어로 — 일러스트 한 장 **위에** 상태 도장을 겹쳐 찍는다(온보딩 접시 도장의 선례).
-            //    도장이 여기로 오면서 이름 줄에서 폭을 빼앗지 않는다. 도장 묶음은 실루엣 상자의
-            //    오른쪽 위로 조금 넘어가 앉는다 — 그림 위에 눌러 찍은 인상은 그 걸침에서 나온다.
-            //    냉동은 D-day와 **함께** 선다(스택을 쪼개지 않고 도장 하나로 구분한다는 §13 규약).
-            //    `ZStack`이 아니라 `overlay`인 이유: ZStack은 자식 중 가장 큰 것으로 커지므로,
-            //    접근성 글자 크기에서 도장이 실루엣보다 넓어지는 순간 상자가 도장 폭으로 자라고
-            //    그림이 top-trailing 정렬을 따라 오른쪽으로 밀린다. 오버레이면 레이아웃 크기는
-            //    언제나 실루엣의 것이고 도장은 그 위로 **넘쳐도 된다**(양옆에 88pt 여유가 있다).
+            // ② 히어로 — 일러스트 한 장(§13 신선도 실루엣). 상태 도장은 이제 위 ①에 산다.
+            //    `PaperSilhouette` 자신은 장식이라 접근성에 잡히지 않는다(`.accessibilityHidden(true)`).
             PaperSilhouette(glyph: ingredient.glyph, fresh: f)
                 .frame(width: Self.heroSide, height: Self.heroSide)
-                .overlay(alignment: .topTrailing) {
-                    VStack(alignment: .trailing, spacing: ReffiSpace.s1) {
-                        if ingredient.isFrozen {
-                            DDayStamp(text: String(localized: "FROZEN"), color: ReffiColor.blueDark, size: 12)
-                        }
-                        DDayStamp(text: ingredient.dDayText, color: f.dark, size: 17,
-                                  caps: false, accessibilityLabel: ingredient.dDayAccessibilityText)
-                    }
-                    // 오버레이는 실루엣 상자를 제안폭으로 받는다 — 고정하지 않으면 ko "기한 지남"이
-                    // 120pt에 눌려 도장 안에서 줄바꿈된다(각인은 한 줄이어야 도장으로 읽힌다).
-                    .fixedSize()
-                    .offset(x: ReffiSpace.s3, y: -ReffiSpace.s2)
-                }
                 .frame(maxWidth: .infinity, alignment: .center)
-                .accessibilitySortPriority(1)
 
             // ③ 이름 — 한 줄을 통째로 쓴다. 폭 경합이 없으므로 트런케이트가 성립하지 않고,
             //    긴 이름·큰 글자는 잘리는 대신 두 줄로 흐른다(§7.3 잘림 금지).
