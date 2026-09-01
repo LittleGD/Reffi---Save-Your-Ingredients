@@ -46,11 +46,14 @@ struct PaperButtonLabel: View {
     /// 동사만 있는 CTA는 결과를 눌러 봐야 알 수 있어, 화면의 유일한 결정 지점에 결정의 대상이
     /// 빠져 있는 상태가 된다(레퍼런스 감사: 하단 도킹 바는 동사 옆에 그 동사가 처리할 상태를 함께 찍는다).
     ///
-    /// **색은 라벨과 같은 `foreground`다 — 새 토큰을 만들지 않는다.** §2.6이 "Blue 면 위 글자는
-    /// white"를 못 박고 §10이 "불투명도로 글자색을 만들지 않는다"를 금지하므로, 이 자리에서 톤을
-    /// 낮추는 유일한 합법 수단은 **크기와 굵기**다: `subhead`(18/SemiBold) → `metaText`(13/Medium)로
-    /// 1.38배 + 한 단계 굵기 차를 두면 색을 건드리지 않고 위계가 선다. 흰 글자 대비는 두 줄 모두
-    /// 같다(§2.8 실측 white on blue 라이트 5.65 · 다크 4.64 — 13pt 본문 요건 4.5를 넘는다).
+    /// **색은 `primary`에서만 한 단 양보한다(50차 오너 판정).** 49차까지는 제목과 같은
+    /// `foreground`(흰색)였고 근거는 "§2.6이 blue 면 위 글자를 white로 못 박았으니 톤을 낮추는
+    /// 합법 수단은 크기·굵기뿐"이었다. 실기에서 그것으로 안 갈렸다 — 18/SemiBold → 13/Medium의
+    /// 1.38배 차가 있어도 **같은 잉크가 두 줄을 한 덩어리로 묶었다**(오너: "Start cooking이랑
+    /// 층위가 겹쳐"). 그래서 §2.6에 "blue 면 위 **보조** 줄"이라는 두 번째 잉크(`onAccentSoft`)를
+    /// 신설하고 여기서 쓴다. 불투명도로 만든 색이 아니라 측정된 토큰이므로 §10 금지에 걸리지 않는다.
+    /// 라이트에서만 파랗고 다크는 흰색인 이유는 그 토큰 주석에 실측으로 적혀 있다(다크 blue 면은
+    /// 흰색 4.64:1이 천장이라 어떤 틴트도 4.5 아래로 떨어진다).
     var subtitle: LocalizedStringKey? = nil
     /// **컴팩트 칩 폼**(49차) — 같은 종이 표면을 라벨 한 단(`pillLabel` 13) · 아이콘 16 · 패딩
     /// `s3/s2`로 줄인 변형. 와이드 CTA가 아니라 **보조 행동 여럿이 한 줄에 서는 자리**를 위한 것이다:
@@ -87,6 +90,12 @@ struct PaperButtonLabel: View {
                     .tracking(ReffiActionRole.metaText.tracking)
                     .lineLimit(1)
                     .minimumScaleFactor(ReffiShrink.chrome)
+                    // 제목과 **같은 흰색**이면 두 줄이 한 덩어리로 읽혀 위계가 겹친다(오너 50차
+                    // 실기 판정). 크기(18 → 13)만으로는 안 갈렸다 — 같은 잉크가 둘을 묶는다.
+                    // 보조 줄은 잉크를 한 단 양보한다: `primary`(blue 면)에서만 틴트를 쓰고,
+                    // 다른 kind(secondary·destructive)는 면 색이 달라 이 잉크가 성립하지
+                    // 않으므로 종전대로 `foreground`를 그대로 물려받는다.
+                    .foregroundStyle(kind == .primary ? ReffiColor.onAccentSoft : foreground)
             }
         }
         .foregroundStyle(foreground)

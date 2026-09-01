@@ -42,6 +42,7 @@
   --color-ink-2:   var(--neutral-700);
   --color-ink:     var(--neutral-900);
   --on-accent:     white;               /* blue 면 위 콘텐츠 — 고정(§2.7). ink 면 위는 --on-ink */
+  --on-accent-soft: oklch(0.93 0.045 250); /* blue 면 위 **보조 줄**(50차) — 라이트만 파랑(4.59:1), 다크는 white(천장 4.64) */
 
   /* ---- Spacing ---- */
   --space-0: 2px;  /* 두 줄 텍스트 쌍 마이크로갭 — 행간의 연장(§4.1, 42차) */
@@ -158,6 +159,8 @@
     --color-blue:         oklch(56%   0.115 250);
     --color-blue-dark:    oklch(76%   0.095 250);
     --color-blue-light:   oklch(30%   0.045 250);
+    /* 다크 blue 면(L .56)은 흰 글자 4.64:1이 천장이라 보조 줄에 틴트를 줄 여유가 없다 — white 유지(§2.6 50차) */
+    --on-accent-soft: white;
     --neutral-900: oklch(93%   0.010 85);
     --neutral-700: oklch(81%   0.012 82);
     --neutral-500: oklch(71%   0.012 80);
