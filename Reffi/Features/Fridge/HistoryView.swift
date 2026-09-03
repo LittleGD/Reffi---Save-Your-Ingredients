@@ -321,8 +321,15 @@ struct HistoryContent: View {
     /// 축이 좌(패인 헤드라인) → 중(이 블록) → 좌(정산서)로 두 번 꺾여 있었다 — §9.4의 "한 표면에
     /// 축은 하나다"가 그대로 걸린다. 아래 요일 칩 행은 밴드 전폭에 균등 분배되는 **격자**라
     /// 이 블록과 중심을 맞출 대상이 아니었고(§9.4 예외 ③), 그래서 옮겨도 관계가 깨지지 않는다.
+    ///
+    /// **오너-리버설 고지(63차, 사용자 결정)** — 사용자가 "50퍼를 가운데 정렬로 해달라"고 명시
+    /// 지시해, 위 49차가 세운 좌측 정렬을 이 블록 하나에 한해 되돌린다. 49차 근거(레퍼런스 감사
+    /// 46장·"한 표면에 축은 하나") 자체가 틀렸던 것은 아니다 — 패인 헤드라인("Kitchen ledger")과
+    /// 아래 요일 칩 행·정산서는 그대로 좌측선을 지킨다. 화면은 다시 좌(헤드라인) → 중(이 블록) →
+    /// 좌(정산서)로 갈리지만, 사용자가 이 블록만 집어 지시했으므로 "한 표면에 축은 하나" 원칙의
+    /// 예외로 명시하고 다른 화면에 일반화하지 않는다(design_system.md §9.4).
     private func headlineBlock(_ week: ConsumptionWeek.Summary) -> some View {
-        VStack(alignment: .leading, spacing: ReffiSpace.s0) {
+        VStack(alignment: .center, spacing: ReffiSpace.s0) {
             if let rate = week.eatenRate {
                 // `reffiNum(.hero)`(32)가 숫자 계열의 **맨 위 단**이다(§3.4). 34를 새로 만들지
                 // 않는 이유: 그 절이 크기를 자유 파라미터로 두었다가 여덟 종이 유통된 사고를
@@ -380,9 +387,11 @@ struct HistoryContent: View {
         }
         .lineLimit(1)
         .minimumScaleFactor(ReffiShrink.fit)
-        .multilineTextAlignment(.leading)
-        // 안쪽 블록이 제 내용 폭만 잡으면 부모가 도로 가운데로 민다 — 좌측선을 실제로 세우는 건 이 프레임이다(§9.4).
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .multilineTextAlignment(.center)
+        // 63차, 사용자 결정으로 가운데 정렬(위 struct 주석의 오너-리버설 고지) — 이 프레임의
+        // alignment가 최종 위치를 정한다(§9.4 "정렬을 바꿀 땐 레이아웃도 같이" — VStack·frame·
+        // multilineTextAlignment를 함께 옮긴다).
+        .frame(maxWidth: .infinity, alignment: .center)
         // 값 덩이는 숫자 하나가 아니라 "무엇의 몇 퍼센트인가"다 — 화면에서 화살표 하나로 줄인 추세를
         // 소리에서는 그대로 문장으로 편다(분자·분모·추세 방향·지난 주 값까지, 아래 `headlineLabel`).
         // 화면 혼잡이 33차의 문제였지 VoiceOver 정보량이 문제가 아니었다 — 말은 공짜다.
