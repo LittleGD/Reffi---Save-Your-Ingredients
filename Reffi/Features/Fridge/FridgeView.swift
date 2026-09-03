@@ -742,8 +742,20 @@ struct FridgeView: View {
                 // 그대로 처리하고, 더미가 손을 따라 오르는 페이퍼 모션·미달 시 원위치 스프링도 위
                 // `.updating`의 `deckLift`(reduceMotion 게이트 포함)와 `@GestureState`의 자동 리셋
                 // 스프링(`.settle`)을 그대로 물려받는다 — 새 모션 코드가 필요 없다.
+                //
+                // **63차-b, 실기 회귀 수정: 여기도 `markAdvanced()`를 부른다.** 위 `bottomDeck`
+                // 주석이 이미 서술한 문제(같은 터치의 버튼 탭이 바로 다음 런루프에 도착 — SwiftUI
+                // 버튼은 이동 거리가 아니라 프레임 이탈로만 탭을 취소한다)는 아래 두 "다음/이전 카드"
+                // 분기만 막아 왔고 이 닫기 분기는 비어 있었다. 재료 아이콘을 132pt로 키우며 영수증이
+                // 스스로 스크롤하는 경로가 열리자(§`receiptScrolls`) 이 창이 실제로 뚫렸다: 덱 위에서
+                // 크게 위로 스와이프하면 `deselect()`로 목록에 닫히는 **바로 그 프레임에** 같은 터치가
+                // 덱 앞장 버튼의 탭으로도 도착해 `select(next)`가 이어 발동하고, 화면은 닫히자마자
+                // 다음 재료로 다시 펼쳐졌다(실기: Beef → 스와이프 → 목록 대신 Spinach 상세). 표를
+                // 남기지 않으면 `consumeAdvanceTap()`이 이 탭을 삼킬 근거가 없다 — 아래 두 분기와
+                // 같은 표를 여기서도 남긴다.
                 if v.startLocation.y >= deckTopY,
                    d < -Self.deckDismissDistance || p < -Self.deckDismissPredicted {
+                    markAdvanced()
                     deselect()
                     return
                 }
