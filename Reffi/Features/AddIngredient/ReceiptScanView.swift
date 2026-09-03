@@ -124,15 +124,20 @@ struct ReceiptScanView: View {
                     .multilineTextAlignment(.center)
 
                 if cameraAvailable {
-                    PaperButton(title: "Scan with camera") { showCamera = true }
+                    // 라벨은 짧게(62차 owner), 전체 뜻은 accessibilityLabel이 맡는다(`CookingStepsView`
+                    // "Videos" 선례와 같은 문법).
+                    PaperButton(title: "Scan") { showCamera = true }
+                        .accessibilityLabel(Text("Scan with camera"))
                 }
                 // Button이 아닌 컨트롤에도 CTA 표면을 공용 킷에서 가져온다(`PaperButtonLabel` + `.paperPress`).
                 // 손으로 재조립하던 예전 면은 fill이 `blueLight`(킷 secondary 정본은 `sub`)에 질감·그림자·
-                // 눌림이 모두 빠져 있어, 바로 위 "Scan with camera"와 나란히 두면 재질이 어긋났다(감사 R4-2).
+                // 눌림이 모두 빠져 있어, 바로 위 "Scan"과 나란히 두면 재질이 어긋났다(감사 R4-2).
+                // 라벨은 위 버튼과 같은 이유로 짧게(62차) — 서술은 accessibilityLabel로 남긴다.
                 PhotosPicker(selection: $photoItems, maxSelectionCount: 3, matching: .images) {
-                    PaperButtonLabel(title: "Choose photos", kind: .secondary, seed: 3)
+                    PaperButtonLabel(title: "Photos", kind: .secondary, seed: 3)
                 }
                 .buttonStyle(.paperPress)
+                .accessibilityLabel(Text("Choose photos"))
                 // 영수증이 없거나 스캔이 안 잡히는 날의 탈출구 — 면 없는 조용한 링크로 둔다.
                 // 종이 CTA로 세우면 스캔과 같은 무게가 돼, 이 화면이 무엇을 권하는지가 흐려진다.
                 // 라벨은 목적지 시트 제목("Add by hand")과 같은 낱말이다(42차) — 진입점과 도착지가
@@ -170,6 +175,10 @@ struct ReceiptScanView: View {
             // 폭은 버튼 스택이 아니라 **화면**이 정한다 — 전폭에서 가로 마진만 물리면 두 줄로 고르게 앉는다.
             // 그 전폭이 확보된 지금, 축은 페이지 좌측선을 따른다(49차, §9.4). 옛 중앙 정렬의 근거였던
             // "버튼 폭을 물려받아 어중간하게 끊긴다"는 폭 문제였지 정렬 문제가 아니었다.
+            // 62차 재검토: "위 아이콘·안내문·버튼과 안 맞아 보인다"는 지적이 있었으나, 그 위 블록은
+            // §9.4 예외②(표지형 블록 — 이 파일 자체가 그 예시)라 축이 다른 게 정상이다. 이 문구는
+            // 표지 밖 페이지 마진에 앉는 **캡션/안내**라 §9.4 본칙(읽는 텍스트는 좌측)이 그대로 적용된다 —
+            // 중앙으로 돌리면 49차가 고친 바로 그 불일치가 재발한다. 그대로 둔다.
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, ReffiGrid.margin)   // 주석의 의도 그대로 — 페이지 마진(§9.2·42차)
             .padding(.bottom, ReffiSpace.s5)
