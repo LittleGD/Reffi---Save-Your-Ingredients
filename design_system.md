@@ -751,6 +751,10 @@ iPhone 쪽 한계는 넷이다 — ① 액추에이터가 **하나**(좌·우 2�
   상자는 가운데에 남는다(무인자 `.frame(maxWidth: .infinity)`의 기본 정렬이 `.center`다). 함께 걷을 것:
   `frame`의 `alignment:` 인자 · `VStack(alignment:)` · 중앙 대칭용 투명 균형자(`Color.clear` 44pt) ·
   중앙 2줄 균형용 하드 개행(`\n`, xcstrings **en 키와 ko 값 양쪽**).
+- **예외 기록(63차, 사용자 결정)** — History 패인의 히어로 값 덩이(50% 숫자 + 추세 화살표 + 캡션,
+  `HistoryContent.headlineBlock`)는 49차가 세운 좌측 정렬을 사용자 지시로 되돌려 가운데 정렬한다.
+  패인 헤드라인·요일 칩 행·정산서는 그대로 좌측이라 이 블록 하나만의 예외다 — 다른 화면에
+  일반화하지 않는다.
 
 ---
 

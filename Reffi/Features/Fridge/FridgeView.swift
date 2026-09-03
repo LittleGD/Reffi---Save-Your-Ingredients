@@ -1565,6 +1565,10 @@ struct ExpandedFridgeCard: View {
     /// 근거가 사라졌지만 값은 바꾸지 않는다: 위쪽 상한(카드가 뷰포트를 넘겨 영수증이 잘린 채
     /// 서는 지점 — 기본 글자 크기 iPhone 17 실측, 120이면 55pt 초과)은 도장과 무관하게 여전히
     /// 유효하고, 이 화면의 다른 실측도 전부 이 값을 전제로 잡혀 있다.
+    ///
+    /// **63차, 사용자 지시로 88→132(50%) 확대** — 값의 근거는 `ReffiFoodIcon.detail` 선언부에 있다
+    /// (이 화면 전용 토큰이라 콜사이트가 아니라 토큰 쪽에 근거를 둔다). 132에서 크라운 행·이름·
+    /// 다섯 줄 명세·아래 덱이 스크롤 안에서 온전한지는 스페어 심 전/후 스크린샷으로 확인한다.
     private static let heroSide: CGFloat = ReffiFoodIcon.detail
 
     var body: some View {
