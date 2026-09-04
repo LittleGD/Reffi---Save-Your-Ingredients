@@ -2498,6 +2498,16 @@
         }
       }
     },
+    "Photos": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "사진"
+          }
+        }
+      }
+    },
     "Pick as many as you like.\nRecipes will follow.": {
       "localizations": {
         "ko": {
@@ -2880,6 +2890,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Reffi와 함께 안 버리는 중이에요"
+          }
+        }
+      }
+    },
+    "Scan": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "스캔"
           }
         }
       }

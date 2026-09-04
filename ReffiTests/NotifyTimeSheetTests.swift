@@ -1,5 +1,6 @@
 import Testing
 import SwiftUI
+import UIKit
 import Foundation
 @testable import Reffi
 
@@ -15,11 +16,18 @@ import Foundation
 /// 보정 전은 clamp 바닥, 보정 후는 그 오프셋의 진짜 행) 이 환경에서는 `.task`의
 /// `scrollTo(_:anchor:)`가 목표 행까지 가지 못한다(디스플레이 링크가 없어 `LazyVStack` 행이
 /// 게을러진 채 남는다 — 키 윈도우·5초 펌프·매 틱 강제 레이아웃까지 시도해도 같았다).
-/// 그래서 "최종값 == 9"는 이 환경에서 **옳은 코드로도** 만족될 수 없고, 남기면 영구 실패하는
-/// 가드가 된다. 게다가 그 계약은 지금 코드가 보증하지도 않는다: `.task`가 `scrollTo` 직후
-/// 곧바로 `isInteractive = true`를 켜서 초기 센터링이 만든 지오메트리 콜백까지 커밋으로 친다
-/// (실기기에서는 스크롤이 9시에 정착해 최종값이 되돌아오므로 눈에 띄지 않는다). 그 타이밍
-/// 구멍은 이 변경의 범위 밖이라, 여기서는 아래 순수 기하 앵커로 커밋 좌표계만 잠근다.
+/// 그래서 **"최종값 == 9"형 가드**는 이 환경에서 **옳은 코드로도** 만족될 수 없고, 남기면 영구
+/// 실패한다 — 그 형태의 프로브는 지금도 금지다.
+///
+/// **58차-c — 그 타이밍 구멍은 닫혔다(위 문단의 "범위 밖" 서술은 여기서 만료된다).** 프로브가
+/// 드러낸 원인은 `.task`가 `scrollTo` 직후 곧바로 `isInteractive = true`를 켜서 초기 센터링이
+/// 만든 지오메트리 콜백까지 커밋으로 쳤다는 것이었다. 그 불리언은 **기대 목표 인덱스 게이트**
+/// (`pendingScrollTarget` + 순수 판정 `dialCommitDecision`)로 대체됐다: `init()`이 목표 행으로
+/// 무장하고, 스크롤이 그 행에 도착할 때 비로소 풀린다. 새 불변식은 프로브 환경에서도 참인
+/// 형태다 — "열기만 하면 값이 **아예 안 바뀐다**"(`scrollTo`가 목표에 못 닿으면 게이트가 안 열려
+/// 커밋 0회, 닿으면 해제만 되고 무변화). 최종값이 아니라 **기록 궤적이 비어 있음**을 보는
+/// 계약이라 도착 여부에 의존하지 않는다. 아래 "58차-c 커밋 게이트" 절이 그 판정을 순수 함수로
+/// 잠근다.
 ///
 /// **56차 — 다이얼의 순수 로직**(시간 목록·포맷·스냅 인덱스·원근·접근성 스텝)은 뷰 렌더 없이
 /// 호출 가능한 `static` 함수로 뷰에서 분리돼 있다(`hourLabel`이 이미 51차부터 같은 문법이었다 —
@@ -283,5 +291,274 @@ struct NotifyTimeSheetTests {
     @Test func adjustableStepClampsAtDialEnds() {
         #expect(NotifyTimeSheet.steppedHour(from: 21, direction: .increment) == 21)
         #expect(NotifyTimeSheet.steppedHour(from: 6, direction: .decrement) == 6)
+    }
+
+    // MARK: - 58차-c 커밋 게이트(기대 목표 인덱스)
+
+    /// 실측 좌표 계약(300pt 시트 → `topInset`=76·`rowHeight`=44)으로 오프셋을 스냅 인덱스로 바꾼다.
+    /// 이 절이 원시 인덱스를 손으로 적는 대신 이 어댑터를 통과시키는 이유는, 게이트 계약을 58차·
+    /// 58차-b가 잠근 **실제 기하**에 묶어 두기 위해서다 — 좌표 계약이 흔들리면 게이트 테스트도 함께
+    /// 무너져 알려 준다(원시 인덱스로 적었다면 조용히 서로 어긋난 채 둘 다 초록일 수 있다).
+    private func snap(_ offset: CGFloat) -> Int {
+        NotifyTimeSheet.snapIndex(forOffset: offset, topInset: 76, rowHeight: 44, count: 16)
+    }
+
+    /// 무접촉 오픈 — 시트를 **열기만** 했을 때 커밋이 한 번도 일어나지 않는다. 이 시퀀스가 통째로
+    /// 58차-c의 목표다: 커밋 0회 = `@AppStorage` 쓰기 0회 = `ExpiryNotifier.reschedule` 0회 =
+    /// 선택 햅틱 0회.
+    ///
+    /// 저장값 9시(인덱스 3)로 열면 `init()`이 게이트를 3으로 무장한다. 프리젠테이션이 만드는 과도
+    /// 콜백은 원시 오프셋 -76~22 부근(스냅 0~2)에서 관측됐는데, 그 전부가 목표와 다르므로 침묵이다.
+    /// `.task`의 `scrollTo`가 3행 정착 오프셋 56에 닿아야 게이트가 풀리고, 풀리는 그 순간에도 커밋은
+    /// 없다 — 값은 이미 9시로 옳기 때문이다.
+    ///
+    /// 표본에 **-32(스냅 1)** 가 들어 있는 이유(58차-c 리뷰 MINOR-2): RED 프로브가 실제로 잡은
+    /// 유일한 오기록이 스냅 1(`trajectory [7]` = `hours[1]` = 7시)이다. -32를 빼면 이 테스트는
+    /// 측정된 실패 지점을 비껴간 표본(`{0,2,2,2}`)으로 계약을 잠그게 된다.
+    @Test func untouchedOpenCommitsNothingThroughSettle() {
+        var pending: Int? = 3
+        var committed = 3
+        var commits: [Int] = []
+
+        #expect(snap(-32) == 1, "표본이 RED가 실측한 스냅 클래스를 실제로 포함하는지 자체 확인")
+        for offset in [CGFloat(-76), -32, 0, 10, 22] {
+            let step = NotifyTimeSheet.dialCommitDecision(pendingTarget: pending, snapIndex: snap(offset),
+                                                          committedIndex: committed)
+            pending = step.pendingTarget
+            if let commit = step.commit { committed = commit; commits.append(commit) }
+            #expect(pending == 3, "프리젠테이션 과도 콜백(오프셋 \(offset))이 게이트를 풀면 안 된다")
+        }
+        #expect(commits.isEmpty, "무접촉 오픈은 커밋 경로를 한 번도 밟지 않는다")
+
+        let arrival = NotifyTimeSheet.dialCommitDecision(pendingTarget: pending, snapIndex: snap(56),
+                                                         committedIndex: committed)
+        #expect(arrival.pendingTarget == nil, "3행 정착(오프셋 56)이 곧 도착 — 여기서 게이트가 풀린다")
+        #expect(arrival.commit == nil, "도착은 해제 신호일 뿐 커밋이 아니다")
+        #expect(committed == 3)
+    }
+
+    /// 회귀 박제 — 게이트가 없으면(58차-b까지의 `isInteractive`가 사실상 늘 열려 있던 상태) 프리젠테이션
+    /// 과도 오프셋 22가 스냅 2를 내고 그게 그대로 커밋된다. `hours[2]`는 8시다: 사용자가 9시로 설정해
+    /// 둔 시트를 **열기만 했는데** 저장값이 8시로 바뀌고 선택 틱이 우는 것이 이 버그의 실체였다.
+    ///
+    /// 실기기에서는 뒤이은 정착 콜백이 9시를 되돌려 놓아 최종값으로는 눈에 띄지 않는다. 그래도
+    /// 그 사이 `ExpiryNotifier.reschedule`이 헛돌고, **정착 전에 시트가 뜯기면**(플링 후 스와이프
+    /// dismiss, 백그라운드 킬) 8시가 그대로 남는다 — 과도 오기록이 실제로 살아남는 유일한 경로이자
+    /// 이 수정의 사용자 가시 심각도 근거다.
+    @Test func absentGateCommitsPresentationTransient() {
+        let ungated = NotifyTimeSheet.dialCommitDecision(pendingTarget: nil, snapIndex: snap(22),
+                                                         committedIndex: 3)
+        #expect(ungated.commit == 2)
+        #expect(NotifyTimeSheet.hours[2] == 8)   // 열기만 해도 저장되던 값
+        #expect(NotifyTimeSheet.hours[3] == 9)   // 사용자가 실제로 보고 있던 값
+
+        // 같은 콜백을 무장한 게이트가 받으면 침묵이다 — 이 대비가 곧 58차-c 수정의 전부다.
+        let gated = NotifyTimeSheet.dialCommitDecision(pendingTarget: 3, snapIndex: snap(22),
+                                                       committedIndex: 3)
+        #expect(gated.commit == nil)
+        #expect(gated.pendingTarget == 3)
+    }
+
+    /// 도착 후에는 다이얼이 평소대로 커밋한다 — 게이트가 풀린 상태에서 사용자가 4행(10시) 정착
+    /// 오프셋 100까지 굴리면 그 행이 커밋된다. 게이트가 "여는 순간만 막는" 장치이지 다이얼을
+    /// 잠그는 장치가 아니라는 계약이다(이게 깨지면 증상은 "시간을 못 고른다"로 뒤집힌다).
+    @Test func commitsResumeAfterGateOpens() {
+        let decision = NotifyTimeSheet.dialCommitDecision(pendingTarget: nil, snapIndex: snap(100),
+                                                          committedIndex: 3)
+        #expect(decision.commit == 4)
+        #expect(decision.pendingTarget == nil)
+        #expect(NotifyTimeSheet.hours[4] == 10)
+    }
+
+    /// 사용자 개입 우선 — 센터링이 아직 비행 중이어도 손이 닿는 순간 뷰가 게이트를 강제로 비운다
+    /// (`.onScrollPhaseChange`의 `.tracking`/`.interacting`). 그 뒤 콜백은 평범한 사용자 스크롤로
+    /// 읽혀야 한다. 도착 판정이 게이트를 여는 1차 경로이고 이쪽은 안전망이다: 프로그램 스크롤이
+    /// 병리적으로 목표에 못 닿아도 다이얼이 영영 먹통이 되지 않게 하는 두 번째 열쇠다.
+    @Test func userTouchClearedGateCommitsImmediately() {
+        let inflight = NotifyTimeSheet.dialCommitDecision(pendingTarget: 3, snapIndex: snap(100),
+                                                          committedIndex: 3)
+        #expect(inflight.commit == nil, "비행 중에는 같은 콜백이 침묵한다")
+        #expect(inflight.pendingTarget == 3)
+
+        let afterTouch = NotifyTimeSheet.dialCommitDecision(pendingTarget: nil, snapIndex: snap(100),
+                                                            committedIndex: 3)
+        #expect(afterTouch.commit == 4, "phase가 게이트를 비운 뒤 같은 콜백은 커밋된다")
+    }
+
+    /// a11y 스텝 보호 — VoiceOver로 3행(9시)에서 4행(10시)으로 한 칸 올리면, 액션이 값을 **먼저**
+    /// 직접 쓰고(`committedIndex`=4·`alertHour`=10) 화면만 애니메이션으로 뒤따른다. 그 스윕이
+    /// 지나는 구간에서는 스냅 3이 잡히는데, 게이트가 없으면 `committedIndex`가 4→3→4로 튀어
+    /// `.reffiFeedback(.selection, trigger:)`가 한 스텝에 세 번 울고 `@AppStorage`가 10→9→10으로
+    /// churn한다. 게이트가 목표 4를 들고 있으면 그 구간은 침묵, 도착에서 해제, 정착 재보고는 no-op —
+    /// 손끝에 닿는 틱은 액션이 값을 바꾼 그 한 번뿐이다.
+    ///
+    /// 표본 두 점의 역할이 다르다(58차-c 리뷰 NIT-3): **56은 스윕의 출발점**(3행 정착 오프셋)이고,
+    /// **70이 진짜 중간**이다(스냅이 3→4로 넘어가는 경계는 78이라 70은 아직 스냅 3). 둘 다 "목표는
+    /// 4인데 스냅이 3"인 같은 계약을 잠그지만, 출발점만 표본으로 두면 "스윕 도중"을 잠갔다고 말할 수 없다.
+    @Test func accessibilitySweepEmitsSingleCommit() {
+        var pending: Int? = 4          // 액션이 `withAnimation` 직전에 무장한 목표
+        let committed = 4              // 액션이 이미 직접 써 둔 값
+        var commits: [Int] = []
+
+        #expect(snap(56) == 3 && snap(70) == 3 && snap(78) == 4,
+                "56=출발점·70=스윕 중간(둘 다 스냅 3), 78=3→4 경계")
+        for offset in [CGFloat(56), 70] {
+            let step = NotifyTimeSheet.dialCommitDecision(pendingTarget: pending, snapIndex: snap(offset),
+                                                          committedIndex: committed)
+            pending = step.pendingTarget
+            if let commit = step.commit { commits.append(commit) }
+            #expect(pending == 4, "스윕 구간(오프셋 \(offset), 스냅 3)이 committedIndex를 되돌리면 안 된다")
+        }
+
+        let arrival = NotifyTimeSheet.dialCommitDecision(pendingTarget: pending, snapIndex: snap(100),
+                                                         committedIndex: committed)
+        pending = arrival.pendingTarget
+        if let commit = arrival.commit { commits.append(commit) }
+        #expect(pending == nil, "목표 행 도착에서 게이트가 풀린다")
+
+        let settle = NotifyTimeSheet.dialCommitDecision(pendingTarget: pending, snapIndex: snap(100),
+                                                        committedIndex: committed)
+        if let commit = settle.commit { commits.append(commit) }
+        #expect(settle.commit == nil, "해제 뒤 같은 행 재보고는 no-op다")
+        #expect(commits.isEmpty, "a11y 한 스텝 = 커밋 변화 1회(액션의 직접 쓰기) = 햅틱 1회")
+    }
+
+    /// 이미 중앙인 채로 열기(저장값 6시 = 0행) — `scrollTo`가 사실상 no-op이라 "도착 콜백"이 따로
+    /// 오지 않을 수 있다. 그래도 게이트는 첫 콜백에서 풀린다: 0행 정착 오프셋 -76이 곧 목표 스냅 0이라
+    /// 정지 위치가 이미 도착점이기 때문이다. 게이트가 영영 안 열려 다이얼이 잠기는 경우가 없다는
+    /// 것이 이 설계의 안전 마진이고, 그래서 이 시트는 첫 드래그부터 정상 커밋한다.
+    @Test func alreadyCenteredOpenReleasesOnFirstCallback() {
+        let decision = NotifyTimeSheet.dialCommitDecision(pendingTarget: 0, snapIndex: snap(-76),
+                                                          committedIndex: 0)
+        #expect(decision.pendingTarget == nil)
+        #expect(decision.commit == nil)
+    }
+
+    /// 도착 판정은 **정확히** 스냅 == 목표일 때만이다. 한 행 못 미쳐도(스냅 2) 한 행 지나쳐도(스냅 4)
+    /// 게이트는 무장 상태를 유지한다 — "근처면 도착"으로 느슨하게 풀면 관성이 스치고 지나가는 이웃
+    /// 행에서 조기에 열려, 아직 프로그램 스크롤인 나머지 구간이 커밋으로 샌다.
+    @Test func arrivalRequiresExactTargetSnap() {
+        #expect(snap(12) == 2 && snap(100) == 4, "표본이 정말 목표(3)의 ±1행인지 스스로 확인한다")
+        for offset in [CGFloat(12), 100] {
+            let decision = NotifyTimeSheet.dialCommitDecision(pendingTarget: 3, snapIndex: snap(offset),
+                                                              committedIndex: 3)
+            #expect(decision.pendingTarget == 3, "±1행(오프셋 \(offset))은 도착이 아니다")
+            #expect(decision.commit == nil)
+        }
+    }
+
+    // MARK: - 58차-c 뷰-게이트 배선 계약(리뷰 MAJOR 대응)
+
+    /// 페이즈 → 게이트 해제 매핑, **5케이스 전수**. `ScrollPhase`가 `@frozen`이라
+    /// (`SwiftUICore.swiftinterface:625`) 이 열거가 미래 SDK에서 새 케이스로 새지 않는다.
+    ///
+    /// **`.animating`이 false인 것이 a11y 보호의 핵심 계약이다.** adjustable 스텝은 `withAnimation` +
+    /// `scrollTo`로 화면을 옮기고 그 위상이 곧 `.animating`이다. 여기서 해제하면 스윕 중간 스냅 3이
+    /// 커밋 권한을 얻어 `committedIndex`가 4→3→4로 튄다 — 한 스텝에 햅틱 3연발, `@AppStorage`
+    /// 10→9→10 churn. 리뷰가 지적한 뮤테이션(`.animating`을 해제 쪽으로 옮기기)이 여기서 걸린다.
+    /// `.decelerating`도 같은 이유로 false다(관성 구간엔 손이 이미 떠났고 해제는 `.tracking`에서 끝났다).
+    @Test func gateClearsOnlyOnUserTouchPhases() {
+        #expect(NotifyTimeSheet.dialGateClears(on: .tracking))
+        #expect(NotifyTimeSheet.dialGateClears(on: .interacting))
+        #expect(!NotifyTimeSheet.dialGateClears(on: .animating), "a11y 스윕 보호가 여기서 무너진다")
+        #expect(!NotifyTimeSheet.dialGateClears(on: .decelerating))
+        #expect(!NotifyTimeSheet.dialGateClears(on: .idle))
+    }
+
+    /// a11y 한 스텝의 상태 전이 — 새 시각·인덱스·무장 목표를 한 번에 정한다.
+    ///
+    /// **`pendingTarget == index`가 이 함수의 핵심 계약이다.** a11y 스텝은 값을 먼저 직접 쓰고 화면만
+    /// 뒤따르게 하므로, 게이트는 "방금 쓴 그 행에 화면이 도착할 때까지"만 닫혀 있어야 한다. 둘이
+    /// 어긋나면 도착 판정이 영영 안 맞아 게이트가 안 열리거나(선택 유실), 엉뚱한 행에서 열려 스윕
+    /// 중간 커밋이 샌다. 9시(3행) → 10시(4행)는 58차-b 리뷰가 "옛 공식이 8시를 저장하고 있었다"고
+    /// 확인한 바로 그 경로다.
+    @Test func accessibilityStepArmsGateAtItsOwnTargetRow() {
+        let step = NotifyTimeSheet.dialAccessibilityStep(fromHour: 9, direction: .increment)
+        #expect(step?.hour == 10)
+        #expect(step?.index == 4)
+        #expect(step?.pendingTarget == 4)
+        #expect(step?.pendingTarget == step?.index, "무장 목표는 방금 쓴 행과 같아야 한다")
+        #expect(NotifyTimeSheet.hours[4] == 10)
+
+        let down = NotifyTimeSheet.dialAccessibilityStep(fromHour: 9, direction: .decrement)
+        #expect(down?.hour == 8 && down?.index == 2 && down?.pendingTarget == 2)
+    }
+
+    /// 다이얼 끝에서는 전이가 없다 — `nil`이라 호출부가 그대로 빠져나가고 게이트도 건드리지 않는다.
+    /// 경계에서 헛무장하면 도착이 이미 지나간 뒤라 게이트가 안 열려 다음 진짜 스크롤이 먹힌다.
+    /// 목록 밖 시각(저장값 손상 등)도 같은 이유로 `nil`이다.
+    @Test func accessibilityStepIsNoOpAtDialEndsAndOutsideRange() {
+        #expect(NotifyTimeSheet.dialAccessibilityStep(fromHour: 21, direction: .increment) == nil)
+        #expect(NotifyTimeSheet.dialAccessibilityStep(fromHour: 6, direction: .decrement) == nil)
+        #expect(NotifyTimeSheet.dialAccessibilityStep(fromHour: 3, direction: .increment) == nil)
+        #expect(NotifyTimeSheet.dialAccessibilityStep(fromHour: 99, direction: .decrement) == nil)
+        // 경계 안쪽으로는 정상 동작한다 — 위 nil이 "경계에서만"인지 확인(전면 무력화 뮤테이션 방지).
+        #expect(NotifyTimeSheet.dialAccessibilityStep(fromHour: 21, direction: .decrement)?.hour == 20)
+        #expect(NotifyTimeSheet.dialAccessibilityStep(fromHour: 6, direction: .increment)?.hour == 7)
+    }
+
+    // MARK: - 58차-c 호스팅 프로브(실물 무접촉 오픈)
+
+    /// **실물 프로브 — 시트를 진짜로 띄워 놓고 아무것도 만지지 않는다.** 위 결정 함수 테스트들이
+    /// 잠그는 것은 "판정이 옳다"이고, 이 프로브가 잠그는 것은 "그 판정이 실제 뷰의 커밋 경로에
+    /// 연결돼 있다"다 — 게이트를 뷰에서 떼어 내도(예: `pendingScrollTarget`을 안 읽는 리팩터링)
+    /// 순수 테스트는 전부 초록으로 남지만 이건 빨개진다.
+    ///
+    /// **불변식은 "최종값 유지"가 아니라 "값이 아예 안 바뀐다"다.** 58차-b가 기록했듯 이 환경에는
+    /// 디스플레이 링크가 없어 `.task`의 `scrollTo`가 목표 행까지 못 갈 수 있다. 그래서 "펌프가
+    /// 끝나면 9시로 정착해 있어야 한다"류 가드는 **옳은 코드로도** 실패한다. 새 게이트의 계약은
+    /// 그 도착 여부에 의존하지 않는다: 목표에 못 닿으면 게이트가 영영 안 열려 커밋이 0회이고,
+    /// 닿으면 해제만 되고 값은 그대로다. 어느 쪽이든 **쓰기 궤적이 비어 있다**.
+    ///
+    /// 시드를 9시(인덱스 3)로 두는 것이 핵심이다. 6시(인덱스 0)로 두면 정지 위치가 곧 목표라
+    /// 첫 콜백에서 즉시 해제돼 게이트가 일한 적이 없고, 프로브는 아무것도 증명하지 못한다.
+    /// 9시는 정지 위치(스냅 0~2 부근)와 목표(3)가 달라, 게이트가 없던 시절 정확히 그 간극에서
+    /// 과도 오기록이 새어 나왔다.
+    ///
+    /// **궤적은 하한이다(58차-c 리뷰 MINOR-3).** 20ms 폴링은 한 프레임(≈16.7ms) 안에서 쓰였다
+    /// 곧바로 되돌아가는 값을 놓칠 수 있고, 그 "쓰기→되돌리기"가 정확히 실기기에서의 과도 형태다
+    /// (정착 콜백이 바로 따라붙는다). 이 프로브가 RED에서 `[7]`을 잡은 것은 폴링이 revert를
+    /// 포착해서가 아니라, 이 환경에서 스크롤이 스톨해 **틀린 값이 안정적으로 머물렀기** 때문이다.
+    /// 따라서 이 프로브를 실기기형 과도 검출기로 신뢰하지 말 것 — 프레임 내 과도의 **부재**를
+    /// 지는 것은 위 순수 결정 함수 테스트들이다. 이 프로브가 지는 것은 "뷰가 게이트에 배선돼
+    /// 있다"는 배선 계약뿐이다.
+    ///
+    /// **RED 재자격 검증 절차(58차-c 리뷰 MINOR-4).** 이 프로브의 판별력은 "호스팅 환경이 목표와
+    /// 다른 지오메트리 콜백을 최소 한 번은 낸다"는 전제 위에 있다. SDK·호스트가 바뀌어 콜백이
+    /// 아예 안 나오면 게이트를 통째로 떼도 초록이다(조용한 위음성). 그러니 이 프로브나 호스트를
+    /// 손댈 땐 확인하라: **옛 게이트 코드(`isInteractive` 불리언 + `.task`에서 동기 켜기)로
+    /// 되돌려 돌리면 `trajectory [7]`로 실패해야 한다**(2026-09-02 확인,
+    /// `probe-RED-20260902-220345.xcresult`). 실패하지 않으면 판별력을 잃은 것이니 초록을
+    /// 신뢰하지 말 것.
+    @Test @MainActor func untouchedOpenNeverWritesStorage() {
+        withKey(ExpiryNotifier.hourKey) {
+            UserDefaults.standard.set(9, forKey: ExpiryNotifier.hourKey)
+
+            let host = UIHostingController(rootView: NotifyTimeSheet())
+            let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 393, height: 300))
+            window.rootViewController = host
+            window.makeKeyAndVisible()
+            // 위생(58차-c 리뷰 NIT-4) — 숨기는 것만으로는 rootViewController가 남는다. 스위트가
+            // `.serialized`라 관측된 영향은 없었지만, 호스팅 잔여물을 다음 케이스로 흘리지 않는다.
+            defer {
+                window.isHidden = true
+                window.rootViewController = nil
+            }
+
+            // 매 틱 강제 레이아웃 + 런루프 펌프 — `.task`·프리젠테이션 지오메트리 콜백이 도는 창.
+            // 틱마다 저장값을 훑는다(위 주석의 하한 단서 참조).
+            var trajectory: [Int] = []
+            for _ in 0..<40 {
+                host.view.setNeedsLayout()
+                host.view.layoutIfNeeded()
+                RunLoop.current.run(until: Date().addingTimeInterval(0.02))
+                let seen = UserDefaults.standard.integer(forKey: ExpiryNotifier.hourKey)
+                if seen != 9, trajectory.last != seen { trajectory.append(seen) }
+            }
+
+            #expect(trajectory.isEmpty,
+                    "무접촉 오픈이 저장값을 건드렸다(궤적 \(trajectory)) — 게이트가 커밋 경로에서 떨어졌다")
+            #expect(UserDefaults.standard.integer(forKey: ExpiryNotifier.hourKey) == 9)
+        }
     }
 }

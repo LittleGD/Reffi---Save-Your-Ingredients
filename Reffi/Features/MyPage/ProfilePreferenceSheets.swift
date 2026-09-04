@@ -204,16 +204,39 @@ struct NotifyTimeSheet: View {
     @State private var scrollOffsetY: CGFloat
     /// 마지막으로 커밋한 행 인덱스 — 이 값이 바뀔 때만 `alertHour`를 쓰고 햅틱을 낸다.
     @State private var committedIndex: Int
-    /// 시트가 뜨며 하는 초기 센터링 스크롤과, 사용자가 실제로 다이얼을 굴리는 것을 가른다.
-    /// 이게 없으면 `.task`의 초기 `scrollTo`가 만드는 지오메트리 콜백이 "행이 바뀌었다"로 오판되어
-    /// 아무것도 만지지 않았는데 스퓨리어스 햅틱이 한 번 운다.
-    @State private var isInteractive = false
+    /// **58차-c — 기대 목표 인덱스 게이트.** "지금 프로그램 스크롤이 이 행을 향해 비행 중이다 —
+    /// 도착할 때까지 지오메트리 콜백은 커밋하지 않는다"는 뜻이고, 도착(스냅 == 목표)하는 순간
+    /// 스스로 비워진다(`dialCommitDecision`). 초기 센터링과 a11y 스텝의 애니메이션 스윕이 둘 다
+    /// 이 게이트를 쓴다.
+    ///
+    /// 여기 있던 불리언 `isInteractive`(56~58차-b)는 이 일을 못 했다. `.task`가 `scrollTo`
+    /// **직후 동기로** 켰는데 초기 센터링·시트 프리젠테이션이 만드는 `onScrollGeometryChange`
+    /// 콜백은 그 본문보다 **늦게** 도착하므로, 게이트는 사실상 늘 열린 채였고 무접촉 오픈이
+    /// 커밋 경로를 그대로 발화시켰다. 증거의 결이 둘로 갈리니 묶지 말 것 —
+    /// **9→7은 실측**(58차-c RED 프로브가 `trajectory [7]`로 잡았다, `probe-RED-220345.xcresult`),
+    /// **9→6은 재구성**(58차 세션 콘솔 관찰 + 무보정 clamp 산술: 원시 오프셋 < 22면 반올림이 0 이하로
+    /// 떨어져 clamp가 인덱스 0=6시로 끌어올린다). 58차-b 리뷰가 이 쌍을 "measurement로 제시된
+    /// reconstruction"이라 지적했으므로 확신도를 올려 붙이지 않는다.
+    /// 실기기에서는 정착 콜백이 최종값을 되돌려 놓아 눈에 띄지 않지만 자국이
+    /// 남는다 — 과도 구간의 일시 오기록이 `@AppStorage`를 거쳐 `ExpiryNotifier.reschedule`을
+    /// 헛돌리고(알림 재등록 churn), 손대지 않은 다이얼에서 선택 틱 햅틱이 운다. 그리고 정착
+    /// **전에** 시트가 뜯기면(플링 후 스와이프 dismiss, 백그라운드 킬) 그 과도값이 그대로 저장값이
+    /// 되어 남는다 — 이것이 이 수정의 사용자 가시 심각도다.
+    ///
+    /// 불리언 대신 목표 인덱스를 드는 이유는 SwiftUI `scrollTo`에 완료 콜백이 없기 때문이다.
+    /// "언제 끝나는가"를 시간으로 추측하는 대신 "어디에 닿아야 끝인가"를 값으로 들면, 도착 판정이
+    /// 곧 완료 신호가 된다 — 타이밍 추측이 아니라 좌표가 게이트를 연다.
+    @State private var pendingScrollTarget: Int?
 
     init() {
         let hour = ExpiryNotifier.alertHour
         let idx = Self.index(ofHour: hour) ?? 0
         _scrollOffsetY = State(initialValue: CGFloat(idx) * Self.rowHeight)
         _committedIndex = State(initialValue: idx)
+        // 58차-c — 게이트는 `.task`가 아니라 여기서 무장한다. 프리젠테이션이 만드는 첫 지오메트리
+        // 콜백이 `.task` 본문보다 먼저 도착할 수 있어, `.task`에서 시드하면 그 사이에 무장 없는
+        // 창이 생긴다 — 정확히 그 창이 58차-b가 남긴 구멍이었다.
+        _pendingScrollTarget = State(initialValue: idx)
     }
 
     var body: some View {
@@ -248,33 +271,69 @@ struct NotifyTimeSheet: View {
                         .scrollBounceBehavior(.basedOnSize)
                         .onScrollGeometryChange(for: CGFloat.self) { $0.contentOffset.y } action: { _, newOffset in
                             scrollOffsetY = newOffset
-                            guard isInteractive else { return }
-                            let newIndex = Self.snapIndex(forOffset: newOffset, topInset: topInset,
-                                                          rowHeight: Self.rowHeight,
-                                                          count: Self.hours.count)
-                            guard newIndex != committedIndex else { return }
-                            committedIndex = newIndex
-                            alertHour = Self.hours[newIndex]
+                            // **58차-c** — 커밋 여부와 게이트 처분을 한 번에 정하는 순수 판정
+                            // (`dialCommitDecision`). 도착 판정이 곧 초기 센터링의 완료 신호이므로,
+                            // 게이트를 여는 1차 경로는 여기다 — 아래 `.onScrollPhaseChange`는 안전망일
+                            // 뿐이다(초기 `scrollTo`는 `withAnimation` 없는 즉시 점프라 페이즈 전이가
+                            // 아예 안 생길 수 있어, 해제를 페이즈에 기대면 안 된다).
+                            let snap = Self.snapIndex(forOffset: newOffset, topInset: topInset,
+                                                      rowHeight: Self.rowHeight,
+                                                      count: Self.hours.count)
+                            let decision = Self.dialCommitDecision(pendingTarget: pendingScrollTarget,
+                                                                   snapIndex: snap,
+                                                                   committedIndex: committedIndex)
+                            pendingScrollTarget = decision.pendingTarget
+                            if let commit = decision.commit {
+                                committedIndex = commit
+                                alertHour = Self.hours[commit]
+                            }
+                        }
+                        // **58차-c 안전망** — 사용자가 다이얼에 손을 대는 순간 게이트를 연다.
+                        // 프로그램 스크롤이 병리적으로 목표 행에 닿지 못해도(중간에 낚아채인 센터링)
+                        // 터치가 두 번째 열쇠라 다이얼이 영영 먹통이 되지 않는다. 매핑 자체는
+                        // `dialGateClears(on:)`가 순수하게 지고 여기서는 대입만 한다 — 그쪽 주석에
+                        // `.animating`을 열면 안 되는 이유(a11y 스윕 보호)가 있다.
+                        //
+                        // **받아들인 대가(58차-c 리뷰 MINOR-5)** — 해제 열쇠 셋(초기 센터링 도착,
+                        // 드래그가 목표 행을 지나며 만드는 도착, 터치)이 **모두** 빗나가면 사용자가
+                        // 고른 행이 조용히 유실된다(fail-closed). 이 시트엔 확인 버튼이 없어 다이얼
+                        // 위치 자체가 커밋이라, 저장 실패를 알리는 신호가 화면에 없다. 옛 fail-open
+                        // (손대지 않은 값을 덮어쓰던 것)보다 데이터는 안전하지만 실패는 보이지 않는다 —
+                        // 확률이 매우 낮아 감수한 선택이지 못 본 위험이 아니다.
+                        .onScrollPhaseChange { _, newPhase in
+                            if Self.dialGateClears(on: newPhase) { pendingScrollTarget = nil }
                         }
                     }
                 }
                 // `.onAppear`가 아니라 `.task`인 이유는 51차와 같다(42차 — 요소 등록 전에 실행되면
-                // 이동이 유실되는 창이 있다). `isInteractive`는 이 초기 스크롤이 끝난 뒤에 켠다.
+                // 이동이 유실되는 창이 있다). **58차-c** — 여기서 게이트를 켜던 `isInteractive = true`는
+                // 사라졌다. 게이트는 `init()`이 이미 목표 행으로 무장했고, 이 `scrollTo`가 그 행에
+                // **도착**하는 순간 지오메트리 콜백이 스스로 푼다. 이 줄이 게이트를 켜던 시절엔
+                // 켜는 시점이 늘 콜백보다 일러서 초기 센터링이 통째로 커밋으로 샜다
+                // (§`pendingScrollTarget` 주석).
                 .task {
                     proxy.scrollTo(alertHour, anchor: .center)
-                    isInteractive = true
                 }
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel("Alert time")
                 .accessibilityValue(Text(verbatim: Self.hourLabel(alertHour)))
+                // **58차-c** — 값은 이 액션이 **먼저** 확정하고(VoiceOver가 방금 읽어 준 그 시각이다)
+                // 화면만 애니메이션으로 뒤따른다. 그래서 스윕 도중 콜백에는 커밋 권한이 없어야 한다:
+                // 게이트가 없던 시절엔 3행→4행 이동 중간에 스냅 3이 잡혀 `committedIndex`가 4→3→4로
+                // 튀었다 — 한 스텝에 선택 햅틱 3연발, `@AppStorage` 10→9→10 churn. 목표에 닿으면
+                // 게이트가 스스로 풀리고, 도중에 사용자가 드래그로 끼어들면 위 `.onScrollPhaseChange`가
+                // 대신 푼다. 리듀스모션(`ReffiMotion.gated`)이면 애니메이션 없는 즉시 점프라 도착
+                // 콜백 한 번에 풀린다. 무엇을 쓸지는 `dialAccessibilityStep`이 순수하게 정하고
+                // 여기서는 대입만 한다.
                 .accessibilityAdjustableAction { direction in
-                    let newHour = Self.steppedHour(from: alertHour, direction: direction)
-                    guard newHour != alertHour, let idx = Self.index(ofHour: newHour) else { return }
-                    alertHour = newHour
-                    committedIndex = idx
-                    scrollOffsetY = CGFloat(idx) * Self.rowHeight
+                    guard let step = Self.dialAccessibilityStep(fromHour: alertHour, direction: direction)
+                    else { return }
+                    alertHour = step.hour
+                    committedIndex = step.index
+                    scrollOffsetY = CGFloat(step.index) * Self.rowHeight
+                    pendingScrollTarget = step.pendingTarget
                     withAnimation(ReffiMotion.gated(ReffiMotion.standard, reduce: reduceMotion)) {
-                        proxy.scrollTo(newHour, anchor: .center)
+                        proxy.scrollTo(step.hour, anchor: .center)
                     }
                 }
             }
@@ -360,6 +419,83 @@ struct NotifyTimeSheet: View {
         guard count > 0, rowHeight > 0 else { return 0 }
         let raw = Int(((offset + topInset) / rowHeight).rounded())
         return min(max(raw, 0), count - 1)
+    }
+
+    /// 커밋 게이트 판정(58차-c) — 지오메트리 콜백 하나를 받아 ① 게이트를 어떻게 둘지 ② 커밋할
+    /// 인덱스가 있는지를 함께 돌려준다. `snapIndex`가 "어느 행이 중심인가"를 답한다면 이쪽은
+    /// "그 답을 지금 믿어도 되는가"를 답한다 — 뷰 렌더 없이 잠기도록 둘 다 순수 함수다.
+    ///
+    /// `pendingTarget`은 "프로그램 스크롤이 이 행을 향해 비행 중"이라는 뜻이다(초기 센터링,
+    /// a11y 스텝의 애니메이션 스윕). 비행 중엔 침묵하고, **도착(스냅 == 목표)** 하는 순간 게이트만
+    /// 풀고 커밋은 하지 않는다 — 그 값은 이미 옳기 때문이다(`init()`과 adjustable 액션이 목표를
+    /// 정할 때 `committedIndex`·`alertHour`를 직접 썼다). 게이트가 풀린 뒤에야 스냅 변화가 비로소
+    /// 사용자의 선택으로 읽힌다. 도착 판정을 **정확히** 같음으로 두는 이유는, "근처면 도착"으로
+    /// 느슨하게 풀면 관성이 스치고 지나가는 이웃 행에서 조기에 열려 아직 프로그램 스크롤인
+    /// 나머지 구간이 커밋으로 새기 때문이다.
+    ///
+    /// **58차-c 회귀**: 이 자리에 있던 불리언 `isInteractive`는 `.task`가 `scrollTo` 직후 동기로
+    /// 켜서 초기 센터링·프리젠테이션 콜백을 전부 통과시켰다 — 무접촉 오픈이 저장값을 건드리고
+    /// 선택 햅틱을 울렸다(§`pendingScrollTarget` 주석의 실측 서사).
+    ///
+    /// **전제조건(58차-c 리뷰 NIT-1)**: `snapIndex`는 반드시 `hours`의 유효 인덱스여야 한다.
+    /// 호출부가 반환된 `commit`으로 `hours[commit]`을 첨자하므로 범위 밖이면 트랩이다. 이 함수는
+    /// 스스로 clamp하지 않고 `snapIndex(forOffset:...)`의 자체 clamp에 의존한다 — 다른 산출 경로를
+    /// 물리면 그쪽이 범위를 책임져야 한다.
+    static func dialCommitDecision(pendingTarget: Int?, snapIndex: Int,
+                                   committedIndex: Int) -> (pendingTarget: Int?, commit: Int?) {
+        if let pendingTarget {
+            // 도착이면 게이트만 푼다(커밋 없음). 아직 비행 중이면 침묵 — 게이트를 그대로 든다.
+            return snapIndex == pendingTarget ? (nil, nil) : (pendingTarget, nil)
+        }
+        // 게이트가 열린 뒤 — 중심 행이 바뀐 것만 커밋한다(같은 행 재보고는 no-op).
+        return snapIndex == committedIndex ? (nil, nil) : (nil, snapIndex)
+    }
+
+    /// 페이즈 → 게이트 해제 여부(58차-c) — 사용자의 손이 닿은 위상에서만 참이다.
+    ///
+    /// **`.animating`이 거짓인 것이 a11y 보호의 핵심 계약이다.** adjustable 스텝은
+    /// `withAnimation` + `scrollTo`로 화면을 옮기는데 그때의 위상이 바로 `.animating`이다. 여기서
+    /// 해제하면 스윕 중간 스냅(3행→4행 이동 중의 3)이 커밋 권한을 얻어 `committedIndex`가 4→3→4로
+    /// 튄다 — 한 스텝에 햅틱 3연발, `@AppStorage` 10→9→10 churn. `.decelerating`도 같은 이유로
+    /// 거짓이다(관성은 사용자의 손이 이미 떠난 구간이라, 해제는 `.tracking` 시점에 이미 끝났다).
+    ///
+    /// `ScrollPhase`는 `@frozen`이라(SDK 확인: `SwiftUICore.swiftinterface:625`, 5케이스) 전수
+    /// 스위치가 안전하고 `@unknown default`가 불필요하다 — 테스트도 5케이스를 전수 단언한다.
+    ///
+    /// **이 함수가 잡는 것과 못 잡는 것**(58차-c 리뷰 MAJOR): 잡는 것은 **매핑 의미론**이다 —
+    /// `.animating`을 해제 쪽으로 옮기는 뮤테이션은 테스트가 빨갛게 만든다. 못 잡는 것은 **뷰의
+    /// 대입**이다 — 호출부가 반환값을 무시하거나 `pendingScrollTarget = nil`을 지워도 순수
+    /// 테스트는 전부 초록이다. 그 잔여 공백은 호스팅 a11y 프로브가 메워야 하는데, 이 환경에서는
+    /// 애니메이션 `scrollTo`가 완주하지 않아 플랩 자체가 재현되지 않는다(판별력 없는 가드는 남기지
+    /// 않는다는 58차-b 규율) — 그래서 공백으로 남기고 여기 적어 둔다.
+    static func dialGateClears(on phase: ScrollPhase) -> Bool {
+        switch phase {
+        case .tracking, .interacting: return true
+        case .idle, .decelerating, .animating: return false
+        }
+    }
+
+    /// 접근성 adjustable 한 스텝의 상태 전이(58차-c) — 새 시각·그 행 인덱스·무장할 게이트 목표를
+    /// 한 번에 정한다. 아무 일도 일어나지 않아야 하면(경계에서 더 밀 수 없거나 현재 시각이 목록
+    /// 밖이면) `nil`이라 호출부가 그대로 빠져나간다.
+    ///
+    /// `pendingTarget`이 `index`와 **같다**는 것이 이 함수가 지는 계약이다. a11y 스텝은 값을 먼저
+    /// 직접 쓰고 화면만 뒤따르게 하므로, 게이트는 "방금 쓴 그 행에 화면이 도착할 때까지"만 닫혀
+    /// 있어야 한다. 둘이 어긋나면 도착 판정이 영영 안 맞아 게이트가 안 열리거나(선택 유실), 엉뚱한
+    /// 행에서 열려 스윕 중간 커밋이 샌다.
+    ///
+    /// **이 함수가 잡는 것과 못 잡는 것**(58차-c 리뷰 MAJOR): 잡는 것은 **전이 의미론**이다 —
+    /// 목표를 인덱스와 다르게 만들거나 경계 no-op을 깨는 뮤테이션은 테스트가 빨갛게 만든다.
+    /// 못 잡는 것은 **뷰의 대입**이다 — 호출부에서 `pendingScrollTarget = step.pendingTarget` 한
+    /// 줄만 지워도 a11y 커밋 플랩이 그대로 부활하는데 순수 테스트는 전부 초록으로 남는다.
+    /// 그 잔여 공백을 메울 호스팅 a11y 프로브는 이 환경에서 판별력을 가질 수 없다(위 `dialGateClears`
+    /// 주석과 같은 이유 — 애니메이션 `scrollTo` 미완주로 플랩이 재현되지 않는다).
+    static func dialAccessibilityStep(fromHour hour: Int,
+                                      direction: AccessibilityAdjustmentDirection)
+        -> (hour: Int, index: Int, pendingTarget: Int)? {
+        let newHour = steppedHour(from: hour, direction: direction)
+        guard newHour != hour, let idx = index(ofHour: newHour) else { return nil }
+        return (hour: newHour, index: idx, pendingTarget: idx)
     }
 
     /// 다이얼 원근 거리 — 이 행이 지금 밴드 중앙에서 몇 칸 떨어져 있는가. `scrollOffsetY`(스크롤뷰가
