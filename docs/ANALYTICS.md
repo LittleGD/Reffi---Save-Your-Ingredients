@@ -193,8 +193,8 @@ select * from analytics.events_daily where day = analytics.local_day(now());
 
 ## 6. 서버 적용 절차
 
-1. **프로젝트 복원.** 2026-09-05 현재 Supabase 프로젝트 `bzzpmaeitfbbunsmjvmd`가 `INACTIVE`(무료 티어 일시정지)다.
-   대시보드에서 Restore 한 뒤 진행한다(정지 상태에선 인증도 계측도 동작하지 않는다).
+1. **프로젝트 복원.** 무료 티어는 방치되면 `INACTIVE`로 정지된다(정지 상태에선 인증도 계측도 동작하지 않는다).
+   2026-09-05 복원 후 아래 3의 마이그레이션은 **적용 완료**(`20260905214920_analytics_events_and_views`).
 2. **익명 로그인 켜기.** Dashboard › Authentication › Sign In / Up › **Allow anonymous sign-ins**.
    (`docs/AUTH_SETUP.md` 1.5 — 이게 꺼져 있으면 게스트는 uid가 없어 이벤트를 올릴 수 없다.)
 3. **마이그레이션 적용.** 둘 중 하나:
