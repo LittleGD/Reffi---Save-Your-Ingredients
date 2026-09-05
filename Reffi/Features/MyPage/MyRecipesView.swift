@@ -4,8 +4,8 @@ import SwiftUI
 /// (커스텀이 시드보다 우선). 시드 레시피는 여기 나오지 않는다(편집 불가 데이터).
 ///
 /// 인터랙션 커먼 룰 종이화(룰 ⑤): 시스템 `NavigationStack`+`List`+글래스 툴바를 걷어내고
-/// 크림 캔버스(`ReffiColor.canvas`) + `SheetHeader`(좌측 타이틀·X, 룰 ②③④) + 종이 카드 리스트로 재조립한다.
-/// ProfileView가 `.sheet`로 여는 하단 시트이므로 헤더는 `SheetHeader`(좌측), detent는 콘텐츠 많음 → `.large`(룰 ⑪).
+/// `SheetShell`(§14.8 · 61차 — 헤더·핸들·크림 캔버스 배경을 셸이 진다) + 종이 카드 리스트로 재조립한다.
+/// ProfileView가 `.sheet`로 여는 하단 시트이며, detent는 콘텐츠 많음 → `.large`(룰 ⑪).
 ///
 /// 목록에서 바로 지우는 경로는 유지한다: `List`를 걷어내며 `.swipeActions`를 못 쓰게 됐으므로
 /// 카드 롱프레스 `.contextMenu` → 삭제로 대체한다(편집 시트를 거치지 않는 1스텝 경로).
@@ -24,12 +24,11 @@ struct MyRecipesView: View {
     @State private var deleteHaptic = 0        // 룰 ⑦: 파괴 확인 = .warning
 
     var body: some View {
-        VStack(spacing: 0) {
-            // 룰 ②③④: 시트 헤더는 좌측 타이틀 + 종이 X(핸들이 주 신호, X는 보조). 시스템 Close 툴바 대체.
-            SheetHeader(title: "My recipes", showsClose: true) { dismiss() }
-
+        // 룰 ⑤ · 61차: 시트 골격은 `SheetShell`(§14.8) — 헤더·핸들·캔버스 배경을 셸이 세운다.
+        // 바(도킹 CTA) 없는 `.fills`라 스크롤 콘텐츠 끝에 직접 `ReffiSheet.bottom`을 준다.
+        SheetShell(title: "My recipes", onClose: { dismiss() }) {
             ScrollView {
-                VStack(spacing: ReffiSpace.s3) {
+                VStack(spacing: ReffiSheet.itemGap) {
                     addCard   // 룰 ⑤: 시스템 ＋ 툴바 → 종이 스타일 "＋ Add recipe" 카드로 대체.
 
                     if store.userRecipes.isEmpty {
@@ -41,15 +40,11 @@ struct MyRecipesView: View {
                         }
                     }
                 }
-                .padding(.horizontal, ReffiGrid.margin)
-                .padding(.top, ReffiSpace.s2)
-                .padding(.bottom, ReffiSpace.s3)
+                .sheetInset()
+                .padding(.bottom, ReffiSheet.bottom)
             }
         }
-        .background(ReffiColor.canvas)
         .presentationDetents([.large])                    // 룰 ⑪: 긴 목록 → .large
-        .presentationDragIndicator(.visible)              // 룰 ④: 핸들이 주 닫기 신호
-        .presentationBackground(ReffiColor.canvas)
         .reffiFeedback(.warning, trigger: deleteHaptic)
         // 40차 — 팝업 전수 종이화(§14.7 개정). 강도(복구 불가능)와 무관하게 PaperDialog로 옮긴다 —
         // 행동 배선·햅틱·카피는 그대로다. Cancel도 `deleteTarget`을 비우는 원본 핸들러를 그대로 옮긴다.
@@ -139,11 +134,10 @@ struct MyRecipesView: View {
     }
 
     private var emptyHint: some View {
+        // 61차: 시트 인셋 한 선(§14.8) — 셋째 인셋 없이 스택 갭(itemGap)만으로 addCard 아래에 선다.
         Text("Recipes you add appear in Today's tickets alongside the built-in ones.")
             .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, ReffiSpace.s2)
-            .padding(.top, ReffiSpace.s2)
     }
 }
 
@@ -155,10 +149,11 @@ struct MyRecipesView: View {
 /// 기존 레시피에 저장돼 있던 단계 데이터는
 /// 저장 시 그대로 보존한다(편집기가 건드리지 않는 필드를 지우지 않는다).
 ///
-/// 표면은 `IngredientEditView`와 같은 종이 문법(룰 ⑤): 크림 캔버스 + `SheetHeader` + 흰 영수증 카드
-/// (`ReceiptShape`) + 모노 섹션 라벨 + `ReffiRule` + 도킹된 `PaperButton`. 시스템 폼·글래스 툴바를 쓰지 않는다.
-/// 저장은 하단 도킹 CTA로 명시적 커밋(룰 ⑥, 생성=Add·편집=Save). 미저장 변경이 있으면 스와이프/닫기에
-/// Discard 확인(룰 ⑨). 삭제는 국소 정정 경로라 편집 시에만 노출하며 `.confirmationDialog`(룰 ⑧)+`.warning` 햅틱(룰 ⑦).
+/// 표면은 `IngredientEditView`와 같은 종이 문법(룰 ⑤): `SheetShell`(§14.8 · 61차) + 흰 영수증 카드
+/// (`ReceiptShape`) + 모노 섹션 라벨 + `ReffiRule` + 셸의 `bar:` 슬롯에 도킹된 `PaperButton`.
+/// 시스템 폼·글래스 툴바를 쓰지 않는다. 저장은 하단 도킹 CTA로 명시적 커밋(룰 ⑥, 생성=Add·편집=Save).
+/// 미저장 변경이 있으면 스와이프/닫기에 Discard 확인(룰 ⑨). 삭제는 국소 정정 경로라 편집 시에만
+/// 노출하며 `.paperDialog`(룰 ⑧)+`.warning` 햅틱(룰 ⑦).
 struct RecipeEditorView: View {
     @Environment(FridgeStore.self) private var store
     @Environment(\.dismiss) private var dismiss
@@ -191,29 +186,25 @@ struct RecipeEditorView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            // 룰 ②③: 좌측 타이틀 + 종이 X. X는 미저장 보호를 태워 닫는다(룰 ⑨).
-            SheetHeader(title: recipe == nil ? "Add recipe" : "Edit recipe",
-                        showsClose: true, onClose: attemptClose)
-
+        // 룰 ⑤ · 61차: 시트 골격은 `SheetShell`(§14.8) — 헤더·도킹 Save·핸들·캔버스 배경을 셸이 세운다.
+        // X는 미저장 보호를 태워 닫는다(룰 ⑨).
+        SheetShell(title: recipe == nil ? "Add recipe" : "Edit recipe", onClose: attemptClose) {
             ScrollView {
-                VStack(spacing: ReffiSpace.s3) {
+                VStack(spacing: ReffiSheet.itemGap) {
                     recipeCard
                     ingredientsCard
                     if recipe != nil { deleteSection }   // 삭제는 편집 시에만(정정 경로).
                 }
-                .padding(.horizontal, ReffiGrid.margin)
-                .padding(.top, ReffiSpace.s2)
-                .padding(.bottom, ReffiSpace.s3)
+                .sheetInset()
+                .padding(.bottom, ReffiSheet.blockGap)
             }
             .scrollDismissesKeyboard(.interactively)
-
-            actionBar
+        } bar: {
+            saveButton
         }
-        .background(ReffiColor.canvas)
-        .presentationDetents([.medium, .large])     // 룰 ⑪: 편집 폼 → .medium 진입 + 키보드/긴 내용 시 .large 승격
-        .presentationDragIndicator(.visible)
-        .presentationBackground(ReffiColor.canvas)
+        // RECIPE·INGREDIENTS(·삭제) 세 카드가 ~570~650pt라 `.medium`(≈절반)에선 둘째 필수 카드가
+        // 접힌 채 열렸다(61차 감사) — 쌍둥이 폼(`CandidateEditSheet`)과 같은 `.large`로 고정한다.
+        .presentationDetents([.large])
         .interactiveDismissDisabled(isDirty)         // 룰 ⑨: 변경 있으면 스와이프 실수로 닫히지 않음
         .reffiFeedback(.success, trigger: savedHaptic)
         .reffiFeedback(.warning, trigger: deleteHaptic)
@@ -309,18 +300,14 @@ struct RecipeEditorView: View {
 
             Text("Removes it from your recipes.")
                 .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
-                .padding(.horizontal, ReffiSpace.s2)
         }
     }
 
-    // MARK: - 저장 (도킹 CTA · 룰 ⑥ — 생성=Add / 편집=Save)
+    // MARK: - 저장 (도킹 CTA · 룰 ⑥ — 생성=Add / 편집=Save. 인셋·페이드·바닥 여백은 `SheetShell`이 진다)
 
-    private var actionBar: some View {
+    private var saveButton: some View {
         PaperButton(title: recipe == nil ? "Add" : "Save") { save() }
             .disabled(!canSave)   // 이름·재료가 비면 커밋 불가 — PaperButton이 투명도로 표시(§7.2, 색 변경 X).
-            .padding(.horizontal, ReffiGrid.margin)
-            .padding(.top, ReffiSpace.s2)
-            .padding(.bottom, ReffiSpace.s2)
     }
 
     // MARK: - 로드·저장

@@ -55,6 +55,14 @@ struct RootTabView: View {
             CapsuleNav(tab: $tab, onAdd: { showAdd = true })
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // 탭 노출 기록(64차) — 냉장고는 패인(재고·장보기·이력)이 각자 화면이라 `FridgeView`가 직접 올린다.
+        .onChange(of: tab, initial: true) { _, t in
+            switch t {
+            case .home: Analytics.shared.screen(.home)
+            case .profile: Analytics.shared.screen(.profile)
+            case .fridge: break
+            }
+        }
         // **루트가 칠하는 이 크림이 세 패인이 칠하는 것과 같은 한 색이어야 한다**(`PaperCanvasBackground`).
         // `pane(_:visible:)`은 애니메이션 없는 즉시 전환이라, 탭마다 배경색이 다르면 화면 전체를 덮은
         // 색이 한 프레임에 갈아탄다 — 실제로 그랬다(세 화면이 각자 다른 신선도 accent로 블롭을 깔던

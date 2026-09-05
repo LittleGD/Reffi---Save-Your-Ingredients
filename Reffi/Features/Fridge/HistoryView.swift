@@ -547,7 +547,7 @@ struct HistoryContent: View {
                     ReffiRule(.receipt)
                     rateRow(ledger)
                     if ledger.topTossed.isEmpty {
-                        Text("No waste yet. Nicely done.")
+                        Text("Nothing tossed in the past 30 days.")
                             .reffiType(.body).foregroundStyle(ReffiColor.ink2)
                     } else {
                         ReffiRule(.receipt)
@@ -766,4 +766,3 @@ struct HistoryContent: View {
         content().receiptSurface(seed: seed)
     }
 }
-

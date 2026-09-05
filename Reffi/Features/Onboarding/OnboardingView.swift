@@ -48,15 +48,15 @@ struct OnboardingView: View {
                 TabView(selection: $page) {
                     valuePage(hero: { recordHero(active: page == 0) },
                               title: "Log your fridge\nlike a receipt",
-                              body: "Add what you buy.\nWe'll count down the expiry dates.")
+                              body: "Add what you buy.\nKeep track of use-by dates.")
                         .tag(0)
                     valuePage(hero: { recipeHero(active: page == 1) },
                               title: "Today's recipes,\nfrom what expires first",
-                              body: "Eat the most urgent ingredients first, top to bottom.")
+                              body: "Start with the ingredients that need using first.")
                         .tag(1)
                     valuePage(hero: { reportHero(active: page == 2) },
-                              title: "Days without waste\nadd up to a report",
-                              body: "Watch your no-waste streak grow, day by day.")
+                              title: "See what you ate\nand what you tossed",
+                              body: "Each week shows what you ate and what you tossed.")
                         .tag(2)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
@@ -97,7 +97,7 @@ struct OnboardingView: View {
                 .font(.custom("StoryScript-Regular", size: 21, relativeTo: .title2))
                 .foregroundStyle(ReffiColor.blueDark)
             Spacer()
-            QuietButton(title: "Skip", tint: ReffiColor.ink2) { onFinish() }
+            QuietButton(title: "Skip", tint: ReffiColor.ink2) { finish(skipped: true) }
                 // QuietButton의 내재 가로 패딩(s2)이 우측선을 8pt 안으로 밀었다 — 마진선으로 되민다(42차).
                 .padding(.trailing, -ReffiSpace.s2)
         }
@@ -466,7 +466,7 @@ struct OnboardingView: View {
 
     private var householdPage: some View {
         questionPage(title: "How many are eating?",
-                     body: "We'll size your restock amounts to match.") {
+                     body: "We'll use this as a guide for shopping quantities.") {
             // 칩은 내용 크기(fullWidth false) — 균등 4등분은 "2 people" 등을 말줄임시킨다.
             HStack(spacing: ReffiSpace.s2) {
                 ForEach(HouseholdSize.allCases) { h in
@@ -483,7 +483,7 @@ struct OnboardingView: View {
 
     private var cuisinePage: some View {
         questionPage(title: "What do you like to cook?",
-                     body: "Pick as many as you like.\nRecipes will follow.") {
+                     body: "Pick the kinds of food you like.\nWe'll use them for recommendations.") {
             // 같은 데이터를 같은 칩으로 그리는 프로필 시트(`CuisinePickerSheet`)가 `.leading`이다 —
             // 온보딩에서 고른 것을 프로필에서 고치는 흐름이라 두 화면이 연달아 보인다(49차).
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 92), spacing: ReffiSpace.s2)],
@@ -516,11 +516,11 @@ struct OnboardingView: View {
                     ReffiIcon.ai.reffi(18, .bold).foregroundStyle(ReffiColor.blueDark)
                     VStack(alignment: .leading, spacing: ReffiSpace.s0) {
                         if !profile.cuisines.isEmpty {
-                            Text("Tuned for \(profile.cuisines.summaryText)")
+                            Text("Your choices: \(profile.cuisines.summaryText)")
                                 .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
                                 .lineLimit(1)
                         }
-                        Text("Restock sized for \(profile.household.label)")
+                        Text("Shopping for: \(profile.household.label)")
                             .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
                             .lineLimit(1)
                     }
@@ -707,7 +707,16 @@ struct OnboardingView: View {
     private func finishWithStamp() {
         guard !stamping else { return }
         stamping = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.75) { onFinish() }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.75) { finish(skipped: false) }
+    }
+
+    /// 온보딩 종료 공통(64차) — 건너뛰기·완주 둘 다 여기로. 셋업에서 고른 값(가구·취향·알림)을 함께
+    /// 남겨 "건너뛴 사용자와 완주한 사용자의 리텐션"을 가를 수 있게 한다(`docs/ANALYTICS.md` §4).
+    private func finish(skipped: Bool) {
+        Analytics.shared.track(.onboardingComplete(skipped: skipped, household: profile.household.rawValue,
+                                                   cuisines: profile.cuisines.count,
+                                                   alerts: ExpiryNotifier.isEnabled))
+        onFinish()
     }
 
     /// 셋업 하단 3점 인디케이터.

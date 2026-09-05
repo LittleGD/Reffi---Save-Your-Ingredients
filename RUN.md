@@ -58,6 +58,7 @@ xcrun simctl io booted screenshot reffi-home.png
 - `-onboardingSetupAutoAdvance` 셋업 장 자동 순환(전환 QA용)
 - `-skipAuth` 게스트로 게이트 통과 · `-authGate` 게스트 해제 (인증 콘솔 설정은 `docs/AUTH_SETUP.md`)
 - `-resetNickname` 저장된 닉네임을 미설정 취급 — 이번 런치에서 곧장 자동 닉네임 생성을 재현(`NicknameGenerator` QA)
+- `-analyticsOff` 행동 계측(`Analytics`) 킬스위치 — 큐·업로드 전부 끈다(유닛 테스트 호스트는 인자 없이도 꺼진다). DEBUG 빌드는 켜져 있어도 `channel = 'debug'`로 올라가 서버 뷰가 집계에서 뺀다(`docs/ANALYTICS.md`)
 - `-resetLanguage` 앱 내 언어 선택(`AppLanguage.key`)과 `AppleLanguages` 오버라이드를 함께 지워 System default로 되돌린다 — 언어 전환 UI 테스트가 실제로 `AppStorage`를 바꾸므로, 같은 스위트의 다음 테스트가 영어 문자열 단언에서 깨지지 않게 테스트 종료 시 강제 리셋하는 용도(38차)
 
 **탭 · 데이터**

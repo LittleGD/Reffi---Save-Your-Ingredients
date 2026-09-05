@@ -39,22 +39,23 @@ struct IngredientEditView: View {
     private var isDirty: Bool { draft != original }
 
     var body: some View {
-        VStack(spacing: 0) {
-            header
+        // 시트 골격은 `SheetShell`(§14.8 · 61차) — 헤더·도킹 Save·핸들·캔버스 배경을 셸이 세운다.
+        // 좌우는 본문이 `.sheetInset()`으로 한 선(24)에 서고, 헤더→본문 간격은 셸이 이미 준다
+        // (본문은 제 상단 패딩을 갖지 않는다).
+        SheetShell(title: "Edit \(draft.name)", onClose: { requestClose() }) {
             ScrollView {
-                VStack(spacing: ReffiSpace.s3) {
+                VStack(spacing: ReffiSheet.itemGap) {
                     itemCard
                     detailsCard
                     deleteSection
                 }
-                .padding(.horizontal, ReffiGrid.margin)
-                .padding(.top, ReffiSpace.s2)
-                .padding(.bottom, ReffiSpace.s3)
+                .sheetInset()
+                .padding(.bottom, ReffiSheet.blockGap)
             }
             .scrollDismissesKeyboard(.interactively)
-            actionBar
+        } bar: {
+            saveButton
         }
-        .background(ReffiColor.canvas)
         // 종이 드롭다운 오버레이 2종 — 열린 트리거만 앵커를 올리므로 동시에 하나만 뜬다.
         .paperDropdownOverlay(isPresented: openDropdown == .unit,
                               options: IngredientUnit.allCases,
@@ -69,8 +70,6 @@ struct IngredientEditView: View {
                               onDismiss: { closeDropdown() },
                               onSelect: { draft.storage = $0 })
         .presentationDetents([.large])
-        .presentationDragIndicator(.visible)
-        .presentationBackground(ReffiColor.canvas)
         .interactiveDismissDisabled(isDirty)
         .reffiFeedback(.warning, trigger: deleteHaptic)
         .reffiFeedback(.success, trigger: savedHaptic)
@@ -90,15 +89,6 @@ struct IngredientEditView: View {
                     seed: 2, backdropDismisses: true,
                     primary: PaperDialogAction("Discard", role: .destructive) { dismiss() },
                     secondary: PaperDialogAction("Cancel", role: .cancel) {})
-    }
-
-    // MARK: - 헤더 (§14.2 단일 공급원 `SheetHeader` — 룰②③)
-
-    /// 커스텀 HStack을 남겼던 사유("동적 타이틀 truncation 보호")는 `SheetHeader`가 한 줄·말줄임을
-    /// 컴포넌트로 흡수하며 사라졌다. 인라인으로 두면 패딩이 달라(위 s4/아래 s2 vs 컴포넌트 s5/s3)
-    /// 이 시트와 `CandidateEditSheet`를 연달아 열 때 타이틀 기준선이 서로 다른 높이에 앉는다.
-    private var header: some View {
-        SheetHeader(title: "Edit \(draft.name)", showsClose: true) { requestClose() }
     }
 
     // MARK: - 종이 드롭다운 (단위·보관)
@@ -257,13 +247,12 @@ struct IngredientEditView: View {
 
             Text("Removes it without history.")
                 .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
-                .padding(.horizontal, ReffiSpace.s2)
         }
     }
 
-    // MARK: - 저장 (도킹 CTA)
+    // MARK: - 저장 (도킹 CTA — 인셋·페이드·바닥 여백은 `SheetShell`이 세운다, §14.4)
 
-    private var actionBar: some View {
+    private var saveButton: some View {
         PaperButton(title: "Save") {
             draft.name = trimmedName
             // 폼에서 냉동으로 옮겼다면 전환 시점을 기록(유예 시계 시작 + 재냉동 방지).
@@ -275,9 +264,6 @@ struct IngredientEditView: View {
             dismiss()
         }
         .disabled(trimmedName.isEmpty)   // 이름이 비면 저장 불가 — PaperButton이 투명도로 표시(§7.2, 색 변경 X).
-        .padding(.horizontal, ReffiGrid.margin)
-        .padding(.top, ReffiSpace.s2)
-        .padding(.bottom, ReffiSpace.s2)
     }
 
     // MARK: - 헬퍼

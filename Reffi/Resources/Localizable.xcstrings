@@ -73,16 +73,6 @@
         }
       }
     },
-    "%@ won't last long.\nCook it today.": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "곧 상할 재료: %@. 오늘 요리해 보세요."
-          }
-        }
-      }
-    },
     "%@ · eaten": {
       "localizations": {
         "ko": {
@@ -379,7 +369,7 @@
         }
       }
     },
-    "3–4": {
+    "3-4": {
       "localizations": {
         "ko": {
           "stringUnit": {
@@ -487,16 +477,6 @@
         }
       }
     },
-    "Add a few ingredients, then start cooking.": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "재료를 몇 개 올려두고 요리를 시작하세요."
-          }
-        }
-      }
-    },
     "Add a few ingredients. Reffi tells you\nwhat to cook before they turn.": {
       "localizations": {
         "ko": {
@@ -548,12 +528,22 @@
         }
       }
     },
+    "Add ingredients to find something to cook.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "재료를 추가하면 만들 수 있는 요리를 찾아드려요."
+          }
+        }
+      }
+    },
     "Add it as typed, or try another name.": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "친 그대로 담거나, 다른 이름으로 찾아보세요."
+            "value": "입력한 이름으로 담거나 다른 이름으로 찾아보세요."
           }
         }
       }
@@ -588,12 +578,12 @@
         }
       }
     },
-    "Add what you buy.\nWe'll count down the expiry dates.": {
+    "Add what you buy.\nKeep track of use-by dates.": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "산 것을 추가하면, 소비기한을 세어드려요."
+            "value": "산 재료를 추가하고\n소비기한을 확인해요."
           }
         }
       }
@@ -641,7 +631,7 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "친 그대로 목록에 담아요."
+            "value": "입력한 이름 그대로 목록에 담아요."
           }
         }
       }
@@ -687,12 +677,12 @@
         }
       }
     },
-    "Allow notifications for Reffi in Settings to get expiry alerts.": {
+    "Allow notifications for Reffi in Settings to get use-by alerts.": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "설정에서 Reffi 알림을 허용하면 임박 알림을 받을 수 있어요."
+            "value": "설정에서 Reffi 알림을 허용하면 소비기한 임박 알림을 받을 수 있어요."
           }
         }
       }
@@ -713,6 +703,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "이미 목록에 있어요"
+          }
+        }
+      }
+    },
+    "Anonymous taps and screens": {
+      "comment": "Caption under the usage-data toggle: what is collected",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "익명 탭·화면 기록"
           }
         }
       }
@@ -831,13 +832,24 @@
         }
       }
     },
-    "Check ingredient spellings or restock to see more tickets.": {
+    "Check ingredient names or add more ingredients.": {
       "extractionState": "manual",
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "재료 이름을 확인하거나 장을 보면 티켓이 늘어나요."
+            "value": "재료 이름을 확인하거나 재료를 더 추가해 보세요."
+          }
+        }
+      }
+    },
+    "Check the items you've opened.\nTheir use-by dates will update.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "개봉한 재료를 체크해 주세요.\n개봉 후 소비기한으로 바뀌어요."
           }
         }
       }
@@ -898,17 +910,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "검색어 지우기"
-          }
-        }
-      }
-    },
-    "Clears more than it asks you to buy.": {
-      "comment": "Ticket notice for rescue-passed tickets: it clears at least as many stocked ingredients as it asks to buy",
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "사는 것보다 비우는 재료가 많은 티켓이에요."
           }
         }
       }
@@ -1105,16 +1106,6 @@
         }
       }
     },
-    "Days without waste\nadd up to a report": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "낭비 없는 날들이\n리포트로 쌓여요"
-          }
-        }
-      }
-    },
     "Decide: eaten or tossed?": {
       "localizations": {
         "ko": {
@@ -1240,27 +1231,17 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "매주 먹은 것과 버린 것을 보여드려요."
+            "value": "매주 먹은 재료와 버린 재료를 확인해요."
           }
         }
       }
     },
-    "Eat it today, waste nothing": {
+    "Eat it today, waste less": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "오늘 먹고, 낭비는 없이"
-          }
-        }
-      }
-    },
-    "Eat the most urgent ingredients first, top to bottom.": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "가장 급한 재료부터 위에서 아래로 드세요."
+            "value": "오늘 먹고, 덜 버려요"
           }
         }
       }
@@ -1477,16 +1458,6 @@
         }
       }
     },
-    "Expiry alerts": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "임박 알림"
-          }
-        }
-      }
-    },
     "FROZEN": {
       "localizations": {
         "ko": {
@@ -1613,7 +1584,7 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "신선한순"
+            "value": "신선한 순"
           }
         }
       }
@@ -1676,6 +1647,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "게스트 모드"
+          }
+        }
+      }
+    },
+    "Have a recipe for %@ and %@?\nAdd it in Profile.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@, %2$@로 해 먹는 요리가 있나요?\n프로필에 레시피를 추가해 보세요."
+          }
+        }
+      }
+    },
+    "Have a recipe for %@?\nAdd it in Profile.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@로 해 먹는 요리가 있나요?\n프로필에 레시피를 추가해 보세요."
           }
         }
       }
@@ -2113,6 +2106,16 @@
         }
       }
     },
+    "No items found": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "찾은 재료가 없어요"
+          }
+        }
+      }
+    },
     "No match": {
       "localizations": {
         "ko": {
@@ -2129,16 +2132,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "아직 티켓이 없어요"
-          }
-        }
-      }
-    },
-    "No waste yet. Nicely done.": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "아직 버린 게 없어요. 잘하고 있어요."
           }
         }
       }
@@ -2244,16 +2237,6 @@
         }
       }
     },
-    "Nothing recognized": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "인식된 항목이 없어요"
-          }
-        }
-      }
-    },
     "Nothing tallied yet.\nWhat you eat and toss lands here.": {
       "localizations": {
         "ko": {
@@ -2280,6 +2263,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "지금 쓸 재료가 없어요"
+          }
+        }
+      }
+    },
+    "Nothing tossed in the past 30 days.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "최근 30일 동안 버린 재료가 없어요."
           }
         }
       }
@@ -2508,22 +2501,22 @@
         }
       }
     },
-    "Pick as many as you like.\nRecipes will follow.": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "원하는 만큼 골라주세요.\n레시피를 거기에 맞출게요."
-          }
-        }
-      }
-    },
     "Pick one of today's tickets.": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
             "value": "오늘의 티켓을 골라보세요."
+          }
+        }
+      }
+    },
+    "Pick the kinds of food you like.\nWe'll use them for recommendations.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "좋아하는 요리를 골라 주세요.\n추천에 반영할게요."
           }
         }
       }
@@ -2678,7 +2671,7 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "최근 등록순"
+            "value": "최근 등록 순"
           }
         }
       }
@@ -2768,7 +2761,7 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "기록 없이 삭제돼요.\n통계와 쇼핑리스트에 반영되지 않아요."
+            "value": "기록 없이 삭제돼요.\n통계와 살 것 목록에 반영되지 않아요."
           }
         }
       }
@@ -2809,16 +2802,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "모든 데이터를 초기화할까요?"
-          }
-        }
-      }
-    },
-    "Restock sized for %@": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "장 볼 양은 %@ 기준이에요"
           }
         }
       }
@@ -2879,7 +2862,7 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "오늘 만료 %lld개 구출"
+            "value": "오늘까지인 재료 %lld개 구출"
           }
         }
       }
@@ -2924,6 +2907,16 @@
         }
       }
     },
+    "Scan your receipt.\nCheck the items, then add them.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "영수증을 찍고\n담을 재료를 확인해요."
+          }
+        }
+      }
+    },
     "Seafood": {
       "extractionState": "manual",
       "localizations": {
@@ -2935,23 +2928,22 @@
         }
       }
     },
-    "Sealed items keep their long dates until opened.\nChecked ones switch to the after-opening use-by date.": {
-      "extractionState": "manual",
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "밀봉 식품은 개봉 전까지 기한이 깁니다.\n체크한 항목은 개봉 후 소비기한으로 바뀌어요."
-          }
-        }
-      }
-    },
     "Search ingredients": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
             "value": "재료 검색"
+          }
+        }
+      }
+    },
+    "See what you ate\nand what you tossed": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "먹은 재료와 버린 재료를\n한눈에"
           }
         }
       }
@@ -2993,6 +2985,27 @@
           "stringUnit": {
             "state": "translated",
             "value": "공유"
+          }
+        }
+      }
+    },
+    "Share usage data": {
+      "comment": "Profile › App toggle: opt-out for anonymous usage analytics",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "사용 데이터 공유"
+          }
+        }
+      }
+    },
+    "Shopping for: %@": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "장보기 기준: %@"
           }
         }
       }
@@ -3048,16 +3061,6 @@
         }
       }
     },
-    "Snap the receipt.\nGroceries land in your fridge.": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "영수증을 찍으면, 산 것들이 냉장고로 들어와요."
-          }
-        }
-      }
-    },
     "Some left": {
       "localizations": {
         "ko": {
@@ -3104,6 +3107,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "요리 시작"
+          }
+        }
+      }
+    },
+    "Start with the ingredients that need using first.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "먼저 써야 할 재료부터 요리에 활용해요."
           }
         }
       }
@@ -3489,6 +3502,16 @@
         }
       }
     },
+    "Try a clearer photo of the whole receipt.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "영수증 전체가 선명하게 나온 사진으로 다시 시도해 주세요."
+          }
+        }
+      }
+    },
     "Try a sample fridge": {
       "localizations": {
         "ko": {
@@ -3505,38 +3528,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "다시 시도"
-          }
-        }
-      }
-    },
-    "Tuned for %@": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@에 맞췄어요"
-          }
-        }
-      }
-    },
-    "Turn %@ and %@ into your own recipe.\nAdd it in Profile.": {
-      "extractionState": "manual",
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%1$@ 그리고 %2$@, 이 조합으로 나만의 레시피를 만들어 보세요!\n프로필에서 바로 추가할 수 있어요."
-          }
-        }
-      }
-    },
-    "Turn %@ into your own recipe.\nAdd it in Profile.": {
-      "extractionState": "manual",
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ 하나로 나만의 레시피를 만들어 보세요!\n프로필에서 바로 추가할 수 있어요."
           }
         }
       }
@@ -3601,22 +3592,22 @@
         }
       }
     },
+    "Use %@ soon.\nFind a recipe to try.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "곧 써야 할 재료: %@.\n만들 요리를 찾아보세요."
+          }
+        }
+      }
+    },
     "Use %lld today": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
             "value": "오늘 써야 할 재료 %lld개"
-          }
-        }
-      }
-    },
-    "Use a clearer photo.": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "더 선명한 사진이 필요해요."
           }
         }
       }
@@ -3641,12 +3632,22 @@
         }
       }
     },
-    "Use-by dates are filled from the ingredient dictionary.\nAdjust anytime in Fridge.": {
+    "Use-by alerts": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "소비기한은 재료 사전 기본값으로 채워져요.\n냉장고에서 언제든 수정할 수 있어요."
+            "value": "임박 알림"
+          }
+        }
+      }
+    },
+    "Use-by dates are estimates.\nCheck the packaging and adjust them in Fridge.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "소비기한은 추정값이에요.\n포장에 적힌 기한을 확인하고 냉장고에서 수정해 주세요."
           }
         }
       }
@@ -3657,6 +3658,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "다 썼어요"
+          }
+        }
+      }
+    },
+    "Uses at least as many ingredients as you need to buy.": {
+      "comment": "Ticket notice for rescue-passed tickets: it clears at least as many stocked ingredients as it asks to buy",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "사야 할 재료 수만큼은 냉장고 재료를 써요."
           }
         }
       }
@@ -3732,12 +3744,12 @@
         }
       }
     },
-    "We'll size your restock amounts to match.": {
+    "We'll use this as a guide for shopping quantities.": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "장 볼 양을 거기에 맞출게요."
+            "value": "장보기 수량을 정할 때 참고할게요."
           }
         }
       }
@@ -3820,6 +3832,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "변경 내용은 저장되지 않아요."
+          }
+        }
+      }
+    },
+    "Your choices: %@": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "고른 취향: %@"
           }
         }
       }

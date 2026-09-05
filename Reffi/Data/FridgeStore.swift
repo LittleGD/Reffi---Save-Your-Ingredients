@@ -54,6 +54,11 @@ final class FridgeStore {
     private(set) var pendingUndo: PendingUndo?
     /// 발주 후 "지금 요리 중" 세션(§13.6 C) — 메인 상단 카드의 소스. Finish/Cancel로 닫는다.
     private(set) var activeCook: CookSession?
+    /// 행동 계측 훅(64차) — 변이 지점마다 **사실만** 올린다(`Analytics`, 정본 `docs/ANALYTICS.md`).
+    /// 영속 스토어는 공유 파이프라인으로 배선되고, 메모리 스토어(프리뷰·테스트)는 no-op이다 —
+    /// 테스트는 캡처 클로저로 갈아 끼워 "이 변이가 이 이벤트를 낸다"를 고정한다. 스토어는 UIKit·화면을
+    /// 모르므로 표면(어느 화면에서 판정했나)은 호출부가 `surface:`/`source:`로 건넨다.
+    @ObservationIgnored var track: @MainActor (AnalyticsEvent) -> Void = { _ in }
 
     /// 조리 세션 스냅샷. `steps`·`completedSteps`는 33c8861(조리법을 영상에 전담시킨 라운드)에서
     /// 걷혔다가 39차에서 되살아났다 — 이번엔 티켓 본문이 아니라 **옵트인 시트**(주방 전표)로만
@@ -166,6 +171,7 @@ final class FridgeStore {
         pinnedIDs.formIntersection(have)              // 핀도 같은 축 — 사라진 재료의 핀은 유령이다
         replenishCounter()
         promoteUrgent()   // 콜드 오픈 정렬 — 저장된 작업대가 더 임박한 재료를 놓치고 있으면 승격(알림 정합)
+        track = { Analytics.shared.track($0) }
     }
 
     /// 프리뷰·테스트용 — 메모리 전용(저장 안 함, 알림 재스케줄도 안 함).
@@ -343,28 +349,30 @@ final class FridgeStore {
     /// 재료 추가 — 어느 입구(메인 ＋, 네비 ＋, 재입고)로 들어와도 작업대에 함께 올라온다
     /// (직접 추가는 보충 목표 6을 일시 초과할 수 있다 — 방금 넣은 한 개를 바로 작업대에서 보이게).
     /// 재입고는 '이번엔 안 사기'를 해제한다.
-    func add(_ ingredient: Ingredient) {
-        insert([ingredient], capsCounter: false)
+    func add(_ ingredient: Ingredient, source: AnalyticsEvent.AddSource = .manual) {
+        insert([ingredient], capsCounter: false, source: source)
     }
 
     /// 일괄 추가(영수증 스캔) — N개를 넣어도 스냅샷 기록·알림 재스케줄은 1회만. 직접 추가와 달리
     /// 작업대는 상한(6)까지만 채운다 — 스캔 한 번에 15개가 쏟아져도 작업대가 넘치지 않게, 최임박 재료부터
     /// 올리고 나머지는 냉장고에만 둔다(빈 자리가 나면 replenishCounter가 다음 임박 재료로 자연 보충).
-    func add(contentsOf newItems: [Ingredient]) {
-        insert(newItems, capsCounter: true)
+    func add(contentsOf newItems: [Ingredient], source: AnalyticsEvent.AddSource = .receipt) {
+        insert(newItems, capsCounter: true, source: source)
     }
 
     /// 추가 공통 — 캐논 승격·재입고 스킵 해제는 두 경로 동일. 작업대 등재만 다르다:
     /// 직접 추가(`capsCounter=false`)는 일시 초과 허용(무조건 등재), 일괄 스캔(`capsCounter=true`)은
     /// 상한까지만 — replenishCounter가 available(임박순, counterEligible 적용)로 빈 자리를 채운다.
-    private func insert(_ newItems: [Ingredient], capsCounter: Bool) {
+    private func insert(_ newItems: [Ingredient], capsCounter: Bool, source: AnalyticsEvent.AddSource) {
         guard !newItems.isEmpty else { return }
         let lex = IngredientLexicon.shared
+        var known = 0   // 사전 캐논에 붙은 수 — 미등재 비율이 곧 사전 커버리지 지표
         for item in newItems {
             var ingredient = item
             if ingredient.canonicalID == nil {   // 해석 시점 — 미해석 재료를 캐논 키로 승격
                 ingredient.canonicalID = lex.canonicalID(for: ingredient.name)
             }
+            if ingredient.canonicalID != nil { known += 1 }
             ingredients.append(ingredient)
             if !capsCounter, !counterIDs.contains(ingredient.id) {
                 counterIDs.append(ingredient.id)   // 직접 추가 — 일시 초과 허용
@@ -379,19 +387,22 @@ final class FridgeStore {
         }
         if capsCounter { replenishCounter() }   // 스캔 — 상한(6)까지 최임박 우선 등재, 나머지는 냉장고에
         persist()
+        track(.ingredientAdd(source: source, count: newItems.count, known: known))
     }
 
     /// 편집 저장 — 같은 id를 찾아 교체. 이름이 바뀌면 글리프·카테고리도 다시 매칭(파생값 동기화).
     func update(_ ingredient: Ingredient) {
         guard let i = ingredients.firstIndex(where: { $0.id == ingredient.id }) else { return }
         var updated = ingredient
-        if ingredients[i].name != ingredient.name {
+        let renamed = ingredients[i].name != ingredient.name
+        if renamed {
             updated.glyph = FoodGlyph.match(ingredient.name)
             updated.category = updated.glyph.categoryLabel
             updated.canonicalID = IngredientLexicon.shared.canonicalID(for: ingredient.name)   // 이름 바뀌면 캐논 키 재해석
         }
         ingredients[i] = updated
         persist()
+        track(.ingredientEdit(renamed: renamed))
     }
 
     // MARK: - 개봉 라이프사이클(44차 오너 결정)
@@ -413,6 +424,7 @@ final class FridgeStore {
             }
         }
         persist()
+        track(.sealedCheck(opened: opened.count, stillSealed: stillSealed.count))
     }
 
     /// 이력 없는 삭제 — 오입력·중복 정정용. 통계(낭비율·쇼핑리스트)를 오염시키지 않는다.
@@ -435,6 +447,7 @@ final class FridgeStore {
         beginUndo(.removed(name: removed.name), logIDs: [], counterSnapshot: counterBefore,
                   restoreSnapshots: [removed])
         persist()
+        track(.ingredientDelete)
     }
 
     /// 냉동(버리기 직전 구제, §13.6) — 원본 소비기한은 두고 `frozenAt`을 기록해
@@ -442,11 +455,13 @@ final class FridgeStore {
     func freeze(_ ingredient: Ingredient) {
         guard let i = ingredients.firstIndex(where: { $0.id == ingredient.id }),
               ingredients[i].canFreeze else { return }
+        let daysLeft = ingredients[i].daysLeft   // 유예 시계가 붙기 전의 원래 여유 — "며칠 남기고 구제했나"
         ingredients[i].storage = .freezer
         ingredients[i].frozenAt = Date()
         counterIDs.removeAll { $0 == ingredient.id }   // 유예 임박(D-3)에 다시 올라온다
         replenishCounter()
         persist()
+        track(.ingredientFreeze(daysLeft: daysLeft))
     }
 
     // MARK: - 오늘 요리 핀(47차 — 오른쪽 존)
@@ -463,11 +478,13 @@ final class FridgeStore {
     func togglePin(_ id: UUID) -> Bool {
         if pinnedIDs.remove(id) != nil {
             persist(reschedulesAlerts: false)   // 재료 불변
+            track(.ingredientPin(on: false))
             return false
         }
         guard ingredients.contains(where: { $0.id == id }) else { return false }
         pinnedIDs.insert(id)
         persist(reschedulesAlerts: false)   // 재료 불변
+        track(.ingredientPin(on: true))
         return true
     }
 
@@ -493,6 +510,7 @@ final class FridgeStore {
             fridgeHash: RecipeRecommender.fridgeHash(of: available))
         passLog = Self.trimmedToCap(passLog, cap: behaviorLogCap, lastDate: \.last)
         persist(reschedulesAlerts: false)   // 재료 불변
+        track(.ticketPass(recipe: AnalyticsEvent.recipeKey(recipeID), passes: passLog[recipeID]?.count ?? 1))
     }
 
     /// 행동 기억 공통 트림 — 상한 초과분은 마지막 기록(`lastDate`)이 오래된 것부터 제거.
@@ -510,18 +528,26 @@ final class FridgeStore {
     // MARK: - 판정(Ate / Tossed)
 
     /// 다 먹음 — 보유에서 빼고 이력 기록. 되돌리기 창이 열린다.
-    func eat(_ ingredient: Ingredient) { decide(ingredient, wasted: false) }
+    /// `surface`는 계측 전용(어느 표면의 판정인가) — 데이터 처리는 표면과 무관하게 같다.
+    func eat(_ ingredient: Ingredient, surface: AnalyticsEvent.DecideSurface = .other) {
+        decide(ingredient, wasted: false, surface: surface)
+    }
     /// 버림 — 보유에서 빼고 이력 기록. 되돌리기 창이 열린다.
-    func toss(_ ingredient: Ingredient) { decide(ingredient, wasted: true) }
+    func toss(_ ingredient: Ingredient, surface: AnalyticsEvent.DecideSurface = .other) {
+        decide(ingredient, wasted: true, surface: surface)
+    }
 
-    private func decide(_ ingredient: Ingredient, wasted: Bool) {
-        guard ingredients.contains(where: { $0.id == ingredient.id }) else { return }
+    private func decide(_ ingredient: Ingredient, wasted: Bool, surface: AnalyticsEvent.DecideSurface) {
+        guard let current = ingredients.first(where: { $0.id == ingredient.id }) else { return }
         let counterBefore = counterIDs   // undo가 작업대를 판정 전 상태로 원복(§13.6)
         let log = removeLogging(ingredient, wasted: wasted, via: nil)
         replenishCounter()
         beginUndo(.decision(name: ingredient.name, wasted: wasted),
                   logIDs: [log.id], counterSnapshot: counterBefore)
         persist()
+        // 판정 시점의 여유(유예 시계 기준)와 글리프 — "며칠 남았을 때 버리나"가 알림 리드타임의 근거다.
+        track(.ingredientDecide(ate: !wasted, surface: surface, daysLeft: current.effectiveDaysLeft,
+                                frozen: current.isFrozen, glyph: current.glyph.rawValue))
     }
 
     // MARK: - 발주(Fire the Ticket) — 예약 모델
@@ -552,6 +578,9 @@ final class FridgeStore {
         beginUndo(.fired(recipe: result.recipe.displayName, count: used.count),
                   logIDs: [], counterSnapshot: counterBefore, previousSession: replaced)
         persist()
+        track(.ticketFire(recipe: AnalyticsEvent.recipeKey(result.recipe.id), used: used.count,
+                          missing: result.missing.count, substituted: result.substituted.count,
+                          urgent: result.urgentUsedCount))
     }
 
     /// 단계 체크 토글(39차 — 33c8861에서 걷혔다 주방 전표 시트로 되살아났다) — 조리 진행 상태도
@@ -600,15 +629,21 @@ final class FridgeStore {
                       leftoverSnapshots: leftoverOriginals, previousSession: cook)
         }
         persist()
+        track(.cookFinish(recipe: cook.recipeID.map(AnalyticsEvent.recipeKey) ?? "unknown",
+                          used: logIDs.count, leftovers: leftoverOriginals.count,
+                          stepsDone: cook.completedSteps?.count ?? 0, stepsTotal: cook.steps?.count ?? 0,
+                          minutes: Int(now.timeIntervalSince(cook.startedAt) / 60)))
     }
 
     /// 조리 포기 — 예약 해제. 재료는 그대로 냉장고·작업대로 돌아온다(기록 없음).
     func cancelCooking() {
-        guard activeCook != nil else { return }
+        guard let cook = activeCook else { return }
         dismissStaleFireUndo()   // 취소된 발주의 'Started' 토스트 잔존 방지
         activeCook = nil
         replenishCounter()
         persist()
+        track(.cookCancel(recipe: cook.recipeID.map(AnalyticsEvent.recipeKey) ?? "unknown",
+                          minutes: Int(Date().timeIntervalSince(cook.startedAt) / 60)))
     }
 
     /// 발주(.fired) 되돌리기 창 무효화 — 세션이 완료/취소로 이미 닫힌 뒤의 스테일 undo 방지.
@@ -754,6 +789,7 @@ final class FridgeStore {
     func undoPending() {
         guard let undo = pendingUndo else { return }
         pendingUndo = nil
+        track(.undo(kind: Self.undoKindLabel(undo.kind)))
         // 메모 되돌리기는 **여기서 끝난다** — 이력도 재고도 작업대도 건드리지 않았으므로 아래의
         // 복원·작업대 재구성 경로를 태울 이유가 없다(태우면 무관한 replenish가 한 번 더 돈다).
         if case .memoRemoved = undo.kind, let memo = undo.memoRestore {
@@ -808,17 +844,21 @@ final class FridgeStore {
     func addUserRecipe(_ recipe: Recipe) {
         userRecipes.insert(recipe, at: 0)
         persist(reschedulesAlerts: false)
+        track(.recipeCustom(action: .create))
     }
 
     func updateUserRecipe(_ recipe: Recipe) {
         guard let i = userRecipes.firstIndex(where: { $0.id == recipe.id }) else { return }
         userRecipes[i] = recipe
         persist(reschedulesAlerts: false)
+        track(.recipeCustom(action: .edit))
     }
 
     func deleteUserRecipe(id: String) {
+        let before = userRecipes.count
         userRecipes.removeAll { $0.id == id }
         persist(reschedulesAlerts: false)
+        if userRecipes.count != before { track(.recipeCustom(action: .delete)) }
     }
 
     // MARK: - 통계 (이력 단일 장부 + 접힌 누계)
@@ -972,6 +1012,7 @@ final class FridgeStore {
                                   canonicalIsFinal: canonicalIsFinal,
                                   sourceRecipeIDs: sourceRecipeIDs)
         if outcome.changed { persist(reschedulesAlerts: false) }   // 재료 불변
+        if outcome.added { track(.toBuyAdd(source: .memo, count: 1)) }
         return outcome.added
     }
 
@@ -1050,6 +1091,7 @@ final class FridgeStore {
             changed = changed || outcome.changed
         }
         if changed { persist(reschedulesAlerts: false) }   // 재료 불변
+        if added > 0 { track(.toBuyAdd(source: .missing, count: added)) }
         return added
     }
 
@@ -1071,6 +1113,13 @@ final class FridgeStore {
     /// 제안까지 함께 접는다(수동이 흡수하던 제안이 되살아나 같은 줄이 그 자리에 남으면 Skip이 안
     /// 먹은 것처럼 보인다).
     func skipBuy(key: String) {
+        dropToBuy(key: key)
+        track(.toBuyRemove(via: .skip))
+    }
+
+    /// `skipBuy`의 판정 본체(계측 없음) — 버튼(✕)과 밀기(`skipBuyUndoable`)가 같은 규칙을 타되
+    /// 각자 자기 어포던스를 기록하게 갈라 둔 것이다.
+    private func dropToBuy(key: String) {
         let wasManual = manualToBuy.contains { $0.matchKey == key }
         manualToBuy.removeAll { $0.matchKey == key }
         if !wasManual || derivedToBuy.contains(where: { $0.key == key }) {
@@ -1090,13 +1139,14 @@ final class FridgeStore {
     /// 판정을 바꾸지 않고 `skipBuy`를 그대로 태운다 — 흡수·영구 제외의 두 갈래 규칙이 한 곳에만 있어야
     /// 두 경로가 조용히 갈리지 않는다. 이 함수는 그 앞뒤로 스냅샷과 undo 창만 두른다.
     func skipBuyUndoable(key: String) {
+        track(.toBuyRemove(via: .swipe))
         guard let index = manualToBuy.firstIndex(where: { $0.matchKey == key }) else {
-            skipBuy(key: key)   // 수동 항목이 아니면 되돌릴 줄이 없다 — 기존 경로 그대로
+            dropToBuy(key: key)   // 수동 항목이 아니면 되돌릴 줄이 없다 — 기존 경로 그대로
             return
         }
         let item = manualToBuy[index]
         let wasDismissed = dismissedToBuy.contains(key)
-        skipBuy(key: key)
+        dropToBuy(key: key)
         // 이번 호출이 **새로** 영구 제외에 넣었을 때만 그것도 되돌린다(원래 제외였다면 건드리지 않는다).
         let newlyDismissed = !wasDismissed && dismissedToBuy.contains(key)
         beginUndo(.memoRemoved(name: Self.displayName(for: item)),
@@ -1130,6 +1180,7 @@ final class FridgeStore {
         resolveCanonicalIDs()   // 샘플 데이터도 캐논 키 승격(매칭 일관성)
         replenishCounter()
         persist()
+        track(.sampleLoad)
     }
 
     /// 모든 데이터 초기화 — 빈 냉장고로.
@@ -1148,5 +1199,17 @@ final class FridgeStore {
         activeCook = nil
         userRecipes = []
         persist()
+        track(.dataReset)
+    }
+
+    /// undo 종류 라벨(계측) — 연관값(이름·레시피)은 싣지 않는다.
+    static func undoKindLabel(_ kind: PendingUndo.Kind) -> String {
+        switch kind {
+        case .fired: "fired"
+        case .finished: "finished"
+        case .decision(_, let wasted): wasted ? "tossed" : "ate"
+        case .removed: "removed"
+        case .memoRemoved: "memo_removed"
+        }
     }
 }

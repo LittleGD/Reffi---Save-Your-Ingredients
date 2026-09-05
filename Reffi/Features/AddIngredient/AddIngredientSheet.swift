@@ -12,6 +12,6 @@ import SwiftUI
 /// presentationDetents 등 시트 설정은 `ReceiptScanView` 내부에서 적용한다(호출부 중복 금지).
 struct AddIngredientSheet: View {
     var body: some View {
-        ReceiptScanView()
+        ReceiptScanView().analyticsScreen(.add)
     }
 }

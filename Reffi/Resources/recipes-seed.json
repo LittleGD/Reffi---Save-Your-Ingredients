@@ -8,8 +8,8 @@
         "ko": "김치찌개"
       },
       "intro": {
-        "en": "Korean stew of well-aged kimchi simmered down with pork and tofu.",
-        "ko": "잘 익은 김치에 돼지고기와 두부를 넣고 끓인 한국의 찌개."
+        "en": "Well-aged kimchi, pork and tofu simmered into a tangy Korean stew.",
+        "ko": "잘 익은 김치에 돼지고기와 두부를 넣고 푹 끓인 찌개."
       },
       "cuisine": "korean",
       "minutes": 25,
@@ -89,8 +89,8 @@
         "ko": "된장찌개"
       },
       "intro": {
-        "en": "Korean soybean paste stew, thick with tofu and whatever vegetables are in.",
-        "ko": "된장을 풀어 두부와 채소를 넣고 끓인 한국의 찌개."
+        "en": "Tofu and vegetables simmered in a savory soybean paste broth.",
+        "ko": "된장을 풀어 두부와 채소를 넣고 구수하게 끓인 찌개."
       },
       "cuisine": "korean",
       "minutes": 20,
@@ -170,8 +170,8 @@
         "ko": "소불고기"
       },
       "intro": {
-        "en": "Korean beef sliced thin, marinated in soy and sugar, then grilled.",
-        "ko": "얇게 썬 소고기를 간장 양념에 재워 구워 낸 한국의 불고기."
+        "en": "Thin slices of beef cooked with onion in a sweet soy marinade.",
+        "ko": "얇은 소고기를 달큰한 간장 양념에 재워 양파와 볶은 불고기."
       },
       "cuisine": "korean",
       "minutes": 30,
@@ -225,14 +225,14 @@
       "steps": {
         "en": [
           "Mix soy sauce, sugar, grated pear, garlic, sesame oil, and black pepper to make the marinade.",
-          "Coat the sliced beef in the marinade and let it rest for at least 15 minutes.",
+          "Coat the sliced beef in the marinade and refrigerate it for at least 15 minutes.",
           "Slice the onion and cut the green onion into long pieces.",
           "Stir-fry the beef and onion in a hot pan until the meat is cooked through and the sauce thickens slightly.",
           "Add the green onion at the end, toss briefly, and serve over rice."
         ],
         "ko": [
           "간장, 설탕, 간 배, 마늘, 참기름, 후추를 섞어 양념장을 만든다.",
-          "얇게 썬 소고기에 양념장을 버무려 최소 15분간 재운다.",
+          "얇게 썬 소고기에 양념장을 버무려 최소 냉장고에서 15분간 재운다.",
           "양파는 채 썰고 대파는 길쭉하게 썬다.",
           "달군 팬에 고기와 양파를 넣고 고기가 익고 양념이 살짝 졸아들 때까지 볶는다.",
           "마지막에 대파를 넣고 가볍게 섞은 뒤 밥 위에 올려 낸다."
@@ -246,8 +246,8 @@
         "ko": "제육볶음"
       },
       "intro": {
-        "en": "Korean pork stir-fried in gochujang and eaten as a spicy lunch staple.",
-        "ko": "돼지고기를 고추장 양념에 볶아 낸 한국의 매운 밥반찬."
+        "en": "Sliced pork and onion stir-fried in a spicy gochujang sauce.",
+        "ko": "돼지고기와 양파를 고추장 양념에 매콤하게 볶은 밥반찬."
       },
       "cuisine": "korean",
       "minutes": 25,
@@ -306,17 +306,17 @@
       "steps": {
         "en": [
           "Stir together gochujang, gochugaru, soy sauce, sugar, garlic, and ginger to make a spicy sauce.",
-          "Massage the sauce into the sliced pork and let it sit for 10 minutes.",
+          "Massage the sauce into the sliced pork and refrigerate it for 10 minutes.",
           "Slice the onion and cut the green onion diagonally.",
           "Heat oil in a wide pan and stir-fry the pork over high heat until nearly cooked.",
-          "Add the onion and green onion and keep stir-frying until the vegetables are tender and the sauce glazes the meat."
+          "Add the onion and green onion and stir-fry until tender and the pork is cooked through."
         ],
         "ko": [
           "고추장, 고춧가루, 간장, 설탕, 마늘, 생강을 섞어 매콤한 양념장을 만든다.",
-          "얇게 썬 돼지고기에 양념장을 골고루 버무려 10분간 재운다.",
+          "얇게 썬 돼지고기에 양념장을 골고루 버무려 냉장고에서 10분간 재운다.",
           "양파는 채 썰고 대파는 어슷하게 썬다.",
           "넓은 팬에 기름을 두르고 센 불에서 고기를 거의 익을 때까지 볶는다.",
-          "양파와 대파를 넣고 채소가 부드러워지고 양념이 고기에 배도록 볶아 마무리한다."
+          "양파와 대파를 넣고 채소가 부드러워지고 돼지고기가 속까지 익도록 볶는다."
         ]
       }
     },
@@ -327,8 +327,8 @@
         "ko": "계란말이"
       },
       "intro": {
-        "en": "Korean rolled omelette, egg layered around finely minced vegetables.",
-        "ko": "달걀을 채소와 함께 부쳐 돌돌 말아 낸 한국의 반찬."
+        "en": "Layers of egg rolled around finely chopped carrot and green onion.",
+        "ko": "잘게 썬 당근과 파를 넣어 겹겹이 말아 부친 계란말이."
       },
       "cuisine": "korean",
       "minutes": 15,
@@ -365,14 +365,14 @@
           "Lightly oil a nonstick pan and set it over medium-low heat.",
           "Pour in a thin layer of the egg mixture and cook until the surface is just set.",
           "Roll the egg toward one side, push it back, pour in more mixture, and repeat until it is all used.",
-          "Rest the roll briefly, then slice it into thick pieces and serve."
+          "Cook the roll until no liquid egg remains in the center, then rest briefly and cut into thick slices."
         ],
         "ko": [
           "계란에 소금을 넣어 풀고 다진 당근과 파를 섞는다.",
           "코팅 팬에 기름을 얇게 두르고 중약불로 달군다.",
           "계란물을 얇게 부어 표면이 살짝 익을 때까지 기다린다.",
           "계란을 한쪽으로 말고 다시 밀어낸 뒤 남은 계란물을 부어가며 반복해서 만다.",
-          "잠시 식힌 뒤 도톰하게 썰어 낸다."
+          "가운데에 계란물이 남지 않도록 익힌 뒤 잠시 두었다 도톰하게 썬다."
         ]
       }
     },
@@ -383,8 +383,8 @@
         "ko": "잡채"
       },
       "intro": {
-        "en": "Korean sweet potato glass noodles tossed with beef and vegetables.",
-        "ko": "당면에 소고기와 채소를 넣고 무쳐 볶은 한국의 잔칫상 요리."
+        "en": "Chewy glass noodles tossed with beef, spinach and other vegetables.",
+        "ko": "쫄깃한 당면에 소고기와 시금치, 채소를 넣고 버무린 잡채."
       },
       "cuisine": "korean",
       "minutes": 40,
@@ -471,8 +471,8 @@
         "ko": "비빔밥"
       },
       "intro": {
-        "en": "Korean rice bowl under seasoned vegetables, beef and an egg, mixed at the table.",
-        "ko": "밥 위에 나물과 고기, 달걀을 얹어 고추장에 비벼 먹는 한국 요리."
+        "en": "Rice topped with seasoned vegetables, beef and egg, ready to mix with gochujang.",
+        "ko": "밥 위에 나물, 소고기, 계란을 얹어 고추장에 비벼 먹는 한 그릇."
       },
       "cuisine": "korean",
       "minutes": 35,
@@ -542,16 +542,16 @@
         "en": [
           "Blanch the spinach and bean sprouts separately, then season each with salt and a little sesame oil.",
           "Cut the carrot and zucchini into thin strips and stir-fry each with a pinch of salt.",
-          "Cook the ground beef with garlic and a splash of soy-style seasoning until browned.",
-          "Fry the egg sunny-side up so the yolk stays soft.",
+          "Cook the ground beef with garlic and a pinch of salt, breaking up the clumps. Check the meat reaches 71°C (160°F) with a food thermometer.",
+          "Fry the egg until the white and yolk are set.",
           "Arrange the vegetables and beef over a bowl of warm rice and top with the egg.",
           "Add gochujang and sesame oil, then mix everything together just before eating."
         ],
         "ko": [
           "시금치와 콩나물을 각각 데친 뒤 소금과 참기름으로 간한다.",
           "당근과 애호박은 채 썰어 소금을 약간 넣고 각각 볶는다.",
-          "다진 소고기는 마늘과 간장 양념을 넣고 갈색이 나도록 볶는다.",
-          "계란은 노른자가 부드럽게 남도록 반숙 프라이로 부친다.",
+          "다진 소고기는 마늘과 소금 한 꼬집을 넣고 덩어리를 풀어 가며 볶는다. 식품용 온도계로 고기의 중심 온도 71°C 이상을 확인한다.",
+          "계란은 흰자와 노른자가 굳을 때까지 프라이로 부친다.",
           "따뜻한 밥 위에 채소와 고기를 돌려 담고 계란을 올린다.",
           "고추장과 참기름을 넣고 먹기 직전에 골고루 비빈다."
         ]
@@ -564,16 +564,16 @@
         "ko": "김치볶음밥"
       },
       "intro": {
-        "en": "Korean fried rice built on sour kimchi and day-old rice.",
-        "ko": "신 김치와 찬밥을 함께 볶아 낸 한국의 한 끼 볶음밥."
+        "en": "Sour kimchi and Spam stir-fried with rice, topped with an egg.",
+        "ko": "신 김치와 스팸을 밥과 함께 볶고 계란을 올린 볶음밥."
       },
       "cuisine": "korean",
       "minutes": 15,
       "ingredients": [
         {
           "ref": "rice",
-          "en": "cooked rice (day-old is best)",
-          "ko": "밥 (찬밥이 좋음)"
+          "en": "cooked rice (cooled promptly and refrigerated)",
+          "ko": "밥 (조리 후 바로 식혀 냉장 보관한 것)"
         },
         {
           "ref": "kimchi",
@@ -635,8 +635,8 @@
         "ko": "콩나물국"
       },
       "intro": {
-        "en": "Clear Korean soup of bean sprouts simmered in anchovy stock.",
-        "ko": "멸치 육수에 콩나물을 넣고 맑게 끓인 한국의 국."
+        "en": "Bean sprouts in a clear anchovy broth with garlic and green onion.",
+        "ko": "멸치 육수에 콩나물과 마늘, 대파를 넣어 맑게 끓인 국."
       },
       "cuisine": "korean",
       "minutes": 20,
@@ -702,8 +702,8 @@
         "ko": "미역국"
       },
       "intro": {
-        "en": "Korean seaweed soup simmered with beef and served on birthday mornings.",
-        "ko": "미역과 소고기를 넣고 끓인 한국의 생일 아침 국."
+        "en": "Seaweed and beef simmered together in a savory Korean soup.",
+        "ko": "미역과 소고기를 참기름에 볶아 푹 끓인 국."
       },
       "cuisine": "korean",
       "minutes": 30,
@@ -768,8 +768,8 @@
         "ko": "갈비찜"
       },
       "intro": {
-        "en": "Korean short ribs braised slowly with radish and carrot until they fall apart.",
-        "ko": "소갈비를 무·당근과 함께 간장에 푹 조린 한국의 잔치 음식."
+        "en": "Beef short ribs slowly braised in sweet soy sauce with radish and carrot.",
+        "ko": "소갈비를 무, 당근과 함께 달큰한 간장 양념에 푹 조린 갈비찜."
       },
       "cuisine": "korean",
       "minutes": 90,
@@ -832,7 +832,7 @@
       ],
       "steps": {
         "en": [
-          "Soak the ribs in cold water for 30 minutes to draw out the blood, changing the water once.",
+          "Soak the ribs in cold water in the fridge for 30 minutes, changing the water once.",
           "Blanch the ribs in boiling water for 5 minutes, then rinse them clean.",
           "Mix soy sauce, sugar, grated pear, garlic, sesame oil, and black pepper with water to make a braising sauce.",
           "Combine the ribs and sauce in a heavy pot and simmer covered for 40 minutes.",
@@ -840,7 +840,7 @@
           "Reduce the sauce uncovered at the end until it lightly coats the ribs, then serve."
         ],
         "ko": [
-          "갈비를 찬물에 30분간 담가 핏물을 빼고 중간에 물을 한 번 갈아준다.",
+          "갈비를 찬물에 담가 냉장고에서 30분간 핏물을 빼고 중간에 물을 한 번 갈아 준다.",
           "끓는 물에 갈비를 5분간 데친 뒤 깨끗이 헹군다.",
           "간장, 설탕, 간 배, 마늘, 참기름, 후추를 물과 섞어 조림장을 만든다.",
           "두꺼운 냄비에 갈비와 조림장을 넣고 뚜껑을 덮어 40분간 끓인다.",
@@ -856,8 +856,8 @@
         "ko": "닭볶음탕"
       },
       "intro": {
-        "en": "Korean chicken braised with potato in a red, chili-thick broth.",
-        "ko": "닭과 감자를 고춧가루 양념에 자작하게 졸인 한국의 매운 조림."
+        "en": "Chicken and potatoes braised in a spicy gochujang broth.",
+        "ko": "닭과 감자를 매콤한 고추장 국물에 자작하게 끓인 닭볶음탕."
       },
       "cuisine": "korean",
       "minutes": 45,
@@ -920,17 +920,17 @@
       ],
       "steps": {
         "en": [
-          "Rinse the chicken pieces and blanch them briefly in boiling water to remove impurities.",
+          "Blanch the chicken briefly in boiling water, then drain. Raw chicken does not need rinsing.",
           "Whisk gochujang, gochugaru, soy sauce, sugar, and garlic into water to make the braising liquid.",
           "Put the chicken and sauce in a pot and simmer covered for 15 minutes.",
-          "Add large chunks of potato, carrot, and onion and cook until the potato is tender.",
+          "Add large chunks of potato, carrot, and onion and cook until the potato is tender. Check the thickest piece reaches 74°C (165°F) with a food thermometer.",
           "Add the green onion, reduce the sauce until it thickens, and serve with rice."
         ],
         "ko": [
-          "닭을 씻어 끓는 물에 살짝 데쳐 불순물을 제거한다.",
+          "닭은 씻지 않고 끓는 물에 살짝 데친 뒤 물을 버린다.",
           "고추장, 고춧가루, 간장, 설탕, 마늘을 물에 풀어 양념 국물을 만든다.",
           "냄비에 닭과 양념 국물을 넣고 뚜껑을 덮어 15분간 끓인다.",
-          "감자, 당근, 양파를 큼직하게 썰어 넣고 감자가 익을 때까지 끓인다.",
+          "감자, 당근, 양파를 큼직하게 썰어 넣고 감자가 익을 때까지 끓인다. 가장 두꺼운 살의 중심 온도가 74°C 이상인지 식품용 온도계로 확인한다.",
           "대파를 넣고 국물이 걸쭉해지도록 졸여 밥과 함께 낸다."
         ]
       }
@@ -942,8 +942,8 @@
         "ko": "떡볶이"
       },
       "intro": {
-        "en": "Korean rice cakes simmered in sweet-hot gochujang sauce.",
-        "ko": "가래떡을 고추장 양념에 졸여 낸 한국의 대표 분식."
+        "en": "Chewy rice cakes and fish cakes simmered in a sweet, spicy sauce.",
+        "ko": "떡과 어묵을 매콤달콤한 고추장 양념에 끓인 떡볶이."
       },
       "cuisine": "korean",
       "minutes": 20,
@@ -1019,8 +1019,8 @@
         "ko": "김치전"
       },
       "intro": {
-        "en": "Korean kimchi pancake, thin batter fried crisp at the edges.",
-        "ko": "김치를 밀가루 반죽에 섞어 얇게 부쳐 낸 한국의 전."
+        "en": "Chopped kimchi in a thin pancake with crisp edges.",
+        "ko": "잘게 썬 김치를 반죽에 섞어 가장자리가 바삭하게 부친 전."
       },
       "cuisine": "korean",
       "minutes": 20,
@@ -1080,8 +1080,8 @@
         "ko": "오이무침"
       },
       "intro": {
-        "en": "Korean cucumber salad dressed sharp with gochugaru and vinegar.",
-        "ko": "오이를 고춧가루와 식초에 새콤하게 무친 한국의 반찬."
+        "en": "Cucumber tossed with gochugaru and vinegar for a sharp, crunchy side.",
+        "ko": "오이를 고춧가루와 식초 양념에 아삭하고 새콤하게 무친 반찬."
       },
       "cuisine": "korean",
       "minutes": 10,
@@ -1149,8 +1149,8 @@
         "ko": "시금치나물"
       },
       "intro": {
-        "en": "Korean blanched spinach seasoned with garlic and sesame oil.",
-        "ko": "데친 시금치를 마늘과 참기름에 무친 한국의 나물 반찬."
+        "en": "Blanched spinach gently dressed with garlic and sesame oil.",
+        "ko": "데친 시금치를 마늘과 참기름에 조물조물 무친 나물."
       },
       "cuisine": "korean",
       "minutes": 10,
@@ -1213,8 +1213,8 @@
         "ko": "감자조림"
       },
       "intro": {
-        "en": "Korean potatoes braised down in sweet soy until glossy.",
-        "ko": "감자를 간장에 달큰하게 조려 낸 한국의 밑반찬."
+        "en": "Bite-size potatoes braised in sweet soy sauce until glossy.",
+        "ko": "한입 크기 감자를 달큰한 간장 양념에 윤기 나게 조린 반찬."
       },
       "cuisine": "korean",
       "minutes": 25,
@@ -1279,8 +1279,8 @@
         "ko": "어묵볶음"
       },
       "intro": {
-        "en": "Korean fish cakes stir-fried with onion in soy sauce.",
-        "ko": "어묵을 양파와 함께 간장 양념에 볶은 한국의 밑반찬."
+        "en": "Fish cakes stir-fried with onion and carrot in a light soy glaze.",
+        "ko": "어묵을 양파, 당근과 함께 간장 양념에 볶은 밑반찬."
       },
       "cuisine": "korean",
       "minutes": 15,
@@ -1355,8 +1355,8 @@
         "ko": "순두부찌개"
       },
       "intro": {
-        "en": "Korean stew of silken tofu, spiced red and finished with a raw egg.",
-        "ko": "순두부를 얼큰하게 끓여 달걀을 풀어 낸 한국의 찌개."
+        "en": "Silken tofu and pork in a spicy broth, finished with an egg.",
+        "ko": "순두부와 돼지고기를 얼큰하게 끓이고 계란을 넣은 찌개."
       },
       "cuisine": "korean",
       "minutes": 25,
@@ -1420,17 +1420,17 @@
       "steps": {
         "en": [
           "Heat oil in a small pot and slowly fry the gochugaru and garlic over low heat to make chili oil.",
-          "Add the ground pork and diced onion and stir-fry until the pork is cooked.",
+          "Add the ground pork and diced onion and stir-fry until the pork is cooked. Check the meat reaches 71°C (160°F) with a food thermometer.",
           "Pour in water, season with soy sauce and salt, and bring to a boil.",
           "Slide in the silken tofu in large spoonfuls and simmer for 5 minutes.",
-          "Crack an egg into the bubbling stew, top with green onion, and serve immediately."
+          "Crack in the egg and simmer until the white and yolk are set. Top with green onion and serve."
         ],
         "ko": [
           "작은 냄비에 기름을 두르고 약불에서 고춧가루와 마늘을 천천히 볶아 고추기름을 낸다.",
-          "다진 돼지고기와 양파를 넣고 고기가 익을 때까지 볶는다.",
+          "다진 돼지고기와 양파를 넣고 고기가 익을 때까지 볶는다. 식품용 온도계로 고기의 중심 온도 71°C 이상을 확인한다.",
           "물을 붓고 간장과 소금으로 간해 끓인다.",
           "순두부를 큼직하게 떠 넣고 5분간 끓인다.",
-          "보글보글 끓는 찌개에 계란을 깨 넣고 대파를 올려 바로 낸다."
+          "계란을 깨 넣고 흰자와 노른자가 굳을 때까지 끓인 뒤 대파를 올려 낸다."
         ]
       }
     },
@@ -1441,8 +1441,8 @@
         "ko": "김밥"
       },
       "intro": {
-        "en": "Korean rolls of rice and fillings wrapped in gim, then sliced into rounds.",
-        "ko": "밥과 속재료를 김에 말아 썰어 낸 한국의 김밥."
+        "en": "Rice, egg and vegetables rolled in seaweed and sliced into rounds.",
+        "ko": "밥과 계란, 채소를 김에 단단히 말아 한입 크기로 썬 김밥."
       },
       "cuisine": "korean",
       "minutes": 40,
@@ -1524,8 +1524,8 @@
         "ko": "삼겹살구이와 쌈"
       },
       "intro": {
-        "en": "Korean grilled pork belly, eaten wrapped in lettuce and perilla leaves.",
-        "ko": "삼겹살을 구워 상추와 깻잎에 싸 먹는 한국의 구이."
+        "en": "Grilled pork belly wrapped in lettuce and perilla leaves with ssamjang.",
+        "ko": "노릇하게 구운 삼겹살을 상추, 깻잎에 쌈장과 함께 싸 먹는 구이."
       },
       "cuisine": "korean",
       "minutes": 25,
@@ -1605,8 +1605,8 @@
         "ko": "닭죽"
       },
       "intro": {
-        "en": "Korean rice porridge simmered in chicken broth until the grains break down.",
-        "ko": "닭 육수에 쌀을 오래 끓여 부드럽게 쑨 한국의 죽."
+        "en": "Rice simmered in chicken broth until soft, with shredded chicken and carrot.",
+        "ko": "닭 육수에 쌀과 당근을 푹 끓이고 닭살을 넣어 부드럽게 쑨 죽."
       },
       "cuisine": "korean",
       "minutes": 50,
@@ -1659,14 +1659,14 @@
       ],
       "steps": {
         "en": [
-          "Simmer the chicken with garlic and the white part of the green onion in water for 25 minutes.",
+          "Simmer the chicken with garlic and the white part of the green onion in water for 25 minutes. Check the thickest piece reaches 74°C (165°F) with a food thermometer.",
           "Take out the chicken, shred the meat, and strain the broth.",
           "Add the soaked rice and diced carrot to the broth and cook over low heat, stirring often.",
           "When the rice blooms into a thick porridge, return the shredded chicken to the pot.",
           "Season with salt and pepper and finish with sesame oil and chopped green onion."
         ],
         "ko": [
-          "물에 닭, 통마늘, 대파 흰 부분을 넣고 25분간 끓인다.",
+          "물에 닭, 통마늘, 대파 흰 부분을 넣고 25분간 끓인다. 가장 두꺼운 살의 중심 온도가 74°C 이상인지 식품용 온도계로 확인한다.",
           "닭을 건져 살을 발라내고 국물은 체에 거른다.",
           "국물에 불린 쌀과 당근을 넣고 약불에서 자주 저어가며 끓인다.",
           "쌀이 퍼져 걸쭉한 죽이 되면 발라낸 닭살을 다시 넣는다.",
@@ -1681,8 +1681,8 @@
         "ko": "규동"
       },
       "intro": {
-        "en": "Japanese rice bowl of beef and onion simmered in sweet soy.",
-        "ko": "소고기와 양파를 간장에 달큰하게 조려 밥에 얹은 일본의 덮밥."
+        "en": "Thinly sliced beef and onion in sweet soy broth over hot rice.",
+        "ko": "얇은 소고기와 양파를 달큰하게 조려 따뜻한 밥에 얹은 일본식 덮밥."
       },
       "cuisine": "japanese",
       "minutes": 20,
@@ -1733,14 +1733,14 @@
           "Slice the onion thinly along the grain.",
           "Simmer water, soy sauce, mirin, and sugar in a shallow pan until it comes to a gentle boil.",
           "Add the onion and cook until translucent.",
-          "Spread the beef slices in the broth and simmer just until the color changes, skimming any foam.",
+          "Spread the beef slices in the simmering broth and cook through, skimming any foam.",
           "Ladle the beef, onion, and broth over hot rice and top with green onion."
         ],
         "ko": [
           "양파를 결대로 얇게 썬다.",
           "얕은 팬에 물, 간장, 미림, 설탕을 넣고 살짝 끓인다.",
           "양파를 넣고 투명해질 때까지 익힌다.",
-          "소고기를 펼쳐 넣고 색이 변할 정도로만 끓이며 거품을 걷어낸다.",
+          "끓는 국물에 소고기를 펼쳐 넣고 거품을 걷어 내며 속까지 익힌다.",
           "뜨거운 밥 위에 고기, 양파, 국물을 얹고 파를 올려 낸다."
         ]
       }
@@ -1752,8 +1752,8 @@
         "ko": "오야코동"
       },
       "intro": {
-        "en": "Japanese rice bowl of chicken and egg cooked together in one pan.",
-        "ko": "닭고기와 달걀을 함께 조려 밥에 얹은 일본의 덮밥."
+        "en": "Chicken and egg gently simmered with onion and served over rice.",
+        "ko": "닭고기와 계란을 양파와 함께 조려 밥 위에 얹은 일본식 덮밥."
       },
       "cuisine": "japanese",
       "minutes": 20,
@@ -1807,17 +1807,17 @@
       "steps": {
         "en": [
           "Simmer water, soy sauce, mirin, and sugar in a small pan.",
-          "Add the sliced onion and chicken and cook until the chicken is done.",
+          "Add the sliced onion and chicken and cook until the chicken is done. Check the thickest piece reaches 74°C (165°F) with a food thermometer.",
           "Beat the eggs loosely so streaks of white remain.",
           "Pour the eggs over the chicken in two batches, covering the pan after each pour.",
-          "When the egg is softly set, slide everything over a bowl of hot rice and top with green onion."
+          "When the egg is set with no liquid remaining, slide everything over hot rice and top with green onion."
         ],
         "ko": [
           "작은 팬에 물, 간장, 미림, 설탕을 넣고 끓인다.",
-          "채 썬 양파와 닭고기를 넣고 닭이 익을 때까지 끓인다.",
+          "채 썬 양파와 닭고기를 넣고 닭이 익을 때까지 끓인다. 가장 두꺼운 살의 중심 온도가 74°C 이상인지 식품용 온도계로 확인한다.",
           "계란은 흰자 결이 살짝 남을 정도로만 푼다.",
           "계란물을 두 번에 나눠 붓고 그때마다 뚜껑을 덮는다.",
-          "계란이 반숙으로 몽글하게 익으면 뜨거운 밥 위에 미끄러뜨려 얹고 쪽파를 올린다."
+          "계란물이 남지 않게 익으면 따뜻한 밥 위에 얹고 쪽파를 올린다."
         ]
       }
     },
@@ -1828,8 +1828,8 @@
         "ko": "미소시루"
       },
       "intro": {
-        "en": "Japanese miso soup with tofu and wakame in dashi.",
-        "ko": "다시 국물에 미소를 풀고 두부와 미역을 넣은 일본의 국."
+        "en": "Tofu and wakame warmed in dashi with miso paste.",
+        "ko": "가쓰오 육수에 미소 된장을 풀고 두부와 미역을 넣은 국."
       },
       "cuisine": "japanese",
       "minutes": 10,
@@ -1884,8 +1884,8 @@
         "ko": "야키소바"
       },
       "intro": {
-        "en": "Japanese wheat noodles stir-fried with pork and cabbage in a tangy sauce.",
-        "ko": "중화면을 돼지고기·양배추와 함께 소스에 볶은 일본의 면요리."
+        "en": "Wheat noodles stir-fried with pork and cabbage in a tangy sauce.",
+        "ko": "돼지고기와 양배추를 넣고 새콤달콤한 소스에 볶은 일본식 면요리."
       },
       "cuisine": "japanese",
       "minutes": 20,
@@ -1965,8 +1965,8 @@
         "ko": "카레라이스"
       },
       "intro": {
-        "en": "Mild, thick Japanese curry ladled over rice.",
-        "ko": "감자와 당근을 넣어 걸쭉하게 끓여 밥에 부어 먹는 일본식 카레."
+        "en": "A mild, thick curry with meat, potato and carrot, served over rice.",
+        "ko": "고기, 감자, 당근을 넣어 걸쭉하게 끓이고 밥에 곁들이는 카레."
       },
       "cuisine": "japanese",
       "minutes": 40,
@@ -2056,8 +2056,8 @@
         "ko": "일본식 계란찜 (자완무시)"
       },
       "intro": {
-        "en": "Japanese savory egg custard, steamed soft with shrimp and mushroom.",
-        "ko": "달걀을 육수에 풀어 새우와 버섯을 넣고 부드럽게 찐 일본의 계란찜."
+        "en": "Savory steamed egg custard with shrimp and shiitake mushrooms.",
+        "ko": "육수에 푼 계란에 새우와 표고버섯을 넣어 부드럽게 찐 자완무시."
       },
       "cuisine": "japanese",
       "minutes": 25,
@@ -2103,14 +2103,14 @@
           "Beat the eggs gently with cooled dashi, soy sauce, and salt, avoiding bubbles.",
           "Strain the mixture for a silky texture and pour it into heatproof cups.",
           "Add a shrimp and a few mushroom slices to each cup.",
-          "Cover the cups and steam them over low heat for about 15 minutes until just set.",
+          "Cover and steam over low heat for about 15 minutes, until the egg is set and the shrimp are opaque throughout. Check the center reaches 71°C (160°F).",
           "Garnish with green onion and serve warm with a spoon."
         ],
         "ko": [
           "식힌 육수, 간장, 소금을 계란에 넣고 거품이 나지 않게 살살 푼다.",
           "체에 걸러 부드러운 질감을 만들고 내열 컵에 붓는다.",
           "컵마다 새우와 표고버섯 몇 조각을 넣는다.",
-          "뚜껑을 덮고 약불에서 15분 정도, 겨우 굳을 만큼만 찐다.",
+          "뚜껑을 덮고 약불에서 약 15분간 찐다. 계란물이 굳고 새우 속까지 불투명하게 익었는지 확인한다. 중심 온도 71°C 이상을 확인한다.",
           "쪽파를 올려 숟가락과 함께 따뜻하게 낸다."
         ]
       }
@@ -2122,8 +2122,8 @@
         "ko": "연어구이 정식"
       },
       "intro": {
-        "en": "Japanese set meal built around salted, grilled salmon with rice.",
-        "ko": "소금 간해 구운 연어에 밥을 곁들인 일본의 정식 한 상."
+        "en": "Salted salmon grilled and served with rice, grated radish and lemon.",
+        "ko": "소금 간해 구운 연어에 밥, 간 무, 레몬을 곁들인 정식."
       },
       "cuisine": "japanese",
       "minutes": 25,
@@ -2169,14 +2169,14 @@
           "Pat the salmon dry and season both sides with salt and pepper.",
           "Let it sit for 10 minutes, then wipe off the surface moisture again.",
           "Heat a lightly oiled pan and cook the salmon skin-side down until the skin crisps.",
-          "Flip once and cook until the flesh flakes easily.",
+          "Flip once and cook until the flesh flakes easily. Check the thickest part reaches 63°C (145°F) with a food thermometer.",
           "Plate with hot rice, grated radish, and a lemon wedge to squeeze over the fish."
         ],
         "ko": [
           "연어의 물기를 닦고 양면에 소금과 후추를 뿌린다.",
           "10분간 두었다가 표면에 배어 나온 수분을 다시 닦는다.",
           "기름을 얇게 두른 팬에 껍질 면부터 바삭해질 때까지 굽는다.",
-          "한 번만 뒤집어 살이 포슬하게 익을 때까지 굽는다.",
+          "한 번만 뒤집어 살이 포슬하게 익을 때까지 굽는다. 가장 두꺼운 살의 중심 온도가 63°C 이상인지 식품용 온도계로 확인한다.",
           "뜨거운 밥, 간 무, 레몬 조각과 함께 접시에 담아 낸다."
         ]
       }
@@ -2188,16 +2188,16 @@
         "ko": "계란볶음밥"
       },
       "intro": {
-        "en": "Chinese fried rice, egg and day-old rice thrown over high heat.",
-        "ko": "찬밥과 달걀을 센 불에 빠르게 볶아 낸 중국식 볶음밥."
+        "en": "Rice and scrambled egg tossed over high heat with green onion.",
+        "ko": "밥과 계란을 대파와 함께 센 불에 빠르게 볶은 볶음밥."
       },
       "cuisine": "chinese",
       "minutes": 15,
       "ingredients": [
         {
           "ref": "rice",
-          "en": "cooked rice (day-old is best)",
-          "ko": "밥 (찬밥이 좋음)"
+          "en": "cooked rice (cooled promptly and refrigerated)",
+          "ko": "밥 (조리 후 바로 식혀 냉장 보관한 것)"
         },
         {
           "ref": "egg",
@@ -2259,8 +2259,8 @@
         "ko": "마파두부"
       },
       "intro": {
-        "en": "Sichuan tofu braised with ground pork in a numbing chili sauce.",
-        "ko": "두부를 다진 돼지고기와 매운 소스에 조린 중국 쓰촨의 요리."
+        "en": "Tofu and ground pork simmered in a spicy doubanjiang sauce.",
+        "ko": "두부와 다진 돼지고기를 매콤한 두반장 소스에 끓인 마파두부."
       },
       "cuisine": "chinese",
       "minutes": 25,
@@ -2326,7 +2326,7 @@
           "Blanch the tofu cubes in lightly salted water so they hold their shape.",
           "Fry the ground pork in oil until crumbly, then add garlic, ginger, and chili bean paste.",
           "When the oil turns red and fragrant, add water, soy sauce, and sugar.",
-          "Slide in the tofu and simmer gently for 3 to 4 minutes.",
+          "Slide in the tofu and simmer gently for 3 to 4 minutes. Check the meat reaches 71°C (160°F) with a food thermometer.",
           "Thicken with a starch slurry and scatter chopped green onion on top.",
           "Serve bubbling hot over rice."
         ],
@@ -2334,7 +2334,7 @@
           "두부가 부서지지 않도록 소금물에 살짝 데친다.",
           "기름에 다진 돼지고기를 고슬하게 볶고 마늘, 생강, 두반장을 넣는다.",
           "기름이 붉게 배어 향이 오르면 물, 간장, 설탕을 넣는다.",
-          "두부를 넣고 3~4분간 약하게 끓인다.",
+          "두부를 넣고 3~4분간 약하게 끓인다. 식품용 온도계로 고기의 중심 온도 71°C 이상을 확인한다.",
           "물전분으로 농도를 잡고 썬 대파를 올린다.",
           "보글보글 끓는 채로 밥 위에 얹어 낸다."
         ]
@@ -2347,8 +2347,8 @@
         "ko": "청경채 마늘볶음"
       },
       "intro": {
-        "en": "Chinese bok choy flashed in the wok with sliced garlic.",
-        "ko": "청경채를 마늘과 함께 센 불에 재빨리 볶은 중국식 채소 요리."
+        "en": "Bok choy quickly stir-fried with garlic and oyster sauce.",
+        "ko": "청경채를 마늘, 굴소스와 함께 센 불에 재빨리 볶은 채소 요리."
       },
       "cuisine": "chinese",
       "minutes": 10,
@@ -2406,8 +2406,8 @@
         "ko": "깐풍기풍 닭요리"
       },
       "intro": {
-        "en": "Chinese-style fried chicken tossed in a sweet, garlicky chili glaze.",
-        "ko": "튀긴 닭을 마늘·고추 간장 소스에 버무린 중화풍 닭요리."
+        "en": "Crisp fried chicken tossed in a sweet, garlicky chili sauce.",
+        "ko": "바삭하게 튀긴 닭을 마늘과 고추가 들어간 새콤달콤한 소스에 버무린 요리."
       },
       "cuisine": "chinese",
       "minutes": 35,
@@ -2471,7 +2471,7 @@
       "steps": {
         "en": [
           "Season the chicken pieces with pepper and coat them thoroughly in potato starch.",
-          "Deep-fry the chicken in hot oil until golden, then fry once more briefly for extra crunch.",
+          "Deep-fry the chicken in hot oil until golden, then fry once more briefly for extra crunch. Check the thickest piece reaches 74°C (165°F) with a food thermometer.",
           "Mix soy sauce, vinegar, and sugar into a sweet-and-sour sauce.",
           "In a clean pan, quickly fry the garlic, ginger, chili peppers, and green onion in a little oil.",
           "Pour in the sauce, let it bubble for a few seconds, and toss the fried chicken through it.",
@@ -2479,7 +2479,7 @@
         ],
         "ko": [
           "닭고기에 후추로 밑간하고 감자 전분을 골고루 입힌다.",
-          "뜨거운 기름에 닭을 노릇하게 튀기고 한 번 더 짧게 튀겨 바삭함을 더한다.",
+          "뜨거운 기름에 닭을 노릇하게 튀기고 한 번 더 짧게 튀겨 바삭함을 더한다. 가장 두꺼운 살의 중심 온도가 74°C 이상인지 식품용 온도계로 확인한다.",
           "간장, 식초, 설탕을 섞어 새콤달콤한 소스를 만든다.",
           "깨끗한 팬에 기름을 약간 두르고 마늘, 생강, 고추, 대파를 재빨리 볶는다.",
           "소스를 붓고 몇 초간 끓인 뒤 튀긴 닭을 넣어 버무린다.",
@@ -2494,8 +2494,8 @@
         "ko": "토마토 계란볶음"
       },
       "intro": {
-        "en": "Chinese home cooking that scrambles eggs into stewed tomato.",
-        "ko": "토마토와 달걀을 함께 볶아 낸 중국의 대표 가정식."
+        "en": "Soft scrambled eggs folded into juicy cooked tomatoes.",
+        "ko": "촉촉하게 익힌 토마토에 부드러운 스크램블에그를 넣고 볶은 요리."
       },
       "cuisine": "chinese",
       "minutes": 15,
@@ -2561,8 +2561,8 @@
         "ko": "닭고기 볶음면"
       },
       "intro": {
-        "en": "Chinese chow mein, noodles tossed with chicken and shredded vegetables.",
-        "ko": "면을 닭고기·채소와 함께 볶아 낸 중국의 볶음면."
+        "en": "Wheat noodles tossed with chicken and vegetables in soy and oyster sauce.",
+        "ko": "닭고기와 채소를 넣고 간장, 굴소스에 볶은 중화풍 볶음면."
       },
       "cuisine": "chinese",
       "minutes": 25,
@@ -2626,17 +2626,17 @@
       "steps": {
         "en": [
           "Boil the noodles until just cooked, drain, and toss with a little oil so they do not stick.",
-          "Stir-fry the chicken strips with garlic over high heat until cooked through.",
+          "Stir-fry the chicken strips with garlic over high heat until cooked through. Check the thickest piece reaches 74°C (165°F) with a food thermometer.",
           "Add the cabbage, carrot, and onion and cook until slightly softened.",
           "Add the noodles, soy sauce, and oyster sauce and toss everything together.",
-          "Stir in the bean sprouts and sesame oil at the end so they keep their crunch."
+          "Add the bean sprouts and stir-fry until cooked through, then finish with sesame oil."
         ],
         "ko": [
           "면을 삶아 물기를 빼고 서로 붙지 않게 기름을 약간 넣어 버무린다.",
-          "센 불에서 닭고기와 마늘을 완전히 익도록 볶는다.",
+          "센 불에서 닭고기와 마늘을 완전히 익도록 볶는다. 가장 두꺼운 살의 중심 온도가 74°C 이상인지 식품용 온도계로 확인한다.",
           "양배추, 당근, 양파를 넣고 살짝 숨이 죽을 때까지 볶는다.",
           "면, 간장, 굴소스를 넣고 골고루 섞으며 볶는다.",
-          "마지막에 숙주와 참기름을 넣어 아삭함을 살려 마무리한다."
+          "숙주나 콩나물을 넣고 속까지 익도록 볶은 뒤 참기름으로 마무리한다."
         ]
       }
     },
@@ -2647,8 +2647,8 @@
         "ko": "팟타이"
       },
       "intro": {
-        "en": "Thai rice noodles stir-fried sweet and sour with tamarind and peanuts.",
-        "ko": "쌀국수를 타마린드 소스에 새콤달콤하게 볶은 태국의 국민 면요리."
+        "en": "Thai rice noodles with shrimp, tamarind sauce and crushed peanuts.",
+        "ko": "새우와 쌀국수를 타마린드 소스에 볶아 땅콩을 올린 태국식 볶음면."
       },
       "cuisine": "thai",
       "minutes": 25,
@@ -2728,7 +2728,7 @@
           "Stir fish sauce, tamarind paste, and sugar together to make the pad thai sauce.",
           "Stir-fry the garlic, tofu, and shrimp in hot oil until the shrimp turn pink.",
           "Push everything aside, scramble the egg in the pan, then add the noodles and sauce.",
-          "Toss over high heat until the noodles absorb the sauce, then fold in the bean sprouts and green onion.",
+          "Toss until the noodles absorb the sauce, then add the bean sprouts and green onion and cook through.",
           "Serve with crushed peanuts and a lime wedge on the side."
         ],
         "ko": [
@@ -2736,7 +2736,7 @@
           "피시소스, 타마린드 페이스트, 설탕을 섞어 팟타이 소스를 만든다.",
           "뜨거운 기름에 마늘, 두부, 새우를 새우가 붉어질 때까지 볶는다.",
           "재료를 한쪽으로 밀고 계란을 스크램블한 뒤 면과 소스를 넣는다.",
-          "면이 소스를 흡수하도록 센 불에서 볶고 숙주와 쪽파를 섞는다.",
+          "면에 소스가 배도록 볶고 숙주와 쪽파를 넣어 속까지 익힌다.",
           "다진 땅콩과 라임 조각을 곁들여 낸다."
         ]
       }
@@ -2748,8 +2748,8 @@
         "ko": "그린커리"
       },
       "intro": {
-        "en": "Thai curry built on coconut milk loosened with green chili paste.",
-        "ko": "코코넛 밀크에 그린커리 페이스트를 풀어 끓인 태국의 커리."
+        "en": "Chicken and vegetables simmered in coconut milk and green curry paste.",
+        "ko": "닭고기와 채소를 코코넛 밀크, 그린커리 페이스트에 끓인 태국식 커리."
       },
       "cuisine": "thai",
       "minutes": 30,
@@ -2811,14 +2811,14 @@
           "Fry the green curry paste in a little oil until it smells fragrant.",
           "Add half of the coconut milk and simmer until the oil separates slightly.",
           "Add the chicken and cook until it turns opaque.",
-          "Pour in the remaining coconut milk with the eggplant and bell pepper and simmer until tender.",
+          "Pour in the remaining coconut milk with the eggplant and bell pepper and simmer until tender. Check the thickest piece reaches 74°C (165°F) with a food thermometer.",
           "Season with fish sauce and sugar, stir in the basil, and serve over rice."
         ],
         "ko": [
           "기름을 약간 두르고 그린커리 페이스트를 향이 날 때까지 볶는다.",
           "코코넛 밀크 절반을 넣고 기름이 살짝 분리될 때까지 끓인다.",
           "닭고기를 넣고 겉이 하얗게 익을 때까지 익힌다.",
-          "남은 코코넛 밀크와 가지, 파프리카를 넣고 부드러워질 때까지 끓인다.",
+          "남은 코코넛 밀크와 가지, 파프리카를 넣고 부드러워질 때까지 끓인다. 가장 두꺼운 살의 중심 온도가 74°C 이상인지 식품용 온도계로 확인한다.",
           "피시소스와 설탕으로 간하고 바질을 섞어 밥 위에 얹어 낸다."
         ]
       }
@@ -2830,8 +2830,8 @@
         "ko": "반미풍 샌드위치"
       },
       "intro": {
-        "en": "Vietnamese baguette sandwich with pork and pickled vegetables.",
-        "ko": "바게트에 고기와 절인 채소를 채운 베트남의 샌드위치."
+        "en": "A baguette filled with pork, pickled vegetables and fresh herbs.",
+        "ko": "바게트에 돼지고기와 절인 채소, 허브를 채운 반미풍 샌드위치."
       },
       "cuisine": "vietnamese",
       "minutes": 20,
@@ -2921,16 +2921,16 @@
         "ko": "나시고렝"
       },
       "intro": {
-        "en": "Indonesian fried rice, darkened and sweetened with kecap manis.",
-        "ko": "달콤한 간장에 볶아 진한 색을 낸 인도네시아의 볶음밥."
+        "en": "Indonesian fried rice seasoned with sweet soy sauce and topped with an egg.",
+        "ko": "달콤한 간장에 밥을 볶고 계란을 올린 인도네시아식 볶음밥."
       },
       "cuisine": "thai",
       "minutes": 20,
       "ingredients": [
         {
           "ref": "rice",
-          "en": "cooked rice (day-old is best)",
-          "ko": "밥 (찬밥이 좋음)"
+          "en": "cooked rice (cooled promptly and refrigerated)",
+          "ko": "밥 (조리 후 바로 식혀 냉장 보관한 것)"
         },
         {
           "ref": "egg",
@@ -2986,14 +2986,14 @@
       "steps": {
         "en": [
           "Pound or finely chop the garlic, onion, and chili into a rough paste.",
-          "Fry the paste in oil until fragrant, then add the chicken and cook through.",
+          "Fry the paste in oil until fragrant, then add the chicken and cook through. Check the thickest piece reaches 74°C (165°F) with a food thermometer.",
           "Add the rice and break it up while stir-frying over high heat.",
           "Season with sweet soy sauce, regular soy sauce, and salt until the rice turns glossy brown.",
           "Serve topped with a fried egg and cucumber slices on the side."
         ],
         "ko": [
           "마늘, 양파, 고추를 찧거나 잘게 다져 거친 페이스트를 만든다.",
-          "기름에 페이스트를 향이 나게 볶은 뒤 닭고기를 넣어 익힌다.",
+          "기름에 페이스트를 향이 나게 볶은 뒤 닭고기를 넣어 익힌다. 가장 두꺼운 살의 중심 온도가 74°C 이상인지 식품용 온도계로 확인한다.",
           "밥을 넣고 센 불에서 덩어리를 풀어가며 볶는다.",
           "케찹 마니스, 간장, 소금으로 간해 밥이 윤기 나는 갈색이 되게 한다.",
           "계란 프라이를 올리고 오이를 곁들여 낸다."
@@ -3007,8 +3007,8 @@
         "ko": "소고기 쌀국수"
       },
       "intro": {
-        "en": "Vietnamese rice noodles served in clear beef broth and finished with herbs.",
-        "ko": "맑은 소고기 육수에 쌀국수를 말아 낸 베트남의 국수."
+        "en": "Rice noodles in an aromatic broth with thinly sliced beef and green onion.",
+        "ko": "향신료를 넣은 국물에 쌀국수와 얇은 소고기를 익혀 담고 파를 올린 국수."
       },
       "cuisine": "vietnamese",
       "minutes": 40,
@@ -3080,16 +3080,16 @@
           "Simmer them in water with star anise for 25 minutes to build the broth.",
           "Strain the broth and season it with fish sauce, sugar, and salt.",
           "Cook the rice noodles according to their soaking or boiling time and divide them into bowls.",
-          "Lay the raw beef slices over the noodles and pour the boiling broth on top to cook them.",
-          "Serve with bean sprouts, green onion, and a squeeze of lime."
+          "Add the beef to the simmering broth and cook through before ladling it over the noodles.",
+          "Briefly cook the bean sprouts in the broth, add them to the bowls, and finish with green onion and lime."
         ],
         "ko": [
           "마른 팬에 양파 반쪽과 생강 편의 겉면이 거뭇해질 때까지 굽는다.",
           "구운 양파와 생강을 팔각과 함께 물에 넣고 25분간 끓여 육수를 만든다.",
           "육수를 체에 거르고 피시소스, 설탕, 소금으로 간한다.",
           "쌀국수 면을 불리거나 삶아 그릇에 나눠 담는다.",
-          "면 위에 생소고기를 얹고 팔팔 끓는 육수를 부어 고기를 익힌다.",
-          "숙주, 쪽파, 라임즙을 곁들여 낸다."
+          "끓는 육수에 소고기를 넣어 속까지 익힌 뒤 국수에 부어 낸다.",
+          "숙주는 육수에 넣어 익힌 뒤 그릇에 담고 대파와 라임즙을 곁들인다."
         ]
       }
     },
@@ -3100,8 +3100,8 @@
         "ko": "토마토 파스타"
       },
       "intro": {
-        "en": "Italian pasta in a tomato sauce cooked down with garlic and olive oil.",
-        "ko": "토마토를 마늘과 함께 졸여 만든 이탈리아의 기본 파스타."
+        "en": "Pasta tossed in tomato sauce simmered with garlic and olive oil.",
+        "ko": "토마토를 마늘, 올리브유와 함께 졸인 소스에 버무린 파스타."
       },
       "cuisine": "italian",
       "minutes": 25,
@@ -3176,8 +3176,8 @@
         "ko": "까르보나라풍 파스타"
       },
       "intro": {
-        "en": "Roman pasta bound with egg and cheese, not cream.",
-        "ko": "달걀과 치즈만으로 소스를 낸 이탈리아 로마식 파스타."
+        "en": "Pasta coated in egg and cheese sauce with crisp bacon.",
+        "ko": "바삭한 베이컨을 넣고 계란과 치즈 소스에 버무린 파스타."
       },
       "cuisine": "italian",
       "minutes": 20,
@@ -3194,8 +3194,8 @@
         },
         {
           "ref": "egg",
-          "en": "eggs",
-          "ko": "달걀"
+          "en": "pasteurized eggs",
+          "ko": "살균 처리한 계란"
         },
         {
           "ref": "parmesan",
@@ -3217,14 +3217,14 @@
         "en": [
           "Cook the pasta in salted boiling water until just tender and reserve a cup of the cooking water.",
           "While the pasta cooks, fry the bacon strips in a pan until crisp, then take the pan off the heat.",
-          "Whisk the eggs with the grated parmesan and plenty of black pepper in a bowl.",
+          "Whisk pasteurized eggs with grated parmesan and plenty of black pepper; the sauce is not fully cooked.",
           "Add the hot drained pasta to the bacon pan, then pour in the egg mixture off the heat, tossing quickly.",
           "Loosen with reserved pasta water a spoonful at a time until the sauce turns creamy, then serve with extra pepper."
         ],
         "ko": [
           "소금 넣은 끓는 물에 파스타를 알맞게 삶고 면수를 한 컵 정도 남겨 둔다.",
           "파스타를 삶는 동안 팬에 베이컨을 바삭하게 구운 뒤 불을 끈다.",
-          "볼에 달걀, 간 파마산 치즈, 후추 넉넉히를 넣고 잘 푼다.",
+          "소스가 완전히 가열되지 않으므로 살균 처리한 계란을 쓴다. 파마산과 후추를 넣어 푼다.",
           "뜨거운 파스타를 베이컨 팬에 옮기고 불을 끈 상태에서 달걀물을 부어 재빨리 버무린다.",
           "남긴 면수를 한 숟갈씩 넣어 크리미한 농도를 맞춘 뒤 후추를 더 뿌려 낸다."
         ]
@@ -3237,8 +3237,8 @@
         "ko": "알리오 올리오"
       },
       "intro": {
-        "en": "Italian pasta dressed with nothing but garlic, olive oil and chili.",
-        "ko": "마늘과 올리브유, 고추만으로 낸 이탈리아의 파스타."
+        "en": "Pasta tossed with garlic, olive oil and chili.",
+        "ko": "마늘과 올리브유, 고추로 맛을 낸 파스타."
       },
       "cuisine": "italian",
       "minutes": 15,
@@ -3298,8 +3298,8 @@
         "ko": "마르게리타풍 토스트"
       },
       "intro": {
-        "en": "Tomato, mozzarella and basil on toast, in the Italian margherita style.",
-        "ko": "토마토와 모차렐라를 얹어 구운 이탈리아 마르게리타풍 토스트."
+        "en": "Toast topped with tomato and melted mozzarella, with basil if you like.",
+        "ko": "토마토와 모차렐라를 올려 치즈를 녹이고 취향껏 바질을 더한 토스트."
       },
       "cuisine": "italian",
       "minutes": 10,
@@ -3363,8 +3363,8 @@
         "ko": "미네스트로네"
       },
       "intro": {
-        "en": "Italian vegetable soup, built from whatever the season gives.",
-        "ko": "제철 채소를 두루 넣고 끓인 이탈리아의 채소 수프."
+        "en": "A chunky Italian soup with potato, zucchini and other vegetables.",
+        "ko": "감자, 주키니, 채소를 넣어 건더기가 든든한 이탈리아식 수프."
       },
       "cuisine": "italian",
       "minutes": 35,
@@ -3450,8 +3450,8 @@
         "ko": "버섯 리조또"
       },
       "intro": {
-        "en": "Italian risotto stirred slowly with mushrooms until the rice turns creamy.",
-        "ko": "쌀을 육수에 천천히 저어 버섯과 함께 끓인 이탈리아의 리조또."
+        "en": "Rice slowly stirred with stock and mushrooms until creamy.",
+        "ko": "쌀에 육수를 조금씩 부으며 버섯과 함께 부드럽게 익힌 리조또."
       },
       "cuisine": "italian",
       "minutes": 35,
@@ -3533,8 +3533,8 @@
         "ko": "카프레제"
       },
       "intro": {
-        "en": "Italian salad of tomato and mozzarella, dressed with oil alone.",
-        "ko": "토마토와 모차렐라에 올리브유만 곁들인 이탈리아의 샐러드."
+        "en": "Sliced tomato, mozzarella and basil with olive oil and a little vinegar.",
+        "ko": "토마토, 모차렐라, 바질에 올리브유와 식초를 곁들인 샐러드."
       },
       "cuisine": "italian",
       "minutes": 10,
@@ -3597,8 +3597,8 @@
         "ko": "라자냐풍 베이크"
       },
       "intro": {
-        "en": "Pasta layered with meat sauce and cheese, then baked Italian style.",
-        "ko": "파스타에 미트소스와 치즈를 켜켜이 올려 구운 이탈리아풍 베이크."
+        "en": "Layers of pasta, meat sauce and cheese baked until bubbling.",
+        "ko": "파스타, 미트소스, 치즈를 겹겹이 쌓아 오븐에 구운 요리."
       },
       "cuisine": "italian",
       "minutes": 50,
@@ -3671,20 +3671,20 @@
       ],
       "steps": {
         "en": [
-          "Boil the pasta until slightly underdone, then drain it.",
+          "Heat the oven to 190°C (375°F). Boil the pasta until slightly underdone, then drain.",
           "Brown the ground beef with onion and garlic in olive oil, then add the tomatoes and simmer into a meat sauce seasoned with salt and pepper.",
           "Melt butter in a small pot, stir in flour for a minute, then whisk in milk gradually to make a smooth white sauce.",
           "In a baking dish, layer pasta, meat sauce, and white sauce, repeating once more.",
           "Cover the top with mozzarella and parmesan.",
-          "Bake at 190 degrees Celsius until bubbling and golden, about twenty minutes, then rest briefly before serving."
+          "Bake for about 20 minutes until bubbling and golden and the center reaches 74°C (165°F), then rest briefly."
         ],
         "ko": [
-          "파스타를 살짝 덜 익게 삶아 건져 둔다.",
+          "오븐을 190°C로 예열한다. 파스타는 살짝 덜 익게 삶아 물기를 뺀다.",
           "올리브오일에 다진 소고기, 양파, 마늘을 볶다가 토마토를 넣고 소금·후추로 간해 미트소스를 만든다.",
           "작은 냄비에 버터를 녹여 밀가루를 1분간 볶고 우유를 조금씩 넣어 부드러운 화이트소스를 만든다.",
           "오븐 용기에 파스타, 미트소스, 화이트소스 순으로 담고 한 번 더 반복해 층을 쌓는다.",
           "맨 위에 모짜렐라와 파마산 치즈를 덮는다.",
-          "190도 오븐에서 20분 정도 노릇하게 구운 뒤 잠시 식혀 낸다."
+          "약 20분간 노릇하게 굽고 중심 온도 74°C 이상을 확인한 뒤 잠시 두었다 낸다."
         ]
       }
     },
@@ -3695,8 +3695,8 @@
         "ko": "스크램블에그"
       },
       "intro": {
-        "en": "Eggs stirred soft in butter for the standard American breakfast plate.",
-        "ko": "달걀을 버터에 부드럽게 저어 익힌 미국식 아침 달걀 요리."
+        "en": "Eggs gently stirred in butter until soft and just set.",
+        "ko": "계란을 버터에 천천히 저어 부드럽게 익힌 스크램블에그."
       },
       "cuisine": "american",
       "minutes": 10,
@@ -3733,14 +3733,14 @@
           "Melt butter in a nonstick pan over medium-low heat without letting it brown.",
           "Pour in the eggs and let them sit a few seconds before stirring gently.",
           "Keep folding the eggs slowly until they form soft, glossy curds.",
-          "Take the pan off the heat while slightly underdone, season with pepper, and serve."
+          "Once no liquid egg remains, take the pan off the heat, season with pepper, and serve."
         ],
         "ko": [
           "달걀에 우유 약간과 소금 한 꼬집을 넣고 색이 고르게 풀리도록 젓는다.",
           "코팅 팬에 버터를 중약불로 녹이되 갈색이 나지 않게 한다.",
           "달걀물을 붓고 몇 초 기다렸다가 부드럽게 젓기 시작한다.",
           "달걀이 촉촉하고 몽글몽글한 덩어리가 되도록 천천히 뒤적인다.",
-          "살짝 덜 익었을 때 불에서 내려 후추를 뿌려 낸다."
+          "계란물이 남지 않게 익으면 불에서 내려 후추로 간하고 낸다."
         ]
       }
     },
@@ -3751,8 +3751,8 @@
         "ko": "치즈 오믈렛"
       },
       "intro": {
-        "en": "American diner omelette folded around melting cheese.",
-        "ko": "달걀을 부쳐 치즈를 넣고 반으로 접어 낸 미국식 오믈렛."
+        "en": "An omelette folded around melted cheese.",
+        "ko": "계란을 부쳐 녹인 치즈를 넣고 반으로 접은 오믈렛."
       },
       "cuisine": "american",
       "minutes": 10,
@@ -3794,14 +3794,14 @@
           "Melt butter in a nonstick pan over medium heat and pour in the eggs.",
           "As the edges set, pull them toward the center and tilt the pan so raw egg fills the gaps.",
           "When the surface is still slightly wet, lay the cheese over one half.",
-          "Fold the omelette over the cheese, slide it onto a plate, and serve warm."
+          "Fold over the cheese and cook gently until no liquid egg remains, then slide onto a plate."
         ],
         "ko": [
           "달걀에 우유, 소금, 후추를 넣고 매끈하게 푼다.",
           "코팅 팬에 버터를 중불로 녹이고 달걀물을 붓는다.",
           "가장자리가 익기 시작하면 안쪽으로 끌어모으며 팬을 기울여 덜 익은 달걀이 빈자리를 채우게 한다.",
           "표면이 아직 살짝 촉촉할 때 반쪽에 치즈를 올린다.",
-          "치즈를 감싸듯 반으로 접어 접시에 미끄러뜨려 담고 따뜻할 때 낸다."
+          "치즈를 덮도록 반으로 접고 계란물이 남지 않게 익힌 뒤 접시에 담는다."
         ]
       }
     },
@@ -3812,8 +3812,8 @@
         "ko": "팬케이크"
       },
       "intro": {
-        "en": "Thick, fluffy American pancakes served in a stack with syrup.",
-        "ko": "반죽을 도톰하게 부쳐 시럽을 곁들이는 미국의 팬케이크."
+        "en": "Thick, fluffy pancakes served with honey or syrup.",
+        "ko": "도톰하게 부친 팬케이크에 꿀이나 시럽을 곁들인 한 접시."
       },
       "cuisine": "american",
       "minutes": 20,
@@ -3885,8 +3885,8 @@
         "ko": "프렌치토스트"
       },
       "intro": {
-        "en": "Bread soaked in egg and milk, then griddled for an American brunch staple.",
-        "ko": "빵을 달걀물에 적셔 노릇하게 구운 미국식 브런치 토스트."
+        "en": "Bread soaked in egg and milk, then pan-fried until golden.",
+        "ko": "빵을 계란과 우유에 적셔 노릇하게 구운 프렌치토스트."
       },
       "cuisine": "american",
       "minutes": 15,
@@ -3933,14 +3933,14 @@
           "Whisk the eggs, milk, sugar, and cinnamon if using in a wide, shallow dish.",
           "Soak each bread slice in the mixture for a few seconds per side.",
           "Melt butter in a pan over medium heat.",
-          "Cook the soaked bread until golden brown on both sides.",
+          "Cook until golden on both sides and the egg mixture is set all the way through the bread.",
           "Serve warm with honey or syrup drizzled on top."
         ],
         "ko": [
           "넓은 그릇에 달걀, 우유, 설탕, 시나몬(선택)을 넣고 잘 푼다.",
           "식빵을 앞뒤로 몇 초씩 담가 달걀물을 입힌다.",
           "팬에 버터를 중불로 녹인다.",
-          "적신 빵을 양면이 노릇해질 때까지 굽는다.",
+          "양면을 노릇하게 굽고 빵 안쪽의 계란물까지 익힌다.",
           "꿀이나 시럽을 뿌려 따뜻할 때 낸다."
         ]
       }
@@ -3952,8 +3952,8 @@
         "ko": "그릴드 치즈 샌드위치"
       },
       "intro": {
-        "en": "American sandwich of buttered bread griddled until the cheese melts inside.",
-        "ko": "버터 바른 빵 사이에 치즈를 녹여 구운 미국의 샌드위치."
+        "en": "Buttered bread grilled until crisp with melted cheese in the middle.",
+        "ko": "버터 바른 빵 사이에 치즈를 넣고 겉을 바삭하게 구운 샌드위치."
       },
       "cuisine": "american",
       "minutes": 10,
@@ -3998,8 +3998,8 @@
         "ko": "BLT 샌드위치"
       },
       "intro": {
-        "en": "American sandwich of bacon, lettuce and tomato, held together with mayo.",
-        "ko": "베이컨과 상추, 토마토를 넣은 미국의 대표 샌드위치."
+        "en": "Crisp bacon, lettuce and tomato layered on bread with mayonnaise.",
+        "ko": "바삭한 베이컨과 상추, 토마토에 마요네즈를 곁들인 샌드위치."
       },
       "cuisine": "american",
       "minutes": 15,
@@ -4059,8 +4059,8 @@
         "ko": "치킨 샐러드"
       },
       "intro": {
-        "en": "Sliced chicken laid over greens with a light dressing, American style.",
-        "ko": "구운 닭가슴살을 채소 위에 올린 미국식 샐러드."
+        "en": "Sliced chicken over crisp vegetables with a lemon and mustard dressing.",
+        "ko": "아삭한 채소에 구운 닭가슴살을 올리고 레몬 머스터드 드레싱을 곁들인 샐러드."
       },
       "cuisine": "american",
       "minutes": 20,
@@ -4118,14 +4118,14 @@
       ],
       "steps": {
         "en": [
-          "Season the chicken breast with salt and pepper and pan-cook it over medium heat until cooked through.",
+          "Season the chicken breast with salt and pepper and pan-cook it over medium heat until cooked through. Check the thickest piece reaches 74°C (165°F) with a food thermometer.",
           "Rest the chicken briefly, then slice it against the grain.",
           "Whisk olive oil, lemon juice, honey, mustard, and a pinch of salt into a dressing.",
           "Toss the lettuce, cherry tomatoes, and cucumber in a large bowl.",
           "Top with the sliced chicken, pour over the dressing, and serve."
         ],
         "ko": [
-          "닭가슴살에 소금과 후추로 밑간해 중불 팬에서 속까지 익힌다.",
+          "닭가슴살에 소금과 후추로 밑간해 중불 팬에서 속까지 익힌다. 가장 두꺼운 살의 중심 온도가 74°C 이상인지 식품용 온도계로 확인한다.",
           "닭고기를 잠시 쉬였다가 결 반대 방향으로 썬다.",
           "올리브오일, 레몬즙, 꿀, 머스터드, 소금 한 꼬집을 섞어 드레싱을 만든다.",
           "큰 볼에 양상추, 방울토마토, 오이를 담아 가볍게 섞는다.",
@@ -4140,8 +4140,8 @@
         "ko": "매쉬드 포테이토"
       },
       "intro": {
-        "en": "American mashed potatoes, whipped smooth with butter and warm milk.",
-        "ko": "삶은 감자를 버터와 우유에 곱게 으깬 미국의 곁들임 요리."
+        "en": "Boiled potatoes mashed smooth with butter and warm milk.",
+        "ko": "삶은 감자에 버터와 따뜻한 우유를 넣어 곱게 으깬 요리."
       },
       "cuisine": "american",
       "minutes": 25,
@@ -4196,8 +4196,8 @@
         "ko": "수제 버거 패티"
       },
       "intro": {
-        "en": "Ground beef bound with egg and seared into an American burger patty.",
-        "ko": "다진 소고기를 반죽해 구워 낸 미국식 수제 버거 패티."
+        "en": "Ground beef mixed with onion and egg, shaped into patties and pan-fried.",
+        "ko": "다진 소고기에 양파와 계란을 섞어 빚고 팬에 구운 패티."
       },
       "cuisine": "american",
       "minutes": 25,
@@ -4244,14 +4244,14 @@
           "Knead briefly until the mixture holds together, then divide it into portions.",
           "Shape each portion into a patty slightly wider than your bun, pressing a dimple into the center.",
           "Heat oil in a pan over medium-high heat and sear the patties without moving them for a few minutes.",
-          "Flip once and cook until the juices run clear, then rest briefly before serving."
+          "Flip and cook until a food thermometer reads 71°C (160°F) in the center, then rest briefly before serving."
         ],
         "ko": [
           "볼에 다진 소고기, 다진 양파, 달걀, 빵가루, 소금, 후추를 넣고 섞는다.",
           "반죽이 뭉칠 정도로만 치댄 뒤 몇 덩이로 나눈다.",
           "번보다 살짝 넓게 패티를 빚고 가운데를 살짝 눌러 준다.",
           "팬에 기름을 두르고 중강불에서 패티를 움직이지 않고 몇 분간 굽는다.",
-          "한 번만 뒤집어 육즙이 맑게 나올 때까지 익히고 잠시 쉬였다가 낸다."
+          "뒤집어 굽고 식품용 온도계로 중심 온도 71°C 이상을 확인한 뒤 잠시 두었다 낸다."
         ]
       }
     },
@@ -4262,8 +4262,8 @@
         "ko": "맥앤치즈"
       },
       "intro": {
-        "en": "American macaroni in a cheese sauce built on a butter roux.",
-        "ko": "마카로니를 치즈 소스에 버무린 미국의 대표 가정식."
+        "en": "Macaroni folded into a creamy cheese sauce made with butter and milk.",
+        "ko": "버터와 우유로 만든 치즈 소스에 마카로니를 버무린 요리."
       },
       "cuisine": "american",
       "minutes": 25,
@@ -4333,8 +4333,8 @@
         "ko": "퀘사디아"
       },
       "intro": {
-        "en": "Mexican tortilla folded over melted cheese and griddled flat.",
-        "ko": "토르티야에 치즈와 채소를 넣고 구워 반으로 접은 멕시코 요리."
+        "en": "A tortilla filled with cheese and vegetables, folded and toasted in a pan.",
+        "ko": "토르티야에 치즈와 채소를 채워 접고 팬에 구운 퀘사디아."
       },
       "cuisine": "mexican",
       "minutes": 15,
@@ -4394,8 +4394,8 @@
         "ko": "소고기 타코"
       },
       "intro": {
-        "en": "Mexican tacos built from seasoned beef spooned into small tortillas.",
-        "ko": "양념한 소고기를 작은 토르티야에 얹어 먹는 멕시코의 타코."
+        "en": "Small tortillas filled with seasoned ground beef and fresh vegetables.",
+        "ko": "작은 토르티야에 양념한 다진 소고기와 채소를 채운 타코."
       },
       "cuisine": "mexican",
       "minutes": 25,
@@ -4454,14 +4454,14 @@
       "steps": {
         "en": [
           "Brown the ground beef with the diced onion in a little oil over medium-high heat.",
-          "Stir in the taco seasoning with a splash of water and simmer until the meat is coated.",
+          "Stir in the taco seasoning with a splash of water and simmer until the meat is coated. Check the meat reaches 71°C (160°F) with a food thermometer.",
           "Season with salt and pepper to taste.",
           "Warm the tortillas briefly in a dry pan.",
           "Fill each tortilla with the beef, then top with lettuce, tomato, and cheese before serving."
         ],
         "ko": [
           "기름 약간에 다진 소고기와 양파를 중강불에서 볶아 익힌다.",
-          "타코 시즈닝과 물 약간을 넣고 고기에 양념이 배도록 졸인다.",
+          "타코 시즈닝과 물 약간을 넣고 고기에 양념이 배도록 졸인다. 식품용 온도계로 고기의 중심 온도 71°C 이상을 확인한다.",
           "소금과 후추로 입맛에 맞게 간을 한다.",
           "또띠아를 마른 팬에 살짝 데운다.",
           "또띠아에 고기를 채우고 양상추, 토마토, 치즈를 올려 낸다."
@@ -4475,8 +4475,8 @@
         "ko": "부리토볼"
       },
       "intro": {
-        "en": "Burrito fillings served over rice instead of wrapped, Mexican style.",
-        "ko": "부리토 속재료를 밥 위에 올려 먹는 멕시코풍 볼."
+        "en": "Rice topped with chicken, corn and vegetables, finished with lime.",
+        "ko": "밥 위에 닭고기, 옥수수, 채소를 올리고 라임을 곁들인 부리토볼."
       },
       "cuisine": "mexican",
       "minutes": 30,
@@ -4534,14 +4534,14 @@
       ],
       "steps": {
         "en": [
-          "Season the chicken pieces with salt and pepper and cook them in olive oil until golden and done.",
+          "Season the chicken pieces with salt and pepper and cook them in olive oil until golden and done. Check the thickest piece reaches 74°C (165°F) with a food thermometer.",
           "Warm the corn briefly in the same pan.",
           "Mix the diced tomato with lime juice and a pinch of salt for a quick salsa.",
           "Spoon warm rice into bowls as the base.",
           "Arrange the chicken, corn, salsa, lettuce, and avocado on top and finish with a squeeze of lime."
         ],
         "ko": [
-          "닭고기에 소금·후추로 간해 올리브오일에 노릇하게 익힌다.",
+          "닭고기에 소금·후추로 간해 올리브오일에 노릇하게 익힌다. 가장 두꺼운 살의 중심 온도가 74°C 이상인지 식품용 온도계로 확인한다.",
           "같은 팬에 옥수수를 잠깐 데운다.",
           "깍둑썬 토마토에 라임즙과 소금 한 꼬집을 섞어 간단한 살사를 만든다.",
           "그릇에 따뜻한 밥을 담아 바닥을 만든다.",
@@ -4556,8 +4556,8 @@
         "ko": "살사와 나초"
       },
       "intro": {
-        "en": "Mexican raw tomato salsa with tortilla wedges baked crisp.",
-        "ko": "생 토마토 살사에 바삭하게 구운 토르티야를 곁들인 멕시코 요리."
+        "en": "Fresh tomato salsa served with crisp, pan-toasted tortilla wedges.",
+        "ko": "생 토마토 살사에 팬에서 바삭하게 구운 토르티야 조각을 곁들인 요리."
       },
       "cuisine": "mexican",
       "minutes": 20,
@@ -4607,14 +4607,14 @@
       "steps": {
         "en": [
           "Cut the tortillas into wedges and brush them lightly with oil.",
-          "Bake or pan-toast the wedges until crisp and lightly golden.",
+          "Toast the wedges in a dry pan over medium heat, turning until crisp and lightly golden.",
           "Combine the diced tomato, onion, and minced chili in a bowl.",
           "Season the salsa with lime juice, salt, and cilantro if using, then let it sit for a few minutes.",
           "Serve the crisp chips alongside the fresh salsa for dipping."
         ],
         "ko": [
           "또띠아를 조각으로 잘라 기름을 얇게 바른다.",
-          "오븐이나 팬에서 바삭하고 노릇해질 때까지 굽는다.",
+          "마른 팬을 중불로 달궈 토르티야 조각을 뒤집어 가며 바삭하고 노릇하게 굽는다.",
           "볼에 잘게 썬 토마토, 양파, 다진 고추를 섞는다.",
           "라임즙, 소금, 고수(선택)로 간해 몇 분간 재워 맛이 어우러지게 한다.",
           "바삭한 칩에 살사를 곁들여 찍어 먹도록 낸다."
@@ -4628,8 +4628,8 @@
         "ko": "치킨 파히타"
       },
       "intro": {
-        "en": "Chicken and peppers seared hot for Mexican fajitas, wrapped at the table.",
-        "ko": "닭고기와 파프리카를 구워 토르티야에 싸 먹는 멕시코 요리."
+        "en": "Sizzling chicken and peppers to wrap in warm tortillas.",
+        "ko": "닭고기와 파프리카를 구워 따뜻한 토르티야에 싸 먹는 파히타."
       },
       "cuisine": "mexican",
       "minutes": 25,
@@ -4683,14 +4683,14 @@
       "steps": {
         "en": [
           "Toss the chicken strips with the seasoning, salt, and pepper.",
-          "Sear the chicken in oil over high heat until browned and cooked through, then set aside.",
+          "Sear the chicken in oil over high heat until browned and cooked through, then set aside. Check the thickest piece reaches 74°C (165°F) with a food thermometer.",
           "In the same pan, stir-fry the sliced peppers and onion until softened with charred edges.",
           "Return the chicken to the pan, squeeze lime over everything, and toss together.",
           "Warm the tortillas and serve the filling alongside for wrapping at the table."
         ],
         "ko": [
           "길게 썬 닭가슴살에 시즈닝, 소금, 후추를 버무린다.",
-          "센 불에 기름을 두르고 닭고기를 노릇하게 완전히 익혀 따로 둔다.",
+          "센 불에 기름을 두르고 닭고기를 노릇하게 완전히 익혀 따로 둔다. 가장 두꺼운 살의 중심 온도가 74°C 이상인지 식품용 온도계로 확인한다.",
           "같은 팬에 파프리카와 양파를 가장자리가 살짝 그을리도록 볶는다.",
           "닭고기를 다시 넣고 라임즙을 짜서 함께 버무린다.",
           "또띠아를 데워 곁들여 내고 식탁에서 싸 먹도록 한다."
@@ -4704,8 +4704,8 @@
         "ko": "라따뚜이"
       },
       "intro": {
-        "en": "French Provençal stew of summer vegetables cooked down slowly.",
-        "ko": "여름 채소를 뭉근히 익힌 프랑스 프로방스의 채소 요리."
+        "en": "Eggplant, zucchini and other vegetables slowly stewed with tomato.",
+        "ko": "가지, 주키니, 채소를 토마토와 함께 뭉근히 익힌 라따뚜이."
       },
       "cuisine": "french",
       "minutes": 40,
@@ -4787,8 +4787,8 @@
         "ko": "버섯 크림수프"
       },
       "intro": {
-        "en": "French mushroom soup thickened with a butter roux and cream.",
-        "ko": "버섯을 볶아 루와 크림으로 걸쭉하게 끓인 프랑스식 수프."
+        "en": "Mushrooms simmered with milk and cream in a thick, buttery soup.",
+        "ko": "볶은 버섯에 우유와 크림을 넣어 걸쭉하게 끓인 수프."
       },
       "cuisine": "french",
       "minutes": 30,
@@ -4858,8 +4858,8 @@
         "ko": "감자 그라탕"
       },
       "intro": {
-        "en": "French gratin of sliced potatoes baked in cream until browned on top.",
-        "ko": "얇게 썬 감자를 크림에 재워 노릇하게 구운 프랑스의 그라탕."
+        "en": "Thinly sliced potatoes baked in cream with a browned cheese topping.",
+        "ko": "얇은 감자에 크림과 치즈를 넣어 윗면이 노릇하게 구운 그라탕."
       },
       "cuisine": "french",
       "minutes": 55,
@@ -4907,18 +4907,18 @@
       ],
       "steps": {
         "en": [
-          "Warm the cream, milk, and garlic together with salt and pepper in a pot.",
+          "Heat the oven to 180°C (350°F). Warm the cream, milk and garlic with salt and pepper in a pot.",
           "Butter a baking dish and layer the potato slices with a little overlap.",
           "Pour the warm cream mixture over the potatoes so they are nearly covered.",
-          "Bake at 180 degrees Celsius until the potatoes are tender when pierced, about thirty-five minutes.",
+          "Bake at 180°C (350°F) until the potatoes are tender when pierced, about thirty-five minutes.",
           "Scatter the cheese on top and bake until golden and bubbling.",
           "Rest for a few minutes before serving so the layers set."
         ],
         "ko": [
-          "냄비에 생크림, 우유, 마늘을 소금·후추와 함께 데운다.",
+          "오븐을 180°C로 예열한다. 냄비에 크림, 우유, 마늘을 넣고 소금과 후추로 간해 데운다.",
           "오븐 용기에 버터를 바르고 감자 슬라이스를 살짝 겹치게 켜켜이 담는다.",
           "따뜻한 크림 혼합물을 감자가 거의 잠기도록 붓는다.",
-          "180도 오븐에서 감자가 푹 익을 때까지 35분 정도 굽는다.",
+          "180°C 오븐에서 감자가 푹 익을 때까지 35분 정도 굽는다.",
           "치즈를 뿌리고 노릇하게 부풀 때까지 더 굽는다.",
           "층이 자리 잡도록 몇 분 식힌 뒤 낸다."
         ]
@@ -4931,8 +4931,8 @@
         "ko": "크레페"
       },
       "intro": {
-        "en": "French crepes, thin batter spread wide across the pan.",
-        "ko": "묽은 반죽을 팬에 얇게 펴 부쳐 낸 프랑스의 크레페."
+        "en": "Thin pancakes made by swirling a light batter across the pan.",
+        "ko": "묽은 반죽을 팬에 얇게 돌려 펴 부친 크레페."
       },
       "cuisine": "french",
       "minutes": 25,
@@ -4994,8 +4994,8 @@
         "ko": "프렌치 어니언 수프"
       },
       "intro": {
-        "en": "French soup of onions caramelized long, capped with bread and cheese.",
-        "ko": "양파를 오래 볶아 끓이고 빵과 치즈를 얹은 프랑스의 수프."
+        "en": "Slowly browned onions in broth, topped with toasted bread and melted cheese.",
+        "ko": "양파를 오래 볶아 끓인 국물에 빵과 녹인 치즈를 얹은 수프."
       },
       "cuisine": "french",
       "minutes": 50,
@@ -5060,8 +5060,8 @@
         "ko": "니수아즈풍 샐러드"
       },
       "intro": {
-        "en": "Salad from Nice with tuna, boiled egg and potato over greens.",
-        "ko": "참치와 달걀, 감자를 채소에 곁들인 프랑스 니스식 샐러드."
+        "en": "Tuna, boiled egg and potato over greens with a mustard dressing.",
+        "ko": "채소 위에 참치, 삶은 계란, 감자를 올리고 머스터드로 맛낸 샐러드."
       },
       "cuisine": "french",
       "minutes": 25,
@@ -5147,8 +5147,8 @@
         "ko": "슈니첼풍 포크 커틀릿"
       },
       "intro": {
-        "en": "Pork loin pounded thin, breaded and fried until crisp.",
-        "ko": "돼지 등심을 얇게 두드려 빵가루를 입혀 바삭하게 튀긴 커틀릿."
+        "en": "Pork loin pounded thin, coated in breadcrumbs and fried until crisp.",
+        "ko": "돼지 등심을 얇게 두드려 빵가루를 입히고 바삭하게 튀긴 커틀릿."
       },
       "cuisine": "french",
       "minutes": 30,
@@ -5199,14 +5199,14 @@
           "Pound the pork slices thin and season both sides with salt and pepper.",
           "Set up three plates with flour, beaten egg, and bread crumbs.",
           "Coat each slice in flour, dip in egg, then press into the crumbs.",
-          "Shallow-fry in hot oil until deep golden on both sides.",
+          "Shallow-fry until golden on both sides. Check the center reaches 63°C (145°F) with a food thermometer, then rest for 3 minutes.",
           "Drain on paper towels and serve with lemon wedges for squeezing."
         ],
         "ko": [
           "돼지고기를 얇게 두드려 양면에 소금·후추로 간한다.",
           "밀가루, 푼 달걀, 빵가루를 각각 접시에 준비한다.",
           "고기에 밀가루를 묻히고 달걀물을 입힌 뒤 빵가루를 꾹꾹 눌러 묻힌다.",
-          "달군 기름에 양면이 진한 갈색이 되도록 지진다.",
+          "기름을 넉넉히 두르고 양면을 노릇하게 튀긴다. 중심 온도 63°C 이상을 온도계로 확인하고 3분간 둔다.",
           "키친타월에 기름을 빼고 레몬 조각을 곁들여 낸다."
         ]
       }
@@ -5218,8 +5218,8 @@
         "ko": "버터치킨풍 커리"
       },
       "intro": {
-        "en": "North Indian curry that simmers chicken in a buttery tomato sauce.",
-        "ko": "닭고기를 버터와 토마토 소스에 끓인 북인도의 커리."
+        "en": "Chicken simmered in a spiced tomato sauce with butter and cream.",
+        "ko": "닭고기를 향신료, 버터, 크림이 들어간 토마토 소스에 끓인 커리."
       },
       "cuisine": "indian",
       "minutes": 40,
@@ -5285,7 +5285,7 @@
           "Brown the chicken pieces in half the butter and set them aside.",
           "Melt the remaining butter and cook the onion, garlic, and ginger until soft and golden.",
           "Stir in the curry powder for thirty seconds, then add the tomatoes and simmer into a thick sauce.",
-          "Return the chicken, add a splash of water, and simmer until cooked through.",
+          "Return the chicken, add a splash of water, and simmer until cooked through. Check the thickest piece reaches 74°C (165°F) with a food thermometer.",
           "Stir in the cream with a little sugar and salt to balance the sauce.",
           "Serve hot over cooked rice."
         ],
@@ -5293,7 +5293,7 @@
           "버터 절반에 닭고기를 노릇하게 구워 따로 둔다.",
           "남은 버터를 녹여 양파, 마늘, 생강을 노릇하고 부드럽게 볶는다.",
           "카레가루를 30초간 볶은 뒤 토마토를 넣고 걸쭉한 소스가 되도록 끓인다.",
-          "닭고기를 다시 넣고 물을 약간 부어 속까지 익힌다.",
+          "닭고기를 다시 넣고 물을 약간 부어 속까지 익힌다. 가장 두꺼운 살의 중심 온도가 74°C 이상인지 식품용 온도계로 확인한다.",
           "생크림과 설탕·소금 약간을 넣어 소스 맛의 균형을 맞춘다.",
           "밥 위에 뜨겁게 올려 낸다."
         ]
@@ -5306,8 +5306,8 @@
         "ko": "병아리콩 커리"
       },
       "intro": {
-        "en": "Indian chana curry, chickpeas simmered in spiced tomato.",
-        "ko": "병아리콩을 향신료와 토마토에 끓인 인도의 커리."
+        "en": "Chickpeas simmered with tomato, onion and warm spices.",
+        "ko": "병아리콩을 토마토, 양파, 향신료와 함께 끓인 커리."
       },
       "cuisine": "indian",
       "minutes": 30,
@@ -5390,8 +5390,8 @@
         "ko": "후무스와 플랫브레드"
       },
       "intro": {
-        "en": "Middle Eastern chickpea dip whipped smooth with tahini and lemon.",
-        "ko": "병아리콩을 타히니와 레몬에 곱게 간 중동의 딥."
+        "en": "Chickpeas blended with tahini, lemon and garlic, served with flatbread.",
+        "ko": "병아리콩을 타히니, 레몬, 마늘과 갈아 플랫브레드에 곁들인 후무스."
       },
       "cuisine": "middle-eastern",
       "minutes": 20,
@@ -5456,8 +5456,8 @@
         "ko": "샥슈카"
       },
       "intro": {
-        "en": "Middle Eastern eggs poached in a spiced tomato and pepper stew.",
-        "ko": "매콤한 토마토 소스에 달걀을 익혀 낸 중동의 요리."
+        "en": "Eggs gently cooked in a spiced tomato and pepper sauce.",
+        "ko": "향신료를 넣은 토마토, 파프리카 소스에 계란을 익힌 샥슈카."
       },
       "cuisine": "middle-eastern",
       "minutes": 30,
@@ -5521,14 +5521,14 @@
           "Soften the onion, bell pepper, and garlic in olive oil over medium heat.",
           "Add the paprika, then the chopped tomatoes, and simmer into a thick sauce seasoned with salt and pepper.",
           "Make small wells in the sauce and crack an egg into each.",
-          "Cover and cook gently until the whites are set but the yolks are still soft.",
+          "Cover and cook gently until the egg whites and yolks are set.",
           "Serve straight from the pan with bread for scooping."
         ],
         "ko": [
           "올리브오일에 양파, 파프리카, 마늘을 중불에서 부드럽게 볶는다.",
           "파프리카 가루와 썬 토마토를 넣고 소금·후추로 간해 걸쭉한 소스로 끓인다.",
           "소스에 홈을 파고 달걀을 하나씩 깨 넣는다.",
-          "뚜껑을 덮고 흰자는 익되 노른자는 부드럽게 남도록 은근히 익힌다.",
+          "뚜껑을 덮고 흰자와 노른자가 굳을 때까지 약불로 익힌다.",
           "팬째로 내어 빵으로 떠먹도록 곁들인다."
         ]
       }
@@ -5540,8 +5540,8 @@
         "ko": "탄두리풍 치킨구이"
       },
       "intro": {
-        "en": "Indian tandoori chicken marinated in yogurt and roasted until charred.",
-        "ko": "요거트와 향신료에 재운 닭을 붉게 구워 낸 인도의 요리."
+        "en": "Chicken marinated in yogurt and spices, then roasted until browned.",
+        "ko": "닭고기를 요거트와 향신료에 재워 노릇하게 구운 탄두리풍 치킨."
       },
       "cuisine": "indian",
       "minutes": 45,
@@ -5599,15 +5599,15 @@
         "en": [
           "Score the chicken pieces so the marinade can soak in.",
           "Mix the yogurt with garlic, ginger, curry powder, chili powder, lemon juice, oil, and salt.",
-          "Coat the chicken in the marinade and rest it for at least twenty minutes.",
-          "Roast in a hot oven or grill pan, turning once, until charred at the edges and cooked through.",
+          "Coat the chicken in the marinade and refrigerate for at least 20 minutes. Heat the oven to 220°C (425°F).",
+          "Roast, turning once, until browned and a food thermometer reads 74°C (165°F) in the thickest part, away from the bone.",
           "Rest briefly and serve with extra lemon."
         ],
         "ko": [
           "양념이 잘 배도록 닭고기에 칼집을 낸다.",
           "요거트에 마늘, 생강, 카레가루, 고춧가루, 레몬즙, 기름, 소금을 섞는다.",
-          "닭고기에 양념을 고루 발라 최소 20분간 재운다.",
-          "뜨거운 오븐이나 그릴팬에서 한 번 뒤집어가며 가장자리가 그을리고 속까지 익도록 굽는다.",
+          "닭에 양념을 버무려 냉장고에서 최소 20분간 재운다. 오븐은 220°C로 예열한다.",
+          "한 번 뒤집어 가며 노릇하게 굽는다. 뼈를 피해 가장 두꺼운 살에 온도계를 꽂아 74°C 이상인지 확인한다.",
           "잠시 쉬였다가 레몬을 곁들여 낸다."
         ]
       }
@@ -5615,12 +5615,12 @@
     {
       "id": "salmon-steak",
       "name": {
-        "en": "Pan-Seared Salmon Steak",
+        "en": "Pan-Seared Salmon",
         "ko": "연어 스테이크"
       },
       "intro": {
-        "en": "Salmon fillet seared skin-down and basted with lemon butter.",
-        "ko": "연어를 껍질부터 바싹 구워 레몬 버터를 끼얹은 스테이크."
+        "en": "Salmon fillet seared skin-side down and basted with lemon butter.",
+        "ko": "연어를 껍질부터 바삭하게 구워 레몬 버터를 끼얹은 요리."
       },
       "cuisine": "american",
       "minutes": 20,
@@ -5666,14 +5666,14 @@
           "Pat the salmon dry and season both sides with salt and pepper.",
           "Heat olive oil in a pan over medium-high heat and place the salmon skin-side down.",
           "Cook without moving until the skin is crisp and the flesh is mostly opaque.",
-          "Flip, add the butter and crushed garlic, and spoon the melted butter over the fish.",
+          "Flip, add the butter and crushed garlic, and spoon the melted butter over the fish. Check the thickest part reaches 63°C (145°F) with a food thermometer.",
           "Finish with a squeeze of lemon and serve immediately."
         ],
         "ko": [
           "연어의 물기를 닦고 양면에 소금·후추로 간한다.",
           "팬에 올리브오일을 중강불로 달구고 껍질 면이 아래로 가게 연어를 올린다.",
           "껍질이 바삭해지고 살이 거의 불투명해질 때까지 움직이지 않고 굽는다.",
-          "뒤집은 뒤 버터와 으깬 마늘을 넣고 녹은 버터를 생선 위에 끼얹는다.",
+          "뒤집은 뒤 버터와 으깬 마늘을 넣고 녹은 버터를 생선 위에 끼얹는다. 가장 두꺼운 살의 중심 온도가 63°C 이상인지 식품용 온도계로 확인한다.",
           "레몬즙을 짜서 마무리하고 바로 낸다."
         ]
       }
@@ -5685,8 +5685,8 @@
         "ko": "갈릭버터새우"
       },
       "intro": {
-        "en": "Shrimp cooked fast in garlic and butter, finished with lemon.",
-        "ko": "새우를 마늘 버터에 재빨리 익혀 레몬을 뿌려 낸 요리."
+        "en": "Shrimp sauteed in garlic butter with a squeeze of lemon.",
+        "ko": "새우를 마늘 버터에 볶아 레몬즙을 뿌린 요리."
       },
       "cuisine": "spanish",
       "minutes": 15,
@@ -5751,8 +5751,8 @@
         "ko": "팬시어드 스테이크"
       },
       "intro": {
-        "en": "Steak seared hard in a hot pan, then basted with garlic butter.",
-        "ko": "센 불에 겉을 바싹 구워 마늘 버터를 끼얹은 미국식 스테이크."
+        "en": "Pan-seared steak basted with garlic butter and rested before slicing.",
+        "ko": "팬에 구운 스테이크에 마늘 버터를 끼얹고 잠시 두었다 써는 요리."
       },
       "cuisine": "american",
       "minutes": 20,
@@ -5790,18 +5790,18 @@
       ],
       "steps": {
         "en": [
-          "Bring the steak to room temperature and season generously with salt and pepper.",
+          "Pat the steak dry and season both sides with salt and pepper.",
           "Heat oil in a heavy pan until it just starts to smoke.",
           "Sear the steak without moving it until a deep crust forms, then flip.",
           "Add butter and crushed garlic and baste the steak with the foaming butter.",
-          "Cook to your preferred doneness, then rest for five minutes before slicing."
+          "Cook to at least 63°C (145°F) in the center, checked with a food thermometer, then rest for 5 minutes before slicing."
         ],
         "ko": [
-          "스테이크를 실온에 두었다가 소금·후추를 넉넉히 뿌린다.",
+          "스테이크의 물기를 닦고 양면에 소금과 후추로 간한다.",
           "두꺼운 팬에 기름을 연기가 살짝 오를 때까지 달군다.",
           "고기를 움직이지 않고 진한 크러스트가 생길 때까지 구운 뒤 뒤집는다.",
           "버터와 으깬 마늘을 넣고 거품 나는 버터를 고기에 끼얹는다.",
-          "원하는 익힘까지 구운 뒤 5분간 쉬였다가 썰어 낸다."
+          "식품용 온도계로 중심 온도 63°C 이상을 확인하고 5분간 두었다 썬다."
         ]
       }
     },
@@ -5812,8 +5812,8 @@
         "ko": "야채수프"
       },
       "intro": {
-        "en": "Clear soup of whatever vegetables are on hand, simmered until soft.",
-        "ko": "있는 채소를 두루 넣고 맑게 끓여 낸 채소 수프."
+        "en": "Potato, carrot and other vegetables simmered in a clear broth.",
+        "ko": "감자, 당근, 채소를 넣어 맑게 끓인 수프."
       },
       "cuisine": "american",
       "minutes": 35,
@@ -5888,8 +5888,8 @@
         "ko": "야채 프리타타"
       },
       "intro": {
-        "en": "Italian open-faced omelette, vegetables set in slow-cooked egg.",
-        "ko": "달걀에 채소를 넣어 팬째 천천히 익힌 이탈리아식 오믈렛."
+        "en": "Vegetables and cheese baked into a thick, open-faced omelette.",
+        "ko": "채소와 치즈를 계란에 넣어 도톰하게 익힌 프리타타."
       },
       "cuisine": "italian",
       "minutes": 25,
@@ -5942,17 +5942,17 @@
       ],
       "steps": {
         "en": [
-          "Sauté the onion, bell pepper, and mushrooms in olive oil in an oven-safe pan until softened.",
+          "Heat the oven to 180°C (350°F). In an oven-safe pan, saute the onion, bell pepper and mushrooms in olive oil until soft.",
           "Whisk the eggs with milk, parmesan, salt, and pepper.",
           "Pour the eggs over the vegetables and cook on low heat until the edges set.",
-          "Transfer the pan to a 180 degrees Celsius oven or cover with a lid until the center is just firm.",
+          "Transfer the pan to the oven and cook until the center is firm and reaches 71°C (160°F), checked with a food thermometer.",
           "Slide onto a plate, cut into wedges, and serve warm or at room temperature."
         ],
         "ko": [
-          "오븐 사용이 가능한 팬에 올리브오일을 두르고 양파, 파프리카, 버섯을 부드럽게 볶는다.",
+          "오븐을 180°C로 예열한다. 오븐용 팬에 올리브유를 두르고 양파, 파프리카, 버섯을 부드럽게 볶는다.",
           "달걀에 우유, 파마산 치즈, 소금, 후추를 넣고 푼다.",
           "달걀물을 채소 위에 붓고 약불에서 가장자리가 굳을 때까지 익힌다.",
-          "팬째 180도 오븐에 넣거나 뚜껑을 덮어 가운데가 막 굳을 때까지 익힌다.",
+          "팬을 오븐에 넣고 가운데가 굳도록 익힌다. 온도계로 중심 온도 71°C 이상을 확인한다.",
           "접시에 미끄러뜨려 옮겨 조각내고 따뜻하게 또는 상온으로 낸다."
         ]
       }
@@ -5964,8 +5964,8 @@
         "ko": "짜장밥"
       },
       "intro": {
-        "en": "Chinese rice bowl topped with a thick black bean sauce of pork and vegetables.",
-        "ko": "춘장을 볶아 돼지고기와 채소를 넣고 걸쭉하게 끓여 밥에 얹는 중국의 덮밥."
+        "en": "Rice topped with pork and vegetables in a thick chunjang sauce.",
+        "ko": "돼지고기와 채소를 춘장에 볶아 걸쭉하게 끓이고 밥에 얹은 짜장밥."
       },
       "cuisine": "chinese",
       "minutes": 25,
@@ -6045,8 +6045,8 @@
         "ko": "뚝배기 계란찜"
       },
       "intro": {
-        "en": "Korean steamed egg seasoned with salted shrimp, puffed over a hot pot rim.",
-        "ko": "새우젓으로 간해 뚝배기에서 봉긋하게 부풀린 한국의 계란찜."
+        "en": "Eggs steamed in an earthenware pot with salted shrimp and green onion.",
+        "ko": "새우젓으로 간한 계란을 뚝배기에 부풀려 익히고 파를 올린 계란찜."
       },
       "cuisine": "korean",
       "minutes": 15,
@@ -6093,7 +6093,7 @@
           "Mince the salted shrimp, chop the carrot fine, and slice the green onion thin.",
           "Pour the egg mixture into an earthenware pot, stir in the salted shrimp and carrot, and set it over medium heat.",
           "Stir constantly with a spoon, scraping the bottom, for about 3 minutes until the mixture thickens into a loose curd.",
-          "Scatter the green onion on top, cover with a lid, and cook over low heat for 4 minutes until it puffs above the rim.",
+          "Scatter the green onion on top, cover with a lid, and cook over low heat for 4 minutes until it puffs above the rim. Check the center reaches 71°C (160°F).",
           "Drizzle a little sesame oil over the top, taste for salt, and serve straight from the pot."
         ],
         "ko": [
@@ -6101,7 +6101,7 @@
           "새우젓은 잘게 다지고 당근은 곱게 다지고 대파는 얇게 송송 썬다.",
           "뚝배기에 계란물을 붓고 새우젓과 당근을 넣어 섞은 뒤 중불에 올린다.",
           "숟가락으로 바닥을 긁듯이 3분간 계속 저어 몽글몽글하게 엉기게 한다.",
-          "대파를 뿌리고 뚜껑을 덮어 약불에서 4분간 두어 뚝배기 위로 봉긋하게 부풀린다.",
+          "대파를 뿌리고 뚜껑을 덮어 약불에서 4분간 두어 뚝배기 위로 봉긋하게 부풀린다. 중심 온도 71°C 이상을 확인한다.",
           "참기름을 살짝 두르고 간을 본 뒤 뚝배기째 낸다."
         ]
       }
@@ -6113,8 +6113,8 @@
         "ko": "명란 파스타"
       },
       "intro": {
-        "en": "Italian-style pasta tossed in a butter cream sauce seasoned with salted pollock roe.",
-        "ko": "명란으로 간을 맞춘 버터 크림 소스에 버무린 이탈리아식 파스타."
+        "en": "Pasta in a butter and cream sauce seasoned with salted pollock roe.",
+        "ko": "명란으로 간한 버터 크림 소스에 버무린 파스타."
       },
       "cuisine": "italian",
       "minutes": 20,
@@ -6186,8 +6186,8 @@
         "ko": "메추리알 장조림"
       },
       "intro": {
-        "en": "Korean side dish of quail eggs and beef braised down in sweet soy sauce.",
-        "ko": "메추리알과 소고기를 간장에 달큰하게 조려 낸 한국의 밑반찬."
+        "en": "Quail eggs and beef slowly braised in sweet soy sauce.",
+        "ko": "메추리알과 소고기를 달큰한 간장 양념에 조린 장조림."
       },
       "cuisine": "korean",
       "minutes": 40,
@@ -6240,20 +6240,20 @@
       ],
       "steps": {
         "en": [
-          "Soak the beef in cold water for 10 minutes to draw out the blood, then boil it in fresh water with the cooking wine for 20 minutes, skimming the foam.",
+          "Soak the beef in cold water in the fridge for 10 minutes, then simmer in fresh water with cooking wine until tender enough to shred.",
           "Lift out the beef and keep the broth; once the meat is cool enough to handle, tear it into strips along the grain.",
           "Boil the quail eggs for 5 minutes, cool them in cold water, and peel them.",
           "Strain about two cups of the broth into a pot, add the soy sauce, sugar, and whole garlic cloves, and bring it to a boil.",
           "Add the torn beef, the peeled quail eggs, and the chili peppers cut in half, then simmer over medium heat for 10 minutes until the liquid reduces by half.",
-          "Stir in the corn syrup for gloss, cool it down, and keep it in the fridge in its braising liquid."
+          "Stir in the corn syrup, then transfer to shallow containers with the braising liquid and refrigerate within 2 hours."
         ],
         "ko": [
-          "소고기는 찬물에 10분간 담가 핏물을 뺀 뒤 새 물에 맛술을 넣고 거품을 걷어가며 20분간 삶는다.",
+          "소고기를 찬물에 담가 냉장고에서 10분간 핏물을 뺀다. 새 물에 맛술을 넣고 결대로 찢어질 만큼 부드럽게 삶는다.",
           "고기를 건지고 삶은 물은 남겨 둔 뒤, 한 김 식으면 결대로 길게 찢는다.",
           "메추리알은 5분간 삶아 찬물에 식힌 다음 껍질을 깐다.",
           "냄비에 삶은 물 두 컵 정도를 걸러 붓고 간장, 설탕, 통마늘을 넣어 끓인다.",
           "찢은 소고기와 껍질 깐 메추리알, 반으로 가른 청양고추를 넣고 중불에서 10분간 조려 국물을 절반으로 줄인다.",
-          "올리고당을 넣어 윤기를 낸 뒤 식혀서 국물째 냉장 보관한다."
+          "물엿을 넣어 섞은 뒤 조림 국물과 함께 얕은 용기에 나눠 담아 2시간 안에 냉장 보관한다."
         ]
       }
     },
@@ -6264,8 +6264,8 @@
         "ko": "오리주물럭"
       },
       "intro": {
-        "en": "Korean stir-fry of duck rubbed with a spicy gochujang marinade and seared with onion.",
-        "ko": "오리고기를 고추장 양념에 주물러 재웠다가 양파와 함께 볶아 낸 한국의 요리."
+        "en": "Duck marinated in gochujang and stir-fried with onion and green onion.",
+        "ko": "오리고기를 고추장 양념에 재워 양파, 대파와 함께 볶은 주물럭."
       },
       "cuisine": "korean",
       "minutes": 30,
@@ -6335,17 +6335,17 @@
         "en": [
           "Stir the gochujang, gochugaru, soy sauce, sugar, cooking wine, minced garlic, grated ginger, and black pepper together into a marinade.",
           "Cut the duck into bite-size pieces, slice the onion thick, and cut the green onion on the diagonal.",
-          "Rub the marinade into the duck with your hands until every piece is coated, then let it rest for 20 minutes.",
+          "Rub the marinade into the duck with your hands until every piece is coated, then refrigerate it for 20 minutes.",
           "Heat a wide pan over high heat, spread the duck out in a single layer, and leave it undisturbed for 2 minutes to sear.",
-          "Turn the pieces and stir-fry until almost cooked through, then add the onion and green onion and stir-fry 3 minutes more until the onion softens.",
+          "Turn the pieces and stir-fry until almost cooked through, then add the onion and green onion and stir-fry 3 minutes more until the onion softens. Check the thickest piece reaches 74°C (165°F) with a food thermometer.",
           "Turn off the heat, drizzle in the sesame oil, toss once, and serve hot."
         ],
         "ko": [
           "고추장, 고춧가루, 간장, 설탕, 맛술, 다진 마늘, 간 생강, 후추를 섞어 양념장을 만든다.",
           "오리고기는 한입 크기로 썰고 양파는 굵게, 대파는 어슷하게 썬다.",
-          "오리고기에 양념장을 넣고 손으로 조물조물 주물러 고루 묻힌 뒤 20분간 재운다.",
+          "오리고기에 양념장을 넣고 손으로 조물조물 주물러 고루 묻힌 뒤 냉장고에서 20분간 재운다.",
           "넓은 팬을 센 불로 달구고 오리고기를 한 겹으로 펼친 뒤 2분간 건드리지 않고 굽는다.",
-          "뒤집어 거의 익으면 양파와 대파를 넣고 3분 더 볶아 양파가 부드러워지게 한다.",
+          "뒤집어 거의 익으면 양파와 대파를 넣고 3분 더 볶아 양파가 부드러워지게 한다. 가장 두꺼운 살의 중심 온도가 74°C 이상인지 식품용 온도계로 확인한다.",
           "불을 끄고 참기름을 둘러 한 번 버무린 뒤 뜨겁게 낸다."
         ]
       }
@@ -6357,8 +6357,8 @@
         "ko": "만둣국"
       },
       "intro": {
-        "en": "Korean soup of dumplings boiled in a clear broth and finished with egg and laver.",
-        "ko": "만두를 맑은 국물에 끓여 계란과 김을 올려 낸 한국의 국물 요리."
+        "en": "Dumplings simmered in clear broth, finished with egg and seaweed.",
+        "ko": "만두를 맑은 국물에 끓이고 계란과 김을 올린 만둣국."
       },
       "cuisine": "korean",
       "minutes": 20,
@@ -6414,14 +6414,14 @@
           "Bring the water to a boil in a pot and season it with soy sauce, minced garlic, and a little salt.",
           "Beat the egg in a bowl and set it aside, and tear the dried laver into small pieces.",
           "Drop the frozen dumplings straight into the boiling broth without thawing them.",
-          "When the dumplings float and the wrappers turn glossy, pour the beaten egg in a thin stream and leave it undisturbed for a moment.",
+          "Cook the dumplings for the time on the package, checking the filling is hot and cooked through. Pour in the egg and simmer until set.",
           "Slice the green onion in and grind in black pepper, then ladle into bowls and top with the torn laver."
         ],
         "ko": [
           "냄비에 물을 끓이고 간장, 다진 마늘, 소금을 넣어 간을 맞춘다.",
           "계란은 그릇에 풀어 두고 김은 잘게 부순다.",
           "냉동 만두는 해동하지 말고 끓는 국물에 그대로 넣는다.",
-          "만두가 떠오르고 만두피에 윤기가 돌면 풀어 둔 계란을 가늘게 둘러 붓고 잠시 젓지 않는다.",
+          "포장지의 조리 시간에 맞춰 만두 속까지 뜨겁게 익힌다. 계란물을 가늘게 붓고 완전히 익을 때까지 끓인다.",
           "어슷 썬 대파를 넣고 후추를 뿌린 뒤 그릇에 담아 부순 김을 올린다."
         ]
       }
@@ -6433,8 +6433,8 @@
         "ko": "라볶이"
       },
       "intro": {
-        "en": "Korean tteokbokki cooked together with instant ramen noodles in one spicy sauce.",
-        "ko": "떡볶이에 라면 사리를 함께 넣어 끓인 한국의 분식."
+        "en": "Rice cakes and instant noodles cooked together in a spicy sauce.",
+        "ko": "떡과 라면 사리를 매콤한 양념에 함께 끓인 라볶이."
       },
       "cuisine": "korean",
       "minutes": 20,
@@ -6514,8 +6514,8 @@
         "ko": "콘치즈"
       },
       "intro": {
-        "en": "Korean side dish of canned corn bound with mayonnaise and melted under mozzarella.",
-        "ko": "캔옥수수를 마요네즈에 버무리고 모짜렐라를 올려 녹인 한국식 안주."
+        "en": "Sweetcorn mixed with mayonnaise and topped with melted mozzarella.",
+        "ko": "옥수수를 마요네즈에 버무리고 모차렐라를 올려 녹인 콘치즈."
       },
       "cuisine": "korean",
       "minutes": 15,
@@ -6580,8 +6580,8 @@
         "ko": "맛살계란말이"
       },
       "intro": {
-        "en": "Korean rolled omelette with crab sticks inside for a striped center.",
-        "ko": "게맛살을 넣고 돌돌 말아 단면에 무늬가 생기는 한국의 계란말이."
+        "en": "A rolled omelette with crab sticks running through the center.",
+        "ko": "가운데에 게맛살을 넣고 돌돌 말아 부친 계란말이."
       },
       "cuisine": "korean",
       "minutes": 15,
@@ -6624,7 +6624,7 @@
           "Oil a nonstick pan lightly, set it over low heat, and pour in a thin layer of the egg mixture.",
           "When the surface is half set, lay the crab strands across one end and roll the egg over them.",
           "Push the roll to the back, pour in more egg so it runs underneath, and keep rolling until the mixture is used up.",
-          "Let the roll rest for a minute, then slice it into thick pieces."
+          "Cook the roll until no liquid egg remains in the center, then rest briefly and cut into thick slices."
         ],
         "ko": [
           "계란에 소금을 약간 넣어 풀고 체에 한 번 걸러 곱게 만든다.",
@@ -6632,7 +6632,7 @@
           "코팅 팬에 기름을 얇게 두르고 약불로 달군 뒤 계란물을 얇게 붓는다.",
           "표면이 반쯤 익으면 한쪽 끝에 게맛살을 가로로 올리고 그 위로 계란을 만다.",
           "말린 계란을 뒤로 밀고 남은 계란물을 부어 아래로 흘려보내며 계속 말아 준다.",
-          "1분 정도 두었다가 도톰하게 썬다."
+          "가운데에 계란물이 남지 않도록 익힌 뒤 잠시 두었다 도톰하게 썬다."
         ]
       }
     },
@@ -6643,8 +6643,8 @@
         "ko": "소시지야채볶음"
       },
       "intro": {
-        "en": "Korean stir-fry of small sausages and peppers glazed in a ketchup sauce.",
-        "ko": "소시지와 채소를 케첩 양념에 볶아 낸 한국의 반찬."
+        "en": "Small sausages and vegetables stir-fried in a sweet ketchup sauce.",
+        "ko": "소시지와 채소를 달콤한 케첩 양념에 볶은 반찬."
       },
       "cuisine": "korean",
       "minutes": 15,
@@ -6719,8 +6719,8 @@
         "ko": "유부초밥"
       },
       "intro": {
-        "en": "Korean rice pockets of tangy seasoned rice in sweet fried tofu pouches.",
-        "ko": "새콤달콤하게 간한 밥을 조미유부에 채워 넣은 한국의 유부초밥."
+        "en": "Sweet fried tofu pockets filled with tangy seasoned rice.",
+        "ko": "달콤한 조미유부에 새콤하게 간한 밥을 채운 유부초밥."
       },
       "cuisine": "korean",
       "minutes": 20,
@@ -6792,8 +6792,8 @@
         "ko": "새송이버섯 버터구이"
       },
       "intro": {
-        "en": "Korean side of king oyster mushrooms seared golden in butter.",
-        "ko": "새송이버섯을 버터에 노릇하게 구워 낸 한국의 반찬."
+        "en": "King oyster mushrooms seared in butter with garlic and soy sauce.",
+        "ko": "새송이버섯을 버터에 굽고 마늘과 간장으로 맛을 낸 요리."
       },
       "cuisine": "korean",
       "minutes": 15,
@@ -6863,8 +6863,8 @@
         "ko": "팽이버섯전"
       },
       "intro": {
-        "en": "Korean pancake of enoki mushroom bundles fried in flour and egg.",
-        "ko": "팽이버섯을 가닥으로 나눠 밀가루와 계란물을 입혀 부쳐 낸 한국의 전."
+        "en": "Small bundles of enoki mushrooms coated in flour and egg, then pan-fried.",
+        "ko": "팽이버섯을 작은 묶음으로 나눠 밀가루와 계란물을 입혀 부친 전."
       },
       "cuisine": "korean",
       "minutes": 20,
@@ -6926,7 +6926,7 @@
           "Beat the eggs with a pinch of salt, then stir in the chopped carrot and green onion.",
           "Dust each mushroom bundle all over with flour and shake off the excess.",
           "Dip the floured bundles in the egg mixture and lay them in a pan with oil heated over medium-low.",
-          "Fry for about 2 minutes per side, pressing lightly with a spatula, until both sides are golden and set.",
+          "Fry for about 2 minutes per side, pressing lightly. Keep cooking until the mushrooms are cooked through and no liquid egg remains.",
           "Stir soy sauce with a little vinegar and water for a dipping sauce and serve the pancakes warm."
         ],
         "ko": [
@@ -6934,7 +6934,7 @@
           "계란에 소금 한 꼬집을 넣어 풀고 다진 당근과 대파를 섞는다.",
           "버섯 가닥에 밀가루를 고루 묻히고 여분은 털어낸다.",
           "계란물을 입혀 중약불로 달군 기름 팬에 가지런히 올린다.",
-          "뒤집개로 가볍게 누르며 한 면에 2분씩 노릇하게 부친다.",
+          "가볍게 누르며 한 면에 약 2분씩 부친다. 팽이버섯 속까지 익고 계란물이 남지 않을 때까지 더 익힌다.",
           "간장에 식초와 물을 조금 섞어 초간장을 만들어 따뜻할 때 곁들인다."
         ]
       }
@@ -6946,8 +6946,8 @@
         "ko": "양송이수프"
       },
       "intro": {
-        "en": "French creamy soup of button mushrooms blended smooth with milk.",
-        "ko": "양송이버섯을 버터에 볶아 우유로 곱게 갈아 끓인 프랑스식 수프."
+        "en": "Button mushrooms blended with milk into a smooth, buttery soup.",
+        "ko": "양송이버섯을 버터에 볶아 우유와 곱게 갈고 끓인 수프."
       },
       "cuisine": "french",
       "minutes": 25,
@@ -7019,8 +7019,8 @@
         "ko": "고구마맛탕"
       },
       "intro": {
-        "en": "Korean snack of fried sweet potato chunks tossed in a glossy sugar syrup.",
-        "ko": "튀긴 고구마를 설탕 시럽에 버무려 윤기 나게 낸 한국의 간식."
+        "en": "Fried sweet potato chunks coated in a glossy sugar syrup.",
+        "ko": "튀긴 고구마를 설탕 시럽에 버무려 윤기 나게 만든 맛탕."
       },
       "cuisine": "korean",
       "minutes": 25,
@@ -7085,8 +7085,8 @@
         "ko": "단호박죽"
       },
       "intro": {
-        "en": "Korean porridge of steamed kabocha pumpkin simmered silky smooth.",
-        "ko": "단호박을 쪄서 곱게 으깨 뭉근하게 끓여 낸 한국의 죽."
+        "en": "Steamed kabocha pumpkin mashed and simmered into a smooth porridge.",
+        "ko": "찐 단호박을 곱게 으깨 뭉근하게 끓인 부드러운 죽."
       },
       "cuisine": "korean",
       "minutes": 30,
@@ -7151,8 +7151,8 @@
         "ko": "연근조림"
       },
       "intro": {
-        "en": "Korean side dish of lotus root braised glossy in sweet soy sauce.",
-        "ko": "연근을 간장에 달큰하게 조려 윤기 나게 낸 한국의 밑반찬."
+        "en": "Lotus root slices braised in sweet soy sauce until glossy.",
+        "ko": "연근을 얇게 썰어 달큰한 간장 양념에 윤기 나게 조린 반찬."
       },
       "cuisine": "korean",
       "minutes": 35,
@@ -7234,8 +7234,8 @@
         "ko": "배추전"
       },
       "intro": {
-        "en": "Korean pancake of whole napa cabbage leaves coated in thin batter and pan-fried flat.",
-        "ko": "배춧잎에 묽은 반죽을 입혀 납작하게 부쳐 낸 경상도식 한국 전."
+        "en": "Whole napa cabbage leaves dipped in thin batter and pan-fried flat.",
+        "ko": "배춧잎에 묽은 반죽을 입혀 납작하게 부친 배추전."
       },
       "cuisine": "korean",
       "minutes": 20,
@@ -7300,8 +7300,8 @@
         "ko": "부추전"
       },
       "intro": {
-        "en": "Korean savory pancake packed with garlic chives and pan-fried until the edges crisp.",
-        "ko": "부추를 듬뿍 넣어 가장자리가 바삭하게 부쳐 낸 한국의 전."
+        "en": "A savory pancake packed with garlic chives and crisp around the edges.",
+        "ko": "부추를 듬뿍 넣어 가장자리가 바삭하게 부친 전."
       },
       "cuisine": "korean",
       "minutes": 20,
@@ -7366,8 +7366,8 @@
         "ko": "숙주나물무침"
       },
       "intro": {
-        "en": "Korean side dish of blanched mung bean sprouts tossed with sesame oil and garlic.",
-        "ko": "데친 숙주를 참기름과 마늘에 조물조물 무쳐 낸 한국의 나물 반찬."
+        "en": "Blanched mung bean sprouts tossed with sesame oil and garlic.",
+        "ko": "데친 숙주를 참기름과 마늘에 조물조물 무친 나물."
       },
       "cuisine": "korean",
       "minutes": 15,
@@ -7423,12 +7423,12 @@
     {
       "id": "yeolmu-bibim-guksu",
       "name": {
-        "en": "Young Radish Kimchi Noodles",
+        "en": "Young Radish Noodles",
         "ko": "열무비빔국수"
       },
       "intro": {
-        "en": "Korean cold noodles in a tangy gochujang sauce with crunchy young radish.",
-        "ko": "아삭한 열무를 새콤달콤한 고추장 양념에 국수와 비벼 먹는 한국의 여름 별미."
+        "en": "Cold noodles tossed with young radish and a tangy gochujang sauce.",
+        "ko": "차가운 국수에 열무와 새콤달콤한 고추장 양념을 넣어 비빈 요리."
       },
       "cuisine": "korean",
       "minutes": 20,
@@ -7478,15 +7478,15 @@
         "en": [
           "Boil the egg for 8 minutes, cool it in cold water, and cut it in half.",
           "Stir the gochujang with vinegar, sugar, and sesame oil into a smooth sauce.",
-          "Cut the young radish greens into bite lengths and julienne the cucumber.",
-          "Boil the somyeon for 3 minutes, rinse it under cold water while rubbing off the starch, and drain it tight.",
+          "Trim and wash the young radish greens thoroughly, cut into short lengths, and julienne the cucumber.",
+          "Cook the somyeon for the time on the package, rinse thoroughly under cold water, and drain well.",
           "Toss the noodles with the sauce and radish greens, top with cucumber and the egg, and serve cold."
         ],
         "ko": [
           "계란을 8분간 삶아 찬물에 식힌 뒤 반으로 자른다.",
           "고추장에 식초, 설탕, 참기름을 넣고 매끈한 양념장을 만든다.",
-          "열무는 먹기 좋은 길이로 썰고 오이는 채썬다.",
-          "소면을 3분간 삶아 찬물에 전분기를 비벼 헹구고 물기를 꽉 짠다.",
+          "열무를 다듬어 깨끗이 씻고 먹기 좋게 썬 뒤 오이는 채 썬다.",
+          "소면을 포장지의 시간에 맞춰 삶고 찬물에 충분히 헹군 뒤 물기를 뺀다.",
           "국수에 양념장과 열무를 넣어 비비고 오이와 계란을 올려 차게 낸다."
         ]
       }
@@ -7498,8 +7498,8 @@
         "ko": "미나리무침"
       },
       "intro": {
-        "en": "Korean side dish of fragrant water parsley tossed in a tangy gochujang dressing.",
-        "ko": "향긋한 미나리를 새콤한 초고추장에 살살 무쳐 낸 한국의 봄 반찬."
+        "en": "Water parsley lightly blanched and tossed in a tangy gochujang dressing.",
+        "ko": "미나리를 살짝 데쳐 새콤한 초고추장에 무친 반찬."
       },
       "cuisine": "korean",
       "minutes": 15,
@@ -7564,8 +7564,8 @@
         "ko": "오징어볶음"
       },
       "intro": {
-        "en": "Korean stir-fry of squid and vegetables in a fiery gochujang sauce.",
-        "ko": "오징어와 채소를 매콤한 고추장 양념에 센 불로 볶아 낸 한국 요리."
+        "en": "Squid and vegetables quickly stir-fried in a spicy gochujang sauce.",
+        "ko": "오징어와 채소를 매콤한 고추장 양념에 센 불로 볶은 요리."
       },
       "cuisine": "korean",
       "minutes": 25,
@@ -7650,8 +7650,8 @@
         "ko": "바지락탕"
       },
       "intro": {
-        "en": "Korean clear soup of littleneck clams simmered with radish for a clean briny broth.",
-        "ko": "바지락과 무를 맑게 끓여 시원한 국물을 낸 한국의 조개탕."
+        "en": "Clams simmered with radish and garlic in a clear, briny broth.",
+        "ko": "바지락에 무와 마늘을 넣어 맑고 시원하게 끓인 탕."
       },
       "cuisine": "korean",
       "minutes": 25,
@@ -7695,16 +7695,16 @@
       "steps": {
         "en": [
           "Soak the clams in salted water for 30 minutes in a dark place so they spit out their sand.",
-          "Scrub the shells together under running water and drain.",
+          "Scrub and rinse the shells. Discard broken clams and any that stay open when tapped.",
           "Bring water to a boil with the radish and simmer for 5 minutes until the radish turns clear.",
-          "Add the clams and garlic and cook just until every shell opens, skimming off the foam.",
+          "Add the clams and garlic and boil until the shells open. Discard any clams that remain closed after cooking.",
           "Season lightly with salt, scatter the green onion and chili on top, and serve piping hot."
         ],
         "ko": [
           "바지락을 소금물에 담가 어두운 곳에서 30분간 해감한다.",
-          "흐르는 물에 껍데기끼리 비벼 씻어 건진다.",
+          "껍데기를 문질러 씻고 깨진 바지락이나 두드려도 입을 다물지 않는 바지락은 버린다.",
           "물에 무를 넣고 끓여 무가 투명해질 때까지 5분간 끓인다.",
-          "바지락과 다진 마늘을 넣고 거품을 걷어 가며 입이 다 벌어질 때까지만 끓인다.",
+          "바지락과 마늘을 넣고 입이 벌어질 때까지 끓인다. 조리 후에도 입이 닫힌 바지락은 버린다.",
           "소금으로 심심하게 간하고 대파와 고추를 올려 뜨겁게 낸다."
         ]
       }
@@ -7716,8 +7716,8 @@
         "ko": "홍합탕"
       },
       "intro": {
-        "en": "Korean pub-style soup of mussels boiled briefly so the broth stays clean and sweet.",
-        "ko": "홍합을 짧게 끓여 국물이 달고 시원한 한국의 술안주 겸 국물 요리."
+        "en": "Mussels simmered with garlic, green onion and chili in a clear broth.",
+        "ko": "홍합을 마늘, 대파, 고추와 함께 맑게 끓인 탕."
       },
       "cuisine": "korean",
       "minutes": 20,
@@ -7758,14 +7758,14 @@
           "Pull the beards off the mussels and scrub the shells clean under running water.",
           "Discard any mussel that stays open when tapped.",
           "Boil water with the sliced garlic, then add the mussels.",
-          "Cook for 4 to 5 minutes until the shells open, skimming the foam as it rises.",
+          "Boil for about 4 to 5 minutes until the shells open, skimming the foam. Discard any mussels that remain closed after cooking.",
           "Season with a touch of salt, add the green onion and chili, and ladle into bowls shells and all."
         ],
         "ko": [
           "홍합의 수염을 잡아 뜯고 껍데기를 흐르는 물에 문질러 씻는다.",
           "두드려도 입을 다물지 않는 홍합은 골라 버린다.",
           "물에 편마늘을 넣고 끓이다가 홍합을 넣는다.",
-          "거품을 걷어 가며 입이 벌어질 때까지 4~5분 끓인다.",
+          "거품을 걷어 가며 약 4~5분간 입이 벌어질 때까지 끓인다. 조리 후에도 입이 닫힌 홍합은 버린다.",
           "소금으로 살짝만 간하고 대파와 고추를 넣어 껍데기째 그릇에 담아 낸다."
         ]
       }
@@ -7777,8 +7777,8 @@
         "ko": "고등어소금구이"
       },
       "intro": {
-        "en": "Korean staple of salted mackerel grilled until the skin crackles, served with lemon.",
-        "ko": "소금 간을 한 고등어를 껍질이 바삭하게 구워 레몬을 곁들이는 한국의 밥반찬."
+        "en": "Salted mackerel pan-fried until the skin crisps, with lemon on the side.",
+        "ko": "소금 간한 고등어를 껍질이 바삭하게 구워 레몬을 곁들인 생선구이."
       },
       "cuisine": "korean",
       "minutes": 20,
@@ -7820,14 +7820,14 @@
           "Rub it with cooking wine and the ginger slices and rest it for 10 minutes to tame the fishiness.",
           "Wipe off the ginger, then salt both sides evenly.",
           "Grill skin side down in a lightly oiled pan over medium heat for 5 minutes until the skin crisps.",
-          "Flip once, cook 4 more minutes until the flesh flakes, and serve with the lemon wedges."
+          "Flip once, cook 4 more minutes until the flesh flakes, and serve with the lemon wedges. Check the thickest part reaches 63°C (145°F) with a food thermometer."
         ],
         "ko": [
           "고등어를 씻어 물기를 바싹 닦고 껍질에 칼집을 두 번 얕게 넣는다.",
           "맛술과 편생강을 발라 10분간 재워 비린내를 잡는다.",
           "생강을 닦아내고 양면에 소금을 고루 뿌린다.",
           "기름을 살짝 두른 팬에 껍질면부터 올려 중불에서 5분간 바삭하게 굽는다.",
-          "한 번만 뒤집어 4분 더 구워 속살이 결대로 떨어지면 레몬 조각과 함께 낸다."
+          "한 번만 뒤집어 4분 더 구워 속살이 결대로 떨어지면 레몬 조각과 함께 낸다. 가장 두꺼운 살의 중심 온도가 63°C 이상인지 식품용 온도계로 확인한다."
         ]
       }
     },
@@ -7838,8 +7838,8 @@
         "ko": "꽁치김치조림"
       },
       "intro": {
-        "en": "Korean braise of canned saury and ripe kimchi simmered together until deeply savory.",
-        "ko": "꽁치캔과 잘 익은 김치를 함께 자작하게 조려 밥도둑으로 불리는 한국 요리."
+        "en": "Canned saury and ripe kimchi braised together in a spicy broth.",
+        "ko": "꽁치 통조림과 잘 익은 김치를 매콤하게 조린 요리."
       },
       "cuisine": "korean",
       "minutes": 30,
@@ -7914,8 +7914,8 @@
         "ko": "코다리조림"
       },
       "intro": {
-        "en": "Korean braise of half-dried pollack and radish in a spicy soy sauce.",
-        "ko": "꾸덕한 코다리와 무를 매콤한 간장 양념에 조려 살에 간이 깊이 밴 한국 요리."
+        "en": "Half-dried pollock and radish braised in a spicy soy sauce.",
+        "ko": "꾸덕한 코다리와 무를 매콤한 간장 양념에 조린 요리."
       },
       "cuisine": "korean",
       "minutes": 35,
@@ -7977,14 +7977,14 @@
           "Lay the radish on the bottom of a wide pot and pour in water to just cover it.",
           "Boil for 10 minutes until the radish is halfway tender.",
           "Mix the soy sauce, gochugaru, sugar, garlic, and cooking wine, place the kodari over the radish, and pour the sauce on top.",
-          "Braise over medium heat for 15 minutes, basting with the broth, then add the onion and green onion for the last 3 minutes."
+          "Braise over medium heat for 15 minutes, basting with the broth, then add the onion and green onion for the last 3 minutes. Check the thickest part reaches 63°C (145°F) with a food thermometer."
         ],
         "ko": [
           "코다리는 큼직하게 토막 내고 지느러미를 잘라 살짝 씻는다.",
           "넓은 냄비 바닥에 무를 깔고 무가 잠길 만큼 물을 붓는다.",
           "무가 반쯤 익도록 10분간 끓인다.",
           "간장, 고춧가루, 설탕, 마늘, 맛술을 섞어 양념장을 만들고 무 위에 코다리를 얹어 끼얹는다.",
-          "중불에서 국물을 끼얹어 가며 15분간 조리고 마지막 3분에 양파와 대파를 넣는다."
+          "중불에서 국물을 끼얹어 가며 15분간 조리고 마지막 3분에 양파와 대파를 넣는다. 가장 두꺼운 살의 중심 온도가 63°C 이상인지 식품용 온도계로 확인한다."
         ]
       }
     },
@@ -7995,8 +7995,8 @@
         "ko": "브로콜리 마늘볶음"
       },
       "intro": {
-        "en": "Chinese-style stir-fry of crisp broccoli and golden garlic glossed with oyster sauce.",
-        "ko": "아삭하게 데친 브로콜리를 노릇한 마늘, 굴소스와 함께 센 불에 볶은 중국식 요리."
+        "en": "Broccoli tossed with golden garlic and oyster sauce over high heat.",
+        "ko": "데친 브로콜리를 노릇한 마늘, 굴소스와 함께 센 불에 볶은 요리."
       },
       "cuisine": "chinese",
       "minutes": 15,
@@ -8056,8 +8056,8 @@
         "ko": "미트소스 파스타"
       },
       "intro": {
-        "en": "Italian weeknight pasta in a rich beef and tomato sauce with parmesan.",
-        "ko": "다진 소고기와 토마토소스를 진하게 끓여 파마산으로 마무리하는 이탈리아식 파스타."
+        "en": "Pasta tossed in a thick beef and tomato sauce, finished with parmesan.",
+        "ko": "다진 소고기와 토마토소스에 파스타를 버무리고 파마산을 올린 요리."
       },
       "cuisine": "italian",
       "minutes": 30,
@@ -8113,14 +8113,14 @@
           "Boil the spaghetti in well-salted water for 1 minute less than the package says, saving a cup of pasta water.",
           "Cook the onion and garlic in an oiled pan over medium heat until fragrant.",
           "Add the ground beef and brown it, breaking it up, then season with salt and pepper.",
-          "Pour in the tomato sauce and simmer for 8 minutes until it thickens.",
+          "Pour in the tomato sauce and simmer for 8 minutes until it thickens. Check the meat reaches 71°C (160°F) with a food thermometer.",
           "Toss the spaghetti in the sauce, loosening it with pasta water as needed, and shower with parmesan."
         ],
         "ko": [
           "소금을 넉넉히 넣은 물에 스파게티를 포장지 표기보다 1분 덜 삶고 면수를 한 컵 남긴다.",
           "기름 두른 팬에 양파와 마늘을 중불에서 향이 나게 볶는다.",
           "다진 소고기를 넣어 풀어 가며 노릇하게 볶고 소금, 후추로 간한다.",
-          "토마토소스를 부어 8분간 걸쭉해질 때까지 끓인다.",
+          "토마토소스를 부어 8분간 걸쭉해질 때까지 끓인다. 식품용 온도계로 고기의 중심 온도 71°C 이상을 확인한다.",
           "스파게티를 소스에 넣고 면수로 농도를 풀어 가며 버무린 뒤 파마산을 듬뿍 뿌린다."
         ]
       }
@@ -8132,8 +8132,8 @@
         "ko": "페스토 파스타"
       },
       "intro": {
-        "en": "Italian pasta tossed off the heat with basil pesto so the sauce stays vivid green.",
-        "ko": "바질 페스토를 불에서 내려 버무려 초록빛이 살아 있는 이탈리아식 파스타."
+        "en": "Pasta tossed with basil pesto off the heat to keep its fresh green color.",
+        "ko": "바질 페스토를 불에서 내려 버무려 초록빛을 살린 파스타."
       },
       "cuisine": "italian",
       "minutes": 20,
@@ -8177,14 +8177,14 @@
       "steps": {
         "en": [
           "Boil the pasta in well-salted water until al dente, saving a cup of pasta water.",
-          "Warm the garlic in olive oil over low heat and blister the cherry tomatoes for 2 minutes.",
+          "Warm the garlic in olive oil over medium heat, then add the cherry tomatoes and cook for about 2 minutes until softened.",
           "Take the pan off the heat and let it cool for a moment.",
           "Add the pasta, pesto, and a splash of pasta water and toss off the heat so the pesto keeps its color.",
           "Season with salt, plate, and finish with grated parmesan."
         ],
         "ko": [
           "소금 넉넉한 물에 파스타를 알덴테로 삶고 면수를 한 컵 남긴다.",
-          "약불에서 올리브유에 편마늘을 데우고 방울토마토를 2분간 굴려 가볍게 굽는다.",
+          "중불에서 올리브유에 마늘을 볶고 방울토마토를 넣어 약 2분간 부드러워질 때까지 익힌다.",
           "팬을 불에서 내려 잠시 식힌다.",
           "면과 페스토, 면수 약간을 넣고 불 밖에서 버무려 페스토의 초록색을 살린다.",
           "소금으로 간해 접시에 담고 파마산을 갈아 올린다."
@@ -8198,8 +8198,8 @@
         "ko": "아스파라거스 베이컨말이"
       },
       "intro": {
-        "en": "American appetizer of asparagus spears wrapped in bacon and pan-seared until crisp.",
-        "ko": "아스파라거스를 베이컨으로 감아 바삭하게 구운 미국식 안주 겸 반찬."
+        "en": "Asparagus wrapped in bacon and pan-fried until crisp.",
+        "ko": "아스파라거스를 베이컨으로 감아 바삭하게 구운 요리."
       },
       "cuisine": "american",
       "minutes": 15,
@@ -8249,8 +8249,8 @@
         "ko": "콜리플라워 오븐구이"
       },
       "intro": {
-        "en": "American side of cauliflower florets roasted until browned and dusted with parmesan.",
-        "ko": "콜리플라워를 오븐에 노릇하게 구워 파마산을 뿌려 내는 미국식 곁들임 요리."
+        "en": "Cauliflower roasted until the edges brown, then sprinkled with parmesan.",
+        "ko": "콜리플라워를 가장자리가 노릇하게 구워 파마산을 뿌린 요리."
       },
       "cuisine": "american",
       "minutes": 35,
@@ -8288,14 +8288,14 @@
       ],
       "steps": {
         "en": [
-          "Heat the oven to 220C and cut the cauliflower into even florets.",
+          "Heat the oven to 220°C (425°F) and cut the cauliflower into even florets.",
           "Toss the florets with olive oil, garlic, salt, and pepper until glossy.",
           "Spread them cut side down on a baking sheet without crowding.",
           "Roast for 25 minutes until the edges brown and crisp.",
           "Dust with parmesan while hot and toss once before serving."
         ],
         "ko": [
-          "오븐을 220도로 예열하고 콜리플라워를 비슷한 크기의 송이로 자른다.",
+          "오븐을 220°C로 예열하고 콜리플라워를 비슷한 크기의 송이로 자른다.",
           "올리브유, 다진 마늘, 소금, 후추에 윤기가 나게 버무린다.",
           "자른 면이 아래로 가게 베이킹 팬에 겹치지 않게 펼친다.",
           "가장자리가 노릇하고 바삭해질 때까지 25분간 굽는다.",
@@ -8310,8 +8310,8 @@
         "ko": "치킨 토마토스튜"
       },
       "intro": {
-        "en": "French-style stew of chicken and mushrooms simmered in canned tomatoes until tender.",
-        "ko": "닭고기와 버섯을 토마토 통조림에 뭉근하게 끓여 낸 프랑스식 스튜."
+        "en": "Chicken and mushrooms gently simmered with canned tomatoes.",
+        "ko": "닭고기와 버섯을 토마토 통조림에 넣고 뭉근하게 끓인 스튜."
       },
       "cuisine": "french",
       "minutes": 40,
@@ -8368,14 +8368,14 @@
           "Take the chicken out, then cook the onion and garlic in the same pot until soft.",
           "Add the mushrooms and cook for 2 minutes.",
           "Return the chicken, crush in the canned tomatoes with their juice, and add a splash of water.",
-          "Cover and simmer over low heat for 25 minutes until the chicken is tender, then season to taste."
+          "Cover and simmer over low heat for 25 minutes until the chicken is tender, then season to taste. Check the thickest piece reaches 74°C (165°F) with a food thermometer."
         ],
         "ko": [
           "닭고기에 소금, 후추로 밑간해 기름 두른 냄비에 센 불로 겉면을 노릇하게 굽는다.",
           "닭을 건져 두고 같은 냄비에 양파와 마늘을 부드러워질 때까지 볶는다.",
           "버섯을 넣고 2분간 볶는다.",
           "닭을 다시 넣고 통조림토마토를 국물째 으깨 넣은 뒤 물을 약간 붓는다.",
-          "뚜껑을 덮고 약불에서 25분간 닭이 부드러워질 때까지 끓여 간을 맞춘다."
+          "뚜껑을 덮고 약불에서 25분간 닭이 부드러워질 때까지 끓여 간을 맞춘다. 가장 두꺼운 살의 중심 온도가 74°C 이상인지 식품용 온도계로 확인한다."
         ]
       }
     },
@@ -8386,8 +8386,8 @@
         "ko": "딸기 요거트볼"
       },
       "intro": {
-        "en": "American breakfast bowl of yogurt layered with fresh strawberries, honey, and granola.",
-        "ko": "요거트에 생딸기와 꿀, 그래놀라를 켜켜이 얹은 미국식 아침 한 그릇."
+        "en": "Yogurt topped with fresh strawberries, honey and crunchy granola.",
+        "ko": "요거트에 생딸기와 꿀을 얹고 먹기 직전 그래놀라를 더한 한 그릇."
       },
       "cuisine": "american",
       "minutes": 10,
@@ -8435,8 +8435,8 @@
         "ko": "사과 호두 샐러드"
       },
       "intro": {
-        "en": "American salad of crisp apple and toasted walnuts in honey yogurt dressing.",
-        "ko": "아삭한 사과와 구운 호두를 상추에 올려 꿀 요거트 드레싱을 끼얹는 미국식 샐러드."
+        "en": "Apple and toasted walnuts over lettuce with a honey yogurt dressing.",
+        "ko": "상추에 사과와 구운 호두를 올리고 꿀 요거트 드레싱을 곁들인 샐러드."
       },
       "cuisine": "american",
       "minutes": 15,
@@ -8476,14 +8476,14 @@
         "en": [
           "Toast the walnuts in a dry pan over low heat for 3 minutes and break them up roughly.",
           "Stir the yogurt with honey and a pinch of salt into a dressing.",
-          "Tear the lettuce into a bowl and slice the apple thin, skin on.",
+          "Wash and dry the lettuce and apple. Tear the lettuce into a bowl and thinly slice the apple with its skin on.",
           "Layer the apple over the lettuce and scatter the walnuts.",
           "Spoon the dressing over just before serving and toss lightly at the table."
         ],
         "ko": [
           "마른 팬에 호두를 약불로 3분간 구워 굵직하게 부순다.",
           "요거트에 꿀과 소금 한 꼬집을 섞어 드레싱을 만든다.",
-          "상추를 손으로 뜯어 그릇에 담고 사과는 껍질째 얇게 썬다.",
+          "상추와 사과를 씻어 물기를 뺀다. 상추를 그릇에 뜯어 담고 사과는 껍질째 얇게 썬다.",
           "상추 위에 사과를 얹고 호두를 흩뿌린다.",
           "먹기 직전에 드레싱을 끼얹고 식탁에서 가볍게 버무린다."
         ]
@@ -8496,8 +8496,8 @@
         "ko": "바나나 팬케이크"
       },
       "intro": {
-        "en": "American pancakes with mashed banana folded into the batter for natural sweetness.",
-        "ko": "으깬 바나나를 반죽에 섞어 자연스러운 단맛을 낸 미국식 팬케이크."
+        "en": "Pancakes with mashed banana in the batter and sliced banana on top.",
+        "ko": "으깬 바나나를 반죽에 섞어 부치고 바나나 조각을 올린 팬케이크."
       },
       "cuisine": "american",
       "minutes": 25,
@@ -8567,8 +8567,8 @@
         "ko": "땅콩버터 바나나토스트"
       },
       "intro": {
-        "en": "American breakfast toast spread with peanut butter and topped with banana and honey.",
-        "ko": "구운 식빵에 땅콩버터를 바르고 바나나와 꿀을 올린 미국식 아침 토스트."
+        "en": "Warm toast spread with peanut butter and topped with banana and honey.",
+        "ko": "따뜻한 토스트에 땅콩버터를 바르고 바나나와 꿀을 올린 요리."
       },
       "cuisine": "american",
       "minutes": 10,
@@ -8616,8 +8616,8 @@
         "ko": "콩국수"
       },
       "intro": {
-        "en": "Korean summer noodles served in an ice-cold savory soy milk broth.",
-        "ko": "고소한 콩물에 국수를 말아 차게 먹는 한국의 여름 별미."
+        "en": "Cold noodles in plain soy milk, topped with cucumber and sesame seeds.",
+        "ko": "차가운 무가당 두유에 국수를 말고 오이와 통깨를 올린 간단 콩국수."
       },
       "cuisine": "korean",
       "minutes": 15,
@@ -8651,14 +8651,14 @@
       "steps": {
         "en": [
           "Chill the soy milk in the freezer for 20 minutes so it is very cold.",
-          "Boil the somyeon for 3 minutes, rinse under cold water while rubbing off the starch, and drain tight.",
+          "Cook the somyeon for the time on the package, rinse thoroughly under cold water, and drain well.",
           "Coil the noodles into a bowl and pour the chilled soy milk around them.",
           "Top with the cucumber and a sprinkle of sesame seeds.",
           "Season with salt at the table to taste."
         ],
         "ko": [
           "두유를 냉동실에 20분 넣어 아주 차게 준비한다.",
-          "소면을 3분간 삶아 찬물에 전분기를 비벼 헹구고 물기를 꽉 짠다.",
+          "소면을 포장지의 시간에 맞춰 삶고 찬물에 충분히 헹군 뒤 물기를 뺀다.",
           "그릇에 국수를 돌려 담고 차가운 두유를 가장자리로 붓는다.",
           "오이채를 올리고 통깨를 뿌린다.",
           "먹으면서 소금으로 입맛에 맞게 간한다."
@@ -8672,8 +8672,8 @@
         "ko": "과일 샐러드"
       },
       "intro": {
-        "en": "American bowl of mixed fresh fruit folded with yogurt and a touch of honey.",
-        "ko": "제철 과일을 요거트와 꿀에 가볍게 버무린 미국식 과일 샐러드."
+        "en": "Apple, banana and orange gently tossed with yogurt and honey.",
+        "ko": "사과, 바나나, 오렌지를 요거트와 꿀에 가볍게 버무린 샐러드."
       },
       "cuisine": "american",
       "minutes": 15,
@@ -8728,8 +8728,8 @@
         "ko": "느타리버섯볶음"
       },
       "intro": {
-        "en": "Korean side of hand-torn oyster mushrooms stir-fried in sesame oil.",
-        "ko": "손으로 찢은 느타리버섯을 대파, 참기름과 함께 볶아 낸 한국의 반찬."
+        "en": "Hand-torn oyster mushrooms stir-fried with carrot and finished with sesame oil.",
+        "ko": "느타리버섯을 손으로 찢어 당근과 볶고 참기름으로 마무리한 반찬."
       },
       "cuisine": "korean",
       "minutes": 15,
@@ -8799,8 +8799,8 @@
         "ko": "우엉조림"
       },
       "intro": {
-        "en": "Korean lunchbox staple of burdock root braised sweet and glossy in soy sauce.",
-        "ko": "우엉을 간장에 달게 조려 윤기 나게 낸 한국의 밑반찬."
+        "en": "Thin strips of burdock root braised in sweet soy sauce until glossy.",
+        "ko": "가늘게 썬 우엉을 달콤한 간장 양념에 윤기 나게 조린 밑반찬."
       },
       "cuisine": "korean",
       "minutes": 35,
@@ -8860,7 +8860,7 @@
           "Stir in the corn syrup for shine, toss once, and finish with sesame seeds."
         ],
         "ko": [
-          "우엉은 칼등으로 껍질을 긁어내고 가늘게 채썬다.",
+          "우엉은 칼등으로 껍질을 긁어내고 가늘게 채 썬다.",
           "식초물에 10분간 담가 갈변을 막고 건져 둔다.",
           "기름 두른 팬에 우엉을 중불에서 3분간 볶는다.",
           "간장, 설탕, 다진 마늘과 자작한 물을 넣고 국물이 거의 없어질 때까지 조린다.",
@@ -8875,16 +8875,16 @@
         "ko": "고사리나물"
       },
       "intro": {
-        "en": "Korean holiday side dish of soaked fernbrake stir-fried with garlic and sesame oil.",
-        "ko": "불린 고사리를 마늘과 참기름에 볶아 낸 한국의 명절 나물."
+        "en": "Cooked fernbrake stir-fried with garlic and finished with sesame oil.",
+        "ko": "삶은 고사리를 마늘과 볶고 참기름으로 마무리한 나물."
       },
       "cuisine": "korean",
       "minutes": 20,
       "ingredients": [
         {
           "ref": "fernbrake",
-          "en": "soaked fernbrake",
-          "ko": "삶은고사리"
+          "en": "fully boiled fernbrake",
+          "ko": "충분히 삶은 고사리"
         },
         {
           "ref": "green-onion",
@@ -8924,14 +8924,14 @@
       ],
       "steps": {
         "en": [
-          "Trim any tough stem ends off the soaked fernbrake and cut it into finger lengths.",
+          "Use fully boiled fernbrake. Trim the tough ends and cut into short lengths; soaking dried fernbrake alone is not enough.",
           "Squeeze out the water and season it with soy sauce and garlic for 5 minutes.",
           "Stir-fry the fernbrake in an oiled pan over medium heat for 3 minutes.",
           "Add a splash of water, cover, and steam for 2 minutes so the stems soften.",
           "Finish with the green onion, sesame oil, and a sprinkle of sesame seeds."
         ],
         "ko": [
-          "삶은 고사리는 질긴 줄기 끝을 다듬어 손가락 길이로 썬다.",
+          "충분히 삶은 고사리를 준비해 질긴 끝을 다듬고 짧게 썬다. 마른 고사리는 불리기만 한 상태로 쓰지 않는다.",
           "물기를 짜고 간장과 다진 마늘에 5분간 밑간한다.",
           "기름 두른 팬에 고사리를 중불에서 3분간 볶는다.",
           "물을 조금 붓고 뚜껑을 덮어 2분간 쪄서 줄기를 부드럽게 한다.",
@@ -8946,8 +8946,8 @@
         "ko": "마늘종 새우볶음"
       },
       "intro": {
-        "en": "Korean side dish of crunchy garlic scapes and shrimp glazed in a sweet soy sauce.",
-        "ko": "아삭한 마늘종과 새우를 달콤한 간장 양념에 볶아 낸 한국의 밑반찬."
+        "en": "Garlic scapes and shrimp stir-fried in a sweet soy glaze.",
+        "ko": "마늘종과 새우를 달콤한 간장 양념에 볶은 밑반찬."
       },
       "cuisine": "korean",
       "minutes": 20,
@@ -9012,8 +9012,8 @@
         "ko": "굴전"
       },
       "intro": {
-        "en": "Korean winter delicacy of plump oysters coated in flour and egg and pan-fried gently.",
-        "ko": "통통한 굴에 밀가루와 계란옷을 입혀 부드럽게 부쳐 낸 한국의 겨울 별미."
+        "en": "Oysters coated in flour and egg, pan-fried and served with a soy dipping sauce.",
+        "ko": "굴에 밀가루와 계란옷을 입혀 부치고 초간장을 곁들인 전."
       },
       "cuisine": "korean",
       "minutes": 20,
@@ -9064,14 +9064,14 @@
           "Rinse the oysters gently in salted water and drain them on a paper towel.",
           "Beat the eggs with a pinch of salt.",
           "Dust each oyster lightly in flour, then dip it in the egg.",
-          "Fry over medium-low heat for about 2 minutes per side, laying a chili slice on top of each one.",
+          "Fry over medium-low heat for about 2 minutes per side, adding chili slices. Continue until the oysters reach 63°C (145°F) and the egg is set.",
           "Serve warm with soy sauce mixed with a little vinegar."
         ],
         "ko": [
           "굴을 소금물에 살살 헹궈 키친타월에 밭쳐 물기를 뺀다.",
           "계란에 소금 한 꼬집을 넣어 푼다.",
           "굴에 밀가루를 얇게 묻히고 계란물을 입힌다.",
-          "중약불에서 한 면에 2분씩 부치며 위에 홍고추 한 쪽씩을 올린다.",
+          "고추를 올리고 중약불에서 한 면에 약 2분씩 부친다. 굴 중심이 63°C 이상이고 계란옷이 완전히 익을 때까지 익힌다.",
           "간장에 식초를 섞은 초간장과 함께 따뜻할 때 낸다."
         ]
       }
@@ -9083,8 +9083,8 @@
         "ko": "갈치조림"
       },
       "intro": {
-        "en": "Korean braise of hairtail and radish in a bold gochugaru soy broth.",
-        "ko": "갈치와 무를 칼칼한 고춧가루 간장 양념에 조려 낸 한국의 대표 생선조림."
+        "en": "Hairtail and radish braised in a spicy soy broth.",
+        "ko": "갈치와 무를 칼칼한 고춧가루 간장 양념에 조린 생선 요리."
       },
       "cuisine": "korean",
       "minutes": 35,
@@ -9146,14 +9146,14 @@
           "Lay the radish on the bottom of a pot, pour in water to cover it, and boil for 10 minutes.",
           "Mix the gochugaru, soy sauce, sugar, garlic, and cooking wine into a sauce.",
           "Place the hairtail over the radish, spoon the sauce on top, and braise over medium heat for 12 minutes.",
-          "Add the onion and green onion, baste with the broth, and cook 3 more minutes until the sauce thickens."
+          "Add the onion and green onion, baste with the broth, and cook 3 more minutes until the sauce thickens. Check the thickest part reaches 63°C (145°F) with a food thermometer."
         ],
         "ko": [
           "갈치는 은막을 가볍게 긁어내고 지느러미를 잘라 토막 낸다.",
           "냄비 바닥에 무를 깔고 잠길 만큼 물을 부어 10분간 끓인다.",
           "고춧가루, 간장, 설탕, 마늘, 맛술을 섞어 양념장을 만든다.",
           "무 위에 갈치를 얹고 양념장을 끼얹어 중불에서 12분간 조린다.",
-          "양파와 대파를 넣고 국물을 끼얹어 가며 3분 더 조려 국물을 걸쭉하게 한다."
+          "양파와 대파를 넣고 국물을 끼얹어 가며 3분 더 조려 국물을 걸쭉하게 한다. 가장 두꺼운 살의 중심 온도가 63°C 이상인지 식품용 온도계로 확인한다."
         ]
       }
     },
@@ -9164,8 +9164,8 @@
         "ko": "꽃게탕"
       },
       "intro": {
-        "en": "Korean spicy soup of blue crab simmered with radish and zucchini in a doenjang broth.",
-        "ko": "꽃게를 무, 애호박과 함께 된장 국물에 얼큰하게 끓여 낸 한국의 탕."
+        "en": "Crab, radish and zucchini simmered in a spicy soybean paste broth.",
+        "ko": "꽃게, 무, 애호박을 된장 국물에 얼큰하게 끓인 탕."
       },
       "cuisine": "korean",
       "minutes": 35,
@@ -9222,14 +9222,14 @@
           "Dissolve the doenjang in a pot of water and add the radish.",
           "Boil for 7 minutes until the radish starts to turn clear.",
           "Add the crabs, garlic, and gochugaru and boil hard for 10 minutes, skimming the foam.",
-          "Drop in the zucchini, green onion, and chili and cook 3 more minutes before serving."
+          "Add the zucchini, green onion and chili and cook for about 3 more minutes, until the crab meat is white and opaque throughout."
         ],
         "ko": [
           "꽃게는 솔로 문질러 씻고 등딱지를 떼어 아가미를 제거한 뒤 몸통을 반으로 자른다.",
           "냄비의 물에 된장을 풀고 무를 넣는다.",
           "무가 투명해지기 시작할 때까지 7분간 끓인다.",
           "꽃게, 다진 마늘, 고춧가루를 넣고 거품을 걷어 가며 10분간 세게 끓인다.",
-          "애호박, 대파, 고추를 넣고 3분 더 끓여 낸다."
+          "애호박, 대파, 고추를 넣고 약 3분 더 끓여 꽃게 속살까지 하얗고 불투명하게 익힌다."
         ]
       }
     },
@@ -9240,8 +9240,8 @@
         "ko": "관자 버터구이"
       },
       "intro": {
-        "en": "French-style scallops seared hard in butter and basted with garlic.",
-        "ko": "관자를 버터에 강하게 구워 마늘 향을 입힌 프랑스식 요리."
+        "en": "Scallops seared until golden and basted with garlic butter.",
+        "ko": "관자를 노릇하게 구워 마늘 버터를 끼얹은 요리."
       },
       "cuisine": "french",
       "minutes": 15,
@@ -9287,14 +9287,14 @@
           "Pat the scallops completely dry and season both sides with salt and pepper.",
           "Heat a little oil in a pan until it just smokes and lay the scallops in without crowding.",
           "Sear for 90 seconds without moving them so a golden crust forms.",
-          "Flip, add the butter and garlic, and baste the scallops with the foaming butter for 1 minute.",
+          "Flip, add butter and garlic, and baste for about 1 minute. Continue until the centers are opaque and reach 63°C (145°F).",
           "Plate immediately and serve with lemon wedges."
         ],
         "ko": [
           "관자의 물기를 완전히 닦고 양면에 소금, 후추로 간한다.",
           "팬에 기름을 연기가 살짝 날 만큼 달구고 관자를 겹치지 않게 올린다.",
           "노릇한 크러스트가 생기도록 90초간 움직이지 않고 굽는다.",
-          "뒤집은 뒤 버터와 편마늘을 넣고 거품이 이는 버터를 1분간 끼얹는다.",
+          "뒤집어 버터와 마늘을 넣고 약 1분간 끼얹는다. 속까지 불투명해지고 중심 온도 63°C 이상이 되도록 익힌다.",
           "바로 접시에 담아 레몬 조각과 함께 낸다."
         ]
       }

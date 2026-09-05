@@ -916,6 +916,30 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
 .hdr-cover__col { display: flex; flex-direction: column; gap: var(--space-0); min-width: 0; }
 .hdr-cover .close-hit { margin-top: -7.7px; }
 
+/* §14.8 시트 컴포지션(61차) 목업 — 여기서는 패딩이 곧 토큰 값이라, 위 .mock 의 쇼케이스 패딩(12/16/24)
+   대신 ReffiSheet 실값을 쓴다: 좌우 inset 24(space-5) · 시트 상단→제목 행 top 32(space-7, 그래버 포함)
+   · 바닥 bottom 32(space-7). 좌우만 패딩이고 세로 간격(headerGap·blockGap·bottom)은 .sheet-gap 스페이서로
+   세운다 — 그 자리에 쇼케이스 눈금 라벨이 서야 하기 때문이다(앱에는 라벨이 없고 순수 여백이다). */
+/* 면은 시트의 **진짜 바탕(canvas)**이다 — 위 .mock 처럼 틴트로 올려 분리하지 않는 이유는, 그러면
+   secondary CTA 의 정본 채움(sub)이 바탕과 붙어 버리기 때문이다. 분리는 대신 호출부가 진다: 데모 패인을
+   sub 로 낮춰(딤 자리) 시트가 그 위에 뜬다 — 양 모드에서 같은 그림이고, 앱의 실제 층 관계와도 같다. */
+.sheet-mock { background: var(--color-canvas); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-1); padding: 0 var(--space-5); }
+.sheet-mock__top { position: relative; height: var(--space-7); padding-top: var(--space-2); }
+.sheet-mock__top .sheet-gap__n { top: auto; bottom: 0; transform: none; }
+.sheet-mock__top .sheet-gap__n.is-left { right: auto; left: 0; }
+.sheet-mock__top .mock__grab { margin: 0 auto; }
+.sheet-gap { position: relative; }
+.sheet-gap__n { position: absolute; right: 0; top: 50%; transform: translateY(-50%);
+  font-size: 10px; line-height: 1; letter-spacing: 0.02em; color: var(--color-muted); }
+.sheet-block { display: flex; flex-direction: column; align-items: center; text-align: center; }
+.sheet-cta { width: 100%; height: var(--tap-min); border-radius: var(--radius-md);
+  display: grid; place-items: center; font: 600 15px/1 var(--font); }
+.sheet-cta.is-primary { background: var(--color-blue); color: var(--on-accent);
+  box-shadow: inset 0 0 0 1px var(--paper-edge-onfill); }
+.sheet-cta.is-secondary { background: var(--color-sub); color: var(--color-ink);
+  box-shadow: inset 0 0 0 1px var(--paper-edge); }
+
 /* mobile nav collapse */
 @media (max-width: 1199.98px) {
   .shell { flex-direction: column; }
@@ -1660,8 +1684,8 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
         <table class="tbl" style="margin-top:var(--space-3)">
           <thead><tr><th>인셋</th><th>표기</th><th>대상</th><th>왜</th></tr></thead>
           <tbody>
-            <tr><td class="num">16</td><td><code class="inline">ReffiGrid.margin</code></td><td><strong>평평한 표면</strong> — 화면 타이틀·탭 행·컨트롤 한 줄·빈 상태·간편보기 행·닫기 X 바</td><td>페이지에 붙어 사는 면은 페이지 마진에 앉는다. 형제 패인까지 전부 16이라 탭을 오가도 좌측선이 안 튄다</td></tr>
-            <tr><td class="num">24</td><td><code class="inline">margin + s2</code></td><td><strong>캔버스 위에 좁게 뜨는 종이</strong> — 오더·조리 티켓, 펼친 상세 영수증, 온보딩 카드, 히어로 캡션</td><td>종이가 페이지보다 좁아야 "얹힌 한 장"으로 읽힌다. 세로로 이어 붙는 두 표면은 <strong>반드시 같은 값</strong> — 갈리면 이음매에 8pt 계단이 생긴다</td></tr>
+            <tr><td class="num">16</td><td><code class="inline">ReffiGrid.margin</code></td><td><strong>평평한 표면</strong> — 화면 타이틀·탭 행·컨트롤 한 줄·빈 상태·간편보기 행·<strong>커버의</strong> 닫기 X 바</td><td>페이지에 붙어 사는 면은 페이지 마진에 앉는다. 형제 패인까지 전부 16이라 탭을 오가도 좌측선이 안 튄다</td></tr>
+            <tr><td class="num">24</td><td><code class="inline">margin + s2</code></td><td><strong>캔버스 위에 좁게 뜨는 종이</strong> — 오더·조리 티켓, 펼친 상세 영수증, 온보딩 카드, 히어로 캡션, <strong>하단 시트의 헤더·본문·도킹 CTA·푸터 전부</strong>(<code class="inline">ReffiSheet.inset</code>, §14.8 · 61차)</td><td>종이가 페이지보다 좁아야 "얹힌 한 장"으로 읽힌다. 시트도 같은 이유다 — 페이지 마진(16)을 시트에 상속하면 딤 위에 뜬 한 장이 페이지처럼 좁게 읽힌다(61차 오너 지적). 세로로 이어 붙는 두 표면은 <strong>반드시 같은 값</strong> — 갈리면 이음매에 8pt 계단이 생긴다</td></tr>
             <tr><td class="num">34</td><td><code class="inline">margin + cardInset</code>(18)</td><td><strong>기울임·slip이 있는 카드 스택 하나뿐</strong> — 냉장고 In stock 스택</td><td><code class="inline">cardInset</code> 18은 여백이 아니라 <strong>산포 예산</strong>이다: slip·tilt 산포(±16)가 다 쓰고 남은 자리를 역산한 값이라, 회전한 카드의 바깥 모서리가 베젤에 닿지 않는다</td></tr>
           </tbody>
         </table>
@@ -1674,7 +1698,7 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
           <ul style="margin:0">
             <li><strong>읽는 텍스트는 좌측이 기본이다.</strong> 제목·헤드라인·커버/시트 헤더·부제·본문·캡션·오류·안내가 전부 그 표면의 좌측 정렬선(페이지 마진 · 카드 안쪽 모서리 · 목록 행)에 앉는다. 줄이 길어질수록 중앙은 매 줄 시작점이 흔들려 읽는 속도를 깎는다.</li>
             <li><strong>한 표면에 축은 하나다.</strong> 좌측선이 이미 선 카드 안에서 텍스트 한 줄만 중앙이면 위계가 아니라 <em>부유물</em>로 읽힌다 — 조리 티켓 소개문이 그 실패였다(49차 해소).</li>
-            <li><strong>중앙은 예외 셋뿐이다.</strong> ① 컨트롤 안의 라벨(버튼·칩·네비 항목) ② 모티프가 축을 세우고 주변에 정렬선이 없는 <strong>표지형</strong> 블록(온보딩 인트로·빈 작업대·빈 덱) ③ 글자가 아닌 요소(일러스트·도장·페이지 점).</li>
+            <li><strong>중앙은 예외 셋뿐이다.</strong> ① 컨트롤 안의 라벨(버튼·칩·네비 항목) ② 모티프가 축을 세우고 주변에 정렬선이 없는 <strong>표지형</strong> 블록(온보딩 인트로·빈 작업대·빈 덱·스캔 소스 선택 — 이 시트는 <strong>바닥의 프라이버시 고지까지 한 블록</strong>이라 그 두 줄도 중앙이다, 61차 §14.8) ③ 글자가 아닌 요소(일러스트·도장·페이지 점).</li>
             <li><strong>빈 상태는 두 갈래다.</strong> 목록 컬럼 안에 행처럼 앉는 <strong>카드형</strong>은 좌측, 영역 전체를 쓰는 <strong>표지형</strong>은 중앙 — 한쪽으로 통일하지 않는다.</li>
             <li><strong>예외 블록은 자기가 중앙을 선언한다.</strong> 부모 스택을 중앙으로 돌리지 말고 그 요소에만 중앙 프레임을 건다 — 묶으면 형제 텍스트까지 끌려간다.</li>
             <li><strong>정렬을 바꿀 땐 레이아웃도 같이.</strong> <code class="inline">text-align</code>만 바꾸면 문단 <em>내부</em>만 왼쪽이 되고 상자는 가운데 남는다. 네이티브에선 <code class="inline">frame(alignment:)</code>·<code class="inline">VStack(alignment:)</code>·중앙 대칭용 투명 균형자·중앙 2줄 균형용 하드 개행(en 키·ko 값 <strong>양쪽</strong>)을 같은 커밋에서 함께 걷는다.</li>
@@ -1734,6 +1758,7 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">스크롤하는 커버의 헤더를 <code class="inline">safeAreaInset(.top)</code> + <strong>불투명 면 + <code class="inline">s6</code> 페이드</strong>로 도킹했는가 — 투명 오버레이 + 실측 되먹임(<code class="inline">onGeometryChange</code> → 상단 패딩)을 다시 만들지 않았는가 (§14.4)</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">위치 표시자(점·게이지)를 종이컷이 아니라 <code class="inline">Circle()</code>/<code class="inline">Capsule()</code>로 그렸고, 지름 7 · 간격 6 · <code class="inline">ink-2</code> / <code class="inline">muted × inactive</code> <strong>한 벌</strong>을 썼는가 — 1장짜리에는 아예 그리지 않았는가 (§11/§13.6)</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">좌우 인셋이 §9.2 세 값(16 / 24 / 34) 중 하나이고, 34(<code class="inline">cardInset</code>)를 <strong>회전 없는 평평한 표면에 상속시키지 않았는가</strong></span></li>
+          <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">하단 시트가 <code class="inline">SheetShell</code> 위에 서고 좌우가 <code class="inline">ReffiSheet.inset</code> <strong>한 선</strong>인가 — 헤더·본문·도킹 바·푸터 어디에도 <code class="inline">ReffiGrid.margin</code>이 남아 있지 않은가 · 본문 첫 요소에 상단 패딩을 덧대지 않았는가 · Save/확정이 맨 패딩이 아니라 셸의 <code class="inline">bar:</code>인가 · 짧은 시트가 <code class="inline">.height(숫자)</code>가 아니라 실측 맞춤인가 · <code class="inline">.medium</code>을 여는 시트가 실제로 스크롤하는가 · 표지형 시트는 헤더만 좌측이고 푸터까지 중앙인가 (§14.8)</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> <span class="text">앱 내 팝업을 <strong>예외 없이</strong> <code class="inline">PaperDialog</code>/<code class="inline">PaperChecklistDialog</code>로 세웠는가 — 40차가 "파괴 확인은 시스템에 남는다"는 경계를 폐지했다. 파괴 성향 1차 행동엔 <code class="inline">role: .destructive</code>(<code class="inline">urgentDark</code> 솔리드)를 준다. 종이가 아닌 유일한 팝업류는 OS 알림 권한 요청 — <code class="inline">.alert</code>이 아니라 iOS가 앱 밖에서 그리는 시스템 시트라 앱이 재질을 정할 수 없다(플랫폼 제약) (§14.7)</span></li>
         </ul>
       </section>
@@ -2173,7 +2198,7 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
         <p class="t-caption text" style="color:var(--color-ink-2);margin-bottom:var(--space-4)">헤더는 목적에 따라 <strong>2개 컴포넌트로 분리</strong>하고, 화면마다 인라인으로 복붙하지 않는다. 두 헤더는 <strong>같은 좌측 정렬선</strong>을 쓴다(49차) — 성격 차이는 정렬이 아니라 닫기 신호(커버=X 상시 / 시트=핸들)와 타이틀 보호(2줄 접힘 / 한 줄 말줄임)로 낸다. 타이포는 <strong>둘 다 <code class="inline">.heading</code>으로 통일</strong>하며 <code class="inline">.subhead</code> 예외를 두지 않는다.</p>
         <div class="paper-demo">
           <div class="demo-pane">
-            <p class="lbl"><code class="inline">SheetHeader</code> — 하단 시트. 좌측 타이틀(한 줄·말줄임) + (선택)X. dragIndicator(핸들)를 전제한다(<code class="inline">SheetShell</code>을 쓰면 셸이 보증). 인라인 헤더 예외는 0 — 동적 타이틀 truncation 보호는 컴포넌트가 흡수한다.</p>
+            <p class="lbl"><code class="inline">SheetHeader</code> — 하단 시트. 좌측 타이틀(한 줄·말줄임) + (선택)X. dragIndicator(핸들)를 전제한다(<code class="inline">SheetShell</code>을 쓰면 셸이 보증). 인라인 헤더 예외는 0 — 동적 타이틀 truncation 보호는 컴포넌트가 흡수한다. <strong>패딩은 61차부터 시트 토큰이다</strong>: 좌우 <code class="inline">ReffiSheet.inset</code> 24 · 위 <code class="inline">top</code> 32 · 아래 <code class="inline">headerGap</code> 24이고, <strong>본문은 자기 상단 패딩을 갖지 않는다</strong>(옛 페이지 마진 16 · <code class="inline">s5</code> · <code class="inline">s3</code>는 본문마다 0/8/12를 덧대게 만들어 헤더→본문이 시트마다 12·20·24로 갈렸다, §14.8).</p>
             <div class="mock">
               <div class="mock__grab"></div>
               <div class="hdr-sheet">
@@ -2234,16 +2259,105 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
         <div class="note"><strong>커버 화면의 헤더는 하단 CTA와 대칭으로 도킹한다</strong>(46차가 티켓 덱에 세운 규칙의 일반화). 세 요건이 세트다: ① 헤더는 <code class="inline">safeAreaInset(edge: .top)</code>으로 <strong>제 높이를 스스로 가져간다</strong> ② 그 뒤에 <strong>불투명 면</strong>(그 화면 바탕색 토큰)이 노치까지 이어진다 ③ 면 아래쪽 <code class="inline">s6</code> 띠만 같은 색으로 <strong>페이드</strong>한다 — 하단 바의 <code class="inline">padding-top: s6</code> 페이드를 위아래로 뒤집은 것이다. 콘텐츠의 상단 패딩은 <strong>0</strong>이다: 인셋이 이미 헤더 하단 <code class="inline">s3</code> + 페이드 <code class="inline">s6</code> = <strong>40pt</strong>를 준다(티켓 덱의 <code class="inline">12 + deckGap(s6) = 40</code>과 같은 값으로 수렴한다). 여기에 값을 더하면 이중으로 얹힌다.</div>
         <div class="note" style="margin-top:var(--space-3)"><strong>폐기된 것: 투명 오버레이 + 실측 되먹임.</strong> 옛 조리 커버는 헤더를 ZStack 맨 위에 겹쳐 놓고 실측 높이를 아래 콘텐츠의 상단 패딩으로 되먹였고, 두 가지가 동시에 깨져 있었다 — ① 헤더에 면이 없어(= 투명한 글자 덩어리) 화면 전체를 차지한 ScrollView의 티켓이 헤더 글자 위를 그대로 통과했다(패딩은 <strong>정지 위치</strong>만 정할 뿐 스크롤 이동을 막지 않는다) ② 실측이 도착하기 전 첫 프레임이 근사 초기값으로 그려져 큰 글씨에서 티켓이 한 번 내려앉았다. <strong><code class="inline">safeAreaInset</code>만으로는 겹침이 안 고쳐진다 — ①과 ②는 세트다</strong>: 인셋은 스크롤 콘텐츠를 인셋 뷰 <strong>밑으로 흘리는 것이 본래 동작</strong>이고, 하단 도킹이 그 위에 불투명 면을 까는 이유가 정확히 그것이다. 티켓 덱에서 겹침이 없었던 건 인셋 덕분이 아니라 <strong>덱이 ScrollView가 아니기</strong> 때문이라, 덱은 지금도 면 없이 인셋만 쓴다. <strong>페이드 띠는 "배경 단색" 규칙과 충돌하지 않는다</strong> — 46차 규칙은 <em>화면 바탕</em>이 크림 단색이라는 것이고, 이 띠는 하단 도킹 바에 이미 명문화한 같은 장치다. 하드 컷을 쓰지 않는 이유도 같은 라운드의 판정이다: 직선에서 뚝 끊기면 그 자리가 다시 '층'으로 읽힌다. <strong>모디파이어는 아직 조리 커버 안에 인라인이다</strong>(50차 시점에 상단을 도킹하는 커버가 그 하나뿐이라서) — 두 번째 호출부가 생기면 하단 도킹 옆에 짝으로 올린다. 손으로 두 벌을 유지하면 페이드 높이가 화면별로 갈린다.</div>
 
-        <p class="subhead text">시트 높이(detent) — 콘텐츠 양별 3단</p>
-        <p class="t-caption text" style="color:var(--color-ink-2);margin-bottom:var(--space-3)">미설정(무조건 풀높이) 상태로 두지 않는다.</p>
+        <p class="subhead text">시트 높이(detent) — 콘텐츠 양별 4단</p>
+        <p class="t-caption text" style="color:var(--color-ink-2);margin-bottom:var(--space-3)">미설정(무조건 풀높이) 상태로 두지 않는다. <strong>detent는 시트 뷰 안에 산다</strong>(호출부가 아니라) — 호출부가 정하면 같은 시트가 여는 자리마다 다른 키로 선다(61차에 프로필의 여섯 줄을 시트로 옮겼다).</p>
         <table class="tbl">
           <thead><tr><th>콘텐츠</th><th>detent</th></tr></thead>
           <tbody>
-            <tr><td>짧은 단일 입력(닉네임 · 시간 등)</td><td>고정 높이 <code class="inline">.height(...)</code></td></tr>
-            <tr><td>중간 목록 · 폼(추가 · 편집)</td><td><code class="inline">.medium</code> 진입, 키보드·긴 내용 시 <code class="inline">.large</code>로 승격</td></tr>
+            <tr><td>짧은 결정·입력(스캔 소스 선택 · 닉네임 · 알림 시간)</td><td><strong>콘텐츠 맞춤</strong> <code class="inline">.height(실측)</code> — <code class="inline">SheetShell(sizing: .fitted)</code> / <code class="inline">sheetFitHeight</code>(§14.8). <code class="inline">.height(260)</code> 같은 숫자 리터럴은 쓰지 않는다 — Dynamic Type에서 조용히 잘렸다(61차)</td></tr>
+            <tr><td>중간 목록·그리드(요리 스타일 · 태그 · To buy 검색 · 남은 재료 확인)</td><td><code class="inline">.medium</code> 진입, 키보드·긴 내용 시 <code class="inline">.large</code>로 승격 — <strong><code class="inline">.medium</code>을 여는 시트는 반드시 스크롤한다</strong>(정적 VStack이 넘치면 잘린 채 서고 도달할 수 없다)</td></tr>
+            <tr><td>절반 화면을 넘는 편집 폼(재료 · 후보 · 레시피 편집)</td><td><code class="inline">.large</code> — <code class="inline">.medium</code>에 열면 필수 칸이 접힌 채 선다(61차 감사: 후보 편집 568pt / 가용 392pt)</td></tr>
             <tr><td>긴 목록(레시피 목록 등)</td><td><code class="inline">.large</code></td></tr>
           </tbody>
         </table>
+
+        <p class="subhead text" style="margin-top:var(--space-6)">시트 컴포지션 — <code class="inline">SheetShell</code> · <code class="inline">ReffiSheet</code> <span class="t-caption" style="color:var(--color-muted)">— MD §14.8 · 61차</span></p>
+        <p class="t-caption text" style="color:var(--color-ink-2);margin-bottom:var(--space-4)">오너 지적(61차): <em>"모달 컴포지션이 이상하다. 이 하프시트는 전체적으로 중앙정렬인데 중앙이 유지되지 않고, 하프시트들의 상하 스페이싱이 어수선하며, 좌우상하 마진이 너무 좁다."</em> <strong>시트 12종 전수 감사 결과, 개별 값은 전부 토큰이었는데 <em>조합</em>이 시트마다 달랐다.</strong> 좌우 인셋은 16(헤더·푸터)·24(주방 전표)·28(스캔 CTA 묶음)이 <strong>한 화면 안에</strong> 공존했고, 헤더→본문 간격은 헤더 하단 12에 본문이 0/8/12를 덧대 12·20·24로 갈렸으며, Save 바는 8/8·12/12·인라인 세 벌이었고 <code class="inline">dockedCTA</code>를 쓰는 시트가 하나도 없었다. 스캔 소스 선택은 <code class="inline">.medium</code>(iPhone 17 가용 ≈392pt)에 ≈482pt를 넣어 캡션 둘째 줄이 말줄임으로 사라졌고, 표지형 블록(§9.4 ②)인데 헤더·오류 줄·프라이버시 고지만 좌측이라 축이 둘이었다. 닉네임(<code class="inline">.height(260)</code>)·알림 시간(<code class="inline">.height(300)</code>)은 매직 넘버 detent라 접근성 글자에서 잘렸고, 요리 스타일·태그 시트는 정적 VStack이라 넘치면 도달할 수 없었다.</p>
+
+        <p class="t-caption text" style="color:var(--color-ink-2);margin-bottom:var(--space-3)"><strong>토큰 — 값이 아니라 자리에 이름을 준다</strong>(<code class="inline">ReffiSheet</code>, <code class="inline">ReffiLayout.swift</code>). 호출부는 <code class="inline">s5</code>가 아니라 <code class="inline">ReffiSheet.blockGap</code>을 적고, 다음 튜닝은 여기 한 줄만 움직인다.</p>
+        <table class="tbl">
+          <thead><tr><th>자리</th><th>토큰</th><th>값</th><th>근거</th></tr></thead>
+          <tbody>
+            <tr><td>좌우 인셋</td><td><code class="inline">inset</code></td><td class="num"><strong>24</strong> (<code class="inline">margin + s2</code>)</td><td>시트는 §9.2 표의 "캔버스 위에 뜨는 종이" 행이다. 페이지 마진 16은 페이지에 붙어 사는 면의 값이라 시트에 상속하면 좁게 읽힌다. iOS 26 시트는 화면에서 8pt 더 떠 있어 잉크는 화면 기준 32에 선다. 헤더·본문·도킹 CTA·푸터 <strong>전부 이 한 선</strong></td></tr>
+            <tr><td>시트 상단 → 제목 행</td><td><code class="inline">top</code></td><td class="num"><strong>32</strong> (<code class="inline">s7</code>)</td><td>그래버(상단 5~10pt)를 빼면 옛 24는 제목이 천장에 붙어 읽혔다</td></tr>
+            <tr><td>제목 행 → 첫 콘텐츠</td><td><code class="inline">headerGap</code></td><td class="num"><strong>24</strong> (<code class="inline">s5</code>)</td><td>헤더가 전부 진다. <strong>본문은 상단 패딩을 갖지 않는다</strong> — 옛 구조(헤더 12 + 본문 0/8/12)가 갈리던 자리</td></tr>
+            <tr><td>블록(섹션) 사이</td><td><code class="inline">blockGap</code></td><td class="num">24 (<code class="inline">s5</code>)</td><td>모티프 묶음 ↔ CTA 묶음 ↔ 조용한 링크 ↔ 카드</td></tr>
+            <tr><td>블록 안 요소 사이</td><td><code class="inline">itemGap</code></td><td class="num">16 (<code class="inline">s4</code>)</td><td>아이콘→캡션, 필드→필드, 한 폼의 카드→카드</td></tr>
+            <tr><td>쌓인 CTA 사이</td><td><code class="inline">ctaGap</code></td><td class="num">12 (<code class="inline">s3</code>)</td><td>primary→secondary가 한 묶음으로 읽히는 상한</td></tr>
+            <tr><td>도킹 바 위 페이드</td><td><code class="inline">barTop</code></td><td class="num">28 (<code class="inline">s6</code>)</td><td><code class="inline">dockedCTA</code>의 페이드 띠와 <strong>같은 값</strong>(같은 장치다)</td></tr>
+            <tr><td>마지막 콘텐츠/바 → 시트 바닥</td><td><code class="inline">bottom</code></td><td class="num"><strong>32</strong> (<code class="inline">s7</code>)</td><td>safe area 위 값. 도킹 바 기본 <code class="inline">s3</code>(12)는 화면 바닥을 통째로 쓰는 커버의 값이라 홈 인디케이터 위에 떠 있는 시트에서는 버튼이 바닥에 붙어 읽혔다. 실측(iPhone 17 · iOS 26): 시트 안 하단 safe inset ≈26이라 시각 바닥 여백은 32 + 26 ≈ 58, 제목 캡까지의 상단은 ≈41 — 바닥이 한 단 무거운 것이 카드의 광학 균형이다</td></tr>
+          </tbody>
+        </table>
+
+        <div class="paper-demo" style="margin-top:var(--space-4)">
+          <div class="demo-pane" style="background:var(--color-sub)"><!-- 패인 면을 sub 로 낮춘다 — 시트 뒤의 딤 자리이고, 시트 면(canvas)이 양 모드에서 이 위에 떠 보이게 하는 유일한 방법이다 -->
+            <p class="lbl">맞춤 시트(<code class="inline">SheetShell(sizing: .fitted)</code>) — 아래 목업의 패딩·간격이 곧 <code class="inline">ReffiSheet</code> 실값이다. 좌우 <strong>inset 24</strong> 한 선에 헤더·본문·푸터가 같이 서고, 시트 상단에서 제목 행까지 <strong>top 32</strong>(그래버 포함), 제목 행 아래 <strong>headerGap 24</strong>, 마지막 줄 아래 <strong>bottom 32</strong>. 표지형 블록이라 헤더만 좌측이고 모티프·CTA·조용한 링크·프라이버시 고지는 한 중앙 축에 선다.</p>
+            <div class="sheet-mock">
+              <div class="sheet-mock__top"><div class="mock__grab"></div><span class="sheet-gap__n num is-left">inset 24</span><span class="sheet-gap__n num">top 32</span></div>
+              <div class="hdr-sheet">
+                <span class="ttl t-heading text">영수증 스캔</span>
+                <span class="close-hit"><button class="paper-x" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></span>
+              </div>
+              <div class="sheet-gap" style="height:var(--space-5)"><span class="sheet-gap__n num">headerGap 24</span></div>
+              <div class="sheet-block" style="gap:var(--space-4)">
+                <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="var(--color-blue-dark)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5h12v17l-2-1.4-2 1.4-2-1.4-2 1.4-2-1.4-2 1.4z"/><path d="M9 8h6M9 11.5h6M9 15h3"/></svg>
+                <span class="t-body text" style="color:var(--color-ink-2)">영수증을 찍으면, 산 것들이 냉장고로 들어와요.</span>
+              </div>
+              <div class="sheet-gap" style="height:var(--space-5)"><span class="sheet-gap__n num">blockGap 24</span></div>
+              <div class="sheet-block" style="gap:var(--space-3)">
+                <span class="sheet-cta is-primary">카메라로 스캔</span>
+                <span class="sheet-cta is-secondary">사진에서 선택</span>
+              </div>
+              <div class="sheet-gap" style="height:var(--space-5)"><span class="sheet-gap__n num">blockGap 24</span></div>
+              <div class="sheet-block">
+                <span class="t-caption text" style="color:var(--color-blue-dark);font-weight:600;line-height:44px">직접 입력</span>
+              </div>
+              <div class="sheet-gap" style="height:var(--space-5)"><span class="sheet-gap__n num">blockGap 24</span></div>
+              <div class="sheet-block">
+                <span class="t-caption text" style="color:var(--color-ink-2);max-width:20ch">영수증은 이 기기에서만 읽고, 어디에도 올리지 않아요.</span>
+              </div>
+              <div class="sheet-gap" style="height:var(--space-7)"><span class="sheet-gap__n num">bottom 32</span></div>
+            </div>
+            <p class="lbl" style="margin-top:var(--space-3)">회색 숫자는 <strong>쇼케이스 전용 눈금</strong>이다 — 앱에는 이 라벨이 없고 그 자리는 순수한 여백이다. 조용한 링크("직접 입력")는 44 히트 안에 13pt 라벨이라 위아래 15pt 슬랙이 있는데, <strong>그 슬랙까지 포함해 <code class="inline">blockGap</code>을 재지 않는다</strong>(광학 보정으로 음수 패딩을 덧대지 마라 — §14.2 커버 헤더와 같은 이유).</p>
+          </div>
+        </div>
+
+        <div class="note" style="margin-top:var(--space-4)"><strong>골격 — <code class="inline">SheetShell</code> 하나(<code class="inline">Components/SheetShell.swift</code>).</strong> 옛 프로필 시트의 private 셸을 앱 전역으로 올렸다. 헤더(<code class="inline">SheetHeader</code>)·본문·(선택)도킹 바·핸들(<code class="inline">presentationDragIndicator</code>)·캔버스 배경(<code class="inline">presentationBackground</code>)을 셸이 세우고, 호출부는 <strong>제목·본문·1차 버튼</strong>만 준다. 시트 안에 인라인 <code class="inline">SheetHeader</code>·핸들·배경을 다시 적지 않는다. <strong>크기 모드는 둘이다.</strong> <code class="inline">.fills</code> — detent는 호출부가 위 §14.5로 정하고 본문이 남는 세로를 다 쓴다(ScrollView·List·그리드). 바가 있으면 <code class="inline">dockedCTA(over: canvas, inset: ReffiSheet.inset, bottomInset: ReffiSheet.bottom)</code>로 도킹된다(페이드 띠 포함). <code class="inline">.fitted</code> — 헤더+본문+(바)의 <strong>고유 높이를 실측</strong>(<code class="inline">sheetFitHeight</code> = <code class="inline">fixedSize(vertical)</code> + <code class="inline">onGeometryChange</code>)해 <code class="inline">.height(h)</code> detent 하나로 올린다. 결정이 몇 개뿐인 짧은 시트가 제 키만큼만 서는 방법이고, 글자가 커지면 같이 자란다. 실측 전 첫 프레임은 <code class="inline">.medium</code>으로 서고 값이 오면 바뀐다(<code class="inline">ReffiSheet.fitDetent</code>). <code class="inline">.height(h)</code>는 <strong>하단 safe area를 뺀</strong> 콘텐츠 높이다(실측 확인) — 안에 safe inset을 더하지 마라(이중 여백) 실측 뷰의 바깥은 <code class="inline">ScrollView</code>(<code class="inline">basedOnSize</code>)다 — 시트 높이와 콘텐츠가 어긋나는 순간(첫 프레임 폴백 · 시스템이 <code class="inline">.height</code>를 상한으로 깎았을 때 · 접근성 글자로 최대 detent를 넘을 때) 콘텐츠가 가운데로 밀려 헤더가 잘리는 대신 <strong>위에 붙고 스크롤</strong>된다(61차 리뷰). 헤더 행의 44는 X와 무관하게 선다 — <code class="inline">SheetHeader</code>가 행에 <code class="inline">minHeight: tapMin</code>을 직접 갖는다(<code class="inline">showsClose: false</code>에서도 기준선이 같다)..</div>
+        <div class="note" style="margin-top:var(--space-3)"><strong>인셋 계약.</strong> 셸은 본문에 가로 패딩을 <strong>걸지 않는다</strong> — ScrollView 본문은 스크롤 영역이 시트 전폭이어야 카드 그림자가 안 잘린다. 본문이 자기 콘텐츠에 <code class="inline">.sheetInset()</code>을 건다. 헤더·바는 셸이 같은 값으로 세워 세 자리가 한 선에 선다. 카드 <strong>안</strong>의 패딩(<code class="inline">receiptSurface</code> <code class="inline">s5</code> · <code class="inline">fieldSurface</code>)은 그대로다 — 카드 안 잉크가 인셋 + 24에 서는 것은 카드 문법이지 시트 문법이 아니다. <code class="inline">List</code>는 시스템 행 인셋(≈20)이 아니라 <code class="inline">listRowInsets</code>로 같은 24를 받는다(스캔 확인).</div>
+        <div class="note" style="margin-top:var(--space-3)"><strong>바닥 계약 — 누가 <code class="inline">bottom</code>을 지는가.</strong> <code class="inline">.fitted</code>는 <strong>셸</strong>이 준다. <code class="inline">.fills</code> + 바 있음은 <strong><code class="inline">dockedCTA</code></strong>가 준다(스크롤 콘텐츠 끝은 <code class="inline">blockGap</code>이고 나머지는 페이드 띠가 진다). <code class="inline">.fills</code> + 바 없음은 <strong>본문이 자기 스크롤 콘텐츠 끝</strong>에 준다 — 밖에서 걸면 스크롤 영역이 바닥 위에서 잘려 마지막 행이 시트 바닥 밑으로 못 흐른다. <strong>맞춤 시트는 Spacer를 쓰지 않는다</strong> — 시트 높이가 토큰 합 그대로라 Spacer로 나눌 남는 세로 자체가 없다. 옛 스캔 소스 선택은 위아래 Spacer로 묶음을 "중앙"에 세웠는데, 넘치는 순간 Spacer는 음수를 못 먹고 텍스트가 먼저 잘린다.</div>
+        <div class="note" style="margin-top:var(--space-3)"><strong>정렬 — 표지형 시트는 헤더만 좌측, 나머지는 전부 중앙(§9.4 ②).</strong> 스캔 소스 선택은 모티프(영수증 글리프) 하나가 축을 세우는 표지형 블록이라 아이콘·캡션·CTA 묶음·조용한 링크·오류 줄·<strong>바닥의 프라이버시 고지까지 한 중앙 축</strong>에 선다. 옛 판정("고지는 페이지 마진 컬럼의 읽는 문장이라 좌측")은 폭 문제를 정렬로 고친 자리였고, 결과는 한 시트에 축 둘·인셋 둘이었다. <strong>헤더는 49차 오너 지시대로 좌측 그대로다</strong> — 헤더는 시트의 내용이 아니라 크롬이라, 표지가 중앙이어도 헤더 축은 앱의 다른 모든 시트·커버와 같다(제목까지 중앙으로 돌리는 것은 별도 결정이 필요한 변경이다).</div>
+        <p class="t-caption text" style="color:var(--color-ink-2);margin-top:var(--space-4)"><strong>세로 리듬(위→아래).</strong> <code class="inline">top</code> → 제목 행(44, X 히트) → <code class="inline">headerGap</code> → 블록들(<code class="inline">blockGap</code> 사이 · 블록 안 <code class="inline">itemGap</code> · 쌓인 CTA <code class="inline">ctaGap</code>) → (<code class="inline">barTop</code> 페이드 + 1차 버튼) → <code class="inline">bottom</code>.</p>
+
+        <p class="t-caption text" style="color:var(--color-ink-2);margin-top:var(--space-4)"><strong>61차 전수 이관.</strong></p>
+        <table class="tbl">
+          <thead><tr><th>시트</th><th>모드</th><th>detent</th><th>비고</th></tr></thead>
+          <tbody>
+            <tr><td>스캔 소스 선택 · 읽는 중</td><td>맞춤(<code class="inline">sheetFitHeight</code>)</td><td><code class="inline">.height(실측)</code></td><td>확인 단계만 <code class="inline">.large</code>. 단계별 집합은 <strong>하나씩</strong> — 소스 선택에서 <code class="inline">.large</code>로 끌어올려도 볼 것이 없는 높이를 열어 두지 않는다. 읽는 중은 소스 선택 높이를 유지한다(결과 전에 700pt 빈 캔버스에 스피너 하나가 서던 자리)</td></tr>
+            <tr><td>후보 편집(Edit item · Add by hand)</td><td><code class="inline">.fills</code> + Save 바</td><td><code class="inline">.large</code></td><td>옛 <code class="inline">.medium</code>은 다섯 칸 중 둘이 접힌 채 열렸다</td></tr>
+            <tr><td>재료 편집</td><td><code class="inline">.fills</code> + Save 바</td><td><code class="inline">.large</code></td><td>Save 바가 처음으로 <code class="inline">dockedCTA</code>(페이드)에 선다</td></tr>
+            <tr><td>레시피 편집</td><td><code class="inline">.fills</code> + Save 바</td><td><code class="inline">.large</code></td><td>옛 <code class="inline">[.medium, .large]</code>는 필수 두 번째 칸이 접힌 채 열렸다</td></tr>
+            <tr><td>내 레시피</td><td><code class="inline">.fills</code></td><td><code class="inline">.large</code></td><td></td></tr>
+            <tr><td>To buy 검색</td><td><code class="inline">.fills</code></td><td><code class="inline">.medium</code> → 포커스 시 <code class="inline">.large</code></td><td>필드는 스크롤 밖, 필드→그리드는 <code class="inline">blockGap</code></td></tr>
+            <tr><td>닉네임</td><td>맞춤 + Save 바</td><td>실측</td><td>옛 <code class="inline">.height(260)</code></td></tr>
+            <tr><td>요리 스타일 · 태그 3종</td><td><code class="inline">.fills</code>(ScrollView)</td><td><code class="inline">[.medium, .large]</code>, 태그는 포커스 승격</td><td>옛 정적 VStack — 넘치면 잘렸다. 칩은 고정 칸 <code class="inline">LazyVGrid(.adaptive(minimum: 92))</code>에서 <strong>흐름 배치 <code class="inline">ReffiFlowLayout</code></strong>으로 — 칸이 고정이라 "Mediterranean"이 말줄임됐고 인셋이 24로 넓어지며 더 잘렸다. 칩은 컨트롤이라 폭이 라벨을 따른다(§9.4 ①)</td></tr>
+            <tr><td>알림 시간</td><td>맞춤</td><td>실측(다이얼 5행 = 220)</td><td>옛 <code class="inline">.height(300)</code>. 다이얼은 고유 높이가 없어 명시 높이(행 5개)를 준다</td></tr>
+            <tr><td>남은 재료 확인(Confirm &amp; finish)</td><td><code class="inline">.fills</code> + 바</td><td><code class="inline">[.medium, .large]</code></td><td><strong>X 없음 유지</strong> — UI 스위트가 <code class="inline">buttons["Close"].firstMatch</code>로 커버의 X를 누른다. 부제는 본문 첫 블록이다(§14.2 인라인 헤더 예외 0)</td></tr>
+            <tr><td>주방 전표(Kitchen Copy)</td><td>인셋만 적용</td><td><code class="inline">[.medium, .large]</code></td><td>헤더는 <strong>티켓 문법</strong>(예외, 파일 주석에 근거) — 좌우 <code class="inline">inset</code>·위 <code class="inline">top</code>·아래 <code class="inline">bottom</code>만 시트 값이다</td></tr>
+            <tr><td>로그인(AuthView)</td><td><strong>제외</strong></td><td><code class="inline">.large</code></td><td>루트 게이트와 같은 뷰라 시트 리듬을 강제하지 않는다(이연 — 게스트 버튼 중앙 축 등은 별도)</td></tr>
+          </tbody>
+        </table>
+
+        <div class="note" style="margin-top:var(--space-4)">
+          <strong>구속 규칙.</strong>
+          <ul style="margin:var(--space-2) 0 0">
+            <li>시트 안에서 <code class="inline">ReffiGrid.margin</code>을 적지 않는다 — 시트의 좌우는 <code class="inline">ReffiSheet.inset</code>뿐이다.</li>
+            <li>본문 첫 요소에 상단 패딩을 덧대지 않는다 — <code class="inline">headerGap</code>은 헤더의 것이다.</li>
+            <li>Save/확정 버튼을 맨 패딩으로 세우지 않는다 — 셸의 <code class="inline">bar:</code>다.</li>
+            <li><code class="inline">.height(숫자)</code>를 적지 않는다 — 짧은 시트는 실측 맞춤이다.</li>
+            <li><code class="inline">.medium</code>을 여는 시트는 스크롤한다.</li>
+            <li>표지형 시트에서 좌측은 헤더 하나다 — 푸터·오류 줄이 좌측으로 돌아오면 축이 둘이 된다.</li>
+          </ul>
+        </div>
 
         <p class="subhead text">파괴 확인 — 심각도로 구분</p>
         <p class="t-caption text" style="color:var(--color-ink-2);margin-bottom:var(--space-3)"><strong>40차에 경계가 폐지됐다 — 팝업은 예외 없이 전부 종이다.</strong> 35차까지 남아 있던 "파괴 확인은 시스템에 남긴다"(커먼 룰 ⑧)는 오너의 명시 지시로 걷혔고, 앱에 남아 있던 시스템 <code class="inline">.alert</code>/<code class="inline">.confirmationDialog</code> 12곳(5개 파일)이 전부 <code class="inline">PaperDialog</code>로 옮겨졌다. 즉 <strong>"alert이냐 confirmationDialog냐"라는 갈래 자체가 재질 선택 기준으로서 사라졌다</strong>. <strong>심각도 구분은 그대로 살아 있다</strong> — 갈리는 것은 재질이 아니라 <code class="inline">role</code>·햅틱·딤 탭이다. 확정 버튼에는 <code class="inline">.warning</code> 햅틱(§7.6).</p>

@@ -34,9 +34,9 @@
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>NSCameraUsageDescription</key>
-	<string>Reffi uses the camera to scan grocery receipts so items are added automatically.</string>
+	<string>Reffi uses the camera to find grocery items on receipts for you to review and add.</string>
 	<key>NSMotionUsageDescription</key>
-	<string>Reffi tilts the ingredients on your counter with your device's motion.</string>
+	<string>Reffi uses device motion to move the ingredients on screen as you tilt your phone.</string>
 	<key>UIAppFonts</key>
 	<array>
 		<string>Pretendard-Regular.otf</string>

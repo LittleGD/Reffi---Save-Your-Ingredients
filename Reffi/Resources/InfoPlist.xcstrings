@@ -7,13 +7,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Reffi uses the camera to scan grocery receipts so items are added automatically."
+            "value": "Reffi uses the camera to find grocery items on receipts for you to review and add."
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "Reffi가 장보기 영수증을 스캔해 재료를 자동으로 추가할 수 있도록 카메라를 사용해요."
+            "value": "영수증에서 추가할 재료를 찾을 때 카메라를 사용해요. 찾은 재료는 확인 후 담을 수 있어요."
           }
         }
       }
@@ -24,7 +24,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Reffi tilts the ingredients on your counter with your device's motion."
+            "value": "Reffi uses device motion to move the ingredients on screen as you tilt your phone."
           }
         },
         "ko": {

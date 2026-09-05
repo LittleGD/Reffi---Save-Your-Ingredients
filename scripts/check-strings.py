@@ -41,7 +41,7 @@ CALLS = re.compile(
     rf'|(?<![A-Za-z0-9_])String\(localized:\s*"({BODY})"'
     rf'|(?<![A-Za-z0-9_])AppLanguage\.localizedNow\(\s*"({BODY})"'
     rf'|\.accessibility(?:Label|Hint|Value)\(\s*(?:Text\(\s*)?"({BODY})"'
-    rf'|(?<![A-Za-z0-9_.])(?:title|message|confirmTitle|cancelTitle|caption|placeholder|subtitle):\s*"({BODY})"'
+    rf'|(?<![A-Za-z0-9_.])(?:title|body|message|confirmTitle|cancelTitle|caption|placeholder|subtitle):\s*"({BODY})"'
 )
 # 번역 대상이 아닌 값 패턴 — 역DNS 식별자("com.reffi.app.store-io")·URL.
 NON_UI = re.compile(r"^[a-z0-9-]+(?:\.[a-z0-9-]+){2,}$|://")

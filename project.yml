@@ -56,8 +56,8 @@ targets:
           - UIInterfaceOrientationPortrait
         UIApplicationSupportsIndirectInputEvents: true
         ITSAppUsesNonExemptEncryption: false
-        NSCameraUsageDescription: "Reffi uses the camera to scan grocery receipts so items are added automatically."
-        NSMotionUsageDescription: "Reffi tilts the ingredients on your counter with your device's motion."
+        NSCameraUsageDescription: "Reffi uses the camera to find grocery items on receipts for you to review and add."
+        NSMotionUsageDescription: "Reffi uses device motion to move the ingredients on screen as you tilt your phone."
         CFBundleURLTypes:
           - CFBundleURLName: com.reffi.app.auth
             CFBundleURLSchemes:
@@ -75,7 +75,7 @@ targets:
         # Sign in with Apple — 시뮬레이터(서명 없음)에선 무시되고, 실기기/배포 서명 시 임베드된다.
         CODE_SIGN_ENTITLEMENTS: Reffi/Reffi.entitlements
         MARKETING_VERSION: "1.0"
-        CURRENT_PROJECT_VERSION: "22"
+        CURRENT_PROJECT_VERSION: "23"
         SWIFT_VERSION: "5.0"
         TARGETED_DEVICE_FAMILY: "1"
         CODE_SIGNING_REQUIRED: "NO"

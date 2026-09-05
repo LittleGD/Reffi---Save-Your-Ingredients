@@ -14,7 +14,7 @@ enum HouseholdSize: String, CaseIterable, Identifiable, Codable {
         switch self {
         case .one:    "Just me"
         case .two:    "2 people"
-        case .family: "3–4"
+        case .family: "3-4"
         case .large:  "5+"
         }
     }
@@ -24,7 +24,7 @@ enum HouseholdSize: String, CaseIterable, Identifiable, Codable {
         switch self {
         case .one:    AppLanguage.localizedNow("Just me")
         case .two:    AppLanguage.localizedNow("2 people")
-        case .family: AppLanguage.localizedNow("3–4")
+        case .family: AppLanguage.localizedNow("3-4")
         case .large:  AppLanguage.localizedNow("5+")
         }
     }

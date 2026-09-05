@@ -45,9 +45,15 @@ struct ReffiApp: App {
                 // 알림은 앞으로 30일 치만 등록되므로, 포그라운드 복귀 때마다 창을 앞으로 민다
                 // (스토어 변이 없이 오래 방치해도 그 이후 재료를 놓치지 않게).
                 .onChange(of: scenePhase) { _, phase in
-                    if phase == .active {
+                    switch phase {
+                    case .active:
                         ExpiryNotifier.reschedule(for: store.ingredients)
                         store.promoteUrgent()   // 포그라운드 정렬 — 알림이 가리키는 임박 재료를 작업대로 승격
+                        Analytics.shared.sceneDidBecomeActive()   // 세션 판정(30분 규칙) + 밀린 큐 업로드
+                    case .background:
+                        Analytics.shared.sceneDidEnterBackground()   // 세션 길이 기록 + 유예 안 업로드
+                    default:
+                        break
                     }
                 }
         }
@@ -152,6 +158,7 @@ private struct RootGateView: View {
             splash
         } else if !onboardingDone {
             OnboardingView(onFinish: { onboardingDone = true })
+                .analyticsScreen(.onboarding)
         } else {
             // 게스트 우선 — 온보딩 후엔 로그인 벽 없이 곧장 메인 앱. 세션이 없으면 익명 게스트로 진입한다.
             // 로그인/가입은 프로필 탭 Account 섹션에서 선택적으로(익명→가입 데이터 승계 보장).

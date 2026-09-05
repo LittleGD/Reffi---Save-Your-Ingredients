@@ -616,9 +616,10 @@ struct RecipeMemoCarousel: View {
             FoodMotif(glyph: .generic).frame(width: 110, height: 110)
             Text("No tickets yet").reffiType(.heading).foregroundStyle(ReffiColor.ink)
             if !atRiskNames.isEmpty {
-                Text("\(named(atRiskNames)) won't last long.\nCook it today.")
+                Text("Use \(named(atRiskNames)) soon.\nFind a recipe to try.")
                     .reffiType(.body).foregroundStyle(ReffiColor.ink2).multilineTextAlignment(.center)
                 PaperButton(title: "Open recipe videos", fullWidth: false, seed: 5) {
+                    Analytics.shared.track(.videoOpen(source: .emptyDeck))
                     openURL(RecipeVideoSearch.urlForIngredients(spoken(atRiskNames)))
                 }
                 .accessibilityHint(Text("Opens YouTube in your browser"))
@@ -630,22 +631,23 @@ struct RecipeMemoCarousel: View {
                 // 지우면 오타로 등록한 사용자는 장을 봐도 덱이 계속 빈다(§13.6).
                 let names = spoken(fridgeNames)
                 if names.count >= 2 {
-                    Text("Turn \(names[0]) and \(names[1]) into your own recipe.\nAdd it in Profile.")
+                    Text("Have a recipe for \(names[0]) and \(names[1])?\nAdd it in Profile.")
                         .reffiType(.body).foregroundStyle(ReffiColor.ink2).multilineTextAlignment(.center)
                 } else if let first = names.first {
-                    Text("Turn \(first) into your own recipe.\nAdd it in Profile.")
+                    Text("Have a recipe for \(first)?\nAdd it in Profile.")
                         .reffiType(.body).foregroundStyle(ReffiColor.ink2).multilineTextAlignment(.center)
                 }
                 if !names.isEmpty {
                     PaperButton(title: "Open recipe videos", fullWidth: false, seed: 5) {
+                        Analytics.shared.track(.videoOpen(source: .emptyDeck))
                         openURL(RecipeVideoSearch.urlForIngredients(names))
                     }
                     .accessibilityHint(Text("Opens YouTube in your browser"))
                 }
-                Text("Check ingredient spellings or restock to see more tickets.")
+                Text("Check ingredient names or add more ingredients.")
                     .reffiType(.caption).foregroundStyle(ReffiColor.ink2).multilineTextAlignment(.center)
             } else {
-                Text("Add a few ingredients, then start cooking.")
+                Text("Add ingredients to find something to cook.")
                     .reffiType(.body).foregroundStyle(ReffiColor.ink2).multilineTextAlignment(.center)
             }
         }
