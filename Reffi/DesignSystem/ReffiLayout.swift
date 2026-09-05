@@ -40,6 +40,38 @@ enum ReffiGrid {
     static let columns = 4
 }
 
+/// 하단 시트 컴포지션(§14.8 · 61차) — 시트마다 손으로 조립하던 인셋·간격을 한 어휘로 닫는다.
+///
+/// 61차 감사에서 같은 성격의 시트가 좌우 16·24·28, 헤더→본문 12·20·24, CTA 바 8·12·24로 갈려 있었다 —
+/// 개별 값은 전부 토큰이었는데 **조합**이 시트마다 달랐다. 그래서 값이 아니라 **자리**에 이름을 준다:
+/// 호출부는 `s5`가 아니라 `ReffiSheet.blockGap`을 적고, 다음 튜닝은 여기 한 줄만 움직인다.
+///
+/// 세로 리듬(위→아래): `top` → 제목 행(44) → `headerGap` → 블록들(`blockGap` 사이, 블록 안은 `itemGap`,
+/// 쌓인 CTA는 `ctaGap`) → (도킹 바: `barTop` 페이드 + 버튼) → `bottom`. 좌우는 전부 `inset` 한 선이다.
+enum ReffiSheet {
+    /// **좌우 인셋 24** — 시트는 §9.2 표의 "캔버스 위에 뜨는 종이" 행(`margin + s2`)이다. 페이지 마진(16)을
+    /// 쓰지 않는 이유: 시트는 페이지가 아니라 그 위에 얹힌 한 장이라, 뜨는 종이의 인셋을 받는다(iOS 26 시트는
+    /// 화면에서 8pt 더 떠 있어 잉크는 화면 기준 32에 선다). 헤더·본문·도킹 CTA·푸터가 **전부 이 한 선**에 선다.
+    static let inset: CGFloat = ReffiGrid.margin + ReffiSpace.s2
+    /// 시트 상단(그래버 영역 포함) → 제목 행 32. 옛 s5(24)는 그래버(상단 5~10pt)를 빼면 제목이 시트 천장에
+    /// 붙어 읽혔다(61차 오너 지적 — "상하 마진이 좁다").
+    static let top: CGFloat = ReffiSpace.s7
+    /// 제목 행 → 첫 콘텐츠 24. **본문은 자기 상단 패딩을 갖지 않는다** — 헤더가 이미 줬다. 옛 구조(헤더 12 +
+    /// 본문 0/8/12)가 시트마다 12·20·24로 갈리던 자리다.
+    static let headerGap: CGFloat = ReffiSpace.s5
+    /// 본문 블록(섹션) 사이 24 — 모티프 묶음 ↔ CTA 묶음 ↔ 조용한 링크 ↔ 카드.
+    static let blockGap: CGFloat = ReffiSpace.s5
+    /// 한 블록 안 요소 사이 16 — 아이콘→캡션, 필드→필드.
+    static let itemGap: CGFloat = ReffiSpace.s4
+    /// 쌓인 CTA 사이 12 — primary→secondary. 두 버튼이 한 묶음으로 읽히는 상한이다.
+    static let ctaGap: CGFloat = ReffiSpace.s3
+    /// 도킹 바 위 페이드 띠 28 — `dockedCTA`가 커버·패인·시트 모두에서 **이 값 하나**로 페이드를 그린다(같은 장치다).
+    static let barTop: CGFloat = ReffiSpace.s6
+    /// 마지막 콘텐츠(또는 도킹 바) → 시트 바닥(safe area 위) 32. 도킹 바의 기본 `s3`(12)는 화면 바닥을
+    /// 통째로 쓰는 커버의 값이라, 홈 인디케이터 위에 떠 있는 시트에서는 버튼이 바닥에 붙어 읽혔다.
+    static let bottom: CGFloat = ReffiSpace.s7
+}
+
 /// 요리 아이콘 크기(§13.7 요리 아이콘) — 표면마다 숫자를 손으로 흩뿌리면 티켓·공유 카드·목록이
 /// 조금씩 다른 크기로 어긋난다. 세 자리만 두고 호출부는 전부 여기를 경유한다.
 enum ReffiDishIcon {

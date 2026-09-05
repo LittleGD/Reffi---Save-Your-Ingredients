@@ -49,6 +49,20 @@ struct RecipeIntroTests {
         }
     }
 
+    @Test func seedStepsStayAlignedAcrossLanguages() throws {
+        for r in seed {
+            let steps = r.steps
+            let korean = try #require(steps.ko, "\(r.id): 한국어 조리 단계 누락")
+            #expect(!steps.en.isEmpty, "\(r.id): 조리 단계가 비었다")
+            #expect(steps.en.count == korean.count,
+                    "\(r.id): 한영 조리 단계 수가 다르다")
+            for step in steps.en + korean {
+                #expect(!step.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                        "\(r.id): 빈 조리 단계가 있다")
+            }
+        }
+    }
+
     /// 대시 금지 — **사용자 카피 선호**다(2026-08, "큰 하이픈 빼 주세요").
     /// em 대시(—)·en 대시(–) 모두 쓰지 않고, 쉼표로 갈아끼우는 대신 문장을 다시 쓴다.
     /// 단어 안의 보통 하이픈("stir-fried")은 대상이 아니다.

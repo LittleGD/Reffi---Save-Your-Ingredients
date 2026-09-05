@@ -21,6 +21,7 @@ enum ExpiryNotifier {
     static func requestAuthorization() async -> Bool {
         let granted = (try? await UNUserNotificationCenter.current()
             .requestAuthorization(options: [.alert, .sound])) ?? false
+        await MainActor.run { Analytics.shared.track(.notificationPermission(granted: granted)) }
         return granted
     }
 
@@ -109,5 +110,12 @@ final class NotificationPresenter: NSObject, UNUserNotificationCenterDelegate {
                                 willPresent notification: UNNotification) async
         -> UNNotificationPresentationOptions {
         [.banner, .sound]
+    }
+
+    /// 알림 탭(64차) — 배너를 눌러 들어온 세션을 표시한다(`notification_open`, 알림 기여 세션 비율의 소스).
+    func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                didReceive response: UNNotificationResponse) async {
+        guard response.actionIdentifier == UNNotificationDefaultActionIdentifier else { return }
+        await MainActor.run { Analytics.shared.track(.notificationOpen) }
     }
 }

@@ -1,30 +1,9 @@
 import SwiftUI
 
-/// 시트 공통 셸 — 크림 캔버스 + `SheetHeader`(좌측 타이틀 + 종이 X) + 콘텐츠. 편집 시트를 통일한다.
-/// 헤더는 인터랙션 커먼 룰 ②③의 단일 공급원 `SheetHeader`에 위임 — 인라인 종이 X 조립을 제거했다.
-///
-/// **핸들도 셸이 보증한다(§14.3 / 룰④)** — `SheetHeader`는 "프레젠테이션 측에서 dragIndicator를 켠다"를
-/// 전제하는데, 호출부(ProfileView)마다 붙이면 같은 누락이 재발한다. 여기서 한 번 선언해 이 셸을 쓰는
-/// 프로필 시트 6종이 함께 정렬되게 한다. 단일 고정 detent(.height) 시트는 automatic으로 그래버가
-/// 뜨지 않으므로 이 선언이 곧 핸들 유무를 가른다.
-private struct SheetShell<Content: View>: View {
-    let title: LocalizedStringKey
-    let onClose: () -> Void
-    @ViewBuilder var content: Content
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            SheetHeader(title: title, showsClose: true, onClose: onClose)
-            content
-                .padding(.horizontal, ReffiGrid.margin)
-            Spacer(minLength: 0)
-        }
-        .padding(.bottom, ReffiSpace.s5)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(ReffiColor.canvas.ignoresSafeArea())
-        .presentationDragIndicator(.visible)   // §14.3 — 핸들 없는 시트를 두지 않는다(룰④)
-    }
-}
+// 프로필 취향 시트 4종(닉네임·요리 스타일·태그·알림 시간). 이 파일이 들고 있던 private 시트 셸은
+// 61차에 앱 전역 `Components/SheetShell`(§14.8)로 올라갔다 — 헤더·핸들·캔버스 배경·도킹 CTA·바닥
+// 여백을 셸이 지므로 여기 시트들은 본문 구성과 자기 detent만 적는다(호출부 ProfileView는 이제
+// detent를 적지 않는다).
 
 /// 닉네임 편집(§5.1.1).
 ///
@@ -43,17 +22,18 @@ struct NicknameEditSheet: View {
     }
 
     var body: some View {
-        SheetShell(title: "Nickname", onClose: { requestClose() }) {
-            VStack(alignment: .leading, spacing: ReffiSpace.s4) {
-                TextField("Nickname", text: $draft)
-                    .reffiType(.body)
-                    .foregroundStyle(ReffiColor.ink)
-                    .fieldSurface(seed: 2)   // §13.8 필드 한 칸 — 캔버스 시트 위 독립 필드
-                    .submitLabel(.done)
-                    .onSubmit(commit)
-
-                PaperButton(title: "Save", seed: 1, action: commit)
-            }
+        // 61차 — 필드 한 칸 + Save뿐인 짧은 입력이라 콘텐츠 맞춤 높이(§14.5)다. 옛 `.height(260)`은
+        // 호출부가 든 매직 넘버라 Dynamic Type에서 조용히 잘렸다. Save는 셸의 바 슬롯이 진다(§14.4 도킹 커밋).
+        SheetShell(title: "Nickname", onClose: { requestClose() }, sizing: .fitted) {
+            TextField("Nickname", text: $draft)
+                .reffiType(.body)
+                .foregroundStyle(ReffiColor.ink)
+                .fieldSurface(seed: 2)   // §13.8 필드 한 칸 — 캔버스 시트 위 독립 필드
+                .submitLabel(.done)
+                .onSubmit(commit)
+                .sheetInset()
+        } bar: {
+            PaperButton(title: "Save", seed: 1, action: commit)
         }
         .onAppear { draft = profile.nickname }
         .interactiveDismissDisabled(isDirty)   // 룰⑨ — 변경 있으면 스와이프 실수로 닫히지 않는다
@@ -82,24 +62,32 @@ struct CuisinePickerSheet: View {
     @Environment(ProfileStore.self) private var profile
     @Environment(\.dismiss) private var dismiss
 
-    private let columns = [GridItem(.adaptive(minimum: 92), spacing: ReffiSpace.s2)]
-
     var body: some View {
         SheetShell(title: "Cuisines", onClose: { dismiss() }) {
-            VStack(alignment: .leading, spacing: ReffiSpace.s4) {
-                Text("Pick as many as you like.\nRecipes will follow.")
-                    .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
+            ScrollView {
+                VStack(alignment: .leading, spacing: ReffiSheet.itemGap) {
+                    Text("Pick the kinds of food you like.\nWe'll use them for recommendations.")
+                        .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
 
-                LazyVGrid(columns: columns, alignment: .leading, spacing: ReffiSpace.s2) {
-                    ForEach(CuisineStyle.allCases) { c in
-                        SelectableChip(text: c.labelKey, selected: profile.cuisines.contains(c),
-                                       fullWidth: false) {
-                            profile.toggleCuisine(c)
+                    // 칩은 제 폭으로 흐른다(`ReffiFlowLayout`, 61차) — 고정 칸의 `LazyVGrid(.adaptive(minimum: 92))`는
+                    // "Mediterranean"이 칸보다 길어 말줄임됐고 짧은 라벨 옆은 빈 칸으로 남았다.
+                    ReffiFlowLayout(spacing: ReffiSpace.s2, lineSpacing: ReffiSpace.s2) {
+                        ForEach(CuisineStyle.allCases) { c in
+                            SelectableChip(text: c.labelKey, selected: profile.cuisines.contains(c),
+                                           fullWidth: false) {
+                                profile.toggleCuisine(c)
+                            }
                         }
                     }
                 }
+                .sheetInset()
+                // 바가 없는 `.fills` 시트라 바닥 여백은 스크롤 콘텐츠 끝이 진다(§14.8 바닥 계약).
+                .padding(.bottom, ReffiSheet.bottom)
             }
         }
+        // 61차 — detent는 시트 안에 산다(§14.5). 칩 그리드는 접근성 글자 크기에서 `.medium`을 넘치므로
+        // 실제로 스크롤되는 목록이어야 한다: 진입은 절반, 끌어올리면 `.large`.
+        .presentationDetents([.medium, .large])
     }
 }
 
@@ -109,47 +97,66 @@ struct TagEditorSheet: View {
     let placeholder: LocalizedStringKey
     @Binding var tags: [String]
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @FocusState private var fieldFocused: Bool
     @State private var draft: String = ""
+    /// 시트 높이를 코드에서 올리기 위한 바인딩 축(`ToBuySearchSheet`와 같은 처방) — 입력 포커스 시 `.large`.
+    @State private var detent: PresentationDetent = .medium
 
     var body: some View {
         SheetShell(title: title, onClose: { dismiss() }) {
-            VStack(alignment: .leading, spacing: ReffiSpace.s4) {
-                HStack(spacing: ReffiSpace.s2) {
-                    TextField(placeholder, text: $draft)
-                        .reffiType(.body)
-                        .foregroundStyle(ReffiColor.ink)
-                        .fieldSurface(seed: 2)   // §13.8 필드 한 칸
-                        .submitLabel(.done)
-                        .onSubmit(add)
-                    QuietButton(title: "Add", icon: ReffiIcon.add, action: add)
-                }
+            ScrollView {
+                VStack(alignment: .leading, spacing: ReffiSheet.itemGap) {
+                    HStack(spacing: ReffiSpace.s2) {
+                        TextField(placeholder, text: $draft)
+                            .reffiType(.body)
+                            .foregroundStyle(ReffiColor.ink)
+                            .fieldSurface(seed: 2)   // §13.8 필드 한 칸
+                            .focused($fieldFocused)
+                            .submitLabel(.done)
+                            .onSubmit(add)
+                        QuietButton(title: "Add", icon: ReffiIcon.add, action: add)
+                    }
 
-                if tags.isEmpty {
-                    Text("None yet")
-                        .reffiType(.caption).foregroundStyle(ReffiColor.muted)
-                        .padding(.top, ReffiSpace.s1)
-                } else {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 92), spacing: ReffiSpace.s2)],
-                              alignment: .leading, spacing: ReffiSpace.s2) {
-                        ForEach(tags, id: \.self) { tag in
-                            Button { remove(tag) } label: {
-                                HStack(spacing: ReffiSpace.s1) {
-                                    Text(tag)
-                                        .font(ReffiTextRole.caption.font)
-                                        .tracking(ReffiTextRole.caption.tracking)
-                                        .foregroundStyle(ReffiColor.ink).lineLimit(1)
-                                    ReffiIcon.close.reffi(11, .bold).foregroundStyle(ReffiColor.ink2)
+                    if tags.isEmpty {
+                        Text("None yet")
+                            .reffiType(.caption).foregroundStyle(ReffiColor.muted)
+                    } else {
+                        // 요리 스타일 시트와 같은 흐름 배치(61차) — 태그 길이가 제각각이라 고정 칸이 더 자주 잘렸다.
+                        ReffiFlowLayout(spacing: ReffiSpace.s2, lineSpacing: ReffiSpace.s2) {
+                            ForEach(tags, id: \.self) { tag in
+                                Button { remove(tag) } label: {
+                                    HStack(spacing: ReffiSpace.s1) {
+                                        Text(tag)
+                                            .font(ReffiTextRole.caption.font)
+                                            .tracking(ReffiTextRole.caption.tracking)
+                                            .foregroundStyle(ReffiColor.ink).lineLimit(1)
+                                        ReffiIcon.close.reffi(11, .bold).foregroundStyle(ReffiColor.ink2)
+                                    }
+                                    .padding(.horizontal, ReffiSpace.s3)
+                                    .padding(.vertical, ReffiSpace.s2)
+                                    .background(ReffiColor.sub, in: PaperCutRect(seed: 4))   // §13.1 종이컷 8각형(캡슐 금지)
+                                    .frame(minHeight: ReffiChrome.tapMin)          // §7.3 터치 타깃
+                                    .contentShape(Rectangle())
                                 }
-                                .padding(.horizontal, ReffiSpace.s3)
-                                .padding(.vertical, ReffiSpace.s2)
-                                .background(ReffiColor.sub, in: PaperCutRect(seed: 4))   // §13.1 종이컷 8각형(캡슐 금지)
-                                .frame(minHeight: ReffiChrome.tapMin)          // §7.3 터치 타깃
-                                .contentShape(Rectangle())
+                                .buttonStyle(.reffiPress)
+                                .accessibilityLabel("Remove \(tag)")
                             }
-                            .buttonStyle(.reffiPress)
-                            .accessibilityLabel("Remove \(tag)")
                         }
                     }
+                }
+                .sheetInset()
+                // 바가 없는 `.fills` 시트라 바닥 여백은 스크롤 콘텐츠 끝이 진다(§14.8 바닥 계약).
+                .padding(.bottom, ReffiSheet.bottom)
+            }
+        }
+        // 61차 — detent는 시트 안에 산다(§14.5). 태그가 쌓이면 그리드가 `.medium`을 넘치므로 스크롤한다.
+        .presentationDetents([.medium, .large], selection: $detent)
+        // 입력 포커스 → 시트를 `.large`로. 키보드가 떠도 태그 그리드가 가리지 않는다(`ToBuySearchSheet` 선례).
+        .onChange(of: fieldFocused) { _, focused in
+            if focused, detent != .large {
+                withAnimation(ReffiMotion.gated(ReffiMotion.enter, reduce: reduceMotion)) {
+                    detent = .large
                 }
             }
         }
@@ -197,6 +204,13 @@ struct NotifyTimeSheet: View {
     /// 다이얼 행 높이 — §7.3 최소 터치 타깃(44)을 새 숫자 없이 그대로 쓴다. 51차의 "행 전체가 탭
     /// 타깃"이라는 계약을, 이번엔 스크롤 스냅 격자 한 칸의 크기로 옮긴다.
     static let rowHeight: CGFloat = ReffiChrome.tapMin
+    /// 한 번에 보이는 행 수 — 선택 행 ± 2. 다이얼 높이를 이 격자에서 파생시킨다(61차, 아래 `body` 주석).
+    static let visibleRows = 5
+    /// 밴드 위아래 여백(`safeAreaPadding`) — 다이얼 높이가 고정되며(61차) 지오메트리 없이도 아는 값이 됐다:
+    /// (220 − 44) / 2 = 88, 정확히 두 행. `scrollOffsetY`의 **초기값**이 이 값을 알아야 한다 — 이 상태는 원시
+    /// `contentOffset.y` 좌표(정렬 좌표 − topInset)라, 행 인덱스 × 행 높이로만 씨를 뿌리면 첫 스크롤 콜백
+    /// 전까지 원근의 정점이 두 행 위에 잡힌다(61차 리뷰 — 58차 보정을 초기값에도 같은 방향으로 적용).
+    static let topInset: CGFloat = (rowHeight * CGFloat(visibleRows) - rowHeight) / 2
 
     /// 연속 스크롤 오프셋 — `dialPerspective` 계산 전용(매 프레임 필요). 커밋 경로(`alertHour`·햅틱)는
     /// `committedIndex`가 따로 진다 — 원근은 부드러운 연속값이 필요하고 커밋은 "새 행이 중심에
@@ -231,7 +245,7 @@ struct NotifyTimeSheet: View {
     init() {
         let hour = ExpiryNotifier.alertHour
         let idx = Self.index(ofHour: hour) ?? 0
-        _scrollOffsetY = State(initialValue: CGFloat(idx) * Self.rowHeight)
+        _scrollOffsetY = State(initialValue: CGFloat(idx) * Self.rowHeight - Self.topInset)
         _committedIndex = State(initialValue: idx)
         // 58차-c — 게이트는 `.task`가 아니라 여기서 무장한다. 프리젠테이션이 만드는 첫 지오메트리
         // 콜백이 `.task` 본문보다 먼저 도착할 수 있어, `.task`에서 시드하면 그 사이에 무장 없는
@@ -240,7 +254,8 @@ struct NotifyTimeSheet: View {
     }
 
     var body: some View {
-        SheetShell(title: "Alert time", onClose: { dismiss() }) {
+        // 61차 — 다이얼 하나뿐인 선택 시트라 콘텐츠 맞춤 높이(§14.5). 옛 `.height(300)`은 호출부의 매직 넘버였다.
+        SheetShell(title: "Alert time", onClose: { dismiss() }, sizing: .fitted) {
             ScrollViewReader { proxy in
                 GeometryReader { geo in
                     let bandHeight = geo.size.height
@@ -330,7 +345,7 @@ struct NotifyTimeSheet: View {
                     else { return }
                     alertHour = step.hour
                     committedIndex = step.index
-                    scrollOffsetY = CGFloat(step.index) * Self.rowHeight
+                    scrollOffsetY = CGFloat(step.index) * Self.rowHeight - Self.topInset
                     pendingScrollTarget = step.pendingTarget
                     withAnimation(ReffiMotion.gated(ReffiMotion.standard, reduce: reduceMotion)) {
                         proxy.scrollTo(step.hour, anchor: .center)
@@ -338,6 +353,11 @@ struct NotifyTimeSheet: View {
                 }
             }
             .reffiFeedback(.selection, trigger: committedIndex)
+            // 다이얼은 `GeometryReader`라 고유 높이가 없다 — 맞춤 시트의 실측(`sheetFitHeight`)에서
+            // 0으로 접히므로 보이는 행 수만큼 높이를 못 박는다(61차). 밴드 기하는 그대로 여기서
+            // 파생된다: 220 − 44의 절반이 `topInset`(88 = 정확히 두 행)이라 위아래로 두 행씩 보인다.
+            .frame(height: Self.rowHeight * CGFloat(Self.visibleRows))
+            .sheetInset()
         }
     }
 
@@ -504,9 +524,10 @@ struct NotifyTimeSheet: View {
     /// "오프셋 0 = 0번 행이 중앙"이지만, 원시 `contentOffset.y`는 그 좌표계와 `topInset`만큼 어긋난다.
     ///
     /// **58차 회귀**: 이 되더하기가 빠진 채 `scrollOffsetY`를 그대로 `rowHeight`로 나눠 쓰면, 원근의
-    /// 정점(거리 0)이 실제 밴드 중앙보다 `topInset/rowHeight`행 위에 잡힌다(이 다이얼 실측값
-    /// `topInset`≈76·`rowHeight`=44 → 약 1.7행 — 정수 행에 안 맞아떨어져 애매하게 걸치는 게 아니라
-    /// 뚜렷하게 위쪽 행 쪽으로 쏠린다). 그 결과 밴드 안의 선택 행(예: 9시)이 바로 위 미선택 행(예: 8시)
+    /// 정점(거리 0)이 실제 밴드 중앙보다 `topInset/rowHeight`행 위에 잡힌다(58차 당시 실측값
+    /// `topInset`≈76·`rowHeight`=44 → 약 1.7행이라 뚜렷하게 위쪽 행 쪽으로 쏠렸다. 61차에 다이얼
+    /// 높이가 220으로 고정되며 `topInset`은 88 = 정확히 두 행이 됐다 — 어긋남의 크기만 바뀌고
+    /// 되더하기가 필요하다는 논지는 그대로다). 그 결과 밴드 안의 선택 행(예: 9시)이 바로 위 미선택 행(예: 8시)
     /// 보다 옅게 보였다 — 페이드 정점이 밴드를 등지고 위쪽으로 새어 있었던 것. 순수 함수라 스크롤·뷰 없이 잠글 수 있다.
     static func dialDistance(index: Int, scrollOffsetY: CGFloat, topInset: CGFloat, rowHeight: CGFloat) -> Double {
         guard rowHeight > 0 else { return 0 }

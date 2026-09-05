@@ -13,6 +13,10 @@ import SwiftUI
 /// `ReceiptShape`(톱니) + 모노 크라운 헤더 + 절취선 + 종이 체크박스. `PaperChecklistDialog`처럼
 /// 완전히 커스텀 오버레이를 새로 짜지 않은 것은 이 화면이 이미 시스템 시트 하나(`finishSheet`)를
 /// 정상적으로 쓰고 있어서다 — 같은 화면에 "시트 두 문법"을 두지 않는다.
+///
+/// **§14.8 시트 인셋의 문서화된 예외(61차).** `SheetShell`을 쓰지 않는다 — 이 티켓 헤더는
+/// `SheetHeader`가 아니라 영수증 카드 자체(크라운 + 메뉴명)라 셸의 좌측 타이틀 헤더와 자리가 겹친다.
+/// 다만 좌우·상하 인셋은 `ReffiSheet` 토큰을 그대로 받는다 — 시트 위에 뜬 종이라는 사실은 같다.
 struct KitchenCopySheet: View {
     let recipeName: String
     let steps: [String]
@@ -33,10 +37,15 @@ struct KitchenCopySheet: View {
             shape.fill(ReffiColor.paper).paperEdge(shape)
         }
         .reffiShadowCard()
-        .padding(.horizontal, ReffiSpace.s4)
-        .padding(.top, ReffiSpace.s4)
+        .sheetInset()                            // §14.8 — 좌우는 시트 한 선(24), 페이지 마진(16) 아님
+        .padding(.top, ReffiSheet.top)            // 32 — 그래버 영역까지 포함한 시트 상단(61차)
+        .padding(.bottom, ReffiSheet.bottom)      // 32 — 카드가 safe area 바닥에 그대로 붙어 있던 것을 고친다(61차)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(ReffiColor.canvas.ignoresSafeArea())
+        .presentationBackground(ReffiColor.canvas)   // 시스템 시트 배경도 캔버스로 고정(§14.8)
+        // 단계 수가 데이터라 `.medium` 진입 + `.large` 승격(§14.5). 핸들은 룰④ — 호출부가 아니라 시트가 선언한다(61차).
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
     }
 
     /// 헤더 3단(50차, 오너 피드백) — 아이브로("KITCHEN COPY") + 타이틀(레시피명) + 메타("N steps")

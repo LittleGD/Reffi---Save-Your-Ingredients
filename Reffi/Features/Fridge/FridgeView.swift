@@ -348,11 +348,16 @@ struct FridgeView: View {
         }
         // 탭이 갈리면 In stock 전용 상태를 정리한다 — 펼친 영수증이 다른 패인을 보고 온 뒤에도
         // 남아 있으면 돌아오는 순간 유령 상세가 뜨고, 열린 정렬 드롭다운은 앵커를 잃은 채 상태만 남는다.
-        .onChange(of: tab) { _, _ in
+        .onChange(of: tab) { _, t in
             selectedID = nil
             if openMenu != .none { closeMenus() }
+            if isActive { Analytics.shared.screen(t.analyticsScreen) }
         }
-        .sheet(item: $editing) { IngredientEditView(ingredient: $0) }
+        // 패인 노출 기록(64차) — 탭이 냉장고로 올 때(isActive)와 패인이 갈릴 때(위) 둘 다 화면 전환이다.
+        .onChange(of: isActive, initial: true) { _, active in
+            if active { Analytics.shared.screen(tab.analyticsScreen) }
+        }
+        .sheet(item: $editing) { IngredientEditView(ingredient: $0).analyticsScreen(.edit) }
         // 자정 경과 — 탭을 띄워둔 채 날이 바뀌어도 D-day 도장·정렬이 갱신되게(메인과 동일 패턴).
         .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged)) { _ in
             dayTick += 1
@@ -1233,7 +1238,7 @@ struct FridgeView: View {
         decisionHaptic += 1
         withAnimation(motion) {
             selectedID = nil
-            if ate { store.eat(ing) } else { store.toss(ing) }
+            if ate { store.eat(ing, surface: .fridge) } else { store.toss(ing, surface: .fridge) }
         }
     }
 }

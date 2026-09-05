@@ -80,7 +80,7 @@ struct AuthView: View {
             Text(verbatim: "Reffi")
                 .reffiType(.display)
                 .foregroundStyle(ReffiColor.blueDark)
-            Text("Eat it today, waste nothing")
+            Text("Eat it today, waste less")
                 .reffiType(.caption)
                 .foregroundStyle(ReffiColor.ink2)
         }

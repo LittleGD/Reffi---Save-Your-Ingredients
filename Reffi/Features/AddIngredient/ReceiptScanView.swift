@@ -23,10 +23,15 @@ struct ReceiptScanView: View {
     }
 
     @State private var phase: Phase = .pick
-    /// 시트 높이를 **단계에 맨다**(49차). 소스 선택은 결정이 셋뿐인데 `.large` 고정이라 시트의 약
-    /// 절반이 빈 크림이었다 — 선택 시트는 어디서나 콘텐츠에 붙는 짧은 시트다(레퍼런스 감사).
-    /// 확인 단계는 후보가 열댓 줄이라 `.large`가 맞으므로, 고정값이 아니라 단계가 높이를 정한다.
+    /// 시트 높이를 **단계에 맨다**(49차 → 61차 재조정). 소스 선택은 결정이 셋뿐이라 `.large`는 절반이 빈
+    /// 크림이었고(49차), `.medium`은 화면의 절반이라는 뜻일 뿐 콘텐츠와 무관해 이번엔 반대로 **넘쳤다** —
+    /// 캡션 둘째 줄이 말줄임으로 사라지고 푸터가 바닥에 붙었다(61차 오너 지적). 그래서 소스 선택은
+    /// **콘텐츠 맞춤 높이**(`ReffiSheet.fitDetent`, §14.5)로 서고, 확인 단계만 후보가 열댓 줄이라 `.large`다.
+    /// 읽는 중(`processing`)은 소스 선택과 같은 높이를 유지한다 — 결과가 오기 전에 시트가 먼저 커지면
+    /// 스피너 하나가 700pt 빈 캔버스 한가운데 서고, 빈 결과면 그 높이가 그대로 남았다(61차 감사).
     @State private var detent: PresentationDetent = .medium
+    /// 소스 선택 화면(헤더 포함)의 고유 높이 실측 — `sheetFitHeight`가 채운다.
+    @State private var fitHeight: CGFloat = 0
     @State private var showCamera = false
     /// 카메라가 오류로 닫힌 직후 — 취소와 달리 화면이 한 줄로 말한다(42차·F24).
     @State private var scanFailed = false
@@ -39,68 +44,85 @@ struct ReceiptScanView: View {
     private var cameraAvailable: Bool { VNDocumentCameraViewController.isSupported }
 
     var body: some View {
-        VStack(spacing: 0) {
-            header
-            content
-        }
-        .background(ReffiColor.canvas)
-        .presentationDetents([.medium, .large], selection: $detent)
-        // 사용자가 손으로 올린 높이는 존중한다 — 단계가 **앞으로** 갈 때만 승격시키고 되돌리지 않는다.
-        .onChange(of: phase) { _, p in if p != .pick { detent = .large } }
-        .presentationDragIndicator(.visible)
-        .presentationBackground(ReffiColor.canvas)
-        .reffiFeedback(.success, trigger: addedHaptic)
-        .fullScreenCover(isPresented: $showCamera) {
-            DocumentCameraView { images in
-                showCamera = false
-                scanFailed = false
-                guard !images.isEmpty else { return }
-                recognize(images)
-            } onFail: {
-                showCamera = false
-                scanFailed = true
-                ReffiAnnounce.say(AppLanguage.localizedNow("The camera closed unexpectedly.\nTry again or add by hand."))
+        content
+            .background(ReffiColor.canvas)
+            // 단계별 detent 집합은 **하나씩**이다 — 소스 선택·읽는 중은 맞춤 높이, 확인은 `.large`. 두 값을
+            // 한 집합에 두면 소스 선택에서 손으로 `.large`로 끌어올릴 수 있는데, 맞춤 본문은 고유 높이라
+            // 그 아래가 빈 크림으로 남는다(볼 것이 없는 높이를 열어 두지 않는다).
+            .presentationDetents(phase == .review ? [.large] : [ReffiSheet.fitDetent(fitHeight)],
+                                 selection: $detent)
+            .onChange(of: phase) { _, p in detent = p == .review ? .large : ReffiSheet.fitDetent(fitHeight) }
+            // 실측이 첫 프레임 뒤에 도착하므로 선택값도 따라간다(집합에 없는 선택은 시스템이 무시한다).
+            .onChange(of: fitHeight) { _, h in if phase != .review { detent = ReffiSheet.fitDetent(h) } }
+            .presentationDragIndicator(.visible)
+            .presentationBackground(ReffiColor.canvas)
+            .reffiFeedback(.success, trigger: addedHaptic)
+            .fullScreenCover(isPresented: $showCamera) {
+                DocumentCameraView { images in
+                    showCamera = false
+                    scanFailed = false
+                    guard !images.isEmpty else { return }
+                    recognize(images, source: .camera)
+                } onFail: {
+                    showCamera = false
+                    scanFailed = true
+                    ReffiAnnounce.say(AppLanguage.localizedNow("The camera closed unexpectedly.\nTry again or add by hand."))
+                }
+                .ignoresSafeArea()
             }
-            .ignoresSafeArea()
-        }
-        // 편집 시트는 하나다 — 스캔 후보 고치기와 직접 입력이 **같은 폼**을 쓴다(초안이 자기 출처를
-        // 안고 온다). 직접 입력 전용 폼을 또 세우면 같은 다섯 칸이 두 벌이 되고 규칙도 두 벌이 된다.
-        .sheet(item: $editingCandidate) { candidate in
-            CandidateEditSheet(candidate: candidate,
-                               title: candidate.isManual ? "Add by hand" : "Edit item") { updated in
-                if updated.isManual {
-                    addManual(updated)
-                } else if let idx = candidates.firstIndex(where: { $0.id == updated.id }) {
-                    candidates[idx] = updated
+            // 편집 시트는 하나다 — 스캔 후보 고치기와 직접 입력이 **같은 폼**을 쓴다(초안이 자기 출처를
+            // 안고 온다). 직접 입력 전용 폼을 또 세우면 같은 다섯 칸이 두 벌이 되고 규칙도 두 벌이 된다.
+            .sheet(item: $editingCandidate) { candidate in
+                CandidateEditSheet(candidate: candidate,
+                                   title: candidate.isManual ? "Add by hand" : "Edit item") { updated in
+                    if updated.isManual {
+                        addManual(updated)
+                    } else if let idx = candidates.firstIndex(where: { $0.id == updated.id }) {
+                        candidates[idx] = updated
+                    }
                 }
             }
-        }
-        .onChange(of: photoItems) { _, items in
-            guard !items.isEmpty else { return }
-            Task { await loadPhotos(items) }
-        }
-        // 단계 전환은 화면을 통째로 갈아 끼우면서도 포커스를 옮기지 않는다 — 고지가 없으면 스캔을
-        // 누른 뒤 무슨 일이 벌어지는지, 끝났는지, 몇 개를 찾았는지가 전부 침묵이다.
-        .onChange(of: phase) { _, newPhase in
-            switch newPhase {
-            case .pick:
-                break   // 되돌아온 자리는 화면이 스스로 말한다(제목·버튼이 다시 선다)
-            case .processing:
-                ReffiAnnounce.say(AppLanguage.localizedNow("Reading receipt…"))
-            case .review:
-                // 결과 요약까지 말한다 — "끝났다"만으로는 다시 찍어야 하는지 알 수 없다.
-                ReffiAnnounce.say(candidates.isEmpty
-                                  ? AppLanguage.localizedNow("Nothing recognized")
-                                  : AppLanguage.localizedNow("\(candidates.count) items recognized"))
+            .onChange(of: photoItems) { _, items in
+                guard !items.isEmpty else { return }
+                Task { await loadPhotos(items) }
             }
-        }
+            // 단계 전환은 화면을 통째로 갈아 끼우면서도 포커스를 옮기지 않는다 — 고지가 없으면 스캔을
+            // 누른 뒤 무슨 일이 벌어지는지, 끝났는지, 몇 개를 찾았는지가 전부 침묵이다.
+            .onChange(of: phase) { _, newPhase in
+                switch newPhase {
+                case .pick:
+                    break   // 되돌아온 자리는 화면이 스스로 말한다(제목·버튼이 다시 선다)
+                case .processing:
+                    ReffiAnnounce.say(AppLanguage.localizedNow("Reading receipt…"))
+                case .review:
+                    // 결과 요약까지 말한다 — "끝났다"만으로는 다시 찍어야 하는지 알 수 없다.
+                    ReffiAnnounce.say(candidates.isEmpty
+                                      ? AppLanguage.localizedNow("No items found")
+                                      : AppLanguage.localizedNow("\(candidates.count) items recognized"))
+                }
+            }
     }
 
+    /// 단계별 본문 — 헤더는 세 단계가 같은 `SheetHeader`다. 소스 선택만 헤더까지 묶어 고유 높이를 잰다
+    /// (`sheetFitHeight` — 안에서 `fixedSize`로 세로를 고정하므로 시트 높이에 되먹임되지 않는다).
     @ViewBuilder private var content: some View {
         switch phase {
-        case .pick: pickSource
-        case .processing: processing
-        case .review: review
+        case .pick:
+            VStack(spacing: 0) {
+                header
+                pickSource
+            }
+            .sheetFitHeight($fitHeight)
+        case .processing:
+            VStack(spacing: 0) {
+                header
+                processing
+            }
+        case .review:
+            VStack(spacing: 0) {
+                header
+                review
+            }
         }
     }
 
@@ -111,18 +133,23 @@ struct ReceiptScanView: View {
 
     // MARK: - 소스 선택
 
-    /// 소스 선택 — 버튼 묶음은 남는 세로를 위아래 Spacer로 반씩 나눠 **화면 중앙**에 서고,
-    /// 프라이버시 고지는 하단(세이프에어리어 위)에 고정한다. 예전엔 셋이 한 스택에 붙어 있어
-    /// 묶음이 위로 쏠리고, 고지가 버튼 폭(전폭)을 물려받아 좌측정렬로 어색하게 끊겼다.
+    /// 소스 선택 — 모티프·캡션·CTA·직접 입력 링크는 중앙 축의 표지형 블록이다(§9.4 ②).
+    /// 바닥의 프라이버시 안내는 읽는 문장으로 좌측 정렬한다(62차). 모든 블록의 가로 여백은
+    /// 바깥 `sheetInset`이 맡는다.
+    ///
+    /// 세로는 Spacer가 아니라 **시트 토큰 간격**으로 선다(§14.8): 헤더 → 모티프 묶음(아이콘·캡션 `itemGap`) →
+    /// `blockGap` → CTA 묶음(`ctaGap`) → `blockGap` → 조용한 링크 → `blockGap` → 고지 → `bottom`.
+    /// 시트 높이가 이 합 그대로라(`sheetFitHeight`) Spacer로 나눌 남는 세로 자체가 없다.
     private var pickSource: some View {
-        VStack(spacing: 0) {
-            Spacer(minLength: ReffiSpace.s4)
-            VStack(spacing: ReffiSpace.s4) {
+        VStack(spacing: ReffiSheet.blockGap) {
+            VStack(spacing: ReffiSheet.itemGap) {
                 ReffiIcon.receipt.reffi(44).foregroundStyle(ReffiColor.blueDark)
-                Text("Snap the receipt.\nGroceries land in your fridge.")
+                Text("Scan your receipt.\nCheck the items, then add them.")
                     .reffiType(.body).foregroundStyle(ReffiColor.ink2)
                     .multilineTextAlignment(.center)
+            }
 
+            VStack(spacing: ReffiSheet.ctaGap) {
                 if cameraAvailable {
                     // 라벨은 짧게(62차 owner), 전체 뜻은 accessibilityLabel이 맡는다(`CookingStepsView`
                     // "Videos" 선례와 같은 문법).
@@ -138,6 +165,9 @@ struct ReceiptScanView: View {
                 }
                 .buttonStyle(.paperPress)
                 .accessibilityLabel(Text("Choose photos"))
+            }
+
+            VStack(spacing: ReffiSheet.itemGap) {
                 // 영수증이 없거나 스캔이 안 잡히는 날의 탈출구 — 면 없는 조용한 링크로 둔다.
                 // 종이 CTA로 세우면 스캔과 같은 무게가 돼, 이 화면이 무엇을 권하는지가 흐려진다.
                 // 라벨은 목적지 시트 제목("Add by hand")과 같은 낱말이다(42차) — 진입점과 도착지가
@@ -145,43 +175,34 @@ struct ReceiptScanView: View {
                 QuietButton(title: "Add by hand", icon: ReffiIcon.manual) {
                     editingCandidate = EditableCandidate(manualDraft: true)
                 }
+                if scanFailed {
+                    // 표지형 블록 안의 문장이라 중앙이다(61차 — 옛 "페이지 마진 컬럼의 읽는 문장 = 좌측"은
+                    // 이 시트에 축을 하나 더 세우는 판정이었다). 링크 바로 아래에 붙는 것은 "다시 시도하거나
+                    // 직접 입력"이라는 문장의 두 행동이 정확히 그 위 두 컨트롤이기 때문이다.
+                    Text("The camera closed unexpectedly.\nTry again or add by hand.")
+                        .reffiType(.caption)
+                        .foregroundStyle(ReffiColor.urgentDark)
+                        .multilineTextAlignment(.center)
+                }
             }
-            .padding(.horizontal, ReffiSpace.s6)
-            if scanFailed {
-                // 표지형 블록(s6 컬럼) 밖, 페이지 마진 컬럼 안에 사는 **읽는 문장**이라 좌측이다
-                // (49차, §9.4) — 지금까지는 표지에 속하지도 페이지 컬럼에 붙지도 않은 중간이었다.
-                Text("The camera closed unexpectedly.\nTry again or add by hand.")
-                    .reffiType(.caption)
-                    .foregroundStyle(ReffiColor.urgentDark)
-                    .multilineTextAlignment(.leading)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, ReffiGrid.margin)
-                    .padding(.top, ReffiSpace.s3)
-            }
-            Spacer(minLength: ReffiSpace.s4)
+
             privacyNote
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(ReffiColor.canvas)
+        .frame(maxWidth: .infinity)
+        .sheetInset()
+        .padding(.bottom, ReffiSheet.bottom)
     }
 
-    /// 온디바이스 고지 — 화면이 아니라 **바닥**이 할 말이다(버튼 옆에 붙으면 선택을 방해한다).
-    /// 잉크는 muted 대신 ink2로 한 단 어둡게(캡션 크기에서 muted는 캔버스 위 대비가 얕다).
+    /// 온디바이스 고지 — 시트의 **바닥 문장**이다(버튼 옆에 붙으면 선택을 방해한다). 위의 표지형 블록과
+    /// 달리 실제로 읽어야 하는 안내 문장이라 페이지의 좌측 축을 따른다(§9.4 본칙, 62차). 가로 여백과
+    /// 바닥 간격은 바깥 `sheetInset`·`ReffiSheet.bottom`이 맡는다. 잉크는 muted 대신 ink2로 한 단
+    /// 어둡게 둔다(캡션 크기에서 muted는 캔버스 위 대비가 얕다).
     private var privacyNote: some View {
         Text("Everything is read on this device.\nNothing is uploaded.")
             .reffiType(.caption)
             .foregroundStyle(ReffiColor.ink2)
             .multilineTextAlignment(.leading)
-            // 폭은 버튼 스택이 아니라 **화면**이 정한다 — 전폭에서 가로 마진만 물리면 두 줄로 고르게 앉는다.
-            // 그 전폭이 확보된 지금, 축은 페이지 좌측선을 따른다(49차, §9.4). 옛 중앙 정렬의 근거였던
-            // "버튼 폭을 물려받아 어중간하게 끊긴다"는 폭 문제였지 정렬 문제가 아니었다.
-            // 62차 재검토: "위 아이콘·안내문·버튼과 안 맞아 보인다"는 지적이 있었으나, 그 위 블록은
-            // §9.4 예외②(표지형 블록 — 이 파일 자체가 그 예시)라 축이 다른 게 정상이다. 이 문구는
-            // 표지 밖 페이지 마진에 앉는 **캡션/안내**라 §9.4 본칙(읽는 텍스트는 좌측)이 그대로 적용된다 —
-            // 중앙으로 돌리면 49차가 고친 바로 그 불일치가 재발한다. 그대로 둔다.
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, ReffiGrid.margin)   // 주석의 의도 그대로 — 페이지 마진(§9.2·42차)
-            .padding(.bottom, ReffiSpace.s5)
     }
 
     private var processing: some View {
@@ -194,43 +215,48 @@ struct ReceiptScanView: View {
                 .accessibilityHidden(true)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(ReffiColor.canvas)
     }
 
     // MARK: - 확인 리스트
 
     @ViewBuilder private var review: some View {
         if candidates.isEmpty {
-            VStack(spacing: ReffiSpace.s3) {
-                Text("Nothing recognized").reffiType(.subhead).foregroundStyle(ReffiColor.ink)
-                Text("Use a clearer photo.")
-                    .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
-                PaperButton(title: "Try again", kind: .secondary) { phase = .pick }
-                    .padding(.top, ReffiSpace.s3)
-            }
-            .padding(ReffiSpace.s6)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(ReffiColor.canvas)
-        } else {
-            VStack(spacing: 0) {
-                List {
-                    Section {
-                        ForEach(candidates) { c in
-                            candidateRow(c)
-                                .listRowBackground(Color.clear)
-                                // 행 구분선은 §6.1 소관이라 종이 단면(`paperEdge`)이 아니다 — 알파가 같아도 역할이 다르다.
-                                .listRowSeparatorTint(ReffiColor.paperEdge)
-                        }
-                    } footer: {
-                        Text("Use-by dates are filled from the ingredient dictionary.\nAdjust anytime in Fridge.")
-                            .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
-                    }
+            VStack(spacing: ReffiSheet.blockGap) {
+                VStack(spacing: ReffiSpace.s3) {
+                    Text("No items found").reffiType(.subhead).foregroundStyle(ReffiColor.ink)
+                    Text("Try a clearer photo of the whole receipt.")
+                        .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
                 }
-                .listStyle(.plain)
-                .scrollContentBackground(.hidden)
+                PaperButton(title: "Try again", kind: .secondary) { phase = .pick }
+            }
+            .sheetInset()   // 표지형 빈 상태(§9.4 ②) — 축은 중앙, 인셋은 시트 한 선(§14.8)
+            .padding(.vertical, ReffiSheet.blockGap)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            List {
+                Section {
+                    ForEach(candidates) { c in
+                        candidateRow(c)
+                            .listRowBackground(Color.clear)
+                            // 행 구분선은 §6.1 소관이라 종이 단면(`paperEdge`)이 아니다 — 알파가 같아도 역할이 다르다.
+                            .listRowSeparatorTint(ReffiColor.paperEdge)
+                            // 시스템 plain 행 인셋(≈20)이 아니라 시트 인셋(§14.8) — 체크 상자가 제목과 같은 선에 선다.
+                            .listRowInsets(EdgeInsets(top: ReffiSpace.s2, leading: ReffiSheet.inset,
+                                                      bottom: ReffiSpace.s2, trailing: ReffiSheet.inset))
+                    }
+                } footer: {
+                    Text("Use-by dates are estimates.\nCheck the packaging and adjust them in Fridge.")
+                        .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
+                        .listRowInsets(EdgeInsets(top: ReffiSpace.s3, leading: ReffiSheet.inset,
+                                                  bottom: ReffiSheet.blockGap, trailing: ReffiSheet.inset))
+                }
+            }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            // 확정 CTA는 도킹한다(§14.4) — 목록 꼬리에 딸리지 않고 safe-area 하단에 붙어 본문만 스크롤한다.
+            // 옛 구성(맨 패딩 12/12)은 마지막 행이 버튼 바로 위에서 딱 끊겼다.
+            .dockedCTA(over: ReffiColor.canvas, inset: ReffiSheet.inset, bottomInset: ReffiSheet.bottom) {
                 PaperButton(title: "Add \(selected.count) items") { add() }
-                    .padding(.horizontal, ReffiGrid.margin)
-                    .padding(.vertical, ReffiSpace.s3)
                     .disabled(selected.isEmpty)   // 디밍은 PaperButton이 §7.2로 처리 — 여기서 겹치면 곱해진다.
             }
         }
@@ -356,11 +382,11 @@ struct ReceiptScanView: View {
             }
         }
         photoItems = []
-        recognize(images)
+        recognize(images, source: .photos)
     }
 
     /// Vision OCR(ko+en, 온디바이스) → ReceiptParser 후보(+ 상호명). 무거운 인식은 백그라운드에서.
-    private func recognize(_ images: [UIImage]) {
+    private func recognize(_ images: [UIImage], source: AnalyticsEvent.ScanSource) {
         phase = .processing
         Task.detached(priority: .userInitiated) {
             var lines: [String] = []
@@ -385,6 +411,10 @@ struct ReceiptScanView: View {
                 // OCR 파편일 수 있어 기본 꺼짐으로 두고, 사용자가 배지("사전에 없음")를 보고 켠다.
                 selected = Set(candidates.filter { $0.canonicalID != nil }.map(\.id))
                 phase = .review
+                // 스캔 품질(64차) — 후보 수 대비 사전 매칭 수. 이후 `ingredient_add{source: receipt}`의
+                // count가 실제 등록 수라, 둘의 비가 "OCR·파서가 쓸 만한가"의 지표다.
+                Analytics.shared.track(.receiptScan(source: source, pages: images.count,
+                                                    candidates: candidates.count, matched: selected.count))
             }
         }
     }
@@ -403,7 +433,7 @@ struct ReceiptScanView: View {
                               storage: c.storage,
                               canonicalID: c.canonicalID)
         }
-        store.add(contentsOf: items)
+        store.add(contentsOf: items, source: .receipt)
         addedHaptic += 1
         dismiss()
     }
@@ -497,21 +527,20 @@ private struct CandidateEditSheet: View {
     @State private var showDiscardConfirm = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            header
+        // 시트 골격은 `SheetShell`(§14.8) — 헤더·도킹 Save·핸들·캔버스 배경을 셸이 세운다.
+        SheetShell(title: title, onClose: { requestClose() }) {
             ScrollView {
                 fieldsCard
-                    .padding(.horizontal, ReffiGrid.margin)
-                    .padding(.top, ReffiSpace.s3)
-                    .padding(.bottom, ReffiSpace.s4)
+                    .sheetInset()
+                    .padding(.bottom, ReffiSheet.blockGap)
             }
             // decimalPad엔 리턴 키가 없다 — 쌍둥이 폼(IngredientEditView)과 같은 탈출구(42차·F23).
             .scrollDismissesKeyboard(.interactively)
-            actionBar
+        } bar: {
+            saveButton
         }
-        .background(ReffiColor.canvas)
         // 종이 드롭다운 오버레이 2종 — 열린 트리거만 앵커를 올리므로 동시에 하나만 뜬다.
-        // `.medium` 시트라 세로 여유가 좁다: 모디파이어가 아래/위 공간을 재 뒤집고 높이를 캡한다.
+        // 모디파이어가 아래/위 공간을 재 뒤집고 높이를 캡한다.
         .paperDropdownOverlay(isPresented: openDropdown == .unit,
                               options: IngredientUnit.allCases,
                               selected: candidate.quantity.unit,
@@ -524,9 +553,10 @@ private struct CandidateEditSheet: View {
                               label: { $0.label }, seed: 3,
                               onDismiss: { closeDropdown() },
                               onSelect: { candidate.storage = $0 })
-        .presentationDetents([.medium])
-        .presentationDragIndicator(.visible)
-        .presentationBackground(ReffiColor.canvas)
+        // 다섯 칸 + Save가 `.medium`(≈392pt 가용)에 568pt라 'Use by'·'Where'가 접힌 채 열렸다(61차 감사) —
+        // 쌍둥이 폼(`IngredientEditView`)과 같은 `.large`. 편집 폼의 §14.5 "`.medium` 진입"은 폼이
+        // 절반 화면에 **들어갈 때**의 규칙이다.
+        .presentationDetents([.large])
         .interactiveDismissDisabled(isDirty)
         .onChange(of: candidate.name) { _, newName in
             candidate.canonicalID = IngredientLexicon.shared.canonicalID(for: newName)
@@ -552,10 +582,6 @@ private struct CandidateEditSheet: View {
                     seed: 1, backdropDismisses: true,
                     primary: PaperDialogAction("Discard", role: .destructive) { dismiss() },
                     secondary: PaperDialogAction("Cancel", role: .cancel) {})
-    }
-
-    private var header: some View {
-        SheetHeader(title: title, showsClose: true) { requestClose() }
     }
 
     /// 진입 `.enter` / 이탈 `.exit`(§7.1) — 메뉴는 읽으러 여는 것이라 예산이 짧다.
@@ -651,14 +677,12 @@ private struct CandidateEditSheet: View {
         .receiptSurface()
     }
 
-    private var actionBar: some View {
+    /// 도킹 Save(§14.4) — 인셋·페이드·바닥 여백은 `SheetShell`이 세운다.
+    private var saveButton: some View {
         PaperButton(title: "Save") {
             onSave(candidate)
             dismiss()
         }
-        .padding(.horizontal, ReffiGrid.margin)
-        .padding(.top, ReffiSpace.s3)
-        .padding(.bottom, ReffiSpace.s3)
         // 이름 없는 재료는 냉장고에서 이름 없는 칸이 된다 — 빈 초안으로 시작하는 직접 입력에서
         // 특히 도달 가능한 상태라, 저장 자체를 막는다(디밍은 PaperButton이 §7.2로 처리).
         .disabled(candidate.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)

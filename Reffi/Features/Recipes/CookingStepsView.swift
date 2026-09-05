@@ -180,10 +180,10 @@ struct CookingStepsView: View {
             if gone { onClose() }
         }
         // 완료 확인 — 재료별 '다 썼어요(기본)/조금 남았어요' 원탭. 여기서 소비가 확정된다.
+        // dragIndicator는 `SheetShell`이 스스로 세운다(61차) — 여기서 또 걸면 이중 선언일 뿐이다.
+        // 목록이 재료 수에 따라 늘어나므로(데이터 기반) `.medium`만으로는 넘칠 수 있어 `.large`를 더한다.
         .sheet(isPresented: $showFinishSheet) {
-            finishSheet
-                .presentationDetents([.medium])
-                .presentationDragIndicator(.visible)   // 룰④ — 하단 시트는 dragIndicator(핸들) 필수, 닫기 신호 확보
+            finishSheet   // detent는 시트 안에 산다(§14.5) — `finishSheet` 본문 참고
         }
         // 주방 전표(39차) — 티켓 안 "How to cook"(48차) 링크가 연다.
         // 체크는 store에 바로 반영되므로(`toggleCookStep`) 시트를 닫았다 열어도, 앱을 껐다 켜도 유지된다.
@@ -194,8 +194,7 @@ struct CookingStepsView: View {
                                   completedSteps: Set(cook.completedSteps ?? [])) { index in
                     store.toggleCookStep(index)
                 }
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)   // 룰④
+                // detent·핸들은 시트 안에 산다(§14.5 · 61차) — `KitchenCopySheet` 본문 참고
             }
         }
         // 종이 확인으로 전환(2026-08, 35차 사용자 결정) — design_system.md §14.7이 조리 취소를
@@ -255,20 +254,31 @@ struct CookingStepsView: View {
 
     // MARK: - 완료 확인 시트 (소비 확정 지점)
 
+    /// 골격은 `SheetShell`(§14.8·61차) — 제목("Anything left over?")·핸들·캔버스 배경·도킹 Save를
+    /// 셸이 세운다. `showsClose: false`는 그대로 지킨다 — UI 테스트가 이 화면의 `app.buttons["Close"]`로
+    /// 여전히 커버의 X를 집어야 하는데, 셸 X를 켜면 같은 이름이 하나 더 생겨 테스트가 흔들린다.
+    /// 옛 `.padding(ReffiSpace.s5)` 올사방 + `.background(canvas)` 손조립은 셸이 흡수한다.
     private var finishSheet: some View {
-        VStack(alignment: .leading, spacing: ReffiSpace.s4) {
-            VStack(alignment: .leading, spacing: ReffiSpace.s0) {
-                Text("Anything left over?").reffiType(.heading).foregroundStyle(ReffiColor.ink)
+        SheetShell(title: "Anything left over?", showsClose: false) {
+            VStack(spacing: 0) {
+                // 첫 콘텐츠라 상단 패딩을 갖지 않는다 — 헤더가 이미 `headerGap`을 줬다(§14.8 헤더 간격 계약).
                 Text("Leftovers stay in the fridge at half the amount.")
                     .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
-            }
-            ScrollView {
-                VStack(spacing: ReffiSpace.s2) {
-                    ForEach(reservedIngredients) { ing in
-                        leftoverRow(ing)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .sheetInset()
+                ScrollView {
+                    VStack(spacing: ReffiSpace.s2) {
+                        ForEach(reservedIngredients) { ing in
+                            leftoverRow(ing)
+                        }
                     }
+                    .sheetInset()
+                    .padding(.top, ReffiSheet.blockGap)      // 캡션 블록 ↔ 목록 블록
+                    .padding(.bottom, ReffiSheet.blockGap)   // 목록 끝 → 도킹 Save(§14.8 바닥 계약: 페이드 띠가 나머지를 진다)
                 }
+                .scrollBounceBehavior(.basedOnSize)
             }
+        } bar: {
             PaperButton(title: "Confirm & finish") {
                 finishHaptic += 1
                 showFinishSheet = false
@@ -277,8 +287,8 @@ struct CookingStepsView: View {
                 }
             }
         }
-        .padding(ReffiSpace.s5)
-        .background(ReffiColor.canvas)
+        // 목록이 재료 수에 따라 늘어나므로(데이터 기반) `.medium`만으로는 넘칠 수 있어 `.large`를 더한다(§14.5).
+        .presentationDetents([.medium, .large])
     }
 
     /// 재료 한 줄 — 탭으로 '다 썼어요 ↔ 조금 남았어요' 토글. 기본은 다 씀(마찰 0).
@@ -456,6 +466,7 @@ struct CookingStepsView: View {
                 // 쓰고 남는 폭 전부를 이 버튼에 준다.
                 PaperButton(title: "Videos", kind: .soft, seed: 3,
                             icon: ReffiIcon.youtube, iconWeight: .fill, onCard: true) {
+                    Analytics.shared.track(.videoOpen(source: .cook))
                     openURL(youtubeSearchURL(for: cook.recipeName))
                 }
                 .accessibilityLabel(Text("Open recipe videos"))

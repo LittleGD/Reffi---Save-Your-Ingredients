@@ -279,13 +279,15 @@ struct ShoppingListContent: View {
             let storage = last.storage == .freezer ? .fridge : last.storage
             let expiresAt = lex.defaultExpiry(for: name, storage: storage) ?? Ingredient.day(offset: 3)
             store.add(Ingredient(name: name, category: glyph.categoryLabel, expiresAt: expiresAt,
-                                 quantity: last.quantity, glyph: glyph, place: last.place, storage: storage))
+                                 quantity: last.quantity, glyph: glyph, place: last.place, storage: storage),
+                      source: .restock)
         } else {
             let expiresAt = lex.defaultExpiry(for: name, storage: .fridge) ?? Ingredient.day(offset: 3)
             // 폴백 기본 수량(1개)은 개수 차원이라 가구 인원 배율을 그대로 곱한다.
             let quantity = Quantity(value: max(1, profile.household.quantityMultiplier.rounded()), unit: .piece)
             store.add(Ingredient(name: name, category: glyph.categoryLabel, expiresAt: expiresAt,
-                                 quantity: quantity, glyph: glyph))
+                                 quantity: quantity, glyph: glyph),
+                      source: .restock)
         }
         store.clearToBuy(key: key)
         restockHaptic += 1
@@ -686,24 +688,26 @@ private struct ToBuySearchSheet: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            SheetHeader(title: "Add to list", showsClose: true) { dismiss() }
-            searchField
-                .padding(.horizontal, ReffiGrid.margin)
-            ScrollView {
-                content
-                    .padding(.horizontal, ReffiGrid.margin)
-                    .padding(.top, ReffiSpace.s3)
-                    .padding(.bottom, ReffiSpace.s5)
+        // 시트 골격은 `SheetShell`(§14.8·61차) — 헤더·핸들·캔버스 배경을 셸이 세운다. 이 시트는 도킹
+        // CTA가 없다(연속 담기 UX라 확정 버튼 자체가 없다) — `bar` 생략, sizing 기본값 `.fills`이고
+        // detent는 옛 구조와 같이 호출부(여기)가 정한다.
+        SheetShell(title: "Add to list", onClose: { dismiss() }) {
+            VStack(spacing: 0) {
+                searchField
+                    .sheetInset()
+                ScrollView {
+                    // 필드→그리드는 블록 갭이다(필드가 스크롤 밖이라 헤더 간격이 아니라 이 값을 쓴다).
+                    content
+                        .sheetInset()
+                        .padding(.top, ReffiSheet.blockGap)
+                        .padding(.bottom, ReffiSheet.bottom)   // 바 없는 `.fills` — 본문이 자기 끝에 bottom을 진다
+                }
+                .scrollDismissesKeyboard(.interactively)
             }
-            .scrollDismissesKeyboard(.interactively)
         }
-        .background(ReffiColor.canvas)
         // 검색 필드 + 목록/그리드 = 중간 목록·폼 버킷(§14.5): .medium은 진입 높이일 뿐이고, 카테고리
         // 섹션까지 쌓이는 재료 배열은 스크롤·.large 승격을 전제한다(Frequent가 늘 첫 화면에 온다).
         .presentationDetents([.medium, .large], selection: $detent)
-        .presentationDragIndicator(.visible)
-        .presentationBackground(ReffiColor.canvas)
         .reffiFeedback(.success, trigger: addHaptic)   // 목록에 담김 = 성공 완료(§7.6)
         // 검색 필드 포커스 → 시트를 .large로. 키보드가 떠도 그리드가 가리지 않는다(원본 픽커 P0-2 계승).
         // 진입 자동 포커스는 두지 않는다: 이 시트의 기본 상태는 `content` 주석이 선언한 대로 타이핑 없이

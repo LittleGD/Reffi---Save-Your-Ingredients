@@ -204,19 +204,23 @@ extension View {
     /// `bottomInset`은 **바 아래로 남길 여백**이다. 커버는 화면 바닥을 통째로 쓰므로 기본 `s3`이지만,
     /// 냉장고 To buy 탭처럼 **떠 있는 캡슐 네비가 있는 화면**에 얹을 때는 그 자리(`ReffiChrome.navReserve`)를
     /// 비워야 CTA가 네비 밑에 깔리지 않는다. 값만 바꾸고 페이드·불투명 면 구성은 한 곳에 남긴다.
+    ///
+    /// `inset`은 바의 **좌우 인셋**이다. 커버·패인은 페이지 마진(16)이고, 하단 시트는 `ReffiSheet.inset`(24)이다
+    /// (§14.8 — 시트 안의 모든 것이 한 선에 선다). `SheetShell`이 시트 값을 넘기므로 시트 호출부가 직접 적을 일은 없다.
     func dockedCTA<Bar: View>(over surface: Color,
+                              inset: CGFloat = ReffiGrid.margin,
                               bottomInset: CGFloat = ReffiSpace.s3,
                               @ViewBuilder bar: () -> Bar) -> some View {
         safeAreaInset(edge: .bottom, spacing: 0) {
             bar()
-                .padding(.horizontal, ReffiGrid.margin)
-                .padding(.top, ReffiSpace.s6)     // 페이드 띠 높이와 같다 — 버튼은 불투명 면 위에서 시작한다
+                .padding(.horizontal, inset)
+                .padding(.top, ReffiSheet.barTop)     // 페이드 띠 높이와 같다(한 토큰) — 버튼은 불투명 면 위에서 시작한다
                 .padding(.bottom, bottomInset)
                 .background {
                     VStack(spacing: 0) {
                         LinearGradient(colors: [surface.opacity(0), surface],
                                        startPoint: .top, endPoint: .bottom)
-                            .frame(height: ReffiSpace.s6)
+                            .frame(height: ReffiSheet.barTop)
                         surface
                     }
                     .ignoresSafeArea(edges: .bottom)

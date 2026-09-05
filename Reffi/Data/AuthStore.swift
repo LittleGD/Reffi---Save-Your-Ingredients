@@ -68,10 +68,36 @@ final class AuthStore {
     /// Keychain의 세션을 복원하고 이후 변경(로그인·로그아웃·갱신)을 구독.
     private func listen() async {
         for await (event, session) in Self.client.auth.authStateChanges {
+            let wasAnonymous = self.session?.user.isAnonymous == true
             self.session = session
             if session != nil { setLocalGuest(false) }
             if event == .initialSession { restoring = false }
+            trackAuthChange(event, session: session, wasAnonymous: wasAnonymous)
         }
+    }
+
+    /// 계정 이벤트(64차) — 로그인 방식·익명 여부·익명→정식 승계만 남긴다(이메일·id는 싣지 않는다).
+    /// 세션이 생기는 순간 큐를 밀어낸다: `user_id`는 서버가 `auth.uid()`로 채우므로 세션 없인 못 올린다.
+    private func trackAuthChange(_ event: AuthChangeEvent, session: Session?, wasAnonymous: Bool) {
+        switch event {
+        case .signedIn:
+            guard let user = session?.user else { return }
+            Analytics.shared.track(.authSignIn(provider: Self.provider(of: user), anonymous: user.isAnonymous))
+            Analytics.shared.flushSoon()
+        case .userUpdated:
+            guard let user = session?.user, wasAnonymous, !user.isAnonymous else { return }
+            Analytics.shared.track(.authUpgrade(provider: Self.provider(of: user)))
+        case .signedOut:
+            Analytics.shared.track(.authSignOut)
+        case .initialSession:
+            if session != nil { Analytics.shared.flushSoon() }
+        default:
+            break
+        }
+    }
+
+    private static func provider(of user: User) -> String {
+        user.appMetadata["provider"]?.stringValue ?? (user.isAnonymous ? "anonymous" : "unknown")
     }
 
     // MARK: - 이메일

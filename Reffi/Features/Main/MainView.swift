@@ -279,9 +279,11 @@ struct MainView: View {
                                    pendingToBuyJump = true
                                    showCarousel = false   // 탭 전환은 `onDismiss`에서 — 순서가 곧 안전이다
                                })
+            .analyticsScreen(.deck)
         }
         .fullScreenCover(isPresented: $showSteps) {
             CookingStepsView(onClose: { showSteps = false })
+                .analyticsScreen(.cook)
         }
         // 판정은 투명 풀스크린 커버 — 하단 네비까지 덮어 모달리티가 깨지지 않는다.
         .fullScreenCover(item: $deciding) { ing in
@@ -290,6 +292,7 @@ struct MainView: View {
                           onCommit: { ate in commit(ing, ate: ate) },
                           onFreeze: { commitFreeze(ing) },
                           onCancel: { closeDecision() })
+                .analyticsScreen(.decision)
                 .presentationBackground(.clear)
         }
         .sheet(isPresented: $showAdd) {
@@ -310,7 +313,7 @@ struct MainView: View {
             if showSealedCheck {
                 PaperChecklistDialog(
                     title: "Anything opened yet?",
-                    message: "Sealed items keep their long dates until opened.\nChecked ones switch to the after-opening use-by date.",
+                    message: "Check the items you've opened.\nTheir use-by dates will update.",
                     rows: sealedCheckItems.enumerated().map { i, ing in
                         PaperChecklistDialog.Row(id: i, name: ing.displayName, glyph: ing.glyph)
                     },
@@ -875,7 +878,7 @@ struct MainView: View {
         guard let ing = liveCounter.first(where: { $0.id == id }) else { return }
         decisionHaptic += 1
         withAnimation(ReffiMotion.gated(ReffiMotion.pop, reduce: reduceMotion)) {
-            if wasted { store.toss(ing) } else { store.eat(ing) }
+            if wasted { store.toss(ing, surface: .zone) } else { store.eat(ing, surface: .zone) }
         }
     }
 
@@ -1013,7 +1016,7 @@ struct MainView: View {
         decisionHaptic += 1
         closeDecision()
         withAnimation(ReffiMotion.gated(ReffiMotion.pop, reduce: reduceMotion)) {
-            if ate { store.eat(ing) } else { store.toss(ing) }
+            if ate { store.eat(ing, surface: .badge) } else { store.toss(ing, surface: .badge) }
         }
     }
 
@@ -1120,6 +1123,9 @@ struct MainView: View {
     private func cook() {
         guard !liveCounter.isEmpty else { return }
         snapshotCarousel()   // 발주로 store가 바뀌어도 커버 입력은 고정(재랭크 방지)
+        // 덱 열림(64차) — 이때의 티켓 수·핀·위기 재료 수가 "덱이 비어서 발주가 안 나는가"의 근거다.
+        Analytics.shared.track(.deckOpen(tickets: carouselSnapshot.count, pinned: pinnedSnapshot.count,
+                                         atRisk: atRiskSnapshot.count))
         firedTicket = false
         coverGeneration += 1                 // 이전 발주의 지연 닫기 타이머 무효화
         // 커버 표시를 한 틱 지연 — 80레시피 스코어링(carouselResults)과 커버 첫 프레임이

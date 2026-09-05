@@ -243,7 +243,7 @@ struct OrderMemoCard: View {
                             // 첫 카피("맞는 티켓이 적어 범위를 넓혔어요")는 엔진이 평가한 적 없는
                             // 희소성을 주장해 잘 채워진 냉장고의 1번 티켓에서도 떴다(적대 검증
                             // 실측: 후보 27장 수용 중 2장이 구제 — 희소가 아니라 풍요였다).
-                            Text("Clears more than it asks you to buy.")
+                            Text("Uses at least as many ingredients as you need to buy.")
                                 .reffiType(.metaText)
                                 .foregroundStyle(ReffiColor.ink2)
                         }
@@ -450,4 +450,3 @@ struct OrderMemoCard: View {
         }
     }
 }
-

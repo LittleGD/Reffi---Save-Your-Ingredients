@@ -38,6 +38,9 @@ struct ProfileView: View {
     @AppStorage(ReffiFeedback.hapticsKey) private var hapticsEnabled = true
     @AppStorage(ReffiFeedback.tiltKey) private var tiltEnabled = true
 
+    // 계측 옵트아웃 SSOT(64차) — `Analytics.enabledKey`. 토글이 바뀌면 파이프라인에 즉시 반영한다.
+    @AppStorage(Analytics.enabledKey) private var usageSharing = true
+
     // 앱 내 언어 SSOT(38차) — `RootGateView`가 같은 키로 루트 `.environment(\.locale)`을 건다.
     @AppStorage(AppLanguage.key) private var languageRaw = AppLanguage.system.rawValue
     @State private var languagePickerOpen = false
@@ -126,21 +129,23 @@ struct ProfileView: View {
         // (블롭 세 장 + 글래스 프로스트를 걷어내면서 `store.sorted`를 읽던 accent 계산도 함께 사라졌다 —
         // 신선도는 이제 배경이 아니라 뱃지·도장·D-N 잉크가 진다, §2.5.)
         .background { if isActive { PaperCanvasBackground() } }
+        // 61차 — detent는 각 시트가 스스로 진다(§14.5·§14.8). 여기 있던 `.height(260)`·`.height(300)`은
+        // 콘텐츠와 무관한 매직 넘버라 큰 글자에서 잘렸고, 목록형 둘은 시트 안의 `[.medium, .large]`로 옮겼다.
         .sheet(item: $sheet) { which in
             switch which {
-            case .nickname:  NicknameEditSheet().presentationDetents([.height(260)])
-            case .cuisines:  CuisinePickerSheet().presentationDetents([.medium, .large])
+            case .nickname:  NicknameEditSheet()
+            case .cuisines:  CuisinePickerSheet()
             case .favorites: TagEditorSheet(title: "Favorites", placeholder: "e.g. Tofu",
-                                            tags: $profile.favorites).presentationDetents([.medium, .large])
+                                            tags: $profile.favorites)
             case .disliked:  TagEditorSheet(title: "Disliked", placeholder: "e.g. Cucumber",
-                                            tags: $profile.disliked).presentationDetents([.medium, .large])
+                                            tags: $profile.disliked)
             case .allergies: TagEditorSheet(title: "Allergies", placeholder: "e.g. Peanuts",
-                                            tags: $profile.allergies).presentationDetents([.medium, .large])
-            case .time:      NotifyTimeSheet().presentationDetents([.height(300)])
+                                            tags: $profile.allergies)
+            case .time:      NotifyTimeSheet()
             }
         }
-        .sheet(isPresented: $showAuth) { AuthView() }
-        .sheet(isPresented: $showMyRecipes) { MyRecipesView() }
+        .sheet(isPresented: $showAuth) { AuthView().analyticsScreen(.auth) }
+        .sheet(isPresented: $showMyRecipes) { MyRecipesView().analyticsScreen(.myRecipes) }
         // 언어 픽커(38차) — `PaperDropdown` 루트 오버레이(ScrollView 클리핑 밖, `FridgeView` 정렬
         // 드롭다운과 같은 문법이나 트리거가 하나뿐이라 시트용 `paperDropdownOverlay`를 그대로 쓴다.
         .paperDropdownOverlay(isPresented: languagePickerOpen,
@@ -173,6 +178,7 @@ struct ProfileView: View {
                             await auth.signOut()      // scope .local — 오프라인에서도 로그아웃
                             store.resetAllData()      // 이 기기 냉장고·이력 삭제
                             profile.resetAll()        // 프로필·취향 초기화
+                            Analytics.shared.resetIdentity()   // 계측 큐·install id도 새로 — 이 기기의 흔적을 끊는다
                             // 소유자 키도 함께 해제 — 남겨두면 이후 게스트 구간에 새로 쌓은 데이터가
                             // 다음 가입 시 '다른 계정 전환'으로 오인돼 조용히 와이프된다(승계 안내와 모순).
                             UserDefaults.standard.removeObject(forKey: DataOwner.key)
@@ -181,7 +187,7 @@ struct ProfileView: View {
                     },
                     secondary: PaperDialogAction("Cancel", role: .cancel) {})
         .paperDialog(isPresented: $showDenied, title: "Notifications are off",
-                    message: "Allow notifications for Reffi in Settings to get expiry alerts.",
+                    message: "Allow notifications for Reffi in Settings to get use-by alerts.",
                     seed: 3, backdropDismisses: true,
                     // 안내가 지시하는 목적지로 가는 문(42차·F25) — 돌아오면 scenePhase 동기화가
                     // 토글을 스스로 맞춘다(`syncAuthorization`).
@@ -335,7 +341,7 @@ struct ProfileView: View {
     private var alertsReceipt: some View {
         ReceiptCard(title: "Alerts") {
             // 감각 영수증과 같은 토글 행 문법(SettingsToggle) — 여백·타이포·VoiceOver 처리를 공유한다.
-            SettingsToggle(title: "Expiry alerts",
+            SettingsToggle(title: "Use-by alerts",
                            caption: "Every morning",
                            isOn: $alertsEnabled, seed: 0)
             .onChange(of: alertsEnabled) { _, on in
@@ -344,6 +350,7 @@ struct ProfileView: View {
                     Task {
                         if await ExpiryNotifier.requestAuthorization() {
                             ExpiryNotifier.reschedule(for: store.ingredients)
+                            Analytics.shared.track(.alertsToggled(on: true, hour: alertHour))
                         } else {
                             alertsEnabled = false
                             showDenied = true
@@ -351,6 +358,9 @@ struct ProfileView: View {
                     }
                 } else {
                     ExpiryNotifier.reschedule(for: store.ingredients)   // 끄면 대기 알림 제거
+                    // 거부 롤백(위 `alertsEnabled = false`)도 여기로 떨어진다 — 그 경우는 바로 앞의
+                    // `notification_permission{granted:false}`로 가른다(`docs/ANALYTICS.md` 이벤트 사전).
+                    Analytics.shared.track(.alertsToggled(on: false, hour: alertHour))
                 }
             }
 
@@ -416,6 +426,14 @@ struct ProfileView: View {
                 .padding(.vertical, ReffiSpace.s4)
 
             ReceiptRule()
+            // 계측 옵트아웃(64차) — 기본 켬. 캡션은 값형(3~5어, `SettingsToggle` 규약): 무엇을 보내는지만.
+            // 끄면 로컬 큐까지 비운다(`Analytics.setEnabled`) — 토글이 곧 사실이다(MVP 원칙).
+            SettingsToggle(title: "Share usage data",
+                           caption: "Anonymous taps and screens",
+                           isOn: $usageSharing, seed: 3)
+            .onChange(of: usageSharing) { _, on in Analytics.shared.setEnabled(on) }
+
+            ReceiptRule()
             if Self.showsSampleLoad(isGuest: auth.isGuest) {
                 QuietButton(title: "Load the sample fridge", icon: ReffiIcon.fridge, tint: ReffiColor.blueDark) {
                     if store.isPristine {
@@ -446,6 +464,7 @@ struct ProfileView: View {
     /// 새 값으로 다시 걸린다.
     private func applyLanguage(_ language: AppLanguage) {
         languageRaw = language.rawValue
+        Analytics.shared.track(.languageChange(to: language.rawValue))
         language.applyAppleLanguagesOverride()
     }
 
