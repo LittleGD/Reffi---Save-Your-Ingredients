@@ -27,7 +27,10 @@ struct RecipeIntroTests {
 
     @Test func seedLoadsWithEveryRecipeIntroduced() throws {
         let recipes = seed
-        #expect(recipes.count == 128, "시드 레시피 수가 바뀌었다 — 새 레시피에도 소개가 필요하다")
+        // 하한만 본다(64차, 128 → 250 증보). 정확한 수를 단언하면 레시피를 한 줄 더하는 것만으로
+        // CI가 빨개진다 — 회귀 방어가 아니라 변경 억제다. 같은 리포의 `DishGlyphCatalogTests`가
+        // 이미 같은 이유로 하한을 쓴다. 소개 누락은 아래 루프가 항목별로 잡으므로 방어는 그대로다.
+        #expect(recipes.count >= 250, "시드가 줄었다(\(recipes.count)) — 의도한 변경인지 확인하라")
         for r in recipes {
             let intro = try #require(r.intro, "\(r.id): intro 누락")
             #expect(!intro.en.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,

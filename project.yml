@@ -36,6 +36,10 @@ targets:
       - path: Reffi
         excludes:
           - "Info.plist"
+          # Finder/Xcode 사본("PrivacyInfo 2.xcprivacy" 등). .gitignore로는 못 막는다 —
+          # XcodeGen은 git 무시 목록을 보지 않고 파일시스템을 그대로 훑기 때문에, 추적되지 않는
+          # 사본 한 장이 그대로 리소스로 번들된다(실측: pbxproj 참조 4건, 프라이버시 매니페스트 2장).
+          - "**/* [0-9].*"
     dependencies:
       - package: PhosphorSwift
         product: PhosphorSwift
@@ -75,7 +79,7 @@ targets:
         # Sign in with Apple — 시뮬레이터(서명 없음)에선 무시되고, 실기기/배포 서명 시 임베드된다.
         CODE_SIGN_ENTITLEMENTS: Reffi/Reffi.entitlements
         MARKETING_VERSION: "1.0"
-        CURRENT_PROJECT_VERSION: "23"
+        CURRENT_PROJECT_VERSION: "24"
         SWIFT_VERSION: "5.0"
         TARGETED_DEVICE_FAMILY: "1"
         CODE_SIGNING_REQUIRED: "NO"

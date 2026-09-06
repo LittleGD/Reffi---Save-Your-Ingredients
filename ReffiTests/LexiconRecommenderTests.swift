@@ -1451,28 +1451,28 @@ struct IngredientIDFTests {
     /// **IDF 래칫** — 시드 증보로 df 분포가 움직이면 랭킹이 조용히 변한다. 커버리지 래칫과 같은
     /// 패턴으로 상·하위를 스냅샷해, 흔들림이 의도된 재측정 없이 지나가지 못하게 한다.
     /// 깨졌다면: 시드 변경이 의도한 것인지 확인하고, 하네스로 재측정한 값으로 갱신하라(숫자를
-    /// 맞추려고 산식을 건드리면 안 된다). 기준: 시드 128편 실측(48차).
+    /// 맞추려고 산식을 건드리면 안 된다). 기준: **시드 250편 실측**(64차 증보로 128 → 250 재측정).
     @Test func idfRatchetSnapshot() {
         let idf = IngredientIDF(recipes: RecipeCatalog.loadSeed())
         var rows: [(id: String, factor: Double)] = IngredientLexicon.shared.entries
             .map { (id: $0.id, factor: idf.factor($0.id)) }
             .filter { $0.factor != 1.0 }                         // 등재(시드가 요구하는) 캐논만
         rows.sort { a, b in a.factor != b.factor ? a.factor < b.factor : a.id < b.id }
-        #expect(rows.count == 144, "시드가 요구하는 캐논 수가 변했다(\(rows.count)) — 의도된 증보인지 확인")
+        #expect(rows.count == 186, "시드가 요구하는 캐논 수가 변했다(\(rows.count)) — 의도된 증보인지 확인")
         // 하위 10종 — 하한 클램프 지대(가장 흔한 재료들). (factor, id) 전순서라 결정적이다.
-        #expect(rows.prefix(10).map(\.id) == ["beef", "bread", "butter", "carrot", "chicken",
-                                              "chili-pepper", "egg", "garlic", "ginger", "green-onion"],
+        #expect(rows.prefix(10).map(\.id) == ["beef", "bell-pepper", "bread", "butter", "cabbage",
+                                              "carrot", "cheese", "chicken", "chili-pepper", "chili-powder"],
                 "최빈 재료 지형이 변했다: \(rows.prefix(10).map(\.id))")
-        #expect(rows.filter { $0.factor == IngredientIDF.clampRange.lowerBound }.count == 21,
+        #expect(rows.filter { $0.factor == IngredientIDF.clampRange.lowerBound }.count == 41,
                 "하한 클램프에 걸리는 준상비 재료 수가 변했다")
         // 상위는 df≤2 캡(df=3 취급) 동률 지대라 개별 id 스냅샷이 무의미하다 — 값 자체를 고정한다.
-        // N=128에서 상한 클램프(1.20)는 아직 안 닿는다(최대 1.0878) — 닿기 시작하면 여기가 먼저 알린다.
+        // N=250에서도 상한 클램프(1.20)는 아직 안 닿는다(최대 1.1380) — 닿기 시작하면 여기가 먼저 알린다.
         let maxFactor = rows.last!.factor
-        #expect(abs(maxFactor - 1.0877685) < 0.000001, "df 캡 지대의 정규화 값이 변했다: \(maxFactor)")
+        #expect(abs(maxFactor - 1.1380493) < 0.000001, "df 캡 지대의 정규화 값이 변했다: \(maxFactor)")
         #expect(maxFactor < IngredientIDF.clampRange.upperBound)
-        #expect(abs(idf.factor("salmon") - 1.0877685) < 0.000001)
+        #expect(abs(idf.factor("salmon") - 1.1380493) < 0.000001)
         #expect(idf.factor("garlic") == IngredientIDF.clampRange.lowerBound,
-                "df=61(시드 48%) 마늘은 하한 클램프에 있어야 한다")
+                "최빈 재료인 마늘은 하한 클램프에 있어야 한다")
     }
 
     /// IDF가 켜지면 같은 임박도에서 희소 재료 티켓이 준상비 재료 티켓을 앞선다 — E2가 고치려는
@@ -1679,13 +1679,15 @@ struct HistoryFeedbackTests {
 /// 48차 E1 — 부족-1 해금 카운트("이거 하나 사면 티켓 N장이 열려요").
 struct UnlockCountTests {
 
-    /// **골든(시드 실측)** — 샘플 냉장고 13종에서 butter=4, green-onion=3, 그 외 키 없음.
+    /// **골든(시드 실측)** — 샘플 냉장고 13종에서 butter=4, green-onion=3.
+    /// 64차 증보(128 → 250편)로 radish가 해금 지형에 새로 들어왔다 — 무를 쓰는 레시피가
+    /// 늘어 "무 하나 사면 열리는 티켓"이 생겼다는 뜻이라, 억제가 아니라 반영이 맞다.
     /// L1 B3 실측과 48차 하네스 재실행이 일치한 값이다. 깨졌다면 시드·대체 간선·상비 플래그
     /// 중 무엇이 움직였는지 확인하고 의도된 변경일 때만 갱신하라(unlock은 현재 재고의 함수다).
     @Test func sampleFridgeGoldenCounts() throws {
         let unlocks = RecipeRecommender.unlockCounts(for: RecipeCatalog.loadSeed(),
                                                      ingredients: SampleData.ingredients)
-        #expect(unlocks.keys.sorted() == ["butter", "green-onion"],
+        #expect(unlocks.keys.sorted() == ["butter", "green-onion", "radish"],
                 "샘플 냉장고의 해금 재료 지형이 변했다: \(unlocks.keys.sorted())")
         let butter = try #require(unlocks["butter"])
         #expect(butter.count == 4)
@@ -1750,13 +1752,13 @@ struct CooccurrenceTests {
         #expect(RecipeCatalog.cooccurrence("egg", "egg") == 0, "자기 공출현은 무의미 — 0")
     }
 
-    /// **골든(시드 실측)** — 계란·파 13회(계란말이·볶음밥 축), 소고기·양파 9회. 김치·돼지 1회는
+    /// **골든(시드 실측, 64차 250편 재측정)** — 계란·파 21회, 소고기·양파 12회. 김치·돼지 1회는
     /// 시드가 서양식·비찌개 축으로 김치 레시피를 적게 든 현재 분포의 실측이다(제안서의 "≥3" 예시는
     /// 추정이었고 실값이 이겼다 — 파트너 선택은 최대값 비교라 절대값이 작아도 성립한다).
     /// 미관측 쌍 0은 "나쁜 궁합"이 아니라 무정보다(음성 증거 무정보 — 소비자는 소프트 선호로만 쓴다).
     @Test func knownPairsMatchSeedMeasurement() {
-        #expect(RecipeCatalog.cooccurrence("egg", "green-onion") == 13)
-        #expect(RecipeCatalog.cooccurrence("beef", "onion") == 9)
+        #expect(RecipeCatalog.cooccurrence("egg", "green-onion") == 21)
+        #expect(RecipeCatalog.cooccurrence("beef", "onion") == 12)
         #expect(RecipeCatalog.cooccurrence("kimchi", "pork") == 1)
         #expect(RecipeCatalog.cooccurrence("salmon", "kimchi") == 0, "미관측 쌍은 0(무정보)")
     }

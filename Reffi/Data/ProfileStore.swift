@@ -24,7 +24,12 @@ final class ProfileStore {
         self.defaults = defaults
         // 초기화 단계 대입은 didSet을 트리거하지 않음 → 로드 중 불필요한 재저장 없음.
         nickname   = defaults.string(forKey: Key.nickname) ?? "Reffi"
-        let rawCui = defaults.stringArray(forKey: Key.cuisines) ?? [CuisineStyle.korean.rawValue]
+        // 미응답 기본값은 **빈 집합**이다(64차). 예전 기본값 [.korean]은 "화면을 연 적 없음"을
+        // "한식을 골랐음"으로 디스크에 굳혀버렸다 — init 말미의 닉네임 배정이 didSet → save()를
+        // 때리므로 첫 실행에서 그대로 영속화됐고, 그 결과 시드 128편 중 55편(43%)이 아무도
+        // 고르지 않은 +2를 받았다. 빈 집합이면 `RecipePreferences.isEmpty`가 참이라 순수
+        // freshness 경로를 탄다(`preferenceScore`의 guard, `prune`의 cuisineMatch 모두 무발화).
+        let rawCui = defaults.stringArray(forKey: Key.cuisines) ?? []
         cuisines   = Set(rawCui.compactMap(CuisineStyle.init(rawValue:)))
         favorites  = defaults.stringArray(forKey: Key.favorites) ?? []
         disliked   = defaults.stringArray(forKey: Key.disliked) ?? []
@@ -40,6 +45,17 @@ final class ProfileStore {
         // 뒤라(2단계 초기화 완료), 이 메서드 호출 내부의 재대입은 일반 호출과 동일하게 didSet →
         // save()가 정상 발동해 곧바로 영속화된다.
         assignGeneratedNicknameIfUnset()
+        // 옛 기본값 청소(64차, 1회) — 기본값을 바꾸는 것만으로는 **이미 디스크에 적힌 값**이
+        // 지워지지 않는다. 기존 설치는 첫 실행 때 저장된 ["korean"]을 그대로 들고 있어서,
+        // 고른 적 없는 취향이 계속 시드 55편(43%)에 +2를 준다. 저장값이 정확히 한 칸 ["korean"]일
+        // 때만 비우고, 두 칸 이상이거나 한식을 뺀 사용자, 키 자체가 없는 새 설치는 건드리지 않는다.
+        // 플래그는 조건과 무관하게 한 번만 쓴다 — 나중에 사용자가 진짜로 한식만 고르면 그 선택은
+        // 다시는 지워지지 않는다. (한 칸 ["korean"]이 "고른 적 없음"과 "한식만 고름" 둘 다일 수
+        // 있다는 것은 알려진 비용이다 — 디스크에서 둘은 바이트가 같다. 오너 판정: 편향 제거 우선.)
+        if !defaults.bool(forKey: Key.cuisinesDefaultMigrated) {
+            if rawCui == [CuisineStyle.korean.rawValue] { cuisines = [] }
+            defaults.set(true, forKey: Key.cuisinesDefaultMigrated)
+        }
     }
 
     func toggleCuisine(_ c: CuisineStyle) {
@@ -73,7 +89,7 @@ final class ProfileStore {
     /// `reconcileDataOwner`의 재배정 훅이 닿지 않고, 다음 콜드 런치의 `init`에서야 고쳐졌다.
     func resetAll() {
         nickname = "Reffi"
-        cuisines = [.korean]
+        cuisines = []          // 64차 — init과 같은 이유로 [.korean]을 다시 심지 않는다
         favorites = []
         disliked = []
         allergies = []
@@ -97,5 +113,7 @@ final class ProfileStore {
         static let disliked = "profile.disliked"
         static let allergies = "profile.allergies"
         static let household = "profile.household"
+        /// 64차 1회 마이그레이션 표식 — 옛 기본값 ["korean"] 청소를 이미 했는지.
+        static let cuisinesDefaultMigrated = "profile.cuisinesDefaultMigrated"
     }
 }

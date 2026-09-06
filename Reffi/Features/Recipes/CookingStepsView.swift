@@ -103,6 +103,13 @@ struct CookingStepsView: View {
         return store.recipes.first(where: { $0.id == id })?.displayIntro
     }
 
+    /// 세션의 인분수(64차) — `intro(for:)`와 **같은 체인**이다. 세션 스냅샷에 인분을 또 박지
+    /// 않는 이유도 같다: 원본이 사라진 뒤에도 옛 숫자를 들고 있으면 없는 레시피를 설명하게 된다.
+    private func servings(for cook: FridgeStore.CookSession) -> Int? {
+        guard let id = cook.recipeID else { return nil }
+        return store.recipes.first(where: { $0.id == id })?.servings
+    }
+
     /// 티켓 좌우 인셋 — 영수증 종이의 폭을 정하는 유일한 값(히어로 아이콘 크기가 여기서 파생된다).
     ///
     /// 아래 `ticketWidth`는 `geo.size.width`에서 이 인셋만 빼고 **좌우 safe area는 빼지 않는다**.
@@ -190,6 +197,7 @@ struct CookingStepsView: View {
         .sheet(isPresented: $showKitchenCopy) {
             if let cook = store.activeCook {
                 KitchenCopySheet(recipeName: cook.recipeName,
+                                  servings: servings(for: cook),
                                   steps: resolvedSteps(for: cook) ?? [],
                                   completedSteps: Set(cook.completedSteps ?? [])) { index in
                     store.toggleCookStep(index)

@@ -144,6 +144,27 @@ enum RecipeRecommender {
         return keys
     }
 
+    /// 취향·알레르기 판정용 키 — `itemKeys`에 **상위(총칭) 캐논까지 거슬러 올라간** 것을 더한다(64차).
+    /// 방향이 `matches`와 정반대인 것이 요점이다: `matches`(:155)는 **냉장고 재료**를 총칭으로 올려
+    /// 레시피 줄에 맞춰 본다(총칭이 구체를 채우면 안 된다는 단방향 규칙 — `LexiconRecommenderTests`가
+    /// 고정). 여기서는 반대로 **레시피 줄**을 총칭으로 올려 사용자가 등록한 태그와 맞춘다.
+    /// 모차렐라는 언제나 치즈이므로 치즈 알레르기·기피는 반드시 걸려야 한다.
+    /// 확장 전 실측 누수: 태그 cheese가 mozzarella 레시피 7편, mushroom이 6편(팽이·표고·새송이·
+    /// 느타리·양송이), chicken이 chicken-breast 2편, pork가 pork-belly 1편, tomato가 cherry-tomato
+    /// 3편을 그대로 통과시켰다. 알레르기는 안전 P0라 이 방향 확장은 보수적으로 넓히는 쪽이 맞다.
+    /// `parentID`가 자기참조·유령 부모를 nil로 접고 `contains` 검사가 재삽입을 막아 순환에도 멈춘다.
+    private static func itemKeysIncludingParents(of item: Recipe.Item) -> [String] {
+        var keys = itemKeys(of: item)
+        var i = 0
+        while i < keys.count {
+            if let parent = IngredientLexicon.shared.parentID(of: keys[i]), !keys.contains(parent) {
+                keys.append(parent)
+            }
+            i += 1
+        }
+        return keys
+    }
+
     static func matches(_ ing: Ingredient, _ item: Recipe.Item) -> Bool {
         let ingName = norm(ing.name)
         guard !ingName.isEmpty else { return false }
@@ -787,7 +808,8 @@ enum RecipeRecommender {
     /// no-ref 라인에 알레르겐이 **부분 포함**되면 검사할 수 없다(포함 매칭은 오탐 위험이라 안 씀).
     private static func containsAllergen(_ recipe: Recipe, _ allergenIDs: Set<String>) -> Bool {
         guard !allergenIDs.isEmpty else { return false }
-        return recipe.ingredients.contains { item($0, matchesAny: allergenIDs) }
+        return recipe.ingredients.contains { item($0, matchesAny: allergenIDs,
+                                                  expandingAllergenSources: true) }
     }
 
     /// 채식 하드 필터가 배제하는 글리프 — Meat(meat·poultry·sausage·bacon) + Seafood(fish·shrimp·
@@ -815,8 +837,30 @@ enum RecipeRecommender {
     /// 레시피 항목이 정규화 키 집합에 속하는지 — canonicalID(+altRefs, 45차) 우선, no-ref 항목은
     /// exact 텍스트(소문자). 대체 캐논도 검사한다 — "pork (or beef)" 줄은 소고기 알레르기에도
     /// 걸려야 한다(보수: any-of 중 하나라도 알레르겐이면 레시피 전체 제외, 안전 P0).
-    private static func item(_ item: Recipe.Item, matchesAny ids: Set<String>) -> Bool {
-        let keys = itemKeys(of: item)
+    /// 알레르기 판정 전용 키(64차) — 상위 사슬에 **함유 알레르겐 원천**(`Entry.allergens`)까지
+    /// 더해 고정점까지 넓힌다. 두 관계를 한 루프에서 함께 도는 이유는 사슬이 섞이기 때문이다:
+    /// 모차렐라 → (parent) 치즈 → (allergens) 우유. 알레르기는 안전 P0라 이 방향으로만 넓힌다.
+    /// 이 확장을 읽는 곳은 `containsAllergen` 하나뿐이다 — 기피(disliked) 감점까지 여기 태우면
+    /// "우유가 싫다"가 치즈 요리 전체를 감점해 취향이 필터처럼 굴게 된다.
+    private static func itemAllergenKeys(of item: Recipe.Item) -> [String] {
+        var keys = itemKeys(of: item)
+        let lex = IngredientLexicon.shared
+        var i = 0
+        while i < keys.count {
+            let id = keys[i]
+            if let parent = lex.parentID(of: id), !keys.contains(parent) { keys.append(parent) }
+            for source in lex.entry(id: id)?.allergens ?? [] where !keys.contains(source) {
+                keys.append(source)
+            }
+            i += 1
+        }
+        return keys
+    }
+
+    private static func item(_ item: Recipe.Item, matchesAny ids: Set<String>,
+                             expandingAllergenSources: Bool = false) -> Bool {
+        let keys = expandingAllergenSources ? itemAllergenKeys(of: item)
+                                            : itemKeysIncludingParents(of: item)
         if !keys.isEmpty { return keys.contains { ids.contains($0) } }
         if ids.contains(norm(item.en)) { return true }
         if let ko = item.ko, ids.contains(norm(ko)) { return true }
@@ -937,9 +981,14 @@ extension RecipePreferences {
         .italian:       ["italian"],
         .mexican:       ["mexican"],
         .indian:        ["indian"],
-        .thai:          ["thai"],
+        // 나시고렝은 인도네시아 요리다(64차, 시드 값 정정). 프로필 옵션엔 동남아가 thai·vietnamese
+        // 둘뿐이라 indonesian은 가장 가까운 .thai가 받는다 — 정정 전과 **똑같은 옵션이 똑같이**
+        // 이 레시피에 닿으므로 랭킹 변화는 0이고, 바뀐 것은 데이터가 참이 됐다는 사실뿐이다.
+        .thai:          ["thai", "indonesian"],
         .vietnamese:    ["vietnamese"],
-        .western:       ["american", "french", "spanish"],
+        // german은 슈니첼 정정(64차)으로 생긴 값 — french로 위장돼 있던 것을 제자리로 돌리고
+        // 같은 .western이 계속 받게 해 도달성과 랭킹을 그대로 보존한다.
+        .western:       ["american", "french", "spanish", "german"],
         .mediterranean: ["italian", "spanish", "middle-eastern"],
     ]
 
@@ -948,7 +997,11 @@ extension RecipePreferences {
     init(profile: ProfileStore) {
         var cuisines: Set<String> = []
         for c in profile.cuisines where c != .vegetarian {
-            cuisines.formUnion(Self.seedCuisines[c] ?? [c.rawValue])
+            // 매핑에 없는 옵션은 **조용히 버린다**(64차). 예전 `?? [c.rawValue]` 폴백은 새 옵션을
+            // 추가해도 컴파일이 통과하게 만들어, 어떤 레시피에도 닿지 않는 위약 칩이 그대로
+            // 출시되는 길을 열어뒀다(brazilian이 지워진 바로 그 사고). 이제 매핑 누락은
+            // `CuisineOptionCoverageTests`가 잡는다 — 코드가 아니라 테스트가 문을 지킨다.
+            if let mapped = Self.seedCuisines[c] { cuisines.formUnion(mapped) }
         }
         self.init(cuisines: cuisines,
                   favoriteIDs: Self.normalize(profile.favorites),

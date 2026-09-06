@@ -19,6 +19,11 @@ import SwiftUI
 /// 다만 좌우·상하 인셋은 `ReffiSheet` 토큰을 그대로 받는다 — 시트 위에 뜬 종이라는 사실은 같다.
 struct KitchenCopySheet: View {
     let recipeName: String
+    /// 몇 인분 기준인가(64차). 시드 레시피만 값을 갖고, 커스텀 레시피는 nil이라 자리가 비어 있다.
+    /// 세션 스냅샷에 박지 않고 `CookingStepsView`가 원본 레시피에서 되찾아 넘긴다 — 소개문(`intro`)과
+    /// 같은 체인이다. 재료별 분량이 없으므로 이 값은 "이 단계대로 하면 몇 인분이 나오는가"일 뿐,
+    /// 재료를 곱해 주는 계수가 아니다.
+    let servings: Int?
     let steps: [String]
     let completedSteps: Set<Int>
     let onToggle: (Int) -> Void
@@ -75,7 +80,8 @@ struct KitchenCopySheet: View {
                     .reffiType(.monoTicketLabel).foregroundStyle(ReffiColor.ink2)
                     .lineLimit(1).minimumScaleFactor(ReffiShrink.fit)
                 Spacer(minLength: ReffiSpace.s3)
-                Text("\(steps.count) steps")
+                Text(servings.map { "\(steps.count) steps · serves \($0)" }
+                     ?? "\(steps.count) steps")
                     .reffiType(.metaText).foregroundStyle(ReffiColor.muted)
                     .fixedSize()
             }
