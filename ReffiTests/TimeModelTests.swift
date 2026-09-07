@@ -41,7 +41,7 @@ struct TimeModelTests {
 
     @Test func refreezeIsBlocked() {
         var ing = Ingredient(name: "Beef", category: "Meat", expiresAt: date(2026, 7, 2))
-        #expect(ing.canFreeze)
+        #expect(ing.canFreeze(asOf: date(2026, 7, 1)))
         ing.storage = .freezer
         ing.frozenAt = date(2026, 7, 1)
         #expect(!ing.canFreeze)

@@ -31,3 +31,17 @@ supabase/.branches/
 
 # 디자인 리뷰 패널 스킬 산출물(로컬 아티팩트)
 .design-review-panel/
+
+# Release dependency lock is retained even though the Xcode project is generated.
+!Reffi.xcodeproj/
+Reffi.xcodeproj/*
+!Reffi.xcodeproj/project.xcworkspace/
+Reffi.xcodeproj/project.xcworkspace/*
+!Reffi.xcodeproj/project.xcworkspace/xcshareddata/
+Reffi.xcodeproj/project.xcworkspace/xcshareddata/*
+!Reffi.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/
+Reffi.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/*
+!Reffi.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+
+# OKTICON permits app embedding but not standalone font redistribution.
+Reffi/Resources/Fonts/OkDanDan-Bold.ttf

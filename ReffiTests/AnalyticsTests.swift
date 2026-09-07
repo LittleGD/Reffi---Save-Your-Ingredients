@@ -33,6 +33,7 @@ struct AnalyticsTests {
         let name = "reffi.tests.analytics.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: name)!
         defaults.removePersistentDomain(forName: name)
+        defaults.set(true, forKey: Analytics.enabledKey)
         return defaults
     }
 
@@ -54,6 +55,41 @@ struct AnalyticsTests {
                   killSwitch: killSwitch,
                   context: Self.context,
                   backgroundRunner: { work in Task { await work() } })
+    }
+
+    @Test func freshInstallRequiresOptIn() {
+        let defaults = freshDefaults()
+        defaults.removeObject(forKey: Analytics.enabledKey)
+        let analytics = make(defaults: defaults)
+        analytics.track(.screenView(.home))
+        #expect(!analytics.isEnabled)
+        #expect(analytics.queue.isEmpty)
+    }
+
+    @Test func identityResetDuringUploadPreservesNewEvents() async {
+        let defaults = freshDefaults()
+        var analytics: Analytics!
+        analytics = Analytics(defaults: defaults, queueURL: nil, uploader: { _ in
+            analytics.changeAccount(to: "new-account")
+            analytics.track(.screenView(.profile))
+        }, canUpload: { true })
+        analytics.track(.screenView(.home))
+        await analytics.flush()
+        #expect(analytics.queue.contains { $0.props["screen"] == .string("profile") })
+        #expect(!analytics.queue.contains { $0.props["screen"] == .string("home") })
+    }
+
+    @Test func optOutDuringUploadStopsFurtherBatches() async {
+        var batches = 0
+        var analytics: Analytics!
+        analytics = Analytics(defaults: freshDefaults(), queueURL: nil, uploader: { _ in
+            batches += 1
+            analytics.setEnabled(false)
+        }, canUpload: { true })
+        for _ in 0..<250 { analytics.track(.ingredientPin(on: true)) }
+        await analytics.flush()
+        #expect(batches == 1)
+        #expect(analytics.queue.isEmpty)
     }
 
     // MARK: 세션

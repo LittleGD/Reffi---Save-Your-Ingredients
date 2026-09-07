@@ -92,9 +92,10 @@ struct OnboardingView: View {
         HStack {
             // 워드마크 축소 배치(위계는 페이지 타이틀에) — `scaleEffect`가 아니라 **실제 21pt**다(42차):
             // 레이어 축소는 사이드베어링·획 두께까지 0.62배로 줄여 마진선 과밀착 + 잉크 무게 불일치를
-            // 만들었고, 레이아웃엔 축소 전 크기를 보고해 자리도 거짓이었다. 자간 0은 display 규약(§3.1).
+            // 만들었고, 레이아웃엔 축소 전 크기를 보고해 자리도 거짓이었다. 자간 −2%는 display 규약(§3.1).
             Text(verbatim: "Reffi")
-                .font(.custom("StoryScript-Regular", size: 21, relativeTo: .title2))
+                .font(.custom("OkDanDan-Bold", size: 21, relativeTo: .title2))
+                .tracking(21 * -0.02)
                 .foregroundStyle(ReffiColor.blueDark)
             Spacer()
             QuietButton(title: "Skip", tint: ReffiColor.ink2) { finish(skipped: true) }
@@ -136,10 +137,9 @@ struct OnboardingView: View {
                         .dynamicTypeSize(...DynamicTypeSize.accessibility1)
                         .padding(.bottom, ReffiSpace.s4)
 
-                    // 영문 디스플레이 = Story Script(§3.1 브랜드 모먼트 — 워드마크·온보딩 타이틀). 인트로 카피는 가운데 정렬.
-                    // 세 장 다 번역되는 타이틀이라 스크립트 폴백을 경유한다(ko는 Pretendard Bold, §3.1).
+                    // 한글·영문 디스플레이는 OK단단체(§3.1). 인트로 카피는 가운데 정렬.
                     Text(verbatim: titleText)
-                        .reffiType(.display, for: titleText)
+                        .reffiType(.display)
                         .multilineTextAlignment(.center)
                         .frame(maxWidth: .infinity)
                         .foregroundStyle(ReffiColor.ink)
@@ -541,10 +541,7 @@ struct OnboardingView: View {
     /// ②는 "주변에 정렬선이 없고 화면에 그것 하나뿐인 표지형"이라 여기에 걸리지 않는다. 결정적
     /// 근거는 컴포넌트 쪽에 있다: `receiptSurface(alignment:)`의 기본값이 `.leading`이고 앱의 호출
     /// 아홉 곳 중 **여기 한 곳만** `.center`를 넘기고 있었다 — 같은 종이가 이 화면에서만 다른 축이었다.
-    /// `title`이 `LocalizedStringKey`가 아니라 `String.LocalizationValue`인 이유: display role은
-    /// 한글이 섞이면 Story Script → Pretendard Bold로 폴백해야 하는데(§3.1), 그 판별에 **실제로
-    /// 그려질 문자열**이 필요하다. SwiftUI는 `Text`가 든 키의 해석 결과를 밖으로 주지 않으므로
-    /// 호출부 대신 여기서 한 번 풀어 같은 값을 `Text`와 `reffiType(_:for:)` 둘에 함께 넘긴다.
+    /// 질문 제목은 현재 언어로 해석하고, 한글·영문 모두 같은 Display 역할로 그린다.
     private func questionPage<C: View>(title: String.LocalizationValue, body copy: LocalizedStringKey,
                                        @ViewBuilder control: () -> C) -> some View {
         let titleText = String(localized: title)
@@ -552,9 +549,9 @@ struct OnboardingView: View {
             // **질문이 페이지 헤드라인이다**(49차). 옛 배치는 질문을 카드 **안** `menuName`(26)에 두고
             // 화면 최대 글자(34 display)를 "Step N" 인덱스가 썼다 — 이 장의 주제는 인덱스가 아니라
             // 질문이므로 자리를 맞바꾼다. 이제 카드는 **답하는 자리**(설명 + 컨트롤)만 담는다.
-            // display role은 번역되는 텍스트라 스크립트 폴백을 경유해야 한다(§3.1, `for:` 오버로드).
+            // 질문의 디스플레이 위계는 두 언어에 공통으로 적용한다(§3.1).
             Text(verbatim: titleText)
-                .reffiType(.display, for: titleText)
+                .reffiType(.display)
                 .foregroundStyle(ReffiColor.ink)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, ReffiGrid.margin)
@@ -645,7 +642,7 @@ struct OnboardingView: View {
         ZStack {
             PaperCanvasBackground()
             VStack(spacing: 0) {
-                // 상단 — **절취 게이지**(49차). 옛 형태는 `display` 34pt Story Script로 "Step 2"라는
+                // 상단 — **절취 게이지**(49차). 옛 형태는 `display` 34pt로 "Step 2"라는
                 // **인덱스**를 화면 최대 글자로 세우고, 정작 이 장의 질문은 카드 안 26pt에 있었다 —
                 // 홈 헤더와 같은 종류의 위계 역전이다(인덱스는 정보가 아니라 좌표다). 게다가 그 줄과
                 // 하단 `setupDots`가 **같은 사실**(N번째 장)을 두 번 말해, 진행 표시가 화면에 둘이었다.

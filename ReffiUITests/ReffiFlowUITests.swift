@@ -665,17 +665,74 @@ final class ReffiFlowUITests: XCTestCase {
 
     // MARK: 로그인 화면 요소
 
-    func testAuthView_ShowsAllEntryPoints() {
+    func testAuthView_ShowsOnlySupportedEntryPoints() {
         let app = XCUIApplication()
-        app.launchArguments = ["-authView"]
+        app.launchArguments = ["-authView", "-resetLanguage", "-analyticsOff", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
         app.launch()
 
         XCTAssertTrue(app.textFields["Email"].waitForExistence(timeout: 8))
         XCTAssertTrue(app.secureTextFields.firstMatch.exists)
-        XCTAssertTrue(app.buttons["Continue with Apple"].exists)
-        XCTAssertTrue(app.buttons["Continue with Google"].exists)
+        XCTAssertFalse(app.buttons["Continue with Apple"].exists)
+        XCTAssertFalse(app.buttons["Continue with Google"].exists)
         XCTAssertTrue(app.buttons["Browse without an account"].exists)
         XCTAssertTrue(app.buttons["Sign up"].exists, "가입 모드 전환 링크")
+        XCTAssertTrue(app.buttons["Forgot password?"].exists)
+        let authImage = XCTAttachment(screenshot: app.screenshot())
+        authImage.name = "auth-en"; authImage.lifetime = .keepAlways; add(authImage)
+        app.swipeUp()
+        XCTAssertTrue(app.buttons["Privacy Policy"].waitForExistence(timeout: 3))
+        app.buttons["Privacy Policy"].tap()
+        XCTAssertTrue(app.staticTexts["Release review draft"].waitForExistence(timeout: 3))
+    }
+
+    func testPrivacy_LargeKoreanTextRemainsScrollable() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-privacyView", "-analyticsOff", "-app.language", "ko",
+                               "-AppleLanguages", "(ko)", "-AppleLocale", "ko_KR",
+                               "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"]
+        app.launch()
+        XCTAssertTrue(app.staticTexts["개인정보 처리방침"].waitForExistence(timeout: 8))
+        let reviewStatus = app.staticTexts["privacy.reviewStatus"]
+        XCTAssertTrue(reviewStatus.waitForExistence(timeout: 3))
+        let originalY = reviewStatus.frame.minY
+        let top = XCTAttachment(screenshot: app.screenshot())
+        top.name = "privacy-ko-large-top"; top.lifetime = .keepAlways; add(top)
+        app.swipeUp()
+        XCTAssertTrue(!reviewStatus.isHittable || reviewStatus.frame.minY < originalY)
+        XCTAssertTrue(app.buttons["완료"].isHittable)
+        let bottom = XCTAttachment(screenshot: app.screenshot())
+        bottom.name = "privacy-ko-large-bottom"; bottom.lifetime = .keepAlways; add(bottom)
+    }
+
+    func testProfile_PrivacyFooterOpensPolicyAndReturnsToSettings() {
+        checkPrivacyFooter(korean: false)
+    }
+
+    func testProfile_KoreanPrivacyFooterOpensPolicyAndReturnsToSettings() {
+        checkPrivacyFooter(korean: true)
+    }
+
+    private func checkPrivacyFooter(korean: Bool) {
+        let app = XCUIApplication()
+        app.launchArguments = ["-skipAuth", "-onboarding.done", "YES", "-profileTab", "-profileBottom",
+                               "-analyticsOff", "-app.language", korean ? "ko" : "en",
+                               "-AppleLanguages", korean ? "(ko)" : "(en)", "-AppleLocale", korean ? "ko_KR" : "en_US"]
+        app.launch()
+
+        let footer = app.buttons["settings.privacyPolicy"]
+        XCTAssertTrue(footer.waitForExistence(timeout: 8))
+        XCTAssertTrue(footer.isHittable)
+        XCTAssertGreaterThanOrEqual(footer.frame.height, 44)
+        XCTAssertGreaterThan(footer.frame.minY, app.buttons[korean ? "이 기기에서 지우기" : "Erase this device"].frame.maxY)
+        XCTAssertLessThan(footer.frame.maxY, app.buttons[korean ? "홈" : "Home"].frame.minY,
+                          "The policy link must remain above the floating navigation.")
+        attach(app, named: korean ? "settings-privacy-footer-ko" : "settings-privacy-footer")
+        footer.tap()
+        XCTAssertTrue(app.navigationBars[korean ? "개인정보 처리방침" : "Privacy Policy"].waitForExistence(timeout: 4))
+        attach(app, named: korean ? "privacy-policy-ko" : "privacy-policy-en")
+        app.buttons[korean ? "완료" : "Done"].tap()
+        XCTAssertTrue(footer.waitForExistence(timeout: 4))
+        XCTAssertTrue(footer.isHittable)
     }
 
     // MARK: 프로필 Data 영수증 — 게스트 전용 샘플 로드 행(36차)

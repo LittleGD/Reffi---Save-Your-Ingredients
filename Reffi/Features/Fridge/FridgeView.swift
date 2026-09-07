@@ -1024,10 +1024,10 @@ struct FridgeView: View {
     /// 그것을 이어받았던 타이틀 옆 "· N" 캡션도 함께 걷었다. 다른 자리로 옮기지 않았다:
     /// 냉장고에 몇 개가 들었는지는 목록 자체가 보여 주고, 지금 급한 것(D-day)이 이 화면의 payload다.
     private var titleRow: some View {
-        // 번역되는 Display 타이틀이라 스크립트 폴백을 경유한다 — ko "냉장고"는 Story Script에 글리프가 없다(§3.1).
+        // 한국어와 영어 화면 제목 모두 OK단단체 Display를 사용한다(§3.1).
         let title = String(localized: "Fridge")
         return Text(verbatim: title)
-            .reffiType(.display, for: title)
+            .reffiType(.display)
             .foregroundStyle(ReffiColor.ink)
             .frame(maxWidth: .infinity, alignment: .leading)
     }

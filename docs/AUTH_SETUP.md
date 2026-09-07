@@ -1,53 +1,31 @@
-# Reffi 인증 설정 가이드
+# Reffi authentication, build 25
 
-앱은 Supabase Auth를 쓴다. **이메일 가입/로그인은 추가 설정 없이 바로 동작**한다.
-Apple/Google 로그인은 아래 콘솔 설정(개발자 계정 필요)을 마쳐야 실제로 성공한다 — 앱 코드는 이미 완성돼 있어 설정만 하면 켜진다.
+Supabase project: `bzzpmaeitfbbunsmjvmd`, Seoul. Dashboard: https://supabase.com/dashboard/project/bzzpmaeitfbbunsmjvmd
 
-## 프로젝트 정보
-- Supabase 프로젝트: `iwannalaunchmyapp` (ref: `bzzpmaeitfbbunsmjvmd`, 리전 ap-northeast-2 서울)
-- 대시보드: https://supabase.com/dashboard/project/bzzpmaeitfbbunsmjvmd
-- API URL·publishable key: `Reffi/Data/AuthStore.swift`에 임베드(공개 키라 안전, 데이터 보호는 RLS로)
-- OAuth 콜백 스킴: `reffi://auth-callback` (Info.plist `CFBundleURLTypes`, project.yml에서 생성)
+## Launch methods
 
-## 1. 이메일 로그인 (완료 — 바로 동작)
-- 기본값으로 **가입 확인 메일**이 켜져 있다. 가입 → 메일 링크 클릭 → 로그인 순서.
-- 확인 절차 없이 즉시 로그인시키려면: Dashboard → Authentication → Sign In / Up → Email → **Confirm email 끄기**.
+Email signup/login and local guest mode are the supported launch methods. Apple and Google are hidden until provider setup, device login and account deletion are verified. Keeping native implementations in source does not make those providers release-ready.
 
-## 1.5. 게스트 = 익명 로그인 + 데이터 승계 (대시보드 토글 1개 필요)
-"계정 없이 둘러보기"는 Supabase **익명 세션**을 발급받아 서버 user id를 확보한다.
-이후 가입하면 `updateUser(email·password)`로 **같은 user id를 유지한 채** 정식 계정으로
-전환되므로, 그 id에 묶인 서버 데이터가 그대로 이어진다(향후 냉장고 동기화의 기반).
+`AuthStore.refreshAvailability()` reads `/auth/v1/settings`. Anonymous sign-in is attempted only when enabled there; otherwise guest mode remains local. Usage events cannot upload without a server session. Analytics is optional and off by default.
 
-- 활성화: Dashboard → Authentication → Sign In / Up → **Allow anonymous sign-ins 켜기**
-  (2026-07 현재 **꺼져 있음** — 켜기 전까지 앱은 로컬 게스트 플래그로 자동 폴백하며 정상 동작).
-- 익명 유저가 소셜(Apple/Google) 버튼을 누르면 별도 계정으로 로그인된다(승계는 이메일 가입 경로만).
-  소셜 승계까지 원하면 Dashboard에서 **manual linking** 활성화 후 `linkIdentity` 적용 필요.
-- 익명 유저 정리: 대시보드 SQL로 오래된 `is_anonymous = true` 유저를 주기 삭제 권장.
+## Email verification and password recovery
 
-## 2. Apple 로그인 (콘솔 설정 필요)
-앱은 네이티브 Sign in with Apple 시트(ID 토큰 + nonce)를 띄워 Supabase로 교환한다.
-1. Apple Developer(유료 계정) → Identifiers → App ID `com.reffi.app`에 **Sign in with Apple** capability 추가.
-2. ~~Xcode 타깃에 Sign in with Apple entitlement 추가~~ → **완료(2026-07-16)**:
-   `Reffi/Reffi.entitlements`(`com.apple.developer.applesignin: Default`)가 저장소에 있고
-   project.yml `CODE_SIGN_ENTITLEMENTS`로 배선됨. 서명 없는 시뮬레이터 빌드에선 무시되고,
-   실기기/배포 서명 시 자동 임베드 — 남은 건 서명 팀 설정뿐.
-3. Supabase Dashboard → Authentication → Sign In / Up → Apple 활성화 →
-   **Client IDs에 `com.reffi.app` 추가** (네이티브 플로우는 Service ID·Secret 불필요).
-   ℹ️ 2026-07-16 프로젝트를 소유 계정(`bzzpmaeitfbbunsmjvmd`, iwannalaunchmyapp)으로 전환 —
-   대시보드에서 직접 설정 가능. **익명 로그인(Anonymous sign-ins)도 이 프로젝트에서 다시 켜야
-   게스트 진입이 서버 익명 세션으로 동작한다**(안 켜면 로컬 게스트 폴백).
+Add `reffi://auth-callback` to Authentication > URL Configuration > Redirect URLs. Signup, anonymous email upgrade and password recovery explicitly request this URL. Reffi handles the callback at the app root so the authentication sheet need not be open.
 
-## 3. Google 로그인 (콘솔 설정 필요)
-앱은 시스템 브라우저(ASWebAuthenticationSession) OAuth 플로우를 쓴다.
-1. Google Cloud Console → OAuth 동의 화면 구성 → **웹 애플리케이션** OAuth Client ID 생성.
-   - 승인된 리디렉션 URI: `https://bzzpmaeitfbbunsmjvmd.supabase.co/auth/v1/callback`
-2. Supabase Dashboard → Authentication → Sign In / Up → Google 활성화 →
-   Client ID / Client Secret 입력.
-3. (선택) Dashboard → Authentication → URL Configuration → Redirect URLs에
-   `reffi://auth-callback` 추가.
+Verify email confirmation and recovery on a physical iPhone, including a cold launch from the email link. Production email sending/SMTP and rate limits also need verification before release.
 
-## 동작 확인
-- 시뮬레이터: 이메일 가입/로그인, 게스트 모드는 즉시 확인 가능.
-- Apple 로그인은 시뮬레이터에서 entitlement 없이는 실패할 수 있다(에러 문구로 안내됨) — 설정 후 실기기/사이닝된 시뮬레이터 빌드에서 확인.
-- QA 런치 인자: `-authView`(로그인 화면 직행) · `-onboarding`(온보딩 직행) ·
-  `-resetOnboarding`(온보딩 초기화) · `-skipAuth`(게스트로 게이트 통과) · `-authGate`(게스트 해제)
+## Account deletion
+
+Apply `supabase/migrations/0003_account_deletion.sql` after `0002_analytics.sql`. The client calls `public.delete_own_account()` using the current session. It accepts no account ID. The database deletes the caller's analytics, legacy AI usage and auth account in one transaction. The client clears local data only after server success.
+
+The RPC rejects Apple identities until server-side Apple token revocation is implemented. Apple/Google login remain hidden. Do not enable them by only changing a UI flag.
+
+## Local data ownership
+
+Fridge files and profile snapshots are kept per account on this device. First account registration transfers guest data; later logins restore that account's local data. Signing out opens separate guest storage. A damaged destination file blocks the switch and leaves the current data intact. There is no cloud fridge synchronization.
+
+`Erase this device` removes all local account archives and signs out. `Delete account` removes the server account and the active account's local data. These are separate actions with separate confirmations.
+
+## QA
+
+`-authView` opens authentication directly. `-skipAuth -skipOnboarding -analyticsOff` opens an isolated simulator without authentication or telemetry. See `docs/RELEASE_READINESS.md` for validation commands and outstanding release requirements.

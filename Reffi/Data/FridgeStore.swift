@@ -122,6 +122,7 @@ final class FridgeStore {
     var isPristine: Bool { ingredients.isEmpty && history.isEmpty && manualToBuy.isEmpty }
 
     private let persists: Bool
+    private var storageURL = DataOwner.storageURL()
     private let counterCapacity = 6
     /// 냉동 재료는 유예 임박(D-3 이내)에만 작업대로 올라온다 — 오늘의 행동 표면은 '지금 상해가는 것'.
     private let frozenCounterWindow = 3
@@ -144,14 +145,22 @@ final class FridgeStore {
     /// 앱 기동용 — 디스크에서 복원. 디코드 실패 파일은 **덮어쓰지 않고 격리**한 뒤 빈 상태로 시작한다.
     init() {
         persists = true
+        let initialURL = DataOwner.storageURL()
         seedRecipes = RecipeCatalog.loadSeed()
         seedIDF = IngredientIDF(recipes: seedRecipes)   // 시드 1패스 — 마이크로초 단위(48차 E2)
         var snap: Snapshot?
-        if let data = try? Data(contentsOf: Self.storeURL) {
+        let loadURL = FileManager.default.fileExists(atPath: initialURL.path) ? initialURL : Self.storeURL
+        if let data = try? Data(contentsOf: loadURL) {
             snap = Self.decodeSnapshot(data)
             if snap == nil {
-                Self.quarantineStore()
+                Self.quarantineStore(at: loadURL)
             }
+        }
+        if loadURL != initialURL, let snap {
+            do {
+                try JSONEncoder().encode(snap).write(to: initialURL, options: .atomic)
+                try FileManager.default.removeItem(at: loadURL)
+            } catch { Self.log.error("legacy migration kept original: \(String(describing: error))") }
         }
         ingredients = snap?.ingredients ?? []
         history = snap?.history ?? []
@@ -177,8 +186,9 @@ final class FridgeStore {
     /// 프리뷰·테스트용 — 메모리 전용(저장 안 함, 알림 재스케줄도 안 함).
     init(ingredients: [Ingredient],
          recipes: [Recipe]? = nil,
-         history: [RemovalLog] = []) {
-        persists = false
+         history: [RemovalLog] = [], persistenceURL: URL? = nil) {
+        persists = persistenceURL != nil
+        if let persistenceURL { storageURL = persistenceURL }
         seedRecipes = recipes ?? RecipeCatalog.loadSeed()
         seedIDF = IngredientIDF(recipes: seedRecipes)   // 메모리 스토어도 같은 배선 — 테스트가 실경로를 본다
         userRecipes = []
@@ -253,12 +263,12 @@ final class FridgeStore {
     }
 
     /// 손상/비호환 파일 격리 — `fridge-v1.corrupt-<ts>.json`으로 보존(조용한 데이터 소실 방지).
-    private static func quarantineStore() {
+    private static func quarantineStore(at source: URL) {
         let ts = Int(Date().timeIntervalSince1970)
-        let dest = storeURL.deletingLastPathComponent()
+        let dest = source.deletingLastPathComponent()
             .appendingPathComponent("fridge-v1.corrupt-\(ts).json")
         do {
-            try FileManager.default.moveItem(at: storeURL, to: dest)
+            try FileManager.default.moveItem(at: source, to: dest)
             log.error("store quarantined to \(dest.lastPathComponent)")
         } catch {
             log.error("store quarantine failed: \(String(describing: error))")
@@ -276,16 +286,10 @@ final class FridgeStore {
         guard persists else { return }
         trimHistoryIfNeeded()
         if reschedulesAlerts { ExpiryNotifier.reschedule(for: ingredients) }
-        let snap = Snapshot(schemaVersion: Self.currentSchemaVersion,
-                            ingredients: ingredients, history: history,
-                            dismissedToBuy: dismissedToBuy, counterIDs: counterIDs,
-                            activeCook: activeCook, userRecipes: userRecipes,
-                            archivedAte: archivedAte, archivedTossed: archivedTossed,
-                            manualToBuy: manualToBuy, pinnedIDs: pinnedIDs,
-                            passLog: passLog, recentCooked: recentCooked)
+        let snap = snapshot
         do {
             let data = try JSONEncoder().encode(snap)
-            let url = Self.storeURL
+            let url = storageURL
             Self.ioQueue.async {
                 do { try data.write(to: url, options: .atomic) }
                 catch { Self.log.error("persist write failed: \(String(describing: error))") }
@@ -295,8 +299,61 @@ final class FridgeStore {
         }
     }
 
-    /// 이력 관리 — ① 60일 지난 로그의 undo 스냅샷 제거(파일 다이어트)
-    /// ② 상한 초과분은 삭제하되 Ate/Tossed 누계로 접어 보존.
+    var snapshot: Snapshot {
+        Snapshot(schemaVersion: Self.currentSchemaVersion,
+                            ingredients: ingredients, history: history,
+                            dismissedToBuy: dismissedToBuy, counterIDs: counterIDs,
+                            activeCook: activeCook, userRecipes: userRecipes,
+                            archivedAte: archivedAte, archivedTossed: archivedTossed,
+                            manualToBuy: manualToBuy, pinnedIDs: pinnedIDs,
+                            passLog: passLog, recentCooked: recentCooked)
+    }
+
+    /// 전환 전에 이전 파일과 새 파일을 모두 저장한다. 실패하면 현재 화면/소유자를 유지한다.
+    @discardableResult
+    func switchAccount(to owner: String?, inheritGuest: Bool, directory: URL? = nil) throws -> Bool {
+        let nextURL = directory?.appendingPathComponent("fridge-\(DataOwner.scope(owner)).json") ?? DataOwner.storageURL(owner: owner)
+        let exists = FileManager.default.fileExists(atPath: nextURL.path)
+        let next: Snapshot
+        if exists {
+            next = try JSONDecoder().decode(Snapshot.self, from: Data(contentsOf: nextURL))
+        } else if inheritGuest {
+            next = snapshot
+        } else {
+            next = Snapshot(ingredients: [], history: [], dismissedToBuy: [], counterIDs: [])
+        }
+        if persists {
+            Self.ioQueue.sync {}
+            try JSONEncoder().encode(snapshot).write(to: storageURL, options: .atomic)
+            try JSONEncoder().encode(next).write(to: nextURL, options: .atomic)
+            if inheritGuest && !exists && storageURL != nextURL {
+                let empty = Snapshot(ingredients: [], history: [], dismissedToBuy: [], counterIDs: [])
+                try JSONEncoder().encode(empty).write(to: storageURL, options: .atomic)
+            }
+        }
+        storageURL = nextURL
+        restore(next)
+        return inheritGuest && !exists
+    }
+
+    func restore(_ snap: Snapshot) {
+        ingredients = snap.ingredients
+        history = snap.history
+        archivedAte = snap.archivedAte ?? 0
+        archivedTossed = snap.archivedTossed ?? 0
+        dismissedToBuy = snap.dismissedToBuy
+        manualToBuy = snap.manualToBuy ?? []
+        counterIDs = snap.counterIDs
+        pinnedIDs = snap.pinnedIDs ?? []
+        passLog = snap.passLog ?? [:]
+        recentCooked = snap.recentCooked ?? [:]
+        activeCook = snap.activeCook
+        userRecipes = snap.userRecipes ?? []
+        pendingUndo = nil
+        resolveCanonicalIDs()
+        if persists { ExpiryNotifier.reschedule(for: ingredients) }
+    }
+
     private func trimHistoryIfNeeded() {
         let cutoff = Ingredient.day(offset: -snapshotRetentionDays)
         for i in history.indices where history[i].snapshot != nil && history[i].removedAt < cutoff {
@@ -554,10 +611,12 @@ final class FridgeStore {
 
     /// 티켓 발주 — 재료를 **예약**한다(§13.6 START 슬램은 연출, 데이터 확정은 Finish에서).
     /// 예약 재료는 작업대·추천에서 빠지고, undo(6초)나 조리 취소로 그대로 돌아온다.
-    func cook(_ result: RecipeRecommender.Result) {
-        let have = Set(ingredients.map(\.id))
-        let used = result.used.filter { have.contains($0.id) }
-        guard !used.isEmpty else { return }
+    @discardableResult
+    func cook(_ result: RecipeRecommender.Result, preferences: RecipePreferences = .none) -> Bool {
+        guard RecipeRecommender.isAllowed(result.recipe, preferences: preferences) else { return false }
+        let current = Dictionary(uniqueKeysWithValues: ingredients.map { ($0.id, $0) })
+        let used = result.used.compactMap { current[$0.id] }.filter { RecipeRecommender.isUsable($0, preferences: preferences) }
+        guard used.count == result.used.count, !used.isEmpty else { return false }
         let counterBefore = counterIDs
         // 진행 중 세션이 있으면 교체 — 이전 예약은 자동 해제되고, undo가 이전 세션을 복원한다.
         let replaced = activeCook
@@ -581,6 +640,7 @@ final class FridgeStore {
         track(.ticketFire(recipe: AnalyticsEvent.recipeKey(result.recipe.id), used: used.count,
                           missing: result.missing.count, substituted: result.substituted.count,
                           urgent: result.urgentUsedCount))
+        return true
     }
 
     /// 단계 체크 토글(39차 — 33c8861에서 걷혔다 주방 전표 시트로 되살아났다) — 조리 진행 상태도
@@ -1181,6 +1241,17 @@ final class FridgeStore {
         replenishCounter()
         persist()
         track(.sampleLoad)
+    }
+
+    /// 사용자가 "이 기기 지우기"를 확인했을 때만 계정별 보관 파일까지 삭제한다.
+    func eraseDeviceData() throws {
+        Self.ioQueue.sync {}
+        let directory = storageURL.deletingLastPathComponent()
+        let files = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
+        for file in files where file.lastPathComponent.hasPrefix("fridge-") && file.pathExtension == "json" {
+            try FileManager.default.removeItem(at: file)
+        }
+        resetAllData()
     }
 
     /// 모든 데이터 초기화 — 빈 냉장고로.

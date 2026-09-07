@@ -52,6 +52,7 @@ struct MainView: View {
     /// 앵커·파트너**(48차 E5, `invitationNames`). 위 두 스냅샷과 **같은 틱**에 얼린다 —
     /// 따로 계산하면 문구와 검색어가 다른 시점의 재고를 본다.
     @State private var fridgeNamesSnapshot: [String] = []
+    @State private var filterNoticeSnapshot: LocalizedStringKey?
     /// 오늘 요리 핀 스냅샷(48차 E6) — 티켓 used 줄의 압정 마크 판정. 덱과 같은 틱에 얼린다
     /// (커버가 열린 동안 핀이 바뀌어도 티켓 표시는 스냅샷 계약대로 고정).
     @State private var pinnedSnapshot: Set<UUID> = []
@@ -258,6 +259,7 @@ struct MainView: View {
                                hasIngredients: !store.ingredients.isEmpty,
                                atRiskNames: atRiskSnapshot,
                                fridgeNames: fridgeNamesSnapshot,
+                               emptyNotice: filterNoticeSnapshot,
                                onClose: { showCarousel = false },
                                onFire: fire,
                                // 패스 기록(48차 E3) — 왼쪽 플릭·"Next ticket" 액션만 이 콜백을
@@ -889,7 +891,7 @@ struct MainView: View {
     private func togglePin(_ id: UUID) {
         decisionHaptic += 1
         withAnimation(ReffiMotion.gated(ReffiMotion.pop, reduce: reduceMotion)) {
-            store.togglePin(id)
+            _ = store.togglePin(id)
         }
     }
 
@@ -1058,7 +1060,12 @@ struct MainView: View {
     /// 따로 계산하면 발주로 store가 바뀌는 사이에 서로 다른 시점의 재고를 보게 된다.
     private func snapshotCarousel() {
         let results = carouselResults
-        let stock = store.available
+        let stock = store.available.filter { RecipeRecommender.isUsable($0, preferences: RecipePreferences(profile: profile)) }
+        if stock.isEmpty && !store.available.isEmpty {
+            filterNoticeSnapshot = store.available.allSatisfy { $0.effectiveDaysLeft < 0 }
+                ? "Your ingredients are past their use-by dates. Review them in the Fridge tab before cooking."
+                : "No ingredients match your food preferences. Review your fridge and allergy settings."
+        } else { filterNoticeSnapshot = nil }
         carouselSnapshot = results
         pinnedSnapshot = store.pinnedIDs   // 티켓 압정 마크(48차 E6) — 덱과 같은 틱에 동결
         // 호명은 문장 안에 들어가는 **표시 이름**이다 — 저장 `name`은 담던 순간 표기라 로케일이 박제된다
@@ -1141,11 +1148,14 @@ struct MainView: View {
     /// 흐름이 끝나는 순간 이어서 실행된다(`onToBuyPresentationChange`). 세대 검사는 그대로다.
     private func fire(_ result: RecipeRecommender.Result) {
         guard !firedTicket, !result.used.isEmpty else { return }
+        guard store.cook(result, preferences: RecipePreferences(profile: profile)) else {
+            snapshotCarousel()
+            return
+        }
         firedTicket = true
         fireHaptic += 1
         // 스토어 변이는 애니메이션 밖에서 — 슬램 연출은 OrderMemoCard 로컬 fired 상태가 구동하고,
         // 메인 뱃지·씬 변화는 커버 뒤라 애니메이션이 필요 없다(전환 프레임드롭 방지).
-        store.cook(result)
         let gen = coverGeneration
         DispatchQueue.main.asyncAfter(deadline: .now() + Self.fireDismissDelaySeconds) {
             guard coverGeneration == gen else { return }   // 새로 연 커버는 닫지 않는다

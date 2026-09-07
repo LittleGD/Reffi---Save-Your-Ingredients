@@ -144,7 +144,7 @@
         },
         {
           "ref": null,
-          "en": "water (or anchovy stock)",
+          "safetyRefs": ["anchovy"], "en": "water (or anchovy stock)",
           "ko": "물 (또는 멸치 육수)"
         }
       ],
@@ -1004,7 +1004,7 @@
         },
         {
           "ref": null,
-          "en": "water (or anchovy stock)",
+          "safetyRefs": ["anchovy"], "en": "water (or anchovy stock)",
           "ko": "물 (또는 멸치 육수)"
         }
       ],
@@ -1747,7 +1747,7 @@
         },
         {
           "ref": null,
-          "en": "water (or dashi)",
+          "safetyRefs": ["stock"], "en": "water (or dashi)",
           "ko": "물 (또는 가쓰오 육수)"
         }
       ],
@@ -1824,7 +1824,7 @@
         },
         {
           "ref": null,
-          "en": "water (or dashi)",
+          "safetyRefs": ["stock"], "en": "water (or dashi)",
           "ko": "물 (또는 가쓰오 육수)"
         }
       ],
@@ -3110,7 +3110,7 @@
         },
         {
           "ref": null,
-          "en": "water (or beef stock)",
+          "safetyRefs": ["beef"], "en": "water (or beef stock)",
           "ko": "물 (또는 소고기 육수)"
         }
       ],

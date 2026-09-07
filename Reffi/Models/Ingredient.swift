@@ -296,32 +296,17 @@ struct Ingredient: Identifiable, Codable, Equatable {
     func daysLeft(asOf now: Date) -> Int { Self.days(from: now, to: expiresAt) }
     var daysLeft: Int { daysLeft(asOf: Date()) }
 
-    /// 실효 만료 시각(45차 두 번 벼려짐) — 냉동은 개봉 시계를 **멈추는 사건**이다.
-    ///
-    /// 44차까지는 냉동이 early return이라 개봉 시계를 덮었다: 20일 전 개봉한 크림치즈(개봉 후
-    /// 10일 = 이미 지남)를 냉동으로 옮기면 D+14로 되살아났다. 45차 1차 처방은 단순 min이었는데,
-    /// 적대 검증이 반대편 구멍을 실측했다 — 개봉 후 기한(사전 opened 전수 3~10일)은 냉동 유예
-    /// (14일)보다 항상 짧아 min이 **언제나 개봉 시계를 이기고**, 어제 딴 코코넛밀크·홀토마토를
-    /// 얼려도 기한이 하루도 안 늘어난 채 1회권(`canFreeze`)만 소모됐다(위약 25종 전수) — 현실에선
-    /// 개봉품이야말로 냉동이 정답인 품목군인데.
-    ///
-    /// 그래서 min이 아니라 **사건**으로 푼다: 냉동 시점에 개봉 시계가 살아 있었으면 시계가 멈추고
-    /// 유예(frozenAt+14일)가 대신 돈다(두 번째 기회, §13.6). 이미 죽어 있었으면 죽은 날짜를
-    /// 그대로 둔다 — 냉동이 지난 개봉 기한을 되살리는 일은 없다(44차 크림치즈 케이스 그대로 유지).
+    /// 냉동 전에 이미 지난 소비기한은 냉동으로 연장하지 않는다.
+    private var unfrozenExpiresAt: Date {
+        guard let openedAt, let id = canonicalID,
+              let days = IngredientLexicon.shared.openedShelfLifeDays(id: id) else { return expiresAt }
+        return min(expiresAt, Self.day(offset: days, from: openedAt))
+    }
+
     var effectiveExpiresAt: Date {
-        let openedDeadline: Date? = {
-            guard let openedAt, let id = canonicalID,
-                  let days = IngredientLexicon.shared.openedShelfLifeDays(id: id) else { return nil }
-            return Self.day(offset: days, from: openedAt)
-        }()
-        guard storage == .freezer, let frozenAt else {
-            guard let openedDeadline else { return expiresAt }
-            return min(expiresAt, openedDeadline)
-        }
-        let grace = Self.day(offset: Self.freezerGraceDays, from: frozenAt)
-        guard let openedDeadline else { return grace }
-        // 냉동 당시 개봉 시계가 이미 지나 있었나 — 달력 일 기준(같은 날 냉동은 산 것으로 본다).
-        return Self.days(from: frozenAt, to: openedDeadline) < 0 ? openedDeadline : grace
+        guard storage == .freezer, let frozenAt else { return unfrozenExpiresAt }
+        guard Self.days(from: frozenAt, to: unfrozenExpiresAt) >= 0 else { return unfrozenExpiresAt }
+        return Self.day(offset: Self.freezerGraceDays, from: frozenAt)
     }
 
     /// 개봉 확인이 필요한가(44차) — 밀봉 항목이 미개봉인 채 마지막 확인(없으면 구매)에서 14일이
@@ -342,16 +327,11 @@ struct Ingredient: Identifiable, Codable, Equatable {
     var freshness: Freshness { Freshness(daysLeft: effectiveDaysLeft) }
 
     var isFrozen: Bool { storage == .freezer }
-    /// 냉동 가능 — 이미 냉동이 아니고, 한 번도 얼린 적 없어야(재냉동 금지) 하며, **효과가 있어야**
-    /// 한다: 개봉 시계가 이미 지난 항목은 냉동해도 기한이 되살아나지 않으므로(`effectiveExpiresAt`
-    /// 사건 규칙) 버튼을 열어 두면 1회권만 태우는 위약이 된다(MVP 원칙 — 동작 없는 UI 금지).
-    var canFreeze: Bool {
-        guard storage != .freezer, frozenAt == nil else { return false }
-        if let openedAt, let id = canonicalID,
-           let days = IngredientLexicon.shared.openedShelfLifeDays(id: id),
-           Self.days(from: Date(), to: Self.day(offset: days, from: openedAt)) < 0 { return false }
-        return true
+    /// 이미 지난 재료와 재냉동은 허용하지 않는다. 같은 날은 유효하다.
+    func canFreeze(asOf now: Date) -> Bool {
+        storage != .freezer && frozenAt == nil && Self.days(from: now, to: unfrozenExpiresAt) >= 0
     }
+    var canFreeze: Bool { canFreeze(asOf: Date()) }
 
     /// 남은 일수 라벨(로컬라이즈). 데이터성 숫자(§3.4).
     var dDayText: String { Self.dDayText(daysLeft: effectiveDaysLeft) }

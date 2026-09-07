@@ -17,7 +17,8 @@ final class AuthStore {
     static let anonKey = "sb_publishable_RolVTNQCWTf9t9XBEcCz1w_HcEeYquc"
 
     /// Supabase 클라이언트 — publishable key는 클라이언트 임베드용 공개 키(RLS로 보호).
-    static let client = SupabaseClient(supabaseURL: supabaseURL, supabaseKey: anonKey)
+    static let client = SupabaseClient(supabaseURL: supabaseURL, supabaseKey: anonKey,
+        options: .init(auth: .init(emitLocalSessionAsInitialSession: true)))
 
     /// 인증 진단 로그(FridgeStore.log와 같은 서브시스템). 화면에 못 내보내는 서버 원문이 여기로 간다.
     static let log = Logger(subsystem: "com.reffi.app", category: "auth")
@@ -34,6 +35,20 @@ final class AuthStore {
     private(set) var restoring = true
     /// 네트워크 요청 진행 중(버튼 비활성).
     private(set) var busy = false
+    private(set) var availability = AuthAvailability()
+    var needsPasswordReset = false
+
+    func refreshAvailability() async {
+        var request = URLRequest(url: Self.supabaseURL.appendingPathComponent("auth/v1/settings"))
+        request.setValue(Self.anonKey, forHTTPHeaderField: "apikey")
+        request.timeoutInterval = 10
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard (response as? HTTPURLResponse)?.statusCode == 200 else { return }
+            availability = try JSONDecoder().decode(AuthAvailability.self, from: data)
+        } catch { /* Keep unavailable providers hidden when offline. */ }
+    }
+
 
     var errorMessage: String?
     /// 성공 안내(예: 가입 후 이메일 확인).
@@ -41,14 +56,10 @@ final class AuthStore {
 
     /// 게스트 = 익명 세션(서버 user id 보유, 가입 시 승계) 또는 로컬 폴백.
     var isGuest: Bool { session?.user.isAnonymous == true || localGuest }
-    /// 앱 진입 가능 여부 — 세션(익명 포함)이 있거나 로컬 게스트.
+    /// 앱 진입은 로컬 자료 접근이다. 만료된 캐시도 소유자 복원에 사용하며 서버 작업은 별도로 인증한다.
     var isSignedIn: Bool { session != nil || localGuest }
     var userEmail: String? { session?.user.email }
-    /// 정식(비익명) 계정의 서버 user id. 익명 세션·로컬 게스트·미로그인은 모두 nil.
-    /// 로컬 데이터 소유자 판별(ReffiApp.reconcileDataOwner) 전용 — 익명 세션을 소유자 후보에서
-    /// 제외하는 것이 핵심이다: 로그아웃 후 게이트가 자동 발급하는 익명 게스트(continueAsGuest)는
-    /// 같은 기기의 같은 사람인데, 그 새 uuid를 소유자로 세면 콜드 런치마다 로컬 데이터가 와이프된다.
-    /// 익명→가입 승계는 같은 user id가 비익명으로 바뀌는 것이라 nil→id(최초 기록) 전이가 되어 무사하다.
+    /// 로컬 저장 공간의 소유자. 익명/로컬 게스트는 별도 guest 공간을 사용한다.
     var accountUserID: String? {
         guard let user = session?.user, !user.isAnonymous else { return nil }
         return user.id.uuidString
@@ -69,7 +80,11 @@ final class AuthStore {
     private func listen() async {
         for await (event, session) in Self.client.auth.authStateChanges {
             let wasAnonymous = self.session?.user.isAnonymous == true
+            if self.session?.user.id != session?.user.id {
+                Analytics.shared.changeAccount(to: session?.user.id.uuidString)
+            }
             self.session = session
+            if event == .passwordRecovery { needsPasswordReset = true }
             if session != nil { setLocalGuest(false) }
             if event == .initialSession { restoring = false }
             trackAuthChange(event, session: session, wasAnonymous: wasAnonymous)
@@ -89,7 +104,7 @@ final class AuthStore {
             Analytics.shared.track(.authUpgrade(provider: Self.provider(of: user)))
         case .signedOut:
             Analytics.shared.track(.authSignOut)
-        case .initialSession:
+        case .initialSession, .tokenRefreshed:
             if session != nil { Analytics.shared.flushSoon() }
         default:
             break
@@ -108,11 +123,11 @@ final class AuthStore {
         await run {
             if let user = session?.user, user.isAnonymous {
                 try await Self.client.auth.update(
-                    user: UserAttributes(email: email, password: password)
+                    user: UserAttributes(email: email, password: password), redirectTo: Self.redirectURL
                 )
                 self.notice = String(localized: "Check your inbox.\nOnce verified, your guest data carries over.")
             } else {
-                let res = try await Self.client.auth.signUp(email: email, password: password)
+                let res = try await Self.client.auth.signUp(email: email, password: password, redirectTo: Self.redirectURL)
                 if res.session == nil {
                     self.notice = String(localized: "Confirmation email sent.\nVerify it, then log in.")
                 }
@@ -165,18 +180,17 @@ final class AuthStore {
     /// 익명 로그인이 꺼져 있거나 오프라인이면 로컬 게스트로 조용히 폴백.
     func continueAsGuest() async {
         errorMessage = nil
+        setLocalGuest(true)
         busy = true
         defer { busy = false }
+        await refreshAvailability()
+        guard availability.anonymous else { setLocalGuest(true); return }
         do { try await Self.client.auth.signInAnonymously() }
         catch { setLocalGuest(true) }
     }
 
-    /// 로그아웃 — `scope: .local`로 이 기기 세션만 해지한다(다른 기기 로그아웃 방지).
-    /// supabase-swift는 네트워크 POST 이전에 로컬(Keychain) 세션을 먼저 제거하므로 오프라인에서도
-    /// 로그아웃이 성립한다 → 서버 요청 실패는 조용히 무시(로컬 세션은 이미 사라졌다).
-    /// 로컬 데이터(냉장고·이력·프로필)는 건드리지 않는다. 소유자 키(`data.ownerUserID`)도
-    /// 직전 계정 id 그대로 남고, 뒤이어 붙는 익명 게스트 세션은 `accountUserID`가 nil이라
-    /// 소유자 대조를 트리거하지 않는다 → 같은 계정으로 다시 로그인하면 와이프 없이 이어진다.
+    /// 이 기기의 인증 세션을 해제한다. 계정 자료는 별도 파일에 보관하고 게스트 공간으로 전환한다.
+    /// Supabase의 로컬 세션 제거는 서버 요청보다 먼저 이뤄지므로 오프라인에서도 로그아웃한다.
     func signOut() async {
         errorMessage = nil
         notice = nil
@@ -185,13 +199,40 @@ final class AuthStore {
         defer { busy = false }
         try? await Self.client.auth.signOut(scope: .local)
         session = nil
+        setLocalGuest(true)
     }
 
-    // MARK: - 계정 삭제(서버)
-    // TODO: Edge Function(service-role) 계정 삭제 — auth.users의 완전 삭제는 service-role 권한이
-    // 필요해 클라이언트 publishable 키로는 불가하다. Supabase Edge Function(service-role)에
-    // delete-account 엔드포인트를 두고 호출하는 방식으로 후속 구현한다. 현재 앱의 'Erase this device'(42차 개명 — 실동작 정합)는
-    // 이 기기의 로컬 데이터 삭제 + 로그아웃까지만 수행한다.
+    // MARK: - 계정 관리
+
+    /// 서버가 삭제를 확정한 뒤에만 호출부가 로컬 자료를 지우고 로그아웃한다.
+    func deleteAccount() async -> Bool {
+        guard accountUserID != nil, !busy else { return false }
+        errorMessage = nil
+        busy = true
+        defer { busy = false }
+        do {
+            try await Self.client.rpc("delete_own_account").execute()
+            return true
+        } catch {
+            errorMessage = String(localized: "Couldn't delete your account. Your data is still saved. Check your connection and try again.")
+            return false
+        }
+    }
+
+    func sendPasswordReset(email: String) async {
+        await run {
+            try await Self.client.auth.resetPasswordForEmail(email, redirectTo: Self.redirectURL)
+            notice = String(localized: "If this email has an account, a password reset link is on its way.")
+        }
+    }
+
+    func updatePassword(_ password: String) async {
+        await run {
+            try await Self.client.auth.update(user: UserAttributes(password: password))
+            needsPasswordReset = false
+            notice = String(localized: "Password updated.")
+        }
+    }
 
     private func setLocalGuest(_ v: Bool) {
         guard localGuest != v else { return }
@@ -265,4 +306,13 @@ final class AuthStore {
             .map { String(format: "%02x", $0) }
             .joined()
     }
+}
+
+/// Read-only backend settings. Social login stays hidden until login and revocation QA is complete.
+struct AuthAvailability: Decodable, Equatable {
+    var external: [String: Bool] = [:]
+    var anonymous: Bool { external["anonymous_users"] == true }
+    var email: Bool { external["email"] ?? true }
+    var apple: Bool { false }
+    var google: Bool { false }
 }

@@ -39,7 +39,7 @@ struct ProfileView: View {
     @AppStorage(ReffiFeedback.tiltKey) private var tiltEnabled = true
 
     // 계측 옵트아웃 SSOT(64차) — `Analytics.enabledKey`. 토글이 바뀌면 파이프라인에 즉시 반영한다.
-    @AppStorage(Analytics.enabledKey) private var usageSharing = true
+    @AppStorage(Analytics.enabledKey) private var usageSharing = false
 
     // 앱 내 언어 SSOT(38차) — `RootGateView`가 같은 키로 루트 `.environment(\.locale)`을 건다.
     @AppStorage(AppLanguage.key) private var languageRaw = AppLanguage.system.rawValue
@@ -51,6 +51,9 @@ struct ProfileView: View {
     @State private var sheet: Sheet?
     @State private var showLogout = false
     @State private var showDelete = false
+    @State private var showAccountDelete = false
+    @State private var showPrivacy = false
+    @State private var accountError = false
     @State private var showAuth = false
     @State private var showMyRecipes = false
     @State private var showResetConfirm = false
@@ -94,12 +97,24 @@ struct ProfileView: View {
                     alertsReceipt
                     feelReceipt
                     appReceipt
-                    accountReceipt
-                    Color.clear.frame(height: 1).id(Anchor.bottom)   // 스크롤 하단 앵커(QA 스크린샷)
+                    accountReceipt.disabled(auth.busy)
+                    Button { showPrivacy = true } label: {
+                        Text("Privacy Policy")
+                            .reffiType(.caption)
+                            .foregroundStyle(ReffiColor.ink2)
+                            .underline()
+                            .frame(minHeight: 44)
+                            .frame(maxWidth: .infinity)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("settings.privacyPolicy")
+                    .accessibilityHint("Opens the full privacy policy")
+                    // 스크롤 앵커가 내비게이션 여백까지 포함해야 마지막 링크가 가려지지 않는다.
+                    Color.clear.frame(height: ReffiChrome.navClearance).id(Anchor.bottom)
                 }
                 .padding(.horizontal, ReffiGrid.margin + receiptInset)
                 .padding(.top, ReffiSpace.s5)
-                .padding(.bottom, ReffiChrome.navClearance)   // 떠 있는 캡슐 네비 위로 스크롤 여유
             }
         }
         #if DEBUG
@@ -144,6 +159,7 @@ struct ProfileView: View {
             case .time:      NotifyTimeSheet()
             }
         }
+        .sheet(isPresented: $showPrivacy) { PrivacyView() }
         .sheet(isPresented: $showAuth) { AuthView().analyticsScreen(.auth) }
         .sheet(isPresented: $showMyRecipes) { MyRecipesView().analyticsScreen(.myRecipes) }
         // 언어 픽커(38차) — `PaperDropdown` 루트 오버레이(ScrollView 클리핑 밖, `FridgeView` 정렬
@@ -175,17 +191,35 @@ struct ProfileView: View {
                     primary: PaperDialogAction("Erase", role: .destructive) {
                         destructiveHaptic += 1   // 룰⑦ — 파괴 확정(.warning)
                         Task {
-                            await auth.signOut()      // scope .local — 오프라인에서도 로그아웃
-                            store.resetAllData()      // 이 기기 냉장고·이력 삭제
-                            profile.resetAll()        // 프로필·취향 초기화
-                            Analytics.shared.resetIdentity()   // 계측 큐·install id도 새로 — 이 기기의 흔적을 끊는다
-                            // 소유자 키도 함께 해제 — 남겨두면 이후 게스트 구간에 새로 쌓은 데이터가
-                            // 다음 가입 시 '다른 계정 전환'으로 오인돼 조용히 와이프된다(승계 안내와 모순).
-                            UserDefaults.standard.removeObject(forKey: DataOwner.key)
+                            do {
+                                try store.eraseDeviceData()
+                                profile.eraseDeviceData()
+                                Analytics.shared.resetIdentity()
+                                await auth.signOut()
+                            } catch {
+                                auth.errorMessage = String(localized: "Couldn't erase this device. Try again.")
+                                accountError = true
+                            }
                             // 온보딩 플래그는 유지 — 재온보딩을 강제하지 않는다.
                         }
                     },
                     secondary: PaperDialogAction("Cancel", role: .cancel) {})
+        .paperDialog(isPresented: $showAccountDelete, title: "Delete your account?",
+                    message: "Your account, shared usage records and this account's data on this device will be permanently deleted. This cannot be undone.",
+                    seed: 2, backdropDismisses: true,
+                    primary: PaperDialogAction("Delete account", role: .destructive) {
+                        Task {
+                            if await auth.deleteAccount() {
+                                store.resetAllData()
+                                profile.resetAll()
+                                Analytics.shared.resetIdentity()
+                                await auth.signOut()
+                            } else { accountError = true }
+                        }
+                    }, secondary: PaperDialogAction("Cancel", role: .cancel) {})
+        .paperDialog(isPresented: $accountError, title: "Couldn't complete the request",
+                     message: LocalizedStringKey(auth.errorMessage ?? "Please try again."),
+                     seed: 2, primary: PaperDialogAction("OK") {})
         .paperDialog(isPresented: $showDenied, title: "Notifications are off",
                     message: "Allow notifications for Reffi in Settings to get use-by alerts.",
                     seed: 3, backdropDismisses: true,
@@ -239,20 +273,16 @@ struct ProfileView: View {
     private var header: some View {
         Button { sheet = .nickname } label: {
             HStack(spacing: ReffiSpace.s4) {
-                // 아바타 — 닉네임 이니셜(워드마크 서체, 한글은 Pretendard). 빈 닉네임은 아이콘 폴백.
+                // 아바타: 한글·영문 이니셜 모두 워드마크와 같은 OK단단체. 빈 닉네임은 아이콘 폴백.
                 // 잉크는 blueDark다 — blue는 흰 글자를 받는 면 색이라 blue-light 종이 위에서 대비가 안 선다(§2.2).
                 Group {
                     if avatarInitial.isEmpty {
                         ReffiIcon.profile.reffi(30).foregroundStyle(ReffiColor.blueDark)
                     } else {
                         Text(avatarInitial)
-                            // 폴백 판별은 공용 `String.hasHangul`(§ReffiTypography) — 아바타는 64pt 원 안
-                            // 전용 크기라 role 대신 실크기를 적는다. `scaleEffect` 광학 축소를 걷고(42차 —
-                            // 획 두께·베이스라인 계약 위반) 두 스크립트 모두 `.largeTitle` 곡선으로 통일:
-                            // 한글 사용자와 라틴 사용자가 접근성 큰 글씨에서 같은 레이아웃을 본다.
-                            .font(avatarInitial.hasHangul
-                                  ? .custom("Pretendard-Bold", size: 28, relativeTo: .largeTitle)
-                                  : .custom("StoryScript-Regular", size: 30, relativeTo: .largeTitle))
+                            // 64pt 아바타 전용 크기. 두 언어 모두 같은 Dynamic Type 곡선을 쓴다.
+                            .font(.custom("OkDanDan-Bold", size: 30, relativeTo: .largeTitle))
+                            .tracking(30 * -0.02)
                             .foregroundStyle(ReffiColor.blueDark)
                     }
                 }
@@ -262,9 +292,8 @@ struct ProfileView: View {
                     s.fill(ReffiColor.blueLight).paperEdge(s)
                 }
                 VStack(alignment: .leading, spacing: ReffiSpace.s0) {
-                    // 한글 닉네임은 Story Script(한글 미지원) 대신 Pretendard Bold 폴백(§3.1).
                     Text(profile.nickname)
-                        .font(ReffiTextRole.display.font(for: profile.nickname))
+                        .reffiType(.display)
                         .foregroundStyle(ReffiColor.ink)
                         .lineLimit(1)
                     Text(subtitle).reffiType(.caption).foregroundStyle(ReffiColor.ink2)
@@ -314,6 +343,13 @@ struct ProfileView: View {
             ReceiptRule()
             SettingsRow(label: "Allergies", value: tagSummary(profile.allergies),
                         valueState: profile.allergies.isEmpty ? .unset : .set) { sheet = .allergies }
+            if !profile.allergies.isEmpty {
+                Text(RecipePreferences.normalize(profile.allergies).contains { IngredientLexicon.shared.entry(id: $0) == nil }
+                     ? "An allergy wasn't recognized. Update its ingredient name to see recommendations."
+                     : "Recipes and substitutes are filtered using your allergies. Always check product labels; ingredients vary by brand.")
+                    .reffiType(.caption).foregroundStyle(ReffiColor.ink2)
+                    .padding(.horizontal, ReffiSpace.s5).padding(.vertical, ReffiSpace.s3)
+            }
             ReceiptRule()
             SettingsRow(label: "Household", value: profile.household.label) {
                 householdPickerOpen.toggle()
@@ -426,10 +462,10 @@ struct ProfileView: View {
                 .padding(.vertical, ReffiSpace.s4)
 
             ReceiptRule()
-            // 계측 옵트아웃(64차) — 기본 켬. 캡션은 값형(3~5어, `SettingsToggle` 규약): 무엇을 보내는지만.
+            // 선택적 사용 기록 공유. 기본값은 꺼짐.
             // 끄면 로컬 큐까지 비운다(`Analytics.setEnabled`) — 토글이 곧 사실이다(MVP 원칙).
             SettingsToggle(title: "Share usage data",
-                           caption: "Anonymous taps and screens",
+                           caption: "Usage linked to your account",
                            isOn: $usageSharing, seed: 3)
             .onChange(of: usageSharing) { _, on in Analytics.shared.setEnabled(on) }
 
@@ -507,10 +543,18 @@ struct ProfileView: View {
                 .padding(.horizontal, ReffiSpace.s4)   // 위 Data 영수증과 같은 정렬선
                 .padding(.vertical, ReffiSpace.s1)
             }
+            if auth.accountUserID != nil {
+                ReceiptRule()
+                QuietButton(title: "Delete account", icon: ReffiIcon.close, tint: ReffiColor.urgentDark) {
+                    showAccountDelete = true
+                }
+                .padding(.horizontal, ReffiSpace.s4)
+                .padding(.vertical, ReffiSpace.s1)
+                .disabled(auth.busy)
+            }
             ReceiptRule()
             // toss(재료 버림)와 의미 충돌 방지 — 탈퇴는 별도 아이콘(x).
-            // 라벨은 실동작을 말한다(42차 — MVP 원칙): 서버 계정은 남으므로 "Delete account"는
-            // 거짓말이었다. 서버 삭제가 생기면 그때 그 이름을 되살린다.
+            // 기기 지우기는 서버 계정 삭제와 별도다. 모든 로컬 계정 보관본을 지운다.
             QuietButton(title: "Erase this device", icon: ReffiIcon.close, tint: ReffiColor.urgentDark) {
                 showDelete = true
             }

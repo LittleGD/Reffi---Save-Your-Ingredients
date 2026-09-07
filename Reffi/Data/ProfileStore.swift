@@ -19,9 +19,12 @@ final class ProfileStore {
     // 죽은 플래그라 제거했다(중복 진실 소스 제거).
 
     @ObservationIgnored private let defaults: UserDefaults
+    @ObservationIgnored private var owner: String?
+    @ObservationIgnored private var loading = false
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
+        owner = defaults.string(forKey: DataOwner.key)
         // 초기화 단계 대입은 didSet을 트리거하지 않음 → 로드 중 불필요한 재저장 없음.
         nickname   = defaults.string(forKey: Key.nickname) ?? "Reffi"
         // 미응답 기본값은 **빈 집합**이다(64차). 예전 기본값 [.korean]은 "화면을 연 적 없음"을
@@ -44,6 +47,8 @@ final class ProfileStore {
         // 위트 있는 이름을 즉시 배정한다. 위 대입들로 모든 저장 프로퍼티가 이미 초기값을 받은
         // 뒤라(2단계 초기화 완료), 이 메서드 호출 내부의 재대입은 일반 호출과 동일하게 didSet →
         // save()가 정상 발동해 곧바로 영속화된다.
+        if let data = defaults.data(forKey: accountKey),
+           let saved = try? JSONDecoder().decode(Snapshot.self, from: data) { restore(saved) }
         assignGeneratedNicknameIfUnset()
         // 옛 기본값 청소(64차, 1회) — 기본값을 바꾸는 것만으로는 **이미 디스크에 적힌 값**이
         // 지워지지 않는다. 기존 설치는 첫 실행 때 저장된 ["korean"]을 그대로 들고 있어서,
@@ -97,7 +102,58 @@ final class ProfileStore {
         assignGeneratedNicknameIfUnset()   // 어느 파괴적 경로로 들어와도 새 이름을 받고 나간다
     }
 
+    struct Snapshot: Codable, Equatable {
+        var nickname: String
+        var cuisines: Set<CuisineStyle>
+        var favorites: [String]
+        var disliked: [String]
+        var allergies: [String]
+        var household: HouseholdSize
+    }
+
+    var snapshot: Snapshot {
+        Snapshot(nickname: nickname, cuisines: cuisines, favorites: favorites,
+                 disliked: disliked, allergies: allergies, household: household)
+    }
+    private var accountKey: String { "profile.account." + (owner ?? "guest") }
+
+    func switchAccount(to newOwner: String?, inheritGuest: Bool) {
+        let previous = snapshot
+        save()
+        owner = newOwner
+        if let data = defaults.data(forKey: accountKey),
+           let saved = try? JSONDecoder().decode(Snapshot.self, from: data) {
+            restore(saved)
+        } else if inheritGuest {
+            restore(previous)
+        } else {
+            resetAll()
+        }
+        save()
+        if inheritGuest && newOwner != nil { defaults.removeObject(forKey: "profile.account.guest") }
+    }
+
+    func eraseDeviceData() {
+        for key in defaults.dictionaryRepresentation().keys where key.hasPrefix("profile.") {
+            defaults.removeObject(forKey: key)
+        }
+        resetAll()
+    }
+
+    private func restore(_ value: Snapshot) {
+        loading = true
+        nickname = value.nickname
+        cuisines = value.cuisines
+        favorites = value.favorites
+        disliked = value.disliked
+        allergies = value.allergies
+        household = value.household
+        loading = false
+    }
+
     private func save() {
+        guard !loading else { return }
+        if let data = try? JSONEncoder().encode(snapshot) { defaults.set(data, forKey: accountKey) }
         defaults.set(nickname, forKey: Key.nickname)
         defaults.set(cuisines.map(\.rawValue), forKey: Key.cuisines)
         defaults.set(favorites, forKey: Key.favorites)

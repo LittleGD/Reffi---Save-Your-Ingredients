@@ -1,10 +1,11 @@
 import SwiftUI
 
 /// Reffi 타이포 위계(§3.2). iOS는 항상 모바일 스케일(<1200px 시스템)을 쓰고,
-/// `relativeTo`로 Dynamic Type에 맞춰 스케일한다. 한글=Pretendard, 영문 Display=Story Script,
+/// `relativeTo`로 Dynamic Type에 맞춰 스케일한다. Display·Heading=OK단단체(한·영 공통),
+/// 소제목·본문·캡션=Pretendard,
 /// 데이터성 숫자=Google Sans Flex(§3.4 `reffiNum`).
 enum ReffiTextRole {
-    case display   // 워드마크·표지 — Story Script(영문) / Pretendard Bold(한글)
+    case display   // 워드마크·표지, OK단단체
     case heading   // 제목
     case subhead   // 소제목 · 카드 이름
     case body      // 본문
@@ -24,54 +25,39 @@ enum ReffiTextRole {
 extension ReffiTextRole {
     var font: Font {
         switch self {
-        case .display: return .custom("StoryScript-Regular", size: 34, relativeTo: .largeTitle)
-        case .heading: return .custom("Pretendard-Bold",     size: 24, relativeTo: .title)
+        case .display: return .custom("OkDanDan-Bold",       size: 34, relativeTo: .largeTitle)
+        case .heading: return .custom("OkDanDan-Bold",       size: 24, relativeTo: .title)
         case .subhead: return .custom("Pretendard-SemiBold", size: 18, relativeTo: .title3)
         case .body:    return .custom("Pretendard-Regular",  size: 16, relativeTo: .body)
         case .caption: return .custom("Pretendard-Medium",   size: 14, relativeTo: .caption)
         }
     }
 
-    /// 자간: Heading·Subhead·Body −1%, Caption +1%, Display 0(Story Script 연결 글자).
+    /// 자간: Display·Heading −2%, Subhead·Body −1%, Caption +1%.
     var tracking: CGFloat {
         switch self {
-        case .display: return 0
-        case .heading: return 24 * -0.01
+        case .display: return 34 * -0.02
+        case .heading: return 24 * -0.02
         case .subhead: return 18 * -0.01
         case .body:    return 16 * -0.01
         case .caption: return 14 *  0.01
         }
     }
 
-    /// 행간 근사(120%/140%). 단일 행 텍스트에는 영향이 없다.
+    /// Display·Heading은 추가 행간 없이 원본 폰트 메트릭을 쓴다.
     var lineSpacing: CGFloat {
         switch self {
-        case .display, .heading, .subhead: return 2
+        case .display, .heading: return 0
+        case .subhead: return 2
         case .body:    return 5
         case .caption: return 3
         }
     }
 
-    /// 한글 Display 폴백(Story Script는 한글 미지원 → Pretendard Bold, §3.1).
-    var koreanDisplayFont: Font {
-        if case .display = self {
-            return .custom("Pretendard-Bold", size: 34, relativeTo: .largeTitle)
-        }
-        return font
-    }
-
-    /// **표시될 문자열에 맞춘** 폰트 — Display에 한글이 섞이면 위 폴백으로 내려간다(§3.1).
-    /// 번역되는 Display 텍스트(냉장고 타이틀·온보딩 타이틀·단계 표기·닉네임)는 전부 이 문을 지나야 한다:
-    /// `.custom()`에는 폰트 스택이 없어, 폴백을 배선하지 않으면 누락 글리프가 Pretendard가 아니라
-    /// **시스템 한글 서체**로 조용히 캐스케이드된다 — 브랜드 밖 서체가 한국어에만 나타난다.
-    /// Display가 아닌 role은 이미 Pretendard라 그대로다.
-    func font(for text: String) -> Font {
-        text.hasHangul ? koreanDisplayFont : font
-    }
 }
 
 extension String {
-    /// 한글 포함 여부 — Story Script·Google Sans Flex는 한글 미지원(§3.1)이라 폴백 판별에 쓴다.
+    /// 한글 포함 여부. 한글을 지원하지 않는 Google Sans Flex 숫자 폰트의 폴백에 쓴다.
     var hasHangul: Bool {
         unicodeScalars.contains {
             (0xAC00...0xD7A3).contains($0.value)      // 완성형
@@ -96,18 +82,9 @@ enum ReffiShrink {
 
 extension View {
     /// Reffi 타이포 위계 적용(폰트+자간+행간). 색은 면에 따라(§2.6) 별도로 준다.
-    /// **비번역 라틴(워드마크 등) 전용**이다 — 번역되는 Display 텍스트는 아래 `reffiType(_:for:)`를 쓴다.
+    /// 모든 역할이 한글·영문을 지원하므로 언어별 디스플레이 폰트 분기가 필요 없다.
     func reffiType(_ role: ReffiTextRole) -> some View {
         self.font(role.font)
-            .tracking(role.tracking)
-            .lineSpacing(role.lineSpacing)
-    }
-
-    /// 같은 위계에 **스크립트 폴백**까지 — 실제로 그려질 문자열을 넘겨 폰트를 고른다(§3.1).
-    /// 문자열을 따로 받는 이유: SwiftUI는 `Text`가 들고 있는 `LocalizedStringKey`의 해석 결과를
-    /// 밖으로 내주지 않아, 호출부가 `String(localized:)`로 한 번 풀어 같은 값을 둘에 함께 넘겨야 한다.
-    func reffiType(_ role: ReffiTextRole, for text: String) -> some View {
-        self.font(role.font(for: text))
             .tracking(role.tracking)
             .lineSpacing(role.lineSpacing)
     }
@@ -150,7 +127,7 @@ extension Font {
         .custom("GoogleSansFlex-Regular", size: scale.size, relativeTo: scale.textStyle).monospacedDigit()
     }
 
-    /// **표시될 문자열에 맞춘** 숫자 폰트(§3.4·42차) — `ReffiTextRole.font(for:)`와 같은 이유, 같은 문법.
+    /// **표시될 문자열에 맞춘** 숫자 폰트(§3.4·42차).
     /// GSF는 한글 미지원(§3.1 검증)이고 `.custom()`엔 폰트 스택이 없어, "오늘"·"3일"·"오전 9:00"이
     /// 흐르면 누락 글리프가 Pretendard가 아니라 **시스템 한글 서체**로 조용히 캐스케이드된다 —
     /// 재료 뱃지 하나에 세 서체가 서는 원인. 폴백은 Pretendard **Regular**다: GSF-Regular와
@@ -281,8 +258,8 @@ import UIKit
 enum ReffiFontCheck {
     /// 번들 폰트가 등록됐는지 콘솔로 확인(런치 시 1회).
     static func dump() {
-        for want in ["Pretendard", "Google Sans Flex", "Story Script"] {
-            let ok = UIFont.familyNames.contains { $0.localizedCaseInsensitiveContains(want) }
+        for want in ["Pretendard-Regular", "GoogleSansFlex-Regular", "OkDanDan-Bold"] {
+            let ok = UIFont(name: want, size: 16) != nil
             print("[ReffiFont] \(want): \(ok ? "OK" : "MISSING")")
         }
     }
