@@ -27,6 +27,7 @@ struct RecipeMemoCarousel: View {
     /// 우선이고, 둘이 같은 이름을 다른 문장으로 두 번 부르면 안 된다. 앞 2개 = 앵커·파트너
     /// (48차 E5, 위와 같은 규칙 — 두 분기의 문안이 같은 선정을 타야 갈리지 않는다).
     var fridgeNames: [String] = []
+    var emptyNotice: LocalizedStringKey? = nil
     var onClose: () -> Void
     var onFire: (RecipeRecommender.Result) -> Void = { _ in }
     /// 패스(왼쪽 플릭·"Next ticket" 접근성 액션) 커밋 1건 — 넘긴 티켓의 **레시피 id**를 올린다(48차 E3).
@@ -615,7 +616,9 @@ struct RecipeMemoCarousel: View {
         VStack(spacing: ReffiSpace.s4) {
             FoodMotif(glyph: .generic).frame(width: 110, height: 110)
             Text("No tickets yet").reffiType(.heading).foregroundStyle(ReffiColor.ink)
-            if !atRiskNames.isEmpty {
+            if let emptyNotice {
+                Text(emptyNotice).reffiType(.body).foregroundStyle(ReffiColor.ink2).multilineTextAlignment(.center)
+            } else if !atRiskNames.isEmpty {
                 Text("Use \(named(atRiskNames)) soon.\nFind a recipe to try.")
                     .reffiType(.body).foregroundStyle(ReffiColor.ink2).multilineTextAlignment(.center)
                 PaperButton(title: "Open recipe videos", fullWidth: false, seed: 5) {

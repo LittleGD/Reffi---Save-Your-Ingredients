@@ -231,7 +231,10 @@ enum RecipeRecommender {
     /// 45차: 선택 줄(`optional`)은 부족을 만들지 않고, 부족 줄은 대체 그래프를 한 번 조회해
     /// 채워지면 `substituted`로 옮긴다 — 그 재고는 used에도 들어가 발주 시 실제로 소비된다.
     static func result(for recipe: Recipe, ingredients: [Ingredient],
-                       inventory: [Ingredient]? = nil) -> Result {
+                       inventory: [Ingredient]? = nil,
+                       preferences: RecipePreferences = .none, now: Date = Date()) -> Result {
+        let ingredients = ingredients.filter { isUsable($0, preferences: preferences, now: now) }
+        let inventory = inventory?.filter { isUsable($0, preferences: preferences, now: now) }
         let nonStaple = recipe.ingredients.filter { !isStaple($0) }
         var used = ingredients.filter { ing in nonStaple.contains { matches(ing, $0) } }
         let stock = inventory ?? ingredients
@@ -477,13 +480,14 @@ enum RecipeRecommender {
                      recentCooked: [String: Date] = [:],
                      idf: IngredientIDF? = nil,
                      now: Date = Date()) -> [Result] {
+        let ingredients = ingredients.filter { isUsable($0, preferences: preferences, now: now) }
+        let inventory = inventory?.filter { isUsable($0, preferences: preferences, now: now) }
         // 45차: 후보 계산이 레시피×재고 이중 스캔에서 **캐논 역색인**으로 바뀌었다(bulkResults).
         // 의미는 result(for:)와 동일해야 하며(파리티 테스트가 시드 전수로 고정), 점수는 정렬 전에
         // 한 번만 계산한다(decorate-sort). 초기 정렬에도 id 최종 타이브레이크를 둬 전순서를 만든다 —
         // 잡채·타코가 세 키 동률로 stdlib 정렬 안정성에 걸려 있던 비결정성의 마감.
         let eligible = recipes.filter { recipe in
-            !containsAllergen(recipe, preferences.allergenIDs)   // 알레르기 하드 필터(안전 P0)
-                && !(preferences.vegetarian && containsAnimalProtein(recipe))   // 채식 하드 필터
+            isAllowed(recipe, preferences: preferences)
         }
         // 패스 기록의 해시 비교 기준 — missing 판정과 같은 세계(inventory ?? ingredients)를 본다.
         // 이력이 하나도 없으면 해시 계산 자체를 건너뛴다(감점 0 확정 — 파라미터 기본값 경로 무비용).
@@ -802,13 +806,10 @@ enum RecipeRecommender {
         return max(dis * dislikedPenaltyPerItem, dislikedPenaltyFloor)
     }
 
-    /// 알레르기 하드 필터 — 레시피 재료 중 하나라도 알레르겐이면 레시피 전체를 제외한다.
-    /// **상비재 예외 없음**(알레르기는 상비재도 거른다 — 안전 함의).
-    /// 한계: `canonicalID(of:)`/exact 비교에 기대므로, "chicken or vegetable stock" 같은 서술형
-    /// no-ref 라인에 알레르겐이 **부분 포함**되면 검사할 수 없다(포함 매칭은 오탐 위험이라 안 씀).
+    /// 상비재와 설명 속 대안도 검사한다. 구성을 특정할 수 없는 줄은 제한식에서 제외한다.
     private static func containsAllergen(_ recipe: Recipe, _ allergenIDs: Set<String>) -> Bool {
         guard !allergenIDs.isEmpty else { return false }
-        return recipe.ingredients.contains { item($0, matchesAny: allergenIDs,
+        return recipe.ingredients.contains { safetyKeys(of: $0).isEmpty || safetyKeys(of: $0).contains { IngredientLexicon.shared.entry(id: $0)?.unverifiedComposition == true } || item($0, matchesAny: allergenIDs,
                                                   expandingAllergenSources: true) }
     }
 
@@ -817,21 +818,42 @@ enum RecipeRecommender {
     private static let animalGlyphs: Set<FoodGlyph> = [.meat, .poultry, .sausage, .bacon,
                                                        .fish, .shrimp, .crab, .squid, .clam]
 
-    /// 채식(§5.2 vegetarian 옵션) 하드 필터 — 비상비(non-staple) 재료 중 사전 글리프가
-    /// Meat/Seafood 계열이거나 사전이 `animal: true`로 명시한 항목이면 레시피 전체 제외.
-    /// 글리프만 보면 동물성인데 글리프가 다른 항목(스팸=can, 액젓·굴소스·쯔유=sauceBottle)이
-    /// 전부 통과한다 — 그 예외 지식은 코드가 아니라 사전 플래그가 든다.
-    /// canonical ID로 판별할 수 없는 항목(서술형 no-ref 라인 등)은 **통과**시킨다 —
-    /// 보수성보다 가용성(판별 불가 라인 때문에 추천 풀이 말라붙지 않게).
+    static func isAllowed(_ recipe: Recipe, preferences: RecipePreferences) -> Bool {
+        !containsAllergen(recipe, preferences.allergenIDs)
+            && !(preferences.vegetarian && containsAnimalProtein(recipe))
+    }
+
+    private static func isAnimal(_ id: String) -> Bool {
+        guard let entry = IngredientLexicon.shared.entry(id: id) else { return false }
+        return entry.animal == true || FoodGlyph(rawValue: entry.glyph).map { animalGlyphs.contains($0) } == true
+    }
+
     private static func containsAnimalProtein(_ recipe: Recipe) -> Bool {
         recipe.ingredients.contains { item in
-            guard !isStaple(item),
-                  let id = canonicalID(of: item),
-                  let entry = IngredientLexicon.shared.entry(id: id) else { return false }
-            if entry.animal == true { return true }
-            guard let glyph = FoodGlyph(rawValue: entry.glyph) else { return false }
-            return animalGlyphs.contains(glyph)
+            let keys = safetyKeys(of: item)
+            return keys.isEmpty || keys.contains { isAnimal($0) || IngredientLexicon.shared.entry(id: $0)?.unverifiedComposition == true }
         }
+    }
+
+    /// 실제 투입 재고에도 같은 제한을 적용한다. 대체 및 총칭 매칭으로 제한을 우회할 수 없다.
+    static func isUsable(_ ingredient: Ingredient, preferences: RecipePreferences, now: Date = Date()) -> Bool {
+        guard ingredient.effectiveDaysLeft(asOf: now) >= 0,
+              preferences.allergenIDs.allSatisfy({ IngredientLexicon.shared.entry(id: $0) != nil }) else { return false }
+        let id = ingredient.canonicalID ?? IngredientLexicon.shared.canonicalID(for: ingredient.name)
+        guard let id, IngredientLexicon.shared.entry(id: id) != nil else { return preferences.allergenIDs.isEmpty && !preferences.vegetarian }
+        if IngredientLexicon.shared.entry(id: id)?.unverifiedComposition == true,
+           !preferences.allergenIDs.isEmpty || preferences.vegetarian { return false }
+        let item = Recipe.Item(ref: id, en: ingredient.name)
+        if preferences.vegetarian && isAnimal(id) { return false }
+        return !itemAllergenKeys(of: item).contains { preferences.allergenIDs.contains($0) }
+    }
+
+    /// 조리 설명 안의 육수 등은 소비 매칭과 분리된 정본 키로 검사한다.
+    private static func safetyKeys(of item: Recipe.Item) -> [String] {
+        var keys = itemKeys(of: item)
+        if keys.isEmpty, let id = shoppingCanonicalID(of: item) { keys.append(id) }
+        for id in item.safetyRefs ?? [] where !keys.contains(id) { keys.append(id) }
+        return keys
     }
 
     /// 레시피 항목이 정규화 키 집합에 속하는지 — canonicalID(+altRefs, 45차) 우선, no-ref 항목은
@@ -843,7 +865,7 @@ enum RecipeRecommender {
     /// 이 확장을 읽는 곳은 `containsAllergen` 하나뿐이다 — 기피(disliked) 감점까지 여기 태우면
     /// "우유가 싫다"가 치즈 요리 전체를 감점해 취향이 필터처럼 굴게 된다.
     private static func itemAllergenKeys(of item: Recipe.Item) -> [String] {
-        var keys = itemKeys(of: item)
+        var keys = safetyKeys(of: item)
         let lex = IngredientLexicon.shared
         var i = 0
         while i < keys.count {

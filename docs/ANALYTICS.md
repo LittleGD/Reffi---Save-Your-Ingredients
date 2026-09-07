@@ -13,7 +13,7 @@
 | 세션 | 마지막 활동 후 **30분** 무활동이면 새 세션(GA4와 같은 정의) |
 | 저장·전송 | 기기 큐(JSON, 상한 1000) → 포그라운드·백그라운드·20건 누적·로그인 시점에 100건씩 업로드, 실패 시 60초 뒤 재시도 |
 | 개인정보 | 재료 이름·구매처·닉네임·이메일은 **싣지 않는다**. 글리프(닫힌 enum)·건수·일수·시드 레시피 슬러그까지만 |
-| 옵트아웃 | 프로필 › App › **Share usage data** 토글(기본 켬). 끄면 큐까지 비운다. "Erase this device"는 install id도 새로 발급 |
+| 옵트아웃 | 프로필 › App › **Share usage data** 토글(기본 꺼짐, 명시적 선택 후 켬). 끄면 큐까지 비운다. "Erase this device"는 install id도 새로 발급 |
 | 개발 오염 방지 | DEBUG 빌드는 `channel = 'debug'`로 올라가고 지표 뷰는 `release`만 집계. 유닛 테스트 호스트에선 아예 꺼짐(`-analyticsOff`도 동일) |
 | 지표 | `analytics.*` 뷰(대시보드 SQL Editor에서 바로 조회). DAU/WAU/MAU·끈끈함, D1~D30·W1~W8 리텐션, 핵심 루프, 퍼널, 세션, 화면, 스캔 품질, 낭비 글리프 |
 
@@ -186,7 +186,7 @@ select * from analytics.events_daily where day = analytics.local_day(now());
   표면 정보(어느 화면의 판정인가, 어느 입구의 추가인가)는 호출부가 `surface:`/`source:`로 건넨다.
   메모리 스토어(프리뷰·테스트)는 no-op이고 테스트가 캡처 클로저로 갈아 끼운다(`AnalyticsTests`).
 - 화면·수명주기·계정은 뷰/`ReffiApp`(scenePhase)/`AuthStore`(authStateChanges)/`NotificationPresenter`(알림 탭)가 올린다.
-- 업로드는 `AuthStore.client.from("analytics_events").upsert(…, onConflict: "install_id,seq", returning: .minimal, ignoreDuplicates: true)`.
+- 업로드는 PostgREST POST를 사용한다. 배치를 만들 때 현재 계정 토큰을 고정하고 `on_conflict=install_id,seq`, `Prefer: resolution=ignore-duplicates,return=minimal`로 중복을 무시한다. 계정이 바뀌면 기존 큐를 비운다.
   `returning: .minimal`이어야 한다 — 이 테이블엔 SELECT 권한이 없어 representation을 요청하면 실패한다.
 - QA: `-analyticsOff`(킬스위치). DEBUG 빌드는 켜져 있어도 `channel = 'debug'`. Console.app에서 서브시스템
   `com.reffi.app` 카테고리 `analytics`로 이벤트가 찍히는 것을 본다.
@@ -222,7 +222,7 @@ select * from analytics.events_daily where day = analytics.local_day(now());
   실수로 노출돼도 RLS가 막는다. 대시보드(postgres)·service role만 읽는다.
 - 익명 로그인 키(publishable)로 누구나 **자기 uid로** 행을 넣을 수는 있다(모든 클라이언트 계측의 공통 조건).
   이름 정규식·props 4KB·채널 CHECK로 형태만 제한한다. 남용이 보이면 Edge Function 프록시(레이트리밋)로 옮긴다.
-- `user_id`에 FK를 걸지 않았다 — `AUTH_SETUP.md`가 권하는 익명 유저 주기 삭제가 코호트를 지우지 않게.
+- `0003_account_deletion.sql`은 `auth.users` 외래 키와 삭제 연쇄를 추가한다. 새 이벤트는 살아 있는 계정만 참조할 수 있다. 기존 고아 행은 별도 보존 정책 검토 대상이라 `NOT VALID`로 남긴다.
 
 ## 8. 프라이버시·스토어
 
@@ -230,8 +230,8 @@ select * from analytics.events_daily where day = analytics.local_day(now());
 - `Reffi/PrivacyInfo.xcprivacy`가 위 내용과 UserDefaults 접근 사유(CA92.1)를 신고한다. 추적 도메인 없음.
 - 개인정보처리방침에 문장 하나가 필요하다: "앱 사용 방식(화면 이동·기능 사용 횟수)을 계정 식별자와 함께
   수집해 서비스 개선에 사용하며, 설정에서 언제든 끌 수 있습니다. 재료명 등 입력 내용은 수집하지 않습니다."
-- **삭제 요청**: `select analytics.delete_user('<uid>');` — 계정 삭제 Edge Function(`AuthStore` TODO)이 생기면 거기서 함께 부른다.
-- **보존 기간**: 정하지 않았다(표본이 작다). 정하면 `pg_cron`으로 `delete … where received_at < now() - interval '180 days'`.
+- **삭제 요청**: 로그인한 사용자가 `public.delete_own_account()`를 호출한다. 서버 계정, 행동 기록, 이전 AI 사용량을 같은 트랜잭션에서 삭제한다. 운영자용 `analytics.delete_user(uuid)`도 유지된다.
+- **보존 기간**: 현재는 계정 삭제 시까지다. 기간 단축을 도입하려면 서버 정리 작업과 앱의 개인정보처리방침을 함께 변경한다. 기존 고아 행과 인프라 로그/백업의 보존 기간은 출시 전 운영자 확인이 필요하다.
   debug 채널은 `select analytics.purge_debug();`로 수시 정리.
 
 ## 9. 후속

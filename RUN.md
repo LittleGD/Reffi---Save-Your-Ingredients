@@ -45,8 +45,10 @@ xcrun simctl io booted screenshot reffi-home.png
 전부 `#if DEBUG` 경로다(릴리스 빌드엔 없다). 정본은 소스의 `ProcessInfo.processInfo.arguments` 분기 —
 새 인자를 추가하면 이 목록도 같이 갱신한다.
 
+- `-privacyView` 개인정보처리방침을 오프라인으로 직접 연다.
+
 **전용 루트 화면**(`ReffiApp.rootContent` — 아래 인자 하나만 주면 앱 대신 그 화면이 뜬다. 위에서부터 우선)
-- `-glyphGallery` 전 글리프 그리드. `-glyphGallery.wilted YES`면 모든 타일을 `.urgent`로 고정해 시듦 A/B 콘택트 시트를 찍는다 · `-titleClipLab` StoryScript 줄 끝 글리프 클리핑 실험실(폰트 advance 패치 회귀 검증)
+- `-glyphGallery` 전 글리프 그리드. `-glyphGallery.wilted YES`면 모든 타일을 `.urgent`로 고정해 시듦 A/B 콘택트 시트를 찍는다 · `-titleClipLab` OK단단체 한글·영문 Display/Heading 및 줄 끝 클리핑 확인
 - `-dishGallery` 시드 레시피 전체를 요리 아이콘 그리드로(§13.7 히어로 체인 검증). `-dishGallery.archetype YES`면 라벨이 요리명 대신 **원형 이름**(클러스터 분포 확인용). 스크롤 화면이라 스크린샷은 첫 판만 담는다 — 80개 전수 대조는 오프스크린 콘택트 시트(`ReffiTests/DishContactSheetTests`)가 맡는다
 - `-shareCardPreview` 공유용 레시피 영수증 카드(`RecipeShareCard`) 미리보기 · `-myRecipesPreview` 커스텀 레시피 목록/편집 — 목록이 비어 있으면 시드 앞 5개를 커스텀으로 복제해 채운다(새 UUID라 요리 아이콘이 **폴백 경로**를 탄다 = 실제 커스텀 레시피와 같은 조건). ⚠️ 복제본은 **실제 스토어에 영속 저장**된다 — 이 인자를 준 설치는 이후 정상 런치에서도 그 5개를 커스텀 레시피로 계속 들고 있고, 되돌리려면 MyPage에서 하나씩 지우거나 샘플을 다시 불러와야 한다
 - `-glyphMetrics` 글리프 알파 bbox 실측(물리 바디 파라미터 재계측) · `-buttonGallery` 버튼 갤러리 · `-authView` 로그인 화면
@@ -96,6 +98,18 @@ xcrun simctl io booted screenshot reffi-home.png
 - `REFFI_CONTACT_SHEET=1` 요리 아이콘 콘택트 시트 산출 — 없으면 해당 두 @Test는 단언만 하고 렌더·파일 쓰기를 건너뛴다(아래 "검증 상태")
 - `DISH_SHEET_DIR` 시트 저장 디렉터리(없으면 시뮬레이터 tmp)
 
+## OK단단체 준비
+
+공개 저장소에는 폰트 파일 자체를 재배포하지 않는다. 새 체크아웃에서는 XcodeGen 실행 전에 다음 명령으로 앱에 포함할 폰트를 준비한다.
+
+```sh
+python3 -m pip install 'fonttools[woff]==4.63.0'
+python3 scripts/prepare-font.py
+xcodegen generate
+```
+
+스크립트는 지정된 원본과 변환 결과의 SHA-256을 확인한다. 앱은 준비된 TTF를 번들에 포함해 오프라인에서 사용한다. 사용 조건은 `Reffi/Resources/Fonts/OKDANDAN-NOTICE.md`를 따른다.
+
 ## 릴리스(TestFlight)
 
 시뮬레이터 편의를 위해 `project.yml`이 앱 타깃에 `CODE_SIGNING_ALLOWED=NO`를 박아 두므로,
@@ -110,7 +124,8 @@ xcrun simctl io booted screenshot reffi-home.png
 #   MARKETING_VERSION: "1.0"          # 표시 버전 — 스토어에 보이는 값
 #   CURRENT_PROJECT_VERSION: "2"      # 빌드 번호 — 업로드마다 반드시 +1(같은 번호 재업로드는 거부된다)
 xcodegen generate                     # 생성물(.xcodeproj·Info.plist)에 반영
-git commit -am 'chore(release): TestFlight 빌드 번호 N'
+git add project.yml Reffi/Info.plist
+git commit -m 'chore(release): TestFlight 빌드 번호 N'
 ```
 
 ### 2) 아카이브 (서명 오버라이드)
@@ -147,7 +162,7 @@ python3 scripts/check-strings.py     # 코드 리터럴 ⊆ Localizable.xcstring
 
 ## 기술 스택
 - **SwiftUI / Swift 6.3** · 배포 타깃 **iOS 18+** · 데이터는 `@Observable` + 샘플(SwiftData는 다음 단계)
-- **폰트**(전부 SIL OFL, 번들): Pretendard(한글·본문) / Google Sans Flex(데이터 숫자) / Story Script(워드마크)
+- **폰트**(번들): OK단단체(Display·Heading, 한·영 공통) / Pretendard(소제목·본문·캡션) / Google Sans Flex(데이터 숫자). Pretendard·GSF는 SIL OFL. OK단단체는 상업적 사용과 임베딩을 허용하는 별도 무료 라이선스다. `Reffi/Resources/Fonts/OKDANDAN-NOTICE.md` 참고.
 - **아이콘**: Phosphor `PhosphorSwift` 2.1.0 (SPM, MIT)
 - **색**: OKLCH 정본 → 런타임 sRGB 변환(`ReffiColor`), hex 미사용
 

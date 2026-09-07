@@ -13,6 +13,7 @@ struct AuthView: View {
     @State private var mode: Mode = .signIn
     @State private var email = ""
     @State private var password = ""
+    @State private var showPrivacy = false
     @FocusState private var focus: Field?
     private enum Field { case email, password }
 
@@ -28,7 +29,7 @@ struct AuthView: View {
 
     private var isSignIn: Bool { mode == .signIn }
     private var canSubmit: Bool {
-        email.contains("@") && password.count >= 6 && !auth.busy
+        email.contains("@") && password.count >= 6 && !auth.busy && auth.availability.email
     }
 
     var body: some View {
@@ -42,6 +43,7 @@ struct AuthView: View {
                     wordmark
                     receiptCard
                     guestButton
+                    Button("Privacy Policy") { showPrivacy = true }.frame(minHeight: 44)
                 }
                 .padding(.horizontal, ReffiGrid.margin)
                 .padding(.top, ReffiSpace.s7 + ReffiSpace.s5)
@@ -51,12 +53,13 @@ struct AuthView: View {
         }
         // 프로필에서 시트로 띄운 경우의 닫기 신호(룰④) — 핸들 노출. 루트 게이트로 쓰일 땐
         // 시트가 아니라 이 modifier가 무시되므로 무해하다.
+        .sheet(isPresented: $showPrivacy) { PrivacyView() }
         .presentationDragIndicator(.visible)
         // 시트 높이도 같은 이유로 여기서 선언한다(룰⑪ / §14.5 "미설정=무조건 풀높이" 금지).
         // 로그인 화면은 워드마크·소셜 버튼·게스트 진입이 한 화면에 다 서야 해서 `.large` 한 단이다 —
         // `.medium`을 함께 주면 절반 높이에서 CTA가 잘린다. 호출부(ProfileView)엔 중복 선언하지 않는다.
         .presentationDetents([.large])
-        .onOpenURL { auth.handleOpenURL($0) }
+        .task { await auth.refreshAvailability() }
         // 프로필에서 시트로 띄운 경우 — 정식(비익명) 세션이 생기면 자동 닫힘.
         // 게이트(루트)에서는 dismiss가 no-op이라 무해하다.
         .onChange(of: auth.session?.user.isAnonymous) { _, isAnon in
@@ -103,14 +106,17 @@ struct AuthView: View {
 
             // 소셜 우선 — Apple/Google을 기본 이메일 로그인보다 위에 배치.
             // fg는 onInk — ink 면이 다크에서 크림으로 뒤집히므로 흰 리터럴이 아닌 ink 대응 콘텐츠 토큰을 쓴다.
-            socialButton(icon: .appleLogo, title: "Continue with Apple", provider: .apple,
-                         fill: ReffiColor.ink, fg: ReffiColor.onInk, seed: 5) { startApple() }
-            socialButton(icon: .googleLogo, title: "Continue with Google", provider: .google,
-                         fill: ReffiColor.paper, fg: ReffiColor.ink, seed: 6) {
-                Task { await auth.signInWithGoogle() }
+            if auth.availability.apple {
+                socialButton(icon: .appleLogo, title: "Continue with Apple", provider: .apple,
+                             fill: ReffiColor.ink, fg: ReffiColor.onInk, seed: 5) { startApple() }
             }
-
-            dashRule
+            if auth.availability.google {
+                socialButton(icon: .googleLogo, title: "Continue with Google", provider: .google,
+                             fill: ReffiColor.paper, fg: ReffiColor.ink, seed: 6) {
+                    Task { await auth.signInWithGoogle() }
+                }
+            }
+            if auth.availability.apple || auth.availability.google { dashRule }
 
             field("Email", text: $email, focused: .email)
                 .textContentType(.emailAddress)
@@ -131,6 +137,12 @@ struct AuthView: View {
                         isBusy: auth.busy && pending == nil, action: submit)
                 .disabled(!canSubmit)   // 디밍은 PaperButton이 §7.2로 처리 — 여기서 겹치면 곱해진다.
 
+            if isSignIn {
+                Button("Forgot password?") { Task { await auth.sendPasswordReset(email: email) } }
+                    .reffiType(.caption)
+                    .disabled(!email.contains("@") || auth.busy)
+                    .frame(minHeight: 44)
+            }
             modeToggle
 
             footer

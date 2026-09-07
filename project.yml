@@ -8,8 +8,7 @@ options:
 
 packages:
   PhosphorSwift:
-    url: https://github.com/phosphor-icons/swift
-    from: 2.1.0
+    path: Vendor/PhosphorSwift
   Supabase:
     url: https://github.com/supabase/supabase-swift
     from: 2.0.0
@@ -72,14 +71,14 @@ targets:
           - Pretendard-SemiBold.otf
           - Pretendard-Bold.otf
           - GoogleSansFlex-Regular.ttf
-          - StoryScript-Regular.ttf
+          - OkDanDan-Bold.ttf
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.reffi.app
         # Sign in with Apple — 시뮬레이터(서명 없음)에선 무시되고, 실기기/배포 서명 시 임베드된다.
         CODE_SIGN_ENTITLEMENTS: Reffi/Reffi.entitlements
         MARKETING_VERSION: "1.0"
-        CURRENT_PROJECT_VERSION: "24"
+        CURRENT_PROJECT_VERSION: "26"
         SWIFT_VERSION: "5.0"
         TARGETED_DEVICE_FAMILY: "1"
         CODE_SIGNING_REQUIRED: "NO"

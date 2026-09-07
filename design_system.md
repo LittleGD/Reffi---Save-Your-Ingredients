@@ -248,37 +248,41 @@
 
 ## 3. 타이포그래피 (Typography)
 
-> **폰트만** 바꾸고, 위계·크기·행간·자간·반응형 등 **타이포 시스템은 Reffi 것을 그대로** 유지한다.
+> 위계·크기·반응형은 유지한다. OK단단체의 Display·Heading은 자간 −2%, 웹 행간 115%, 앱 추가 행간 0pt로 조금 더 조밀하게 표시한다.
 
 ### 3.1 서체
-- **Display = Story Script** — Google Fonts 스크립트(브러시) 서체. 브랜드 모먼트(워드마크·온보딩·표지 타이틀)의 영문 디스플레이에만. **라틴 전용·단일 weight 400**(아래 확인 결과). 한글 디스플레이는 **Pretendard Bold**로 폴백.
-- **그 외 위계(Heading·Subhead·Body·Caption)**: **한글 = Pretendard**, **영문/숫자 = Google Sans Flex**. 스택 맨 앞에 GSF를 두면 라틴은 GSF, 한글은 글리프 부재로 Pretendard로 렌더된다.
-
-> **확인 결과(2026-05, Google Fonts CSS API 직접 검증):**
-> - **Story Script** — 서브셋 `latin / latin-ext / vietnamese`, 한글(U+AC00–) **없음**, weight **400 단일**. → 디스플레이는 영문 브랜드용, 한글은 Pretendard.
-> - **Google Sans Flex** — 서브셋에 `korean` 및 한글 범위 **없음**. → 한글은 Pretendard 담당.
-> - (이전 안의 SUIT 폴백은 이번 지시에 따라 **Pretendard로 대체**.)
+- **Display·Heading = OK단단체**. 한글과 영문 모두 같은 서체를 쓴다. CSS 별칭은 `OkDandan`, iOS PostScript 등록명은 `OkDanDan-Bold`이다. 원본 파일은 단일 face이며 내부 weight는 500, 웹 CSS는 제공된 예시대로 normal(400)에 매핑한다.
+- **Subhead·Body·Caption**: 앱은 한글·영문 모두 **Pretendard**. 웹 쇼케이스는 영문/숫자 **Google Sans Flex**, 한글 **Pretendard**를 쓴다. 데이터성 숫자는 앱에서도 Google Sans Flex(`reffiNum`, §3.4)를 쓴다.
+- 사용자 지정 WOFF2 파일에서 ASCII 95자와 한글 완성형 11,172자의 글리프를 확인했다(2026-09-06). 기존 한국어 Display의 Pretendard Bold 분기는 제거했다. 지원하지 않는 문자에 대한 플랫폼 폴백은 유지된다.
+- iOS 앱은 WOFF2 컨테이너를 해제한 `OkDanDan-Bold.ttf`를 번들에서 로드한다. 글리프와 이름·메트릭은 변경하지 않으며, 실행 중 CDN 요청은 하지 않는다.
 
 ```css
---font-display: "Story Script", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo", system-ui, cursive;
+@font-face {
+  font-family: 'OkDandan';
+  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/2508-2@1.0/OkDanDan-Bold.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+--font-display: "OkDandan", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo", system-ui, sans-serif;
 --font:         "Google Sans Flex", "Pretendard Variable", Pretendard, -apple-system, "Apple SD Gothic Neo", system-ui, sans-serif;
 ```
 ```html
-<link href="https://fonts.googleapis.com/css2?family=Story+Script&family=Google+Sans+Flex:wght@400..700&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:wght@400..700&display=swap" rel="stylesheet" />
 <!-- Pretendard: cdn.jsdelivr.net/gh/orioncactus/pretendard 등에서 로드 -->
 ```
-- **메트릭 보정**: Pretendard·GSF의 x-height·기준선이 달라 한·영 혼용 줄이 어긋나면 `@font-face`의 `size-adjust`/`ascent-override` 또는 `font-size-adjust`로 맞춘다.
-- **Story Script 예외**: 스크립트·단일 weight라 Display는 **weight 400**, 자간은 **0(normal)** 로 둔다(연결 글자라 음수 트래킹 부적합). 한글 폴백(Pretendard)일 때만 700.
-- **iOS 구현 주의**: SwiftUI(`ReffiTextRole`)는 UI 텍스트(Heading·Subhead·Body·Caption)를 **Pretendard 단일 패밀리**로 렌더한다(라틴 포함). 데이터성 숫자만 Google Sans Flex(`reffiNum`, §3.4). 즉 라틴=GSF 규칙은 **웹 쇼케이스 한정**이고, 앱은 Pretendard로 통일한다(혼용 줄 어긋남 방지).
+- Display·Heading은 원본 Bold face를 그대로 쓰고 합성 Bold를 적용하지 않는다. 웹에서는 제공된 CSS처럼 normal(400)에 매핑한다. 크기는 유지하고 Display·Heading 자간은 −2%, 웹 행간은 115%, 앱 추가 행간은 0pt를 쓴다.
+- Pretendard·GSF 혼용 줄의 메트릭 보정은 기존 규칙을 유지한다.
+- **라이선스:** 상업적 사용과 임베딩을 허용하는 OKTICON 무료 폰트다. OFL은 아니며, 폰트 파일 자체의 판매·별도 재배포 등은 제한된다. `Reffi/Resources/Fonts/OKDANDAN-NOTICE.md` 참고.
 
 ### 3.2 위계 (5단계) — 시스템 동일
-역할은 4개(**Display · Heading · Body · Caption/Label**)이며, Heading을 크기 2단(**Heading / Subhead**)으로 나눠 **총 5위계**. **행간**: Display·Heading·Subhead = 120% / Body·Caption = 140%. **자간**: Display·Heading·Subhead·Body = −1% / Caption = +1% (단 Story Script Display는 0, §3.1).
+역할은 4개(**Display · Heading · Body · Caption/Label**)이며, Heading을 크기 2단(**Heading / Subhead**)으로 나눠 **총 5위계**. **웹 행간**: Display·Heading = 115% / Subhead = 120% / Body·Caption = 140%. **자간**: Display·Heading = −2% / Subhead·Body = −1% / Caption = +1%. 앱 Display·Heading의 추가 행간은 0pt다(§3.1).
 
 #### 데스크탑/태블릿 (≥1200px) — 최소 16px
 | 위계 | size | line-height | letter-spacing | weight |
 |---|---|---|---|---|
-| Display | 48px | 1.2 (57.6px) | −0.01em* | 700 / *Story Script 400 |
-| Heading | 32px | 1.2 (38.4px) | −0.01em | 700 |
+| Display | 48px | 1.15 (55.2px) | −0.02em | 400 |
+| Heading | 32px | 1.15 (36.8px) | −0.02em | 400 |
 | Subhead | 22px | 1.2 (26.4px) | −0.01em | 600 |
 | Body | 18px | 1.4 (25.2px) | −0.01em | 400 |
 | Caption / Label | **16px** | 1.4 (22.4px) | **+0.01em** | 500 |
@@ -286,8 +290,8 @@
 #### 모바일 (<1200px) — 최소 14px
 | 위계 | size | line-height | letter-spacing | weight |
 |---|---|---|---|---|
-| Display | 34px | 1.2 (40.8px) | −0.01em* | 700 / *Story Script 400 |
-| Heading | 24px | 1.2 (28.8px) | −0.01em | 700 |
+| Display | 34px | 1.15 (39.1px) | −0.02em | 400 |
+| Heading | 24px | 1.15 (27.6px) | −0.02em | 400 |
 | Subhead | 18px | 1.2 (21.6px) | −0.01em | 600 |
 | Body | 16px | 1.4 (22.4px) | −0.01em | 400 |
 | Caption / Label | **14px** | 1.4 (19.6px) | **+0.01em** | 500 |
@@ -440,7 +444,7 @@
 
 ## 5. 아이콘 (Icon)
 
-- **SVG 라인/플랫 아이콘만.** 이모지·이미지 폰트를 기능 아이콘으로 쓰지 않는다.
+- **벡터 라인/플랫 아이콘만.** 앱은 원본 SVG 모양을 벡터 PDF로 보관한다. 이모지·이미지 폰트를 기능 아이콘으로 쓰지 않는다.
 - **색은 `currentColor` 상속.** 캔버스 위 단독 상태 아이콘은 §2.6에 따라 Fresh/Soon/Urgent는 **dark 변형**으로.
 - **색으로 채운 아이콘 박스 금지.** 아이콘 뒤에 단색으로 채운 정사각/둥근 타일(컬러 칩)을 두지 않는다. 아이콘은 면 위에 **직접**. 강조는 박스가 아니라 아이콘 색·여백·타이포로.
   - 좁은 예외: 아바타·로고마크처럼 박스 자체가 콘텐츠인 경우.
@@ -777,10 +781,10 @@ iPhone 쪽 한계는 넷이다 — ① 액추에이터가 **하나**(좌·우 2�
 - [ ] 종이 카드 **위**의 미선택 칩·OFF 트랙 면이 `sub`가 아니라 `subRaised`인가(§2.8)
 - [ ] 미체크 체크박스 경계가 `paperEdgeState`(3:1)인가 — 무명 ink α 리터럴이 아닌가(§2.7)
 - [ ] "Cancel"이라는 낱말을 파괴 확정(primary)에 쓰지 않았는가 — Cancel은 안전한 secondary 전용이다(§14.7)
-- [ ] Display=Story Script(영문)/Pretendard(한글), 그 외 GSF(영문)/Pretendard(한글)인가
+- [ ] Display·Heading=OK단단체(한·영), 나머지 위계와 데이터 숫자는 §3.1을 따르는가
 - [ ] 데이터성 숫자에 `.num`(tabular)을 적용했는가 · D-day 표기가 `Ingredient.dDayText` 한 포맷터에서 나왔는가 · 수치를 로케일 포맷터(`FormatStyle`)로 만들었는가(§3.4)
 - [ ] 텍스트가 `word-break:keep-all` + orphan 방지를 따르는가
-- [ ] 아이콘이 SVG이고 **색 채운 아이콘 박스가 없는가**
+- [ ] 아이콘이 벡터이고 **색 채운 아이콘 박스가 없는가**
 - [ ] 인터랙티브 요소가 hover·active·focus·disabled를 모두 갖고 hover에 포인터 가드가 있는가
 - [ ] 터치 타깃 44×44(권장 48) 이상, 간격 ≥8px인가
 - [ ] `prefers-reduced-motion`을 존중하고 `transition:all`을 안 썼는가
@@ -828,8 +832,8 @@ iPhone 쪽 한계는 넷이다 — ① 액추에이터가 **하나**(좌·우 2�
 1. **신선도 매핑 구간**: 팀 표의 D-4~6 공백을 **Fresh = D-4+**, Soon = D-3~1, Urgent = D-0/지남으로 메웠다. 실제 임계값은 제품 기준에 맞춰 조정.
 2. **파스텔 강도(특히 Urgent)**: Urgent main을 `oklch(74% …)`로 잡아 "오늘!"의 무게를 약간 남겼다(다른 두 색보다 살짝 진함). 더 파스텔하게 원하면 L을 ~80%까지 올릴 수 있으나 ink 대비(현 6.66)가 낮아진다.
 3. **카드 곡률 20 vs 24**: 팀의 20px를 내 곡률 스케일의 `radius-xl(24)`로 흡수했다. 지갑 무드에 20을 꼭 쓰려면 스케일에 20을 정식 토큰으로 추가할지 결정 필요.
-4. **Story Script**: 라틴 전용·단일 weight 400 확인 → Display는 영문 브랜드 모먼트용, 한글은 Pretendard Bold. 스크립트라 Display 자간 0·weight 400로 운용(타이포 시스템의 −1%/700에 대한 폰트 기인 예외).
-5. **한글 폰트**: 이번 지시로 한글=Pretendard 확정(이전 안의 SUIT 대체). GSF·Pretendard 혼용 줄 메트릭 보정(§3.1)은 실제 텍스트로 점검 권장.
+4. **OK단단체**: Display·Heading에 한글·영문 공통 적용. 원본 Bold face를 사용하며 웹 CSS는 normal(400)에 매핑한다. 상업적 사용과 임베딩 허용 조건은 폰트 고지 문서를 따른다.
+5. **소제목·본문·캡션**: 앱은 Pretendard를 유지한다. 웹은 GSF·Pretendard 혼용 줄 메트릭을 확인한다.
 6. **본문 자간 −1%**: 라틴 기준 0 권고가 있으나 한글(Pretendard) 본문에 자연스러운 네 스펙을 유지.
 7. **데스크탑 그리드 마진**: §9.3 주석 참조.
 8. **AI 레시피 생성 제거(2026-08-08, owner decision).** MVP 스코프에서 인앱 AI 레시피 생성(온디바이스·클라우드 프록시 엔진 체인, 동의 토글, 일일 캡, 발주 덱의 sparkle/AI 배지, 캐러셀 진행 힌트 "Cooking up an AI ticket…")을 전면 제거했다 — 단서 카드 방향으로 정리하면서 생성형 레시피가 불필요해졌다(§13.5·§13.6). Supabase `recipe-generate` 함수와 `docs/AI_SETUP.md`는 향후 재활성화를 위해 그대로 유지한다(제거는 앱 표면 한정). Blue 토큰의 "레시피·AI·기본 액션" 역할 설명(§2.2 등)은 바꾸지 않았다 — 온보딩 개인화 문구의 AI 아이콘 등 생성과 무관한 다른 용도가 남아 있다.
@@ -952,16 +956,16 @@ iPhone 쪽 한계는 넷이다 — ① 액추에이터가 **하나**(좌·우 2�
   --tap-min: 44px;   /* §7.3 — 네이티브 짝은 `ReffiChrome.tapMin`. 히트 프레임은 콜사이트 리터럴 금지 */
 
   /* ---- Fonts ---- */
-  --font-display: "Story Script", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo", system-ui, cursive;
+  --font-display: "OkDandan", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo", system-ui, sans-serif;
   --font:         "Google Sans Flex", "Pretendard Variable", Pretendard, -apple-system, "Apple SD Gothic Neo", system-ui, sans-serif;
 
   /* ---- Type (Desktop ≥1200 / min 16px) ---- */
-  --d-display: 400 48px/1.2 var(--font-display);  /* Story Script 400 */
-  --d-heading: 700 32px/1.2 var(--font);
+  --d-display: 400 48px/1.15 var(--font-display);  /* OK단단체 400, 한·영 공통 */
+  --d-heading: 400 32px/1.15 var(--font-display);
   --d-subhead: 600 22px/1.2 var(--font);
   --d-body:    400 18px/1.4 var(--font);
   --d-caption: 500 16px/1.4 var(--font);
-  --d-display-size: 48px;   /* 한글 디스플레이(Pretendard Bold) 크기 */
+  --d-display-size: 48px;   /* 한·영 공통 디스플레이 크기 */
 
   /* ---- Grid ---- */
   --bp: 1200px;
@@ -1054,9 +1058,9 @@ iPhone 쪽 한계는 넷이다 — ① 액추에이터가 **하나**(좌·우 2�
     0 -8px 20px -4px oklch(0% 0 0 / 0.05);
 }
 
-/* Tracking helpers (−1% / +1%, Display(Story Script)는 0) */
-.t-heading,.t-subhead,.t-body { letter-spacing: -0.01em; }
-.t-display { letter-spacing: 0; }
+/* Tracking helpers */
+.t-subhead,.t-body { letter-spacing: -0.01em; }
+.t-display,.t-heading { letter-spacing: -0.02em; }
 .t-caption { letter-spacing: 0.01em; }
 
 /* Tabular numerals (데이터성 숫자) */
@@ -1076,7 +1080,7 @@ iPhone 쪽 한계는 넷이다 — ① 액추에이터가 **하나**(좌·우 2�
 /* Mobile type (<1200px / min 14px) */
 @media (max-width: 1199.98px) {
   :root {
-    --d-display: 400 34px/1.2 var(--font-display);
+    --d-display: 400 34px/1.15 var(--font-display);
     --d-heading: 700 24px/1.2 var(--font);
     --d-subhead: 600 18px/1.2 var(--font);
     --d-body:    400 16px/1.4 var(--font);

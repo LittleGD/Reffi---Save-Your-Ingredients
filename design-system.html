@@ -8,8 +8,15 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:wght@400..700&family=Story+Script&display=swap" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:wght@400..700&display=swap" />
 <style>
+@font-face {
+  font-family: 'OkDandan';
+  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/2508-2@1.0/OkDanDan-Bold.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
 :root {
   /* ---- Brand · Fresh / Soon / Urgent (파스텔) + Blue (Reffi) ---- */
   --color-fresh:        oklch(86%   0.12  136);  /* #ADE393 신선 */
@@ -125,12 +132,12 @@
   --tap-min: 44px;   /* §7.3 — 네이티브 짝은 `ReffiChrome.tapMin`. 히트 프레임은 콜사이트 리터럴 금지 */
 
   /* ---- Fonts ---- */
-  --font-display: "Story Script", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo", system-ui, cursive;
+  --font-display: "OkDandan", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo", system-ui, sans-serif;
   --font:         "Google Sans Flex", "Pretendard Variable", Pretendard, -apple-system, "Apple SD Gothic Neo", system-ui, sans-serif;
 
   /* ---- Type (Desktop ≥1200 / min 16px) ---- */
-  --d-display: 400 48px/1.2 var(--font-display);  /* Story Script 400 (Latin) */
-  --d-heading: 700 32px/1.2 var(--font);
+  --d-display: 400 48px/1.15 var(--font-display);  /* OK단단체 400, 한·영 공통 */
+  --d-heading: 400 32px/1.15 var(--font-display);
   --d-subhead: 600 22px/1.2 var(--font);
   --d-body:    400 18px/1.4 var(--font);
   --d-caption: 500 16px/1.4 var(--font);
@@ -229,8 +236,8 @@
 
 @media (max-width: 1199.98px) {
   :root {
-    --d-display: 400 34px/1.2 var(--font-display);
-    --d-heading: 700 24px/1.2 var(--font);
+    --d-display: 400 34px/1.15 var(--font-display);
+    --d-heading: 400 24px/1.15 var(--font-display);
     --d-subhead: 600 18px/1.2 var(--font);
     --d-body:    400 16px/1.4 var(--font);
     --d-caption: 500 14px/1.4 var(--font);
@@ -263,9 +270,9 @@ h1, h2, h3 { text-wrap: balance; }
 .num { font-variant-numeric: tabular-nums lining-nums; font-feature-settings: "tnum" 1, "lnum" 1; }
 
 /* ---- Type role classes ---- */
-.t-display { font: var(--d-display); letter-spacing: 0; margin: 0; }          /* Story Script · Latin */
-.display-ko { font-family: var(--font); font-weight: 700; font-size: var(--d-display-size); line-height: 1.2; letter-spacing: -0.01em; margin: 0; }  /* 한글 디스플레이 = Pretendard Bold */
-.t-heading { font: var(--d-heading); letter-spacing: -0.01em; margin: 0; }
+.t-display { font: var(--d-display); letter-spacing: -0.02em; margin: 0; }          /* OK단단체, 한·영 공통 */
+.display-ko { font: var(--d-display); letter-spacing: -0.02em; margin: 0; }  /* 언어별 서체 분기 없음 */
+.t-heading { font: var(--d-heading); letter-spacing: -0.02em; margin: 0; }
 .t-subhead { font: var(--d-subhead); letter-spacing: -0.01em; margin: 0; }
 .t-body    { font: var(--d-body);    letter-spacing: -0.01em; margin: 0; }
 .t-caption { font: var(--d-caption); letter-spacing: 0.01em;  margin: 0; }
@@ -305,7 +312,7 @@ h1, h2, h3 { text-wrap: balance; }
 }
 :root[data-theme="dark"] .theme-toggle .i-sun { display: none; }
 :root[data-theme="dark"] .theme-toggle .i-moon { display: block; }
-.nav__logo { font-family: var(--font-display); font-weight: 400; font-size: 34px; line-height: 1; letter-spacing: 0; }
+.nav__logo { font-family: var(--font-display); font-weight: 400; font-size: 34px; line-height: 1; letter-spacing: -0.02em; }
 .nav__tag { font-size: 13px; color: var(--chrome-blue-tint); letter-spacing: 0.01em; }
 .nav__desc { font-size: 13px; line-height: 1.5; color: var(--chrome-blue-tint); margin: 0 0 var(--space-5); }
 .nav__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
@@ -337,8 +344,8 @@ h1, h2, h3 { text-wrap: balance; }
   padding: var(--space-7) var(--space-5);
 }
 .hero__inner { max-width: 1040px; margin: 0 auto; }
-.hero .eyebrow { font-family: var(--font-display); font-weight: 400; font-size: 40px; line-height: 1; letter-spacing: 0; color: var(--chrome-blue-tint); margin: 0 0 var(--space-3); }
-.hero h1 { font-size: var(--d-display-size); font-weight: 700; line-height: 1.2; letter-spacing: -0.02em; margin: 0 0 var(--space-4); max-width: 18ch; }
+.hero .eyebrow { font-family: var(--font-display); font-weight: 400; font-size: 40px; line-height: 1; letter-spacing: -0.02em; color: var(--chrome-blue-tint); margin: 0 0 var(--space-3); }
+.hero h1 { font: var(--d-display); letter-spacing: -0.02em; margin: 0 0 var(--space-4); max-width: 18ch; }
 .hero p { font: var(--d-body); color: var(--chrome-blue-tint); margin: 0; max-width: 56ch; }
 .hero__pills { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-5); }
 .hero__pills span {
@@ -1258,20 +1265,20 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
       <section class="section" id="type">
         <span class="section__num num">03</span>
         <h2 class="text">타이포그래피</h2>
-        <p class="section__lead text">Display는 <strong>Story Script</strong>(영문 브랜드 모먼트, 단일 weight 400). 그 외 위계는 한글 <strong>Pretendard</strong> · 영문 <strong>Google Sans Flex</strong>. 폰트만 바꾸고 크기·행간·자간·반응형은 Reffi 시스템 그대로 — 역할 4개 + Heading 2단 = 총 5위계.</p>
+        <p class="section__lead text">Display와 Heading은 <strong>OK단단체</strong>를 한국어·영어에 공통으로 적용합니다. 원본 Bold 파일을 그대로 사용하며, CSS는 normal(400)에 매핑합니다. 크기는 유지하고 Display·Heading 자간은 −2%, 웹 행간은 115%로 좁혔습니다. Subhead·Body·Caption은 기존 서체를 유지합니다. 앱은 Pretendard, 이 웹 쇼케이스는 영문 Google Sans Flex와 한글 Pretendard입니다.</p>
 
         <div class="card" style="background:var(--neutral-50);box-shadow:var(--shadow-1)">
           <div class="type-spec">
             <div class="type-row">
-              <div class="type-row__tag">Display<small>Story Script · 48 / 400 / 120%</small></div>
+              <div class="type-row__tag">Display<small>OK단단체 · 48 / 400 / 115%</small></div>
               <div class="t-display">eat me first</div>
             </div>
             <div class="type-row">
-              <div class="type-row__tag">Display (한글)<small>Pretendard Bold 폴백 · 48 / 700</small></div>
+              <div class="type-row__tag">Display (한글)<small>OK단단체 · 48 / 400</small></div>
               <div class="display-ko text--title">오늘 뭐 먹지</div>
             </div>
             <div class="type-row">
-              <div class="type-row__tag">Heading<small>32 / 700 / 120%</small></div>
+              <div class="type-row__tag">Heading<small>OK단단체 · 32 / 400 / 115%</small></div>
               <div class="t-heading text--title">냉장고를 비우는 가장 맛있는 방법</div>
             </div>
             <div class="type-row">
@@ -1383,7 +1390,7 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
       <section class="section" id="icons">
         <span class="section__num num">05</span>
         <h2 class="text">아이콘</h2>
-        <p class="section__lead text">SVG 라인/플랫 아이콘만. 색은 <code class="inline">currentColor</code> 상속. 색으로 채운 아이콘 박스는 금지 — 아이콘은 면 위에 직접 놓는다.</p>
+        <p class="section__lead text">벡터 라인/플랫 아이콘만. 앱은 원본 SVG 모양을 벡터 PDF로 보관한다. 색은 <code class="inline">currentColor</code> 상속. 색으로 채운 아이콘 박스는 금지 — 아이콘은 면 위에 직접 놓는다.</p>
 
         <div class="card" style="background:var(--neutral-50);box-shadow:var(--shadow-1)">
           <div class="icon-grid">
@@ -1724,10 +1731,10 @@ code.inline { font-family: ui-monospace, Menlo, monospace; font-size: 0.88em; ba
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">"Cancel"이라는 낱말을 파괴 확정(primary)에 쓰지 않았는가 — Cancel은 안전한 secondary 전용이다(§14.7)</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">라벨·크롬·칩 텍스트가 raw <code class="inline">.custom(...)</code>이 아니라 §3.5 보조 스케일 10종(<code class="inline">ReffiActionRole</code>)에서 왔는가 · 올캡 모노 role이 번역되는 문자열에 붙지 않았는가(그 자리는 <code class="inline">groupLabel</code>)</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">role을 <strong>옆 글자 크기가 아니라 계층</strong>으로 골랐는가 — §3.5 배정 표의 한 행을 짚을 수 있는가(묶음 이름표 = <code class="inline">groupLabel</code> + <code class="inline">muted</code> · 목록 항목명·<strong>라벨=값 행의 라벨</strong> = <code class="inline">checklistItem</code> · 입력 면 위 폼 라벨 = <code class="inline">body</code> · 1차 CTA 밖 버튼 = <code class="inline">pillLabel</code>) — <strong>라벨=값 행이면 라벨의 획이 값보다 굵은가</strong></span></li>
-          <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">Display=Story Script(영문)/Pretendard(한글), 그 외 GSF(영문)/Pretendard(한글)인가</span></li>
+          <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">Display·Heading=OK단단체(한·영), 나머지 위계와 데이터 숫자는 §3.1을 따르는가</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">데이터성 숫자에 <code class="inline">.num</code>(tabular)을 적용했는가 · D-day 표기가 <code class="inline">Ingredient.dDayText</code> 한 포맷터에서 나왔는가 · 수치를 로케일 포맷터로 만들었는가 (§3.4)</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">모든 텍스트가 <code class="inline">word-break:keep-all</code> + orphan 방지를 따르는가</span></li>
-          <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">아이콘이 SVG이고 색으로 채운 아이콘 박스가 없는가</span></li>
+          <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">아이콘이 벡터이고 색으로 채운 아이콘 박스가 없는가</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">인터랙티브 요소가 hover·active·focus·disabled를 모두 갖고, hover에 포인터 가드가 있는가</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text">터치 타깃이 44×44(권장 48) 이상, 간격 ≥8px인가</span></li>
           <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span class="text"><code class="inline">prefers-reduced-motion</code>을 존중하고 <code class="inline">transition:all</code>을 쓰지 않았는가</span></li>

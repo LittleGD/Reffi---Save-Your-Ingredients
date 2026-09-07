@@ -1,7 +1,7 @@
 import SwiftUI
 import PhosphorSwift
 
-/// Phosphor(MIT) 아이콘 단일 진입점. 모두 SVG 라인, currentColor 상속(§5).
+/// Phosphor(MIT) 아이콘 단일 진입점. 원본 SVG 모양을 벡터 PDF로 보관하며 템플릿 틴트를 상속(§5).
 /// 케이스명이 바뀌면 이 파일만 고친다. 색 채운 아이콘 박스 금지(§5).
 enum ReffiIcon {
     // 네비

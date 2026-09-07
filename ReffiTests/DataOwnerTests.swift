@@ -1,24 +1,63 @@
 import Testing
+import Foundation
 @testable import Reffi
 
-/// `DataOwner.shouldWipe(previous:newID:)`(2026-08, 37차) — 게스트→계정 전환에서 로컬 데이터가
-/// 언제 지워지는가(그리고 언제 지워지지 않아야 하는가)를 뷰 없이 고정한다.
-/// `RootGateView.reconcileDataOwner`의 문서 주석이 적은 세 경로를 그대로 검증한다:
-///   ① 같은 계정 재로그인 = previous == newID → 와이프 없음
-///   ② 익명→가입 승계·최초 기록 = previous == nil → 와이프 없음(게스트로 쌓은 데이터가 살아남는다)
-///   ③ 다른 계정으로 전환 = previous != nil && previous != newID → 와이프
+@MainActor
 struct DataOwnerTests {
-    @Test func sameAccountRelogin_NoWipe() {
-        #expect(!DataOwner.shouldWipe(previous: "user-a", newID: "user-a"))
+    private func directory() throws -> URL {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        return url
     }
 
-    @Test func anonymousUpgradeOrFirstRecord_NoWipe() {
-        // previous == nil은 "이 기기가 아직 어떤 정식 계정도 기록한 적 없다"는 뜻이다 — 익명 게스트로
-        // 쌓은 로컬 데이터가 가입 순간 지워지면 안 되는 바로 그 경로다.
-        #expect(!DataOwner.shouldWipe(previous: nil, newID: "user-a"))
+    @Test func switchPreservesBothFridgesAndGuest() throws {
+        let dir = try directory()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let egg = Ingredient(name: "Egg", category: "Other", expiresAt: Ingredient.day(offset: 3))
+        let store = FridgeStore(ingredients: [egg], persistenceURL: dir.appendingPathComponent("fridge-guest.json"))
+        try store.switchAccount(to: "a", inheritGuest: true, directory: dir)
+        #expect(store.ingredients.map(\.id) == [egg.id])
+        try store.switchAccount(to: "b", inheritGuest: false, directory: dir)
+        #expect(store.ingredients.isEmpty)
+        let milk = Ingredient(name: "Milk", category: "Dairy", expiresAt: Ingredient.day(offset: 2))
+        var snap = store.snapshot
+        snap.ingredients = [milk]
+        store.restore(snap)
+        try store.switchAccount(to: "a", inheritGuest: false, directory: dir)
+        #expect(store.ingredients.map(\.id) == [egg.id])
+        try store.switchAccount(to: "b", inheritGuest: false, directory: dir)
+        #expect(store.ingredients.map(\.id) == [milk.id])
+        try store.switchAccount(to: nil, inheritGuest: false, directory: dir)
+        #expect(store.ingredients.isEmpty, "Transferred guest data must not leak after logout")
+        try store.switchAccount(to: "a", inheritGuest: false, directory: dir)
+        #expect(store.ingredients.map(\.id) == [egg.id])
     }
 
-    @Test func differentAccountLogin_Wipes() {
-        #expect(DataOwner.shouldWipe(previous: "user-a", newID: "user-b"))
+    @Test func corruptDestinationDoesNotEraseCurrentFridge() throws {
+        let dir = try directory()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let egg = Ingredient(name: "Egg", category: "Other", expiresAt: Ingredient.day(offset: 3))
+        let store = FridgeStore(ingredients: [egg], persistenceURL: dir.appendingPathComponent("fridge-a.json"))
+        try Data("broken".utf8).write(to: dir.appendingPathComponent("fridge-b.json"))
+        #expect(throws: (any Error).self) {
+            try store.switchAccount(to: "b", inheritGuest: false, directory: dir)
+        }
+        #expect(store.ingredients.map(\.id) == [egg.id])
+    }
+
+    @Test func profilePreferencesAreIsolatedAndRestored() {
+        let name = "reffi.profile.accounts.\(UUID())"
+        let defaults = UserDefaults(suiteName: name)!
+        defer { defaults.removePersistentDomain(forName: name) }
+        let profile = ProfileStore(defaults: defaults)
+        profile.allergies = ["milk"]
+        profile.switchAccount(to: "a", inheritGuest: true)
+        profile.switchAccount(to: "b", inheritGuest: false)
+        #expect(profile.allergies.isEmpty)
+        profile.allergies = ["peanut"]
+        profile.switchAccount(to: "a", inheritGuest: false)
+        #expect(profile.allergies == ["milk"])
+        profile.switchAccount(to: "b", inheritGuest: false)
+        #expect(profile.allergies == ["peanut"])
     }
 }

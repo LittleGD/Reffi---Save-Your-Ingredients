@@ -16,6 +16,8 @@ struct Recipe: Identifiable, Codable, Equatable {
         /// "(선택)/(optional)" 줄(45차) — 없어도 요리가 성립한다. 부족(missing) 카운트에서 빠져
         /// 문턱(maxMissing)을 앞당기지 않는다. 있으면 used로 정상 참여한다.
         var optional: Bool? = nil
+        /// 조리 설명 속 대안까지 포함하는 안전 판정 전용 키. 소비 매칭에는 쓰지 않는다.
+        var safetyRefs: [String]? = nil
         var en: String
         var ko: String?
 

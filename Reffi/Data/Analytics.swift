@@ -227,11 +227,14 @@ final class Analytics {
         return Analytics(defaults: .standard,
                          queueURL: Analytics.defaultQueueURL,
                          uploader: Analytics.supabaseUploader,
-                         canUpload: { AuthStore.client.auth.currentSession != nil },
+                         canUpload: {
+                             guard let session = AuthStore.client.auth.currentSession, !session.isExpired else { return false }
+                             return UserDefaults.standard.string(forKey: "analytics.accountID") == session.user.id.uuidString
+                         },
                          killSwitch: underXCTest || args.contains("-analyticsOff"))
     }()
 
-    /// 옵트아웃 토글의 `@AppStorage` 키 — 미설정 = 켬(`ReffiFeedback.hapticsKey`와 같은 규약).
+    /// 공유 토글의 키. 미설정은 꺼짐이다.
     static let enabledKey = "analytics.enabled"
     nonisolated static let log = Logger(subsystem: "com.reffi.app", category: "analytics")
 
@@ -322,6 +325,7 @@ final class Analytics {
     private var currentScreen: AnalyticsEvent.Screen?
     private var startedSessionThisProcess = false
     private var flushing = false
+    private var generation = 0
     private var retryAfter: Date = .distantPast
 
     init(defaults: UserDefaults,
@@ -340,7 +344,7 @@ final class Analytics {
         self.killSwitch = killSwitch
         self.context = context
         self.backgroundRunner = backgroundRunner
-        queue = Self.loadQueue(from: queueURL)
+        queue = (defaults.object(forKey: Self.enabledKey) as? Bool == true) ? Self.loadQueue(from: queueURL) : []
         // 프로세스가 죽었다 살아나도 30분 규칙은 이어진다 — 마지막 세션을 복원해 두고 판정은 ensureSession이.
         if let raw = defaults.string(forKey: Key.sessionID), let id = UUID(uuidString: raw) {
             sessionID = id
@@ -351,9 +355,9 @@ final class Analytics {
 
     // MARK: 상태
 
-    /// 켜짐 = 옵트아웃 안 함 && 킬스위치 없음. 꺼져 있으면 `track`은 즉시 버린다.
+    /// 명시적으로 공유를 켰고 킬스위치가 없을 때만 기록한다.
     var isEnabled: Bool {
-        !killSwitch && (defaults.object(forKey: Self.enabledKey) as? Bool ?? true)
+        !killSwitch && (defaults.object(forKey: Self.enabledKey) as? Bool ?? false)
     }
 
     /// 설치 식별자 — 기기가 아니라 **이 설치**의 id. 재설치·"Erase this device"로 바뀐다.
@@ -408,6 +412,7 @@ final class Analytics {
 
     /// 토글 — 끄면 **큐까지** 비운다(아직 안 올라간 것도 사용자 뜻대로 버린다). 켜면 새 세션으로 시작.
     func setEnabled(_ on: Bool) {
+        generation += 1
         defaults.set(on, forKey: Self.enabledKey)
         if on {
             sessionID = nil
@@ -425,6 +430,8 @@ final class Analytics {
     /// "Erase this device" — 큐·시퀀스·install id·세션 전부 새로. 서버의 과거 행은 그대로다(uid 기준 삭제는
     /// 계정 삭제 경로의 일, `docs/ANALYTICS.md` §8).
     func resetIdentity() {
+        generation += 1
+        retryAfter = .distantPast
         queue = []
         saveQueue()
         defaults.removeObject(forKey: Key.installID)
@@ -434,6 +441,13 @@ final class Analytics {
         lastActiveAt = nil
         currentScreen = nil
         clearSession()
+    }
+
+    /// 큐는 계정 경계를 넘지 않는다. 이전 설치의 소유자 없는 큐도 최초 인증 때 폐기한다.
+    func changeAccount(to id: String?) {
+        guard defaults.string(forKey: "analytics.accountID") != id else { return }
+        resetIdentity()
+        defaults.set(id, forKey: "analytics.accountID")
     }
 
     // MARK: 업로드
@@ -448,15 +462,18 @@ final class Analytics {
         flushing = true
         defer { flushing = false }
         let install = installID.uuidString
-        while !queue.isEmpty {
+        let startedGeneration = generation
+        while isEnabled && canUpload() && !queue.isEmpty && generation == startedGeneration {
             let batch = Array(queue.prefix(Self.batchSize))
             do {
                 try await uploader(batch.map { row($0, install: install) })
             } catch {
+                guard generation == startedGeneration else { return }
                 retryAfter = now().addingTimeInterval(Self.retryDelay)
                 Self.log.error("flush failed (\(batch.count) events kept): \(String(describing: error))")
                 return
             }
+            guard generation == startedGeneration else { return }
             let sent = Set(batch.map(\.seq))
             queue.removeAll { sent.contains($0.seq) }   // 올리는 사이 뒤에 붙은 건 남긴다
             saveQueue()
@@ -566,27 +583,52 @@ final class Analytics {
     /// Supabase 업로더 — `(install_id, seq)` 충돌은 무시(재전송 멱등), 응답 본문은 받지 않는다
     /// (`returning: .minimal` — 이 테이블엔 SELECT 권한이 없어 representation을 요청하면 실패한다).
     static func supabaseUploader(_ rows: [Row]) async throws {
-        try await AuthStore.client
-            .from("analytics_events")
-            .upsert(rows, onConflict: "install_id,seq", returning: .minimal, ignoreDuplicates: true)
-            .execute()
+        guard let session = AuthStore.client.auth.currentSession, !session.isExpired,
+              UserDefaults.standard.string(forKey: "analytics.accountID") == session.user.id.uuidString else {
+            throw URLError(.userAuthenticationRequired)
+        }
+        var request = URLRequest(url: AuthStore.supabaseURL.appendingPathComponent("rest/v1/analytics_events")
+            .appending(queryItems: [URLQueryItem(name: "on_conflict", value: "install_id,seq")]))
+        request.httpMethod = "POST"
+        request.setValue(AuthStore.anonKey, forHTTPHeaderField: "apikey")
+        // Capture the token before the first suspension point; an account switch cannot relabel this batch.
+        request.setValue("Bearer " + session.accessToken, forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("resolution=ignore-duplicates,return=minimal", forHTTPHeaderField: "Prefer")
+        request.httpBody = try JSONEncoder().encode(rows)
+        let (_, response) = try await URLSession.shared.data(for: request)
+        guard let response = response as? HTTPURLResponse, (200..<300).contains(response.statusCode) else {
+            throw URLError(.badServerResponse)
+        }
     }
 
     /// 백그라운드 유예 안에서 작업을 끝낸다(약 30초). UIKit 없는 환경(테스트)은 즉시 실행 러너를 주입.
     static func uiKitBackgroundRunner(_ work: @escaping @MainActor () async -> Void) {
         #if canImport(UIKit)
-        var id = UIBackgroundTaskIdentifier.invalid
-        id = UIApplication.shared.beginBackgroundTask(withName: "analytics-flush") {
-            UIApplication.shared.endBackgroundTask(id)
+        let background = BackgroundTask()
+        background.id = UIApplication.shared.beginBackgroundTask(withName: "analytics-flush") {
+            background.end()
         }
         Task {
             await work()
-            if id != .invalid { UIApplication.shared.endBackgroundTask(id) }
+            background.end()
         }
         #else
         Task { await work() }
         #endif
     }
+
+    #if canImport(UIKit)
+    @MainActor private final class BackgroundTask {
+        var id = UIBackgroundTaskIdentifier.invalid
+
+        func end() {
+            guard id != .invalid else { return }
+            UIApplication.shared.endBackgroundTask(id)
+            id = .invalid
+        }
+    }
+    #endif
 }
 
 // MARK: - 뷰 편의
