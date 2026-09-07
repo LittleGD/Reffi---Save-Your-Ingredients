@@ -19,6 +19,7 @@
 - Localization: 455 keys, 361 source literals, zero missing keys. Seven local account-deletion SQL checks passed.
 - A clean font preparation run without a pre-existing font succeeded and produced the expected SHA-256.
 - Signed Release archive and App Store distribution export succeeded for version 1.0 (26), bundle ID `com.reffi.app`, team `L3RY7X2WBC`, using Cloud Managed Apple Distribution.
+- Changes were committed as `ce76f59` and merged into `main` as `17c7977`; both branches were pushed. App Store Connect accepted the version 1.0 (26) upload at 22:10 PDT on 2026-09-06. The upload appeared in TestFlight and entered Apple processing.
 - This is a TestFlight QA candidate. The server deployment and privacy publication items below remain required before public release.
 
 ## Earlier build 25 verification on 2026-09-06
