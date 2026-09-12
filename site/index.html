@@ -543,15 +543,12 @@
             width: 100%;
         }
 
-        /* Wordmark is live text in OK단단체, like the app header (MainView.wordmark: .display, ink). */
-        .logo-text {
-            font-family: var(--font-title);
-            font-weight: 400;
-            font-size: 2rem;
-            line-height: 1;
-            letter-spacing: -0.02em;
-            color: var(--c-cocoa);
-            display: inline-block;
+        /* Shared Figma wordmark asset, matching the app header and splash logo. */
+        .logo-image {
+            width: 84px;
+            height: auto;
+            aspect-ratio: 187 / 94;
+            object-fit: contain;
         }
 
         .nav {
@@ -900,10 +897,11 @@
             position: relative;
         }
 
-        .footer .logo-text {
-            font-size: 2.5rem;
-            display: block;
+        .footer .logo-image {
+            width: 126px;
             margin-bottom: 1rem;
+            margin-left: auto;
+            margin-right: auto;
         }
 
         .footer-links {
@@ -932,7 +930,7 @@
     <header class="header">
         <div class="container">
             <a href="#top" class="logo-link" aria-label="Reffi Home">
-                <span class="logo-text">Reffi</span>
+                <img src="resources/reffi-logo.svg" class="logo-image" alt="Reffi logo">
             </a>
             <nav class="nav">
                 <div class="nav-links">
@@ -1237,7 +1235,7 @@
     <footer class="footer">
         <div class="container">
             <img src="resources/ar_c5-vEmw1f1ra_0GbOAC.png" class="bg-deco deco-inner right" style="top: 0; transform: rotate(-5deg);" alt="" aria-hidden="true">
-            <span class="logo-text">Reffi</span>
+            <img src="resources/reffi-logo.svg" class="logo-image" alt="Reffi logo">
             <p class="subline" style="margin-bottom: 0;">Eat it today, waste nothing.</p>
             
             <div class="footer-links">

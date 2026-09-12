@@ -149,15 +149,29 @@ private struct RootGateView: View {
     @Environment(AuthStore.self) private var auth
     @Environment(FridgeStore.self) private var store
     @Environment(ProfileStore.self) private var profile
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var dataReady = false
     @State private var dataError = false
+    @State private var splashReady = false
+    @State private var splashCycle = 0
     @AppStorage("onboarding.done") private var onboardingDone = false
     /// 앱 내 언어 선택(38차) — App이 아닌 여기(View)에 둬 `@AppStorage` 변경이 확실히 리렌더를
     /// 트리거하게 한다(위 `onboardingDone`과 같은 이유, 파일 상단 주석 참고).
     @AppStorage(AppLanguage.key) private var languageRaw = AppLanguage.system.rawValue
 
     var body: some View {
-        gate
+        ZStack {
+            if showingSplash {
+                splash
+                    // 준비가 끝나면 스플래시 표면이 위로 빠져 다음 화면을 드러낸다.
+                    .transition(.move(edge: .top))
+                    .zIndex(1)
+            } else {
+                destination
+            }
+        }
+        .animation(ReffiMotion.gated(ReffiMotion.splashExit, reduce: reduceMotion),
+                   value: showingSplash)
             // `LocalizedStringKey` 문자열(대부분의 버튼·행 라벨)은 이 오버라이드로 곧바로 반영된다.
             // `String(localized:)`로 이미 굳힌 값은 그대로다 — `AppLanguage.applyAppleLanguagesOverride()`가
             // 다음 실행을 위해 별도로 처리한다(정직한 경계는 `AppLanguage.swift` 문서 참고).
@@ -172,16 +186,17 @@ private struct RootGateView: View {
 
     }
 
-    @ViewBuilder private var gate: some View {
-        if auth.restoring || !dataReady {
-            splash
-        } else if !onboardingDone {
+    private var showingSplash: Bool {
+        auth.restoring || !dataReady || !splashReady
+    }
+
+    @ViewBuilder private var destination: some View {
+        if !onboardingDone {
             OnboardingView(onFinish: { onboardingDone = true })
                 .analyticsScreen(.onboarding)
         } else {
             // 신규 계정을 만들지 않고 저장된 기기 자료로 바로 진입한다.
             RootTabView()
-                .transition(.opacity)
                 .task { if !auth.isSignedIn { await auth.continueAsGuest() } }
         }
     }
@@ -189,7 +204,9 @@ private struct RootGateView: View {
     /// 전환 실패 중에는 이전 계정의 화면을 새 계정에 노출하지 않는다.
     private func reconcileDataOwner() {
         guard !auth.restoring else { return }
+        if dataReady || splashReady { splashCycle += 1 }
         dataReady = false
+        splashReady = false
         let previous = UserDefaults.standard.string(forKey: DataOwner.key)
         let newID = DataOwner.localOwner(authenticated: auth.accountUserID, stored: previous,
                                         preserveSavedOwner: auth.retainsLocalDataOwner)
@@ -204,11 +221,43 @@ private struct RootGateView: View {
         }
     }
 
-    /// 세션 복원 동안의 정적 스플래시 — 런치 스크린과 같은 크림 + 워드마크(깜빡임 방지).
+    /// 세션 복원 스플래시 — 로고가 하단에서 튀어 올라 중앙에 안착한 뒤 화면이 위로 빠진다.
     private var splash: some View {
-        ZStack {
-            ReffiColor.canvas.ignoresSafeArea()
-            Text(verbatim: "Reffi").reffiType(.display).foregroundStyle(ReffiColor.blueDark)
+        ReffiSplashView { splashReady = true }
+            .id(splashCycle)
+    }
+}
+
+/// 앱 첫 화면의 로고 진입 모션. 데이터 로딩이 짧아도 로고의 안착을 먼저 보여준다.
+private struct ReffiSplashView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var logoVisible = false
+    let onSettled: () -> Void
+
+    var body: some View {
+        GeometryReader { proxy in
+            ZStack {
+                ReffiColor.canvas.ignoresSafeArea()
+                ReffiLogo(height: 94)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .offset(y: logoVisible ? 0 : proxy.size.height * 0.72)
+                    .scaleEffect(logoVisible ? 1 : 0.96)
+            }
+        }
+        .onAppear {
+            withAnimation(ReffiMotion.gated(ReffiMotion.splashLogo, reduce: reduceMotion)) {
+                logoVisible = true
+            }
+        }
+        .task {
+            guard !reduceMotion else {
+                onSettled()
+                return
+            }
+
+            try? await Task.sleep(for: .milliseconds(620))
+            guard !Task.isCancelled else { return }
+            onSettled()
         }
     }
 }

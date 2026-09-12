@@ -90,13 +90,8 @@ struct OnboardingView: View {
 
     private var topBar: some View {
         HStack {
-            // 워드마크 축소 배치(위계는 페이지 타이틀에) — `scaleEffect`가 아니라 **실제 21pt**다(42차):
-            // 레이어 축소는 사이드베어링·획 두께까지 0.62배로 줄여 마진선 과밀착 + 잉크 무게 불일치를
-            // 만들었고, 레이아웃엔 축소 전 크기를 보고해 자리도 거짓이었다. 자간 −2%는 display 규약(§3.1).
-            Text(verbatim: "Reffi")
-                .font(.custom("OkDanDan-Bold", size: 21, relativeTo: .title2))
-                .tracking(21 * -0.02)
-                .foregroundStyle(ReffiColor.blueDark)
+            // 새 Figma 워드마크는 실제 높이로 배치해 선명도와 비율을 유지한다.
+            ReffiLogo(height: 26)
             Spacer()
             QuietButton(title: "Skip", tint: ReffiColor.ink2) { finish(skipped: true) }
                 // QuietButton의 내재 가로 패딩(s2)이 우측선을 8pt 안으로 밀었다 — 마진선으로 되민다(42차).

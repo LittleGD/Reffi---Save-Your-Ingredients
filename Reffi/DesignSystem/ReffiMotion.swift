@@ -44,6 +44,10 @@ enum ReffiMotion {
     /// 종이컷 도장 슬램 — 큰 상태에서 쾅 내려앉는 깊은 오버슈트(온보딩 Start 도장·히어로 stamp).
     /// `pop`보다 짧고 덜 감쇠해 "튀어 오른다"가 아니라 "찍힌다"로 읽힌다. 도장 전용이다.
     static var slam: Animation { .spring(response: 0.26, dampingFraction: 0.5) }
+    /// 스플래시 로고 진입 — 하단에서 올라와 중앙에 안착하는 첫 화면 전용 스프링.
+    static var splashLogo: Animation { .spring(response: 0.52, dampingFraction: 0.72) }
+    /// 스플래시 이탈 — 준비가 끝나면 표면 전체가 위로 빠르게 슬라이드한다.
+    static var splashExit: Animation { .timingCurve(0.32, 0.72, 0, 1, duration: 0.28) }
 
     /// reduced-motion 존중 헬퍼(§7.4) — 줄이면 애니메이션 제거.
     static func gated(_ a: Animation, reduce: Bool) -> Animation? { reduce ? nil : a }

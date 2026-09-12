@@ -615,7 +615,7 @@ struct MainView: View {
     /// 뜬다(43차 실측, 스크린샷 대조). Fridge `titleRow`와 같은 트릭이고, 묶고 있던 VStack이 사라진
     /// 지금은 이 한 줄이 정렬의 **유일한** 근거다 — 지우지 마라.
     private var wordmark: some View {
-        Text(verbatim: "Reffi").reffiType(.display).foregroundStyle(ReffiColor.ink)
+        ReffiLogo(height: 42)
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 

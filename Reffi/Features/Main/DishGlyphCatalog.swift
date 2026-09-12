@@ -289,7 +289,7 @@ enum DishPalette {
 /// 레시피 → 요리 아이콘 변주 매핑. **레시피 JSON은 스키마를 바꾸지 않는다**(프로젝트 규칙:
 /// 데이터는 번들에서 오고, 표현은 코드가 정한다) — 그래서 매핑은 여기 코드 테이블에 산다.
 ///
-/// 시드 80개는 `table`이 id로 직접 지정하고, 그 밖(사용자 커스텀·AI 생성·미래 시드)은
+/// 시드 레시피는 `table`이 id로 직접 지정하고, 그 밖(사용자 커스텀·AI 생성·미래 시드)은
 /// `fallback`이 **이름 키워드 → 원형**, **cuisine → 색조**로 추론한다. 빈 아이콘은 나오지 않는다.
 enum DishGlyphCatalog {
 
@@ -306,7 +306,7 @@ enum DishGlyphCatalog {
 
     // MARK: 확신도별 진입점 (히어로 아이콘 폴백 체인 — `Recipe.heroIcon`)
 
-    /// 시드 매핑 표 적중만 — 손으로 배정한 80종의 **정본** 변주. 표 밖(커스텀·AI)이면 nil.
+    /// 시드 매핑 표 적중만 — 손으로 배정한 **정본** 변주. 표 밖(커스텀·AI)이면 nil.
     /// 추론까지 포함한 `look(for:)`과 달리 "이 요리를 우리가 그려 뒀는가"에만 답한다 —
     /// 그려 둔 요리 그림이 따로 있는 이름(김밥)을 짐작으로 덮지 않으려면 이 구분이 필요하다.
     static func curatedLook(id: String) -> DishLook? { table[id] }
@@ -319,9 +319,9 @@ enum DishGlyphCatalog {
         return look(for: recipe)
     }
 
-    // MARK: 시드 80개
+    // MARK: 시드 레시피
 
-    /// `L`/`M`은 표를 한 줄에 담기 위한 축약 생성자 — 80줄이 눈으로 비교되게(변주 축이 열로 정렬).
+    /// `L`/`M`은 표를 한 줄에 담기 위한 축약 생성자(변주 축이 열로 정렬된다).
     private static func L(_ a: DishArchetype, _ fill: Color, _ accent: Color? = nil,
                           _ vessel: DishVessel = .porcelain,
                           _ m1: DishMark? = nil, _ m2: DishMark? = nil,
@@ -331,7 +331,7 @@ enum DishGlyphCatalog {
     }
     private static func M(_ s: DishMarkShape, _ c: Color) -> DishMark { DishMark(shape: s, color: c) }
 
-    // TODO(후속): 이 80행 표는 `recipes-seed.json`의 `"dish"` 키로 이관한다.
+    // TODO(후속): 이 표는 `recipes-seed.json`의 `"dish"` 키로 이관한다.
     // 저장소 선례는 **표현 키를 데이터 파일에 두는 것**이다(`ingredient-lexicon.json`이 항목마다
     // `"glyph": "onion"`을 들고 있다). 지금 구조는 시드에 레시피 한 줄을 추가하면 코드 표까지 고쳐야
     // 하므로 "데이터는 번들에서" 규율과 어긋난다. 이관 후 `table`은 디코더로 축소한다.
@@ -630,6 +630,70 @@ enum DishGlyphCatalog {
             "hobak-jeon": L(.discStack, P.jeonRed, nil, .porcelain, M(.disc, P.zucchini), M(.disc, P.chiliRed), layers: 3),
             "kimchi-kongnamul-guk": L(.soupBowl, P.kimchiBroth, nil, .porcelain, M(.baton, P.sprout), M(.ring, P.scallion)),
             "gochujang-samgyeopsal-bokkeum": L(.skillet, P.gochujang, nil, .iron, M(.strip, P.porkBelly), M(.leafy, P.pepperGreen)),
+            // 59차 증보 — 재료 사전 전체 커버리지와 대표 국가 요리 확장
+            // 한식
+            "samgyetang": L(.soupBowl, P.clearBroth, nil, .clay, M(.strip, P.chickenTan), M(.disc, P.mushroomTan)),
+            "jeonbokjuk": L(.soupBowl, P.porridge, nil, .indigo, M(.strip, P.tofuWhite), M(.ring, P.scallion)),
+            "doraji-muchim": L(.sideBowl, P.saladGreen, nil, .wood, M(.baton, P.beanBrown), M(.dot, P.sesame), surface: .shreds),
+            "bindaetteok": L(.discStack, P.pancakeGold, nil, .iron, M(.dot, P.chiliRed), M(.strip, P.porkBelly), layers: 2),
+            "nakji-bokkeum": L(.skillet, P.gochujang, nil, .clay, M(.strip, P.searDark), M(.ring, P.scallion)),
+            "gulbi-gui": L(.wholeFish, P.searDark, P.lemonYellow, .indigo, M(.strip, P.toastCream), M(.dot, P.sesame)),
+            "croaker-gui": L(.grillPlate, P.friedGold, P.lemonYellow, .porcelain, M(.strip, P.searDark), M(.ring, P.scallion)),
+            "flatfish-jeon": L(.discStack, P.custard, nil, .porcelain, M(.strip, P.toastCream), M(.disc, P.lemonYellow)),
+            "beef-yukhoe": L(.sideBowl, P.beefRare, nil, .wood, M(.strip, P.beefBrown), M(.yolk, P.eggYolk), surface: .smooth),
+            "beef-striploin-gui": L(.grillPlate, P.steakBrown, P.butterGold, .indigo, M(.strip, P.searDark), M(.disc, P.mushroomTan)),
+            "chadolbaegi-gui": L(.grillPlate, P.porkFat, P.soySweet, .iron, M(.strip, P.beefBrown), M(.ring, P.scallion)),
+            "galbi-gui": L(.grillPlate, P.beefBrown, P.soySweet, .clay, M(.strip, P.searDark), M(.disc, P.garlicCream)),
+            "seolleongtang": L(.soupBowl, P.clearBroth, nil, .wood, M(.strip, P.beefRare), M(.ring, P.scallion)),
+            "moksal-gui": L(.grillPlate, P.porkBelly, P.lettuce, .wood, M(.strip, P.porkFat), M(.dot, P.chiliRed)),
+            "jokbal": L(.grillPlate, P.soyBraise, nil, .glaze, M(.strip, P.searDark), M(.ring, P.scallion)),
+            "dwaeji-galbi": L(.stewPot, P.soySweet, nil, .clay, M(.strip, P.porkBelly), M(.cube, P.potatoGold)),
+            "pork-tenderloin-bulgogi": L(.skillet, P.gochujang, nil, .iron, M(.strip, P.porkBelly), M(.disc, P.onionCream)),
+            "hangjeongsal-gui": L(.grillPlate, P.porkBelly, P.porkFat, .iron, M(.strip, P.searDark), M(.leafy, P.lettuce)),
+            "ssukgat-muchim": L(.sideBowl, P.spinach, nil, .porcelain, M(.leafy, P.basil), M(.dot, P.sesame)),
+            "fresh-miyeok-muchim": L(.sideBowl, P.seaweedDark, nil, .indigo, M(.leafy, P.seaweedDark), M(.citrusSlice, P.lemonYellow), surface: .leaves),
+            "fresh-laver-muchim": L(.sideBowl, P.saladGreen, nil, .wood, M(.leafy, P.seaweedDark), M(.ring, P.scallion), surface: .leaves),
+            "baechu-kimchi": L(.sideBowl, P.kimchiBroth, nil, .clay, M(.leafy, P.cabbagePale), M(.dot, P.chiliRed), surface: .shreds),
+            "bori-kongbap": L(.platedMound, P.nasiBrown, nil, .wood, M(.dot, P.beanBrown), M(.dot, P.sesame)),
+            "perilla-oil-noodles": L(.noodleBowl, P.pastaOil, nil, .wood, M(.baton, P.wheatNoodle), M(.dot, P.sesame)),
+            "sundae-bokkeum": L(.skillet, P.soySweet, nil, .iron, M(.baton, P.porkBelly), M(.leafy, P.pepperGreen)),
+            "jujube-tea": L(.drinkGlass, P.soySweet, nil, .wood, M(.disc, P.berryRed), M(.dot, P.crumbGold)),
+            "roasted-chestnut-yogurt": L(.sideBowl, P.riceWhite, nil, .porcelain, M(.cube, P.potatoGold), M(.dot, P.syrup), surface: .smooth),
+            "fruit-hwachae": L(.drinkGlass, P.berryRed, nil, .porcelain, M(.berry, P.berryRed), M(.citrusSlice, P.lemonYellow)),
+            "kale-namul": L(.sideBowl, P.spinach, nil, .wood, M(.leafy, P.lettuce), M(.dot, P.sesame), surface: .leaves),
+            "salted-mackerel-gui": L(.wholeFish, P.searDark, P.lemonYellow, .wood, M(.strip, P.sprout), M(.disc, P.lemonYellow)),
+            // 중식·일식
+            "wood-ear-chicken-broth": L(.soupBowl, P.clearBroth, nil, .porcelain, M(.mushroom, P.mushroomTan), M(.strip, P.chickenTan)),
+            "smoked-duck-salad": L(.sideBowl, P.saladGreen, nil, .porcelain, M(.strip, P.searDark), M(.disc, P.cucumberMix), surface: .leaves),
+            "unagi-don": L(.riceBowl, P.riceWhite, P.soySweet, .wood, M(.strip, P.searDark), M(.ring, P.scallion)),
+            "oden": L(.stewPot, P.clearBroth, nil, .indigo, M(.baton, P.fishCake), M(.cube, P.potatoGold)),
+            "edamame-gohan": L(.platedMound, P.riceWhite, nil, .porcelain, M(.dot, P.pepperGreen), M(.dot, P.eggYolk)),
+            "coffee-jelly": L(.drinkGlass, P.oliveInk, nil, .porcelain, M(.dot, P.creamSoup), M(.bananaSlice, P.eggYolk)),
+            // 유럽·아시아 대표 요리
+            "margherita-pizza": L(.bakeDish, P.tomatoRed, P.mozzarella, .glaze, M(.disc, P.tomatoRed), M(.leafy, P.basil)),
+            "puttanesca-pasta": L(.pastaPlate, P.pastaRed, nil, .indigo, M(.disc, P.oliveInk), M(.dot, P.chiliRed)),
+            "beet-arugula-salad": L(.sideBowl, P.nicoise, nil, .porcelain, M(.disc, P.berryRed), M(.leafy, P.lettuce), surface: .leaves),
+            "brussels-sprout-bacon": L(.skillet, P.butterGold, nil, .iron, M(.floret, P.cabbagePale), M(.strip, P.baconRed)),
+            "pulpo-a-la-gallega": L(.grillPlate, P.searDark, P.potatoGold, .porcelain, M(.strip, P.searDark), M(.dot, P.chiliRed)),
+            "indian-biryani": L(.platedMound, P.friedYellow, P.curryBrown, .wood, M(.strip, P.chickenTan), M(.dot, P.chiliRed)),
+            "indonesian-rendang": L(.stewPot, P.curryBrown, nil, .wood, M(.cube, P.beefBrown), M(.leafy, P.cilantro)),
+            "thai-tom-kha": L(.soupBowl, P.creamSoup, nil, .clay, M(.strip, P.chickenTan), M(.citrusSlice, P.limeGreen)),
+            "vietnamese-egg-coffee": L(.drinkGlass, P.oliveInk, P.custard, .wood, M(.yolk, P.eggYolk), M(.dot, P.crumbGold)),
+            "middle-eastern-pomegranate-salad": L(.sideBowl, P.berryRed, nil, .porcelain, M(.dot, P.berryRed), M(.leafy, P.parsley), surface: .leaves),
+            "mexican-hot-chocolate": L(.drinkGlass, P.pastaRed, P.creamSoup, .clay, M(.dot, P.berryRed), M(.dot, P.lemonYellow)),
+            // 미국식 간편식·음료
+            "smoked-salmon-bagel": L(.sandwichStack, P.toastCream, P.salmonPink, .wood, M(.strip, P.salmonPink), M(.leafy, P.lettuce)),
+            "american-diner-platter": L(.grillPlate, P.friedGold, P.nachoGold, .iron, M(.baton, P.friedGold), M(.wedge, P.nachoGold)),
+            "chicken-tenderloin-fingers": L(.grillPlate, P.friedGold, P.baguette, .porcelain, M(.strip, P.chickenTan), M(.dot, P.crumbGold)),
+            "buttermilk-waffles": L(.waffle, P.pancakeGold, P.syrup, .indigo, M(.dot, P.berryRed), nil, layers: 2),
+            "chocolate-sundae": L(.drinkGlass, P.oliveInk, P.custard, .porcelain, M(.bananaSlice, P.lemonYellow), M(.berry, P.berryRed)),
+            "jam-toast": L(.openToast, P.toastGold, P.syrup, .wood, M(.dot, P.berryRed), M(.cube, P.butterCube)),
+            "almond-milk-smoothie": L(.drinkGlass, P.porridge, nil, .porcelain, M(.bananaSlice, P.lemonYellow), M(.dot, P.berryRed)),
+            "oat-milk-latte": L(.drinkGlass, P.creamSoup, nil, .indigo, M(.dot, P.oliveInk), M(.dot, P.crumbGold)),
+            "flavored-milk-cereal": L(.sideBowl, P.custard, nil, .porcelain, M(.dot, P.berryRed), M(.bananaSlice, P.lemonYellow), surface: .smooth),
+            "instant-rice-tuna": L(.riceBowl, P.riceWhite, P.custard, .indigo, M(.strip, P.chickenTan), M(.yolk, P.eggYolk)),
+            "fresh-fruit-juice": L(.drinkGlass, P.limeGreen, nil, .porcelain, M(.citrusSlice, P.lemonYellow), M(.citrusSlice, P.berryRed)),
+            "plum-ade": L(.drinkGlass, P.berryRed, nil, .indigo, M(.citrusSlice, P.lemonYellow), M(.dot, P.oliveInk)),
         ]
     }()
 
